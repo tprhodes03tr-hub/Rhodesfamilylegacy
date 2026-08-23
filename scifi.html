@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sci-Fi Odyssey & Force Knight - Rhodes Legacy</title>
+  <style>
+    :root {
+      --bg: #06070d;
+      --card-bg: #111422;
+      --accent-blue: #00d2ff;
+      --accent-red: #ff2a5f;
+      --accent-gold: #f59e0b;
+      --accent-green: #10b981;
+      --text: #f3f4f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-red));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Mode Tabs */
+    .mode-tabs {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .mode-btn {
+      background: var(--card-bg);
+      border: 1px solid #282f48;
+      color: var(--text);
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, #1e293b, #334155);
+      border-color: var(--accent-blue);
+      color: #fff;
+    }
+
+    /* Game Screen Frame */
+    .viewport-frame {
+      background: #000;
+      border: 3px solid #232a3e;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      background: #020307;
+    }
+
+    /* Dashboard & HUD */
+    .dashboard {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .status-banner {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-gold);
+    }
+
+    .guide {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      min-height: 22px;
+    }
+
+    /* Mobile Controls Bar */
+    .touch-deck {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .t-btn {
+      background: #181d2f;
+      border: 1px solid #3b4566;
+      color: #fff;
+      font-weight: bold;
+      font-size: 1rem;
+      padding: 0.8rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      flex: 1;
+      touch-action: manipulation;
+    }
+
+    .t-btn:active {
+      background: var(--accent-blue);
+      color: #000;
+    }
+
+    .btn-back {
+      margin-top: 1rem;
+      background: transparent;
+      border: 1px solid #333a52;
+      color: #8890a6;
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    .btn-back:hover { color: #fff; border-color: #fff; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>GALACTIC SCI-FI SUITE</h1>
+    <p style="font-size: 0.85rem; color: #8890a6; margin-top: 2px;">Force Saber Dueling & Star Voyager Odyssey</p>
+  </header>
+
+  <div class="mode-tabs">
+    <button class="mode-btn active" onclick="switchMode('force')">Force Knight Duel</button>
+    <button class="mode-btn" onclick="switchMode('voyager')">Starship Voyager Odyssey</button>
+  </div>
+
+  <div class="viewport-frame">
+    <canvas id="scifiCanvas" width="500" height="380"></canvas>
+  </div>
+
+  <div class="dashboard">
+    <div class="status-banner" id="statusBanner">ALIGNMENT: LIGHT (JEDI) | HEALTH: 100</div>
+    <div class="guide" id="guideBanner">Use A/D or Left/Right to Move | SPACE or Strike to Attack | F or Force to Push</div>
+
+    <div class="touch-deck" id="touchControls">
+      <button class="t-btn" id="btnLeft">&larr; Left</button>
+      <button class="t-btn" id="btnRight">Right &rarr;</button>
+      <button class="t-btn" id="btnAction1" style="background:#0284c7;">Strike</button>
+      <button class="t-btn" id="btnAction2" style="background:#7c3aed;">Force / Warp</button>
+    </div>
+
+    <a href="index.html" class="btn-back">&larr; Back to Legacy Hub</a>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('scifiCanvas');
+    const ctx = canvas.getContext('2d');
+    const statusBanner = document.getElementById('statusBanner');
+    const guideBanner = document.getElementById('guideBanner');
+    const btnAction1 = document.getElementById('btnAction1');
+    const btnAction2 = document.getElementById('btnAction2');
+
+    let currentMode = 'force'; // 'force' or 'voyager'
+    let keys = {};
+
+    window.addEventListener('keydown', e => { keys[e.code] = true; });
+    window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+    function bindTouch(id, code) {
+      const el = document.getElementById(id);
+      el.addEventListener('touchstart', e => { e.preventDefault(); keys[code] = true; });
+      el.addEventListener('touchend', e => { e.preventDefault(); keys[code] = false; });
+      el.addEventListener('mousedown', () => { keys[code] = true; });
+      el.addEventListener('mouseup', () => { keys[code] = false; });
+    }
+    bindTouch('btnLeft', 'ArrowLeft');
+    bindTouch('btnRight', 'ArrowRight');
+    bindTouch('btnAction1', 'Space');
+    bindTouch('btnAction2', 'KeyF');
+
+    // ==========================================
+    // 1. FORCE KNIGHT DUEL (STAR WARS INSPIRATION)
+    // ==========================================
+    let player = { x: 100, y: 260, hp: 100, saberColor: '#00d2ff', alignment: 'Jedi', striking: false };
+    let enemy = { x: 380, y: 260, hp: 100, striking: false, actionTimer: 0 };
+    let forcePushFX = null;
+
+    function initForce() {
+      player = { x: 100, y: 260, hp: 100, saberColor: '#00d2ff', alignment: 'Jedi', striking: false };
+      enemy = { x: 380, y: 260, hp: 100, striking: false, actionTimer: 0 };
+      forcePushFX = null;
+      btnAction1.innerText = "Saber Strike";
+      btnAction2.innerText = "Force Push";
+      guideBanner.innerText = "A/D: Move | SPACE: Strike | F: Force Push (Defeat Sith to reinforce Jedi Path)";
+    }
+
+    function updateForce() {
+      if (keys['ArrowLeft'] || keys['KeyA']) player.x = Math.max(30, player.x - 4);
+      if (keys['ArrowRight'] || keys['KeyD']) player.x = Math.min(enemy.x - 35, player.x + 4);
+
+      // Saber Strike
+      if (keys['Space'] && !player.striking) {
+        player.striking = true;
+        setTimeout(() => { player.striking = false; }, 220);
+        if (Math.abs(player.x - enemy.x) < 80) {
+          enemy.hp -= 15;
+          if (enemy.hp <= 0) {
+            enemy.hp = 100;
+            enemy.x = 400;
+          }
+        }
+      }
+
+      // Force Push
+      if (keys['KeyF'] && !forcePushFX) {
+        forcePushFX = { x: player.x + 20, y: player.y + 20, r: 10 };
+        if (Math.abs(player.x - enemy.x) < 180) {
+          enemy.x = Math.min(canvas.width - 40, enemy.x + 80);
+          enemy.hp -= 10;
+        }
+      }
+
+      if (forcePushFX) {
+        forcePushFX.x += 12;
+        forcePushFX.r += 3;
+        if (forcePushFX.x > canvas.width) forcePushFX = null;
+      }
+
+      // Enemy AI
+      enemy.actionTimer++;
+      if (enemy.actionTimer > 40) {
+        enemy.actionTimer = 0;
+        if (Math.abs(player.x - enemy.x) < 70) {
+          enemy.striking = true;
+          player.hp -= 8;
+          setTimeout(() => { enemy.striking = false; }, 200);
+          if (player.hp <= 0) {
+            player.hp = 100;
+            player.x = 100;
+          }
+        } else {
+          enemy.x -= 15;
+        }
+      }
+
+      statusBanner.innerText = `ALIGNMENT: ${player.alignment} | KNIGHT HP: ${player.hp} | SITH HP: ${enemy.hp}`;
+    }
+
+    function drawForce() {
+      // Throne Room Arena Floor
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 310, canvas.width, 70);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.strokeRect(0, 310, canvas.width, 2);
+
+      // Distant Star Window
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 20; i++) {
+        ctx.fillRect((i * 45) % canvas.width, (i * 25) % 250, 2, 2);
+      }
+
+      // Player Knight
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(player.x, player.y, 22, 50);
+      // Lightsaber
+      ctx.strokeStyle = player.saberColor;
+      ctx.shadowColor = player.saberColor;
+      ctx.shadowBlur = 15;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      if (player.striking) {
+        ctx.moveTo(player.x + 20, player.y + 25);
+        ctx.lineTo(player.x + 65, player.y + 20);
+      } else {
+        ctx.moveTo(player.x + 18, player.y + 35);
+        ctx.lineTo(player.x + 35, player.y - 15);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Sith Opponent
+      ctx.fillStyle = '#1e1b4b';
+      ctx.fillRect(enemy.x, enemy.y, 22, 50);
+      // Red Lightsaber
+      ctx.strokeStyle = '#ff2a5f';
+      ctx.shadowColor = '#ff2a5f';
+      ctx.shadowBlur = 15;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      if (enemy.striking) {
+        ctx.moveTo(enemy.x, enemy.y + 25);
+        ctx.lineTo(enemy.x - 45, enemy.y + 20);
+      } else {
+        ctx.moveTo(enemy.x + 4, enemy.y + 35);
+        ctx.lineTo(enemy.x - 15, enemy.y - 15);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Force Wave FX
+      if (forcePushFX) {
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(forcePushFX.x, forcePushFX.y, forcePushFX.r, -Math.PI/3, Math.PI/3);
+        ctx.stroke();
+      }
+    }
+
+    // ==========================================
+    // 2. STAR VOYAGER ODYSSEY (STAR TREK INSPIRATION)
+    // ==========================================
+    let ship = { x: 250, y: 190, angle: 0, speed: 0, phaserBeam: null };
+    let stars = Array.from({ length: 50 }, () => ({ x: Math.random() * 500, y: Math.random() * 380, s: Math.random() * 2 + 1 }));
+    let planet = { x: 380, y: 90, r: 35, name: "Vulcanis Prime", scanned: false };
+    let hostileDrones = [{ x: 100, y: 80, hp: 40 }, { x: 420, y: 300, hp: 40 }];
+    let discoveries = 0;
+
+    function initVoyager() {
+      ship = { x: 250, y: 190, angle: 0, speed: 0, phaserBeam: null };
+      planet = { x: 380, y: 90, r: 35, name: "Vulcanis Prime", scanned: false };
+      hostileDrones = [{ x: 100, y: 80, hp: 40 }, { x: 420, y: 300, hp: 40 }];
+      discoveries = 0;
+      btnAction1.innerText = "Fire Phasers";
+      btnAction2.innerText = "Scan / Warp";
+      guideBanner.innerText = "A/D: Rotate | W or Move: Thrust | SPACE: Fire Phasers | F: Scan Planet";
+    }
+
+    function updateVoyager() {
+      if (keys['ArrowLeft'] || keys['KeyA']) ship.angle -= 0.06;
+      if (keys['ArrowRight'] || keys['KeyD']) ship.angle += 0.06;
+      if (keys['ArrowUp'] || keys['KeyW']) ship.speed = Math.min(4, ship.speed + 0.15);
+      else ship.speed *= 0.96;
+
+      ship.x += Math.cos(ship.angle) * ship.speed;
+      ship.y += Math.sin(ship.angle) * ship.speed;
+
+      // Screen wrapping
+      if (ship.x < 0) ship.x = canvas.width;
+      if (ship.x > canvas.width) ship.x = 0;
+      if (ship.y < 0) ship.y = canvas.height;
+      if (ship.y > canvas.height) ship.y = 0;
+
+      // Phaser Cannon
+      if (keys['Space'] && !ship.phaserBeam) {
+        ship.phaserBeam = { t: 0, startX: ship.x, startY: ship.y, targetAngle: ship.angle };
+        setTimeout(() => { ship.phaserBeam = null; }, 180);
+
+        hostileDrones.forEach(d => {
+          let dx = d.x - ship.x;
+          let dy = d.y - ship.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 180) {
+            d.hp -= 20;
+            if (d.hp <= 0) {
+              d.x = Math.random() * canvas.width;
+              d.y = Math.random() * canvas.height;
+              d.hp = 40;
+            }
+          }
+        });
+      }
+
+      // Planet Scanner & Diplomatic Assistance
+      if (keys['KeyF']) {
+        let pDist = Math.hypot(ship.x - planet.x, ship.y - planet.y);
+        if (pDist < 80 && !planet.scanned) {
+          planet.scanned = true;
+          discoveries++;
+          guideBanner.innerText = `Discovered & Assisted ${planet.name}! +1 Science Record`;
+        }
+      }
+
+      statusBanner.innerText = `WARP: ${ship.speed.toFixed(1)} | SECTOR DISCOVERIES: ${discoveries} | TARGET: ${planet.name}`;
+    }
+
+    function drawVoyager() {
+      // Starfield
+      ctx.fillStyle = '#fff';
+      stars.forEach(s => { ctx.fillRect(s.x, s.y, s.s, s.s); });
+
+      // Planet to Explore
+      ctx.fillStyle = planet.scanned ? '#10b981' : '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(planet.x, planet.y, planet.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(planet.name, planet.x - 35, planet.y + 50);
+
+      // Hostile Alien Drones
+      hostileDrones.forEach(d => {
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(d.x - 8, d.y - 8, 16, 16);
+      });
+
+      // Starship Enterprise/Voyager Style Vessel
+      ctx.save();
+      ctx.translate(ship.x, ship.y);
+      ctx.rotate(ship.angle);
+
+      // Saucer section
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.ellipse(8, 0, 14, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Engineering hull & Nacelles
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(-12, -3, 16, 6);
+      ctx.fillStyle = '#06b6d4'; // Warp glow
+      ctx.fillRect(-16, -9, 14, 3);
+      ctx.fillRect(-16, 6, 14, 3);
+
+      ctx.restore();
+
+      // Phasers Beam
+      if (ship.phaserBeam) {
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(ship.x, ship.y);
+        ctx.lineTo(ship.x + Math.cos(ship.angle) * 160, ship.y + Math.sin(ship.angle) * 160);
+        ctx.stroke();
+      }
+    }
+
+    // --- MAIN ENGINE LOOP ---
+    function loop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (currentMode === 'force') {
+        updateForce();
+        drawForce();
+      } else {
+        updateVoyager();
+        drawVoyager();
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      if (mode === 'force') initForce();
+      else initVoyager();
+    }
+
+    initForce();
+    loop();
+  </script>
+</body>
+</html>
