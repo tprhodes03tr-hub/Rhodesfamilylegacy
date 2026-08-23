@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zombie Outbreak 3D - Rhodes Legacy</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #050508;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    /* HUD Overlay */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px;
+    }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat-box {
+      background: rgba(15, 17, 26, 0.85);
+      border: 1px solid #2a2e45;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .hud-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .health-bar-container {
+      width: 250px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #444;
+      margin-top: 6px;
+    }
+
+    #healthFill {
+      width: 100%;
+      height: 100%;
+      background: #10b981;
+      transition: width 0.2s ease, background 0.2s ease;
+    }
+
+    /* Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 12px;
+      height: 12px;
+      pointer-events: none;
+    }
+    #crosshair::before, #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.8);
+    }
+    #crosshair::before { top: 5px; left: 0; width: 12px; height: 2px; }
+    #crosshair::after { top: 0; left: 5px; width: 2px; height: 12px; }
+
+    /* Instructions & Prompt Overlay */
+    #blocker {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      z-index: 10;
+    }
+
+    #instructions {
+      max-width: 500px;
+      background: #121420;
+      border: 1px solid #2e3450;
+      padding: 30px;
+      border-radius: 12px;
+    }
+
+    #instructions h1 {
+      color: #ef4444;
+      margin-bottom: 15px;
+      font-size: 2rem;
+    }
+
+    #playBtn {
+      background: #ef4444;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: bold;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 6px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+
+    #interactPrompt {
+      position: absolute;
+      top: 60%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid #f59e0b;
+      color: #f59e0b;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      display: none;
+    }
+  </style>
+  <!-- Three.js Engine & PointerLockControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="blocker">
+    <div id="instructions">
+      <h1>ZOMBIE OUTBREAK</h1>
+      <p style="color: #aaa; margin-bottom: 15px;">Eliminate zombie hordes, earn points, and unlock weapons at the Mystery Box.</p>
+      <p style="font-size: 0.9rem; line-height: 1.8;">
+        <strong>WASD</strong>: Move<br>
+        <strong>MOUSE</strong>: Aim & Look<br>
+        <strong>LEFT CLICK</strong>: Shoot<br>
+        <strong>R</strong>: Reload<br>
+        <strong>F</strong>: Open Mystery Box (950 Pts)
+      </p>
+      <button id="playBtn">START GAME</button>
+    </div>
+  </div>
+
+  <div id="hud">
+    <div class="hud-top">
+      <div class="stat-box" style="color: #ef4444;">WAVE <span id="waveDisplay">1</span></div>
+      <div class="stat-box" style="color: #f59e0b;">PTS: <span id="ptsDisplay">500</span></div>
+    </div>
+    <div id="interactPrompt">Press [F] to open Mystery Box (950 Pts)</div>
+    <div class="hud-bottom">
+      <div class="stat-box">
+        <div>HEALTH</div>
+        <div class="health-bar-container">
+          <div id="healthFill"></div>
+        </div>
+      </div>
+      <div class="stat-box" style="text-align: right;">
+        <div id="weaponDisplay" style="color: #06b6d4;">PISTOL</div>
+        <div style="font-size: 1.8rem;"><span id="ammoClip">12</span> / <span id="ammoReserve">48</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="crosshair"></div>
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    // --- GAME STATE ---
+    let health = 100;
+    let points = 500;
+    let wave = 1;
+    let zombiesLeft = 0;
+    let isGameOver = false;
+
+    const WEAPONS = {
+      PISTOL: { name: 'PISTOL', clipMax: 12, reserveMax: 48, clip: 12, reserve: 48, damage: 35, fireRate: 300 },
+      SHOTGUN: { name: 'SHOTGUN', clipMax: 6, reserveMax: 30, clip: 6, reserve: 30, damage: 100, fireRate: 800 },
+      RAYGUN: { name: 'RAY GUN', clipMax: 20, reserveMax: 80, clip: 20, reserve: 80, damage: 200, fireRate: 400 }
+    };
+    let currentWeapon = WEAPONS.PISTOL;
+    let lastShotTime = 0;
+
+    // --- THREE.JS ENGINE SETUP ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0c14);
+    scene.fog = new THREE.FogExp2(0x0a0c14, 0.035);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x334455, 0.8);
+    scene.add(ambientLight);
+
+    const playerLight = new THREE.PointLight(0xffffff, 0.9, 25);
+    camera.add(playerLight);
+    scene.add(camera);
+
+    // Map Arena Floor
+    const floorGeo = new THREE.PlaneGeometry(80, 80);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x181a24, roughness: 0.9 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    // Boundary Walls
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x222736 });
+    function createWall(x, z, w, d) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 8, d), wallMat);
+      wall.position.set(x, 4, z);
+      scene.add(wall);
+    }
+    createWall(0, -40, 80, 2);
+    createWall(0, 40, 80, 2);
+    createWall(-40, 0, 2, 80);
+    createWall(40, 0, 2, 80);
+
+    // Mystery Box
+    const boxGeo = new THREE.BoxGeometry(3, 1.5, 1.5);
+    const boxMat = new THREE.MeshStandardMaterial({ color: 0x9333ea, emissive: 0x3b0764 });
+    const mysteryBox = new THREE.Mesh(boxGeo, boxMat);
+    mysteryBox.position.set(0, 0.75, -20);
+    scene.add(mysteryBox);
+
+    // Entities
+    const zombies = [];
+    const zombieGeo = new THREE.BoxGeometry(1.2, 2.4, 1.2);
+    const zombieMat = new THREE.MeshStandardMaterial({ color: 0x15803d });
+
+    function spawnZombie() {
+      const zombie = new THREE.Mesh(zombieGeo, zombieMat);
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 25 + Math.random() * 10;
+      zombie.position.set(Math.cos(angle) * dist, 1.2, Math.sin(angle) * dist);
+      zombie.hp = 50 + (wave * 20);
+      scene.add(zombie);
+      zombies.push(zombie);
+    }
+
+    function startWave() {
+      document.getElementById('waveDisplay').innerText = wave;
+      zombiesLeft = 5 + wave * 4;
+      for (let i = 0; i < zombiesLeft; i++) {
+        setTimeout(spawnZombie, i * 1200);
+      }
+    }
+
+    // --- CONTROLS ---
+    camera.position.set(0, 1.8, 0);
+    const keys = {};
+    let isLocked = false;
+    let pitch = 0;
+    let yaw = 0;
+
+    document.getElementById('playBtn').addEventListener('click', () => {
+      document.body.requestPointerLock();
+    });
+
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement === document.body) {
+        isLocked = true;
+        document.getElementById('blocker').style.display = 'none';
+        if (zombies.length === 0) startWave();
+      } else {
+        isLocked = false;
+        document.getElementById('blocker').style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isLocked) return;
+      yaw -= e.movementX * 0.0025;
+      pitch -= e.movementY * 0.0025;
+      pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+      camera.rotation.set(0, 0, 0);
+      camera.rotation.order = "YXZ";
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+    });
+
+    document.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (e.code === 'KeyR') reloadWeapon();
+      if (e.code === 'KeyF') tryMysteryBox();
+    });
+    document.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+    // --- SHOOTING & COMBAT ---
+    const raycaster = new THREE.Raycaster();
+    document.addEventListener('mousedown', (e) => {
+      if (!isLocked || e.button !== 0) return;
+      shoot();
+    });
+
+    function shoot() {
+      const now = performance.now();
+      if (now - lastShotTime < currentWeapon.fireRate) return;
+      if (currentWeapon.clip <= 0) {
+        reloadWeapon();
+        return;
+      }
+
+      lastShotTime = now;
+      currentWeapon.clip--;
+      updateHUD();
+
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      const hits = raycaster.intersectObjects(zombies);
+
+      if (hits.length > 0) {
+        const hitZombie = hits[0].object;
+        hitZombie.hp -= currentWeapon.damage;
+        points += 50;
+
+        if (hitZombie.hp <= 0) {
+          scene.remove(hitZombie);
+          const idx = zombies.indexOf(hitZombie);
+          if (idx > -1) zombies.splice(idx, 1);
+          points += 100;
+          zombiesLeft--;
+          if (zombiesLeft <= 0 && zombies.length === 0) {
+            wave++;
+            setTimeout(startWave, 3000);
+          }
+        }
+        updateHUD();
+      }
+    }
+
+    function reloadWeapon() {
+      const needed = currentWeapon.clipMax - currentWeapon.clip;
+      if (needed > 0 && currentWeapon.reserve > 0) {
+        const toLoad = Math.min(needed, currentWeapon.reserve);
+        currentWeapon.clip += toLoad;
+        currentWeapon.reserve -= toLoad;
+        updateHUD();
+      }
+    }
+
+    function tryMysteryBox() {
+      const pPos = camera.position;
+      const bPos = mysteryBox.position;
+      const dist = pPos.distanceTo(bPos);
+
+      if (dist < 5 && points >= 950) {
+        points -= 950;
+        const choices = [WEAPONS.SHOTGUN, WEAPONS.RAYGUN];
+        currentWeapon = choices[Math.floor(Math.random() * choices.length)];
+        currentWeapon.clip = currentWeapon.clipMax;
+        currentWeapon.reserve = currentWeapon.reserveMax;
+        updateHUD();
+      }
+    }
+
+    function updateHUD() {
+      document.getElementById('ptsDisplay').innerText = points;
+      document.getElementById('weaponDisplay').innerText = currentWeapon.name;
+      document.getElementById('ammoClip').innerText = currentWeapon.clip;
+      document.getElementById('ammoReserve').innerText = currentWeapon.reserve;
+      document.getElementById('healthFill').style.width = Math.max(0, health) + '%';
+    }
+
+    // --- MAIN GAME LOOP ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      if (isLocked && !isGameOver) {
+        // Player Movement
+        const speed = 8.0 * delta;
+        const dir = new THREE.Vector3();
+        if (keys['KeyW']) dir.z -= 1;
+        if (keys['KeyS']) dir.z += 1;
+        if (keys['KeyA']) dir.x -= 1;
+        if (keys['KeyD']) dir.x += 1;
+        dir.normalize();
+        dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+
+        camera.position.x += dir.x * speed;
+        camera.position.z += dir.z * speed;
+
+        // Keep inside bounds
+        camera.position.x = Math.max(-38, Math.min(38, camera.position.x));
+        camera.position.z = Math.max(-38, Math.min(38, camera.position.z));
+
+        // Mystery box prompt visibility
+        const distToBox = camera.position.distanceTo(mysteryBox.position);
+        document.getElementById('interactPrompt').style.display = distToBox < 5 ? 'block' : 'none';
+
+        // Zombie AI
+        zombies.forEach(z => {
+          const zDir = new THREE.Vector3().subVectors(camera.position, z.position);
+          zDir.y = 0;
+          const zDist = zDir.length();
+          zDir.normalize();
+
+          if (zDist > 1.2) {
+            z.position.addScaledVector(zDir, 3.5 * delta);
+          } else {
+            // Damage player
+            health -= 15 * delta;
+            updateHUD();
+            if (health <= 0) {
+              isGameOver = true;
+              alert('Game Over! Refresh to restart.');
+            }
+          }
+          z.lookAt(camera.position.x, 1.2, camera.position.z);
+        });
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    updateHUD();
+    animate();
+  </script>
+</body>
+</html>
