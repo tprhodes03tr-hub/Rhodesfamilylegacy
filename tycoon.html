@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Legacy Tycoon - Rhodes Legacy</title>
+  <style>
+    :root {
+      --bg: #0b0d17;
+      --card-bg: #141726;
+      --accent-gold: #f59e0b;
+      --accent-cyan: #06b6d4;
+      --accent-red: #ef4444;
+      --accent-green: #10b981;
+      --text: #f3f4f6;
+      --board-tile: #1a1e30;
+      --board-border: #2d3552;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Scoreboard */
+    .tycoon-hud {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+      background: var(--card-bg);
+      border: 1px solid var(--board-border);
+      padding: 0.6rem 1.4rem;
+      border-radius: 10px;
+    }
+
+    .player-stat {
+      font-size: 1rem;
+      font-weight: bold;
+    }
+
+    /* Game Board Grid */
+    .board-container {
+      display: grid;
+      grid-template-columns: repeat(5, 75px);
+      grid-template-rows: repeat(5, 75px);
+      gap: 4px;
+      background: #05060a;
+      padding: 8px;
+      border-radius: 12px;
+      border: 2px solid var(--board-border);
+      position: relative;
+    }
+
+    .tile {
+      background: var(--board-tile);
+      border: 1px solid var(--board-border);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px;
+      font-size: 0.65rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .tile-header {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      margin-bottom: 2px;
+    }
+
+    .tile-name {
+      font-weight: bold;
+      color: var(--text);
+    }
+
+    .tile-price {
+      color: var(--accent-gold);
+      font-size: 0.6rem;
+    }
+
+    .tokens-container {
+      position: absolute;
+      bottom: 2px;
+      display: flex;
+      gap: 2px;
+    }
+
+    .p-token {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 5px rgba(0,0,0,0.8);
+    }
+    .p1-token { background: var(--accent-cyan); }
+    .ai-token { background: var(--accent-red); }
+
+    /* Center Board Controls */
+    .center-hub {
+      grid-column: 2 / 5;
+      grid-row: 2 / 5;
+      background: rgba(20, 23, 38, 0.95);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .dice-val {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--accent-gold);
+      margin-bottom: 0.2rem;
+    }
+
+    .btn-roll {
+      background: linear-gradient(135deg, #d97706, var(--accent-gold));
+      color: #000;
+      font-weight: bold;
+      border: none;
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn-roll:active {
+      transform: scale(0.96);
+    }
+
+    .action-msg {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 0.5rem;
+      min-height: 28px;
+    }
+
+    .btn-back {
+      margin-top: 1.5rem;
+      background: transparent;
+      border: 1px solid #333a52;
+      color: #8890a6;
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    .btn-back:hover { color: #fff; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>RHODES LEGACY TYCOON</h1>
+    <p style="font-size: 0.85rem; color: #8890a6; margin-top: 2px;">Property Trading & Estate Challenge</p>
+  </header>
+
+  <div class="tycoon-hud">
+    <div class="player-stat" style="color: var(--accent-cyan);">YOU (P1): $<span id="p1Cash">1500</span></div>
+    <div class="player-stat" style="color: var(--accent-red);">RIVAL (AI): $<span id="aiCash">1500</span></div>
+  </div>
+
+  <div class="board-container" id="board">
+    <!-- Center Board Interface -->
+    <div class="center-hub">
+      <div class="dice-val" id="diceRoll">🎲</div>
+      <button class="btn-roll" id="rollBtn" onclick="playTurn()">Roll Dice</button>
+      <div class="action-msg" id="actionMsg">Tap Roll Dice to start your estate journey!</div>
+    </div>
+  </div>
+
+  <a href="index.html" class="btn-back">&larr; Back to Legacy Hub</a>
+
+  <script>
+    // Board Perimeter Path (16 Tiles around a 5x5 grid)
+    const BOARD_TILES = [
+      { name: "GO", type: "go", color: "#10b981", price: 0, rent: 0, r: 1, c: 1 },
+      { name: "Saginaw St", type: "prop", color: "#8b5cf6", price: 100, rent: 20, r: 1, c: 2 },
+      { name: "Legacy Ave", type: "prop", color: "#8b5cf6", price: 120, rent: 25, r: 1, c: 3 },
+      { name: "Vault Tax", type: "tax", color: "#ef4444", price: 50, rent: 0, r: 1, c: 4 },
+      { name: "Rest Zone", type: "corner", color: "#64748b", price: 0, rent: 0, r: 1, c: 5 },
+      { name: "Marrow Manor", type: "prop", color: "#f59e0b", price: 160, rent: 35, r: 2, c: 5 },
+      { name: "Vanguard Blvd", type: "prop", color: "#f59e0b", price: 180, rent: 40, r: 3, c: 5 },
+      { name: "Metro Rail", type: "prop", color: "#06b6d4", price: 200, rent: 50, r: 4, c: 5 },
+      { name: "Ancestral Park", type: "corner", color: "#10b981", price: 0, rent: 0, r: 5, c: 5 },
+      { name: "Rhodes Plaza", type: "prop", color: "#ec4899", price: 240, rent: 55, r: 5, c: 4 },
+      { name: "Heritage Hts", type: "prop", color: "#ec4899", price: 260, rent: 60, r: 5, c: 3 },
+      { name: "Mystery Chest", type: "chest", color: "#f59e0b", price: 0, rent: 0, r: 5, c: 2 },
+      { name: "Grand Central", type: "corner", color: "#64748b", price: 0, rent: 0, r: 5, c: 1 },
+      { name: "Crown Court", type: "prop", color: "#3b82f6", price: 300, rent: 75, r: 4, c: 1 },
+      { name: "Empire Tower", type: "prop", color: "#3b82f6", price: 350, rent: 90, r: 3, c: 1 },
+      { name: "Luxury Tax", type: "tax", color: "#ef4444", price: 100, rent: 0, r: 2, c: 1 }
+    ];
+
+    let p1 = { pos: 0, cash: 1500, properties: [] };
+    let ai = { pos: 0, cash: 1500, properties: [] };
+    let isRolling = false;
+
+    // Render Tiles into 5x5 CSS Grid
+    const boardContainer = document.getElementById('board');
+    BOARD_TILES.forEach((t, idx) => {
+      const tileDiv = document.createElement('div');
+      tileDiv.classList.add('tile');
+      tileDiv.style.gridRow = t.r;
+      tileDiv.style.gridColumn = t.c;
+      tileDiv.id = `tile-${idx}`;
+
+      const header = document.createElement('div');
+      header.classList.add('tile-header');
+      header.style.backgroundColor = t.color;
+      tileDiv.appendChild(header);
+
+      const name = document.createElement('div');
+      name.classList.add('tile-name');
+      name.innerText = t.name;
+      tileDiv.appendChild(name);
+
+      if (t.type === 'prop') {
+        const price = document.createElement('div');
+        price.classList.add('tile-price');
+        price.innerText = `$${t.price}`;
+        tileDiv.appendChild(price);
+      }
+
+      const tokens = document.createElement('div');
+      tokens.classList.add('tokens-container');
+      tokens.id = `tokens-${idx}`;
+      tileDiv.appendChild(tokens);
+
+      boardContainer.appendChild(tileDiv);
+    });
+
+    function updateTokens() {
+      BOARD_TILES.forEach((_, idx) => {
+        const tBox = document.getElementById(`tokens-${idx}`);
+        tBox.innerHTML = '';
+        if (p1.pos === idx) {
+          const p1Dot = document.createElement('div');
+          p1Dot.className = 'p-token p1-token';
+          tBox.appendChild(p1Dot);
+        }
+        if (ai.pos === idx) {
+          const aiDot = document.createElement('div');
+          aiDot.className = 'p-token ai-token';
+          tBox.appendChild(aiDot);
+        }
+      });
+      document.getElementById('p1Cash').innerText = p1.cash;
+      document.getElementById('aiCash').innerText = ai.cash;
+    }
+
+    function playTurn() {
+      if (isRolling) return;
+      isRolling = true;
+
+      const roll = Math.floor(Math.random() * 6) + 1;
+      document.getElementById('diceRoll').innerText = `🎲 ${roll}`;
+      
+      // Move Player
+      p1.pos = (p1.pos + roll) % 16;
+      if (p1.pos < roll) p1.cash += 200; // Passed GO
+
+      const tile = BOARD_TILES[p1.pos];
+      let msg = `You landed on ${tile.name}. `;
+
+      if (tile.type === 'prop') {
+        if (!tile.owner && p1.cash >= tile.price) {
+          p1.cash -= tile.price;
+          tile.owner = 'P1';
+          p1.properties.push(tile);
+          msg += `Bought property for $${tile.price}!`;
+        } else if (tile.owner === 'AI') {
+          p1.cash -= tile.rent;
+          ai.cash += tile.rent;
+          msg += `Paid $${tile.rent} rent to Rival!`;
+        }
+      } else if (tile.type === 'tax') {
+        p1.cash -= tile.price;
+        msg += `Paid $${tile.price} tax!`;
+      } else if (tile.type === 'chest') {
+        p1.cash += 100;
+        msg += `Found legacy bonus! +$100!`;
+      }
+
+      document.getElementById('actionMsg').innerText = msg;
+      updateTokens();
+
+      // Rival Turn after 1.5 seconds
+      setTimeout(aiTurn, 1500);
+    }
+
+    function aiTurn() {
+      const roll = Math.floor(Math.random() * 6) + 1;
+      ai.pos = (ai.pos + roll) % 16;
+      if (ai.pos < roll) ai.cash += 200;
+
+      const tile = BOARD_TILES[ai.pos];
+      let msg = `Rival rolled ${roll} & landed on ${tile.name}. `;
+
+      if (tile.type === 'prop') {
+        if (!tile.owner && ai.cash >= tile.price) {
+          ai.cash -= tile.price;
+          tile.owner = 'AI';
+          ai.properties.push(tile);
+          msg += `Rival bought it!`;
+        } else if (tile.owner === 'P1') {
+          ai.cash -= tile.rent;
+          p1.cash += tile.rent;
+          msg += `Rival paid you $${tile.rent} rent!`;
+        }
+      } else if (tile.type === 'tax') {
+        ai.cash -= tile.price;
+      }
+
+      document.getElementById('actionMsg').innerText = msg;
+      updateTokens();
+      isRolling = false;
+    }
+
+    updateTokens();
+  </script>
+</body>
+</html>
