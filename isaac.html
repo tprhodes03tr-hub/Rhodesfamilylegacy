@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Isaac Rhodes: Ancestral Odyssey - Rhodes Legacy</title>
+  <style>
+    :root {
+      --bg: #090b14;
+      --card-bg: #131726;
+      --accent-gold: #f59e0b;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --text: #f3f4f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 0.75rem;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .hud-bar {
+      display: flex;
+      justify-content: space-between;
+      max-width: 640px;
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid #28304a;
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+      font-size: 0.95rem;
+    }
+
+    #gameCanvas {
+      background: linear-gradient(180deg, #1b2838 0%, #0d121d 100%);
+      border: 2px solid var(--accent-cyan);
+      border-radius: 8px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+      max-width: 100%;
+      display: block;
+    }
+
+    /* Mobile Controls */
+    .touch-controls {
+      display: flex;
+      justify-content: space-between;
+      max-width: 640px;
+      width: 100%;
+      margin-top: 1rem;
+      gap: 1rem;
+    }
+
+    .dpad-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .ctrl-btn {
+      background: #1f253a;
+      border: 2px solid #3c486e;
+      color: #fff;
+      font-size: 1.4rem;
+      font-weight: bold;
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+
+    .ctrl-btn:active {
+      background: var(--accent-cyan);
+      color: #000;
+    }
+
+    .action-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .jump-btn {
+      width: 80px;
+      background: #92400e;
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+    }
+    .jump-btn:active {
+      background: var(--accent-gold);
+      color: #000;
+    }
+
+    .btn-back {
+      margin-top: 1.2rem;
+      background: transparent;
+      border: 1px solid #333a52;
+      color: #8890a6;
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    .btn-back:hover { color: #fff; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Isaac Rhodes: Ancestral Odyssey</h1>
+    <p style="font-size: 0.8rem; color: #8890a6;">Heritage Platformer & Heirloom Quest</p>
+  </header>
+
+  <div class="hud-bar">
+    <div style="color: var(--accent-gold);">📜 Relics: <span id="relicCount">0</span>/5</div>
+    <div style="color: #ef4444;">❤️ Lives: <span id="lifeCount">3</span></div>
+    <div style="color: var(--accent-cyan);">🏁 Distance: <span id="distCount">0m</span></div>
+  </div>
+
+  <canvas id="gameCanvas" width="640" height="360"></canvas>
+
+  <div class="touch-controls">
+    <div class="dpad-group">
+      <button class="ctrl-btn" id="btnLeft">◀</button>
+      <button class="ctrl-btn" id="btnRight">▶</button>
+    </div>
+    <div class="action-group">
+      <button class="ctrl-btn jump-btn" id="btnJump">JUMP</button>
+    </div>
+  </div>
+
+  <a href="index.html" class="btn-back">&larr; Back to Legacy Hub</a>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let keys = { left: false, right: false, up: false };
+
+    // Isaac Rhodes Player Entity
+    const player = {
+      x: 50,
+      y: 250,
+      width: 24,
+      height: 36,
+      vx: 0,
+      vy: 0,
+      speed: 3.5,
+      jumpForce: -10,
+      grounded: false,
+      lives: 3,
+      relics: 0
+    };
+
+    const gravity = 0.45;
+    let cameraX = 0;
+
+    // Level Platforms & Ground
+    const platforms = [
+      { x: 0, y: 320, w: 2400, h: 40, color: '#1e293b' },
+      { x: 180, y: 240, w: 100, h: 16, color: '#334155' },
+      { x: 340, y: 190, w: 120, h: 16, color: '#334155' },
+      { x: 540, y: 230, w: 90, h: 16, color: '#334155' },
+      { x: 700, y: 170, w: 130, h: 16, color: '#334155' },
+      { x: 920, y: 220, w: 100, h: 16, color: '#334155' },
+      { x: 1100, y: 160, w: 150, h: 16, color: '#334155' },
+      { x: 1350, y: 210, w: 120, h: 16, color: '#334155' },
+      { x: 1550, y: 180, w: 140, h: 16, color: '#334155' }
+    ];
+
+    // Relic Pickups
+    const relics = [
+      { x: 220, y: 205, collected: false },
+      { x: 390, y: 155, collected: false },
+      { x: 750, y: 135, collected: false },
+      { x: 1160, y: 125, collected: false },
+      { x: 1610, y: 145, collected: false }
+    ];
+
+    // Hazards
+    const hazards = [
+      { x: 480, y: 304, w: 32, h: 16 },
+      { x: 860, y: 304, w: 40, h: 16 },
+      { x: 1280, y: 304, w: 40, h: 16 }
+    ];
+
+    // Keyboard Controls
+    window.addEventListener('keydown', e => {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+      if ((e.code === 'ArrowUp' || e.code === 'Space' || e.code === 'KeyW') && player.grounded) {
+        player.vy = player.jumpForce;
+        player.grounded = false;
+      }
+    });
+
+    window.addEventListener('keyup', e => {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+    });
+
+    // Touch Controls
+    function bindTouch(id, onStart, onEnd) {
+      const el = document.getElementById(id);
+      el.addEventListener('touchstart', e => { e.preventDefault(); onStart(); });
+      el.addEventListener('touchend', e => { e.preventDefault(); onEnd(); });
+      el.addEventListener('mousedown', onStart);
+      el.addEventListener('mouseup', onEnd);
+    }
+
+    bindTouch('btnLeft', () => keys.left = true, () => keys.left = false);
+    bindTouch('btnRight', () => keys.right = true, () => keys.right = false);
+    bindTouch('btnJump', () => {
+      if (player.grounded) {
+        player.vy = player.jumpForce;
+        player.grounded = false;
+      }
+    }, () => {});
+
+    function update() {
+      if (keys.left) player.vx = -player.speed;
+      else if (keys.right) player.vx = player.speed;
+      else player.vx = 0;
+
+      player.vy += gravity;
+      player.x += player.vx;
+      player.y += player.vy;
+
+      if (player.x < 0) player.x = 0;
+
+      player.grounded = false;
+      platforms.forEach(plat => {
+        if (
+          player.x + player.width > plat.x &&
+          player.x < plat.x + plat.w &&
+          player.y + player.height >= plat.y &&
+          player.y + player.height <= plat.y + 12 &&
+          player.vy >= 0
+        ) {
+          player.grounded = true;
+          player.vy = 0;
+          player.y = plat.y - player.height;
+        }
+      });
+
+      relics.forEach(r => {
+        if (!r.collected && Math.hypot((player.x + 12) - r.x, (player.y + 18) - r.y) < 24) {
+          r.collected = true;
+          player.relics++;
+          document.getElementById('relicCount').innerText = player.relics;
+        }
+      });
+
+      hazards.forEach(h => {
+        if (
+          player.x + player.width > h.x &&
+          player.x < h.x + h.w &&
+          player.y + player.height > h.y
+        ) {
+          player.lives--;
+          document.getElementById('lifeCount').innerText = player.lives;
+          player.x = Math.max(0, player.x - 100);
+          player.y = 200;
+          if (player.lives <= 0) {
+            alert('Journey ended. Restarting adventure!');
+            player.lives = 3;
+            player.relics = 0;
+            player.x = 50;
+            player.y = 250;
+            relics.forEach(r => r.collected = false);
+            document.getElementById('relicCount').innerText = '0';
+            document.getElementById('lifeCount').innerText = '3';
+          }
+        }
+      });
+
+      cameraX = player.x - 120;
+      document.getElementById('distCount').innerText = `${Math.floor(player.x / 10)}m`;
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(-cameraX, 0);
+
+      platforms.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.fillStyle = '#06b6d4';
+        ctx.fillRect(p.x, p.y, p.w, 3);
+      });
+
+      ctx.fillStyle = '#ef4444';
+      hazards.forEach(h => {
+        ctx.beginPath();
+        ctx.moveTo(h.x, h.y + h.h);
+        ctx.lineTo(h.x + h.w / 2, h.y);
+        ctx.lineTo(h.x + h.w, h.y + h.h);
+        ctx.fill();
+      });
+
+      relics.forEach(r => {
+        if (!r.collected) {
+          ctx.fillStyle = '#f59e0b';
+          ctx.beginPath();
+          ctx.arc(r.x, r.y, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.stroke();
+        }
+      });
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(player.x + 4, player.y, 16, 12);
+      ctx.fillStyle = '#06b6d4';
+      ctx.fillRect(player.x, player.y + 12, player.width, 16);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(player.x + 2, player.y + 28, 8, 8);
+      ctx.fillRect(player.x + 14, player.y + 28, 8, 8);
+
+      ctx.restore();
+    }
+
+    function loop() {
+      update();
+      render();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
