@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
+  <title>Classic 80s Arcade Vault</title>
+  <style>
+    * { box-sizing: border-box; user-select: none; margin: 0; padding: 0; touch-action: none; }
+    body { background: #05050d; color: #fff; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: space-between; height: 100vh; overflow: hidden; }
+
+    /* Game Selector Menu Bar */
+    #menu-bar {
+      width: 100%; max-width: 440px; display: flex; overflow-x: auto; gap: 6px;
+      padding: 8px 10px; background: #0e1222; border-bottom: 2px solid #ff0055;
+    }
+    .game-tab {
+      background: #1b233d; border: 1px solid #3d4f7c; color: #00ffcc; font-size: 11px;
+      padding: 6px 10px; border-radius: 4px; white-space: nowrap; cursor: pointer; font-weight: bold;
+    }
+    .game-tab.active { background: #ff0055; color: #fff; border-color: #ff99bb; box-shadow: 0 0 8px #ff0055; }
+
+    /* Main Cabinet Screen */
+    #cabinet {
+      position: relative; width: 100%; max-width: 420px; height: 62vh;
+      border: 3px solid #ff0055; border-radius: 8px; background: #000;
+      box-shadow: 0 0 16px rgba(255, 0, 85, 0.4); overflow: hidden;
+    }
+    canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+
+    /* Universal Touch Controls */
+    #controls {
+      width: 100%; max-width: 420px; height: 26vh;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 20px; background: #0a0d18; border-top: 2px solid #1f2742;
+    }
+    .dpad-grid {
+      display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px);
+      gap: 4px; align-items: center; justify-items: center;
+    }
+    .ctrl-btn {
+      width: 50px; height: 50px; border-radius: 8px; border: 2px solid #334466;
+      background: #131b2e; color: #00ffcc; font-size: 18px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .ctrl-btn:active { background: #00ffcc; color: #000; }
+    #action-btn {
+      width: 82px; height: 82px; border-radius: 50%; border: 3px solid #ff0055;
+      background: radial-gradient(circle, #ff0055, #880022); color: #fff;
+      font-size: 16px; font-weight: bold; box-shadow: 0 0 12px rgba(255,0,85,0.5);
+    }
+    #action-btn:active { transform: scale(0.92); }
+  </style>
+</head>
+<body>
+
+  <div id="menu-bar">
+    <button class="game-tab active" onclick="switchGame('pacman')">MS. PAC-MAN</button>
+    <button class="game-tab" onclick="switchGame('dk')">DONKEY KONG</button>
+    <button class="game-tab" onclick="switchGame('frogger')">FROGGER</button>
+    <button class="game-tab" onclick="switchGame('centipede')">CENTIPEDE</button>
+    <button class="game-tab" onclick="switchGame('pitfall')">PITFALL</button>
+    <button class="game-tab" onclick="switchGame('qbert')">Q*BERT</button>
+  </div>
+
+  <div id="cabinet">
+    <canvas id="arcadeCanvas"></canvas>
+  </div>
+
+  <div id="controls">
+    <div class="dpad-grid">
+      <div></div><button class="ctrl-btn" id="btn-u">▲</button><div></div>
+      <button class="ctrl-btn" id="btn-l">◀</button><div></div><button class="ctrl-btn" id="btn-r">▶</button>
+      <div></div><button class="ctrl-btn" id="btn-d">▼</button><div></div>
+    </div>
+    <button id="action-btn">ACTION</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('arcadeCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = 320, H = 460;
+    canvas.width = W; canvas.height = H;
+
+    // --- 8-BIT AUDIO SYNTHESIZER ---
+    const actx = new (window.AudioContext || window.webkitAudioContext)();
+    function sfx(freq, type='square', dur=0.08) {
+      if (actx.state === 'suspended') actx.resume();
+      const o = actx.createOscillator(); const g = actx.createGain();
+      o.connect(g); g.connect(actx.destination);
+      o.type = type; o.frequency.setValueAtTime(freq, actx.currentTime);
+      g.gain.setValueAtTime(0.2, actx.currentTime);
+      g.gain.linearRampToValueAtTime(0.01, actx.currentTime + dur);
+      o.start(); o.stop(actx.currentTime + dur);
+    }
+
+    let currentGame = 'pacman';
+    let score = 0, lives = 3, gameOver = false, tick = 0;
+
+    // --- CONTROLS DISPATCHER ---
+    const input = { u: false, d: false, l: false, r: false, act: false };
+    const bindBtn = (id, key) => {
+      const el = document.getElementById(id);
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); input[key] = true; handleAction(key); });
+      el.addEventListener('touchend', (e) => { e.preventDefault(); input[key] = false; });
+    };
+    bindBtn('btn-u', 'u'); bindBtn('btn-d', 'd');
+    bindBtn('btn-l', 'l'); bindBtn('btn-r', 'r');
+    bindBtn('action-btn', 'act');
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') { input.u = true; handleAction('u'); }
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') { input.d = true; handleAction('d'); }
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') { input.l = true; handleAction('l'); }
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') { input.r = true; handleAction('r'); }
+      if (e.code === 'Space') { input.act = true; handleAction('act'); }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') input.u = false;
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') input.d = false;
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') input.l = false;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') input.r = false;
+      if (e.code === 'Space') input.act = false;
+    });
+
+    // ==========================================
+    // 1. MS. PAC-MAN ENGINE
+    // ==========================================
+    const pac = { x: 160, y: 340, dirX: 0, dirY: 0, mouth: 0 };
+    const dots = [];
+    function initPacman() {
+      dots.length = 0;
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 8; c++) {
+          dots.push({ x: 40 + c * 34, y: 70 + r * 30, eaten: false });
+        }
+      }
+    }
+
+    function updatePacman() {
+      if (input.l) { pac.dirX = -2; pac.dirY = 0; }
+      if (input.r) { pac.dirX = 2; pac.dirY = 0; }
+      if (input.u) { pac.dirY = -2; pac.dirX = 0; }
+      if (input.d) { pac.dirY = 2; pac.dirX = 0; }
+      pac.x = Math.max(20, Math.min(W - 20, pac.x + pac.dirX));
+      pac.y = Math.max(50, Math.min(H - 40, pac.y + pac.dirY));
+      pac.mouth = Math.abs(Math.sin(tick * 0.2)) * 0.35;
+
+      dots.forEach(d => {
+        if (!d.eaten && Math.hypot(pac.x - d.x, pac.y - d.y) < 12) {
+          d.eaten = true; score += 10; sfx(480, 'triangle', 0.04);
+        }
+      });
+    }
+
+    function renderPacman() {
+      // Maze Walls
+      ctx.strokeStyle = '#ff00aa'; ctx.lineWidth = 4;
+      ctx.strokeRect(15, 45, W - 30, H - 75);
+      ctx.strokeRect(60, 100, 70, 40); ctx.strokeRect(190, 100, 70, 40);
+      ctx.strokeRect(110, 200, 100, 50);
+
+      // Dots
+      ctx.fillStyle = '#ffb8ae';
+      dots.forEach(d => { if (!d.eaten) ctx.fillRect(d.x - 2, d.y - 2, 4, 4); });
+
+      // Ms. Pac-Man (Yellow circle with pink bow)
+      ctx.fillStyle = '#ffe600';
+      ctx.beginPath();
+      ctx.arc(pac.x, pac.y, 11, pac.mouth * Math.PI, (2 - pac.mouth) * Math.PI);
+      ctx.lineTo(pac.x, pac.y); ctx.fill();
+      ctx.fillStyle = '#ff0077'; // Bow
+      ctx.fillRect(pac.x - 4, pac.y - 14, 8, 4);
+    }
+
+    // ==========================================
+    // 2. DONKEY KONG ENGINE
+    // ==========================================
+    const dk = { x: 50, y: 400, vy: 0, jumping: false };
+    const barrels = [];
+    function updateDK() {
+      if (input.l && dk.x > 30) dk.x -= 2.5;
+      if (input.r && dk.x < W - 30) dk.x += 2.5;
+      if (dk.jumping) {
+        dk.y += dk.vy; dk.vy += 0.5;
+        if (dk.y >= 400) { dk.y = 400; dk.jumping = false; }
+      }
+      if (Math.random() < 0.02) barrels.push({ x: 80, y: 130, dir: 1.8 });
+      for (let i = barrels.length - 1; i >= 0; i--) {
+        const b = barrels[i];
+        b.x += b.dir;
+        if (b.x > W - 40 || b.x < 40) { b.y += 65; b.dir *= -1; }
+        if (Math.hypot(dk.x - b.x, dk.y - b.y) < 14) {
+          lives--; sfx(100, 'sawtooth', 0.3); barrels.splice(i, 1);
+        }
+        if (b.y > H) barrels.splice(i, 1);
+      }
+    }
+
+    function renderDK() {
+      // Girders
+      ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 6;
+      for (let y = 140; y <= 410; y += 65) {
+        ctx.beginPath(); ctx.moveTo(25, y); ctx.lineTo(W - 25, y); ctx.stroke();
+      }
+      // Kong
+      ctx.fillStyle = '#8e44ad'; ctx.fillRect(40, 85, 38, 45);
+      // Jumpman
+      ctx.fillStyle = '#3498db'; ctx.fillRect(dk.x - 7, dk.y - 18, 14, 18);
+      ctx.fillStyle = '#e74c3c'; ctx.fillRect(dk.x - 5, dk.y - 23, 10, 6);
+      // Barrels
+      ctx.fillStyle = '#d35400';
+      barrels.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, Math.PI * 2); ctx.fill(); });
+    }
+
+    // ==========================================
+    // 3. FROGGER ENGINE
+    // ==========================================
+    const frog = { x: 160, y: 420 };
+    const traffic = [];
+    function initFrogger() {
+      traffic.length = 0;
+      for (let i = 0; i < 4; i++) {
+        traffic.push({ x: i * 90, y: 340, spd: -2, col: '#f39c12', w: 32 });
+        traffic.push({ x: i * 110, y: 280, spd: 2.4, col: '#e74c3c', w: 40 });
+        traffic.push({ x: i * 95, y: 180, spd: -1.6, col: '#27ae60', w: 50 }); // Logs
+      }
+    }
+
+    function updateFrogger() {
+      traffic.forEach(t => {
+        t.x += t.spd;
+        if (t.x > W + 50) t.x = -50;
+        if (t.x < -60) t.x = W + 50;
+        if (Math.abs(frog.y - t.y) < 14 && Math.abs(frog.x - t.x) < t.w / 2) {
+          frog.y = 420; lives--; sfx(120, 'sawtooth', 0.2);
+        }
+      });
+      if (frog.y < 80) { score += 500; frog.y = 420; sfx(700, 'sine', 0.2); }
+    }
+
+    function renderFrogger() {
+      // Water & Road
+      ctx.fillStyle = '#0f2453'; ctx.fillRect(0, 80, W, 140);
+      ctx.fillStyle = '#222'; ctx.fillRect(0, 240, W, 140);
+      ctx.fillStyle = '#27ae60'; ctx.fillRect(0, 400, W, 60); ctx.fillRect(0, 40, W, 40);
+
+      // Traffic / Logs
+      traffic.forEach(t => { ctx.fillStyle = t.col; ctx.fillRect(t.x - t.w / 2, t.y - 10, t.w, 20); });
+      // Frog
+      ctx.fillStyle = '#2ecc71'; ctx.fillRect(frog.x - 7, frog.y - 7, 14, 14);
+    }
+
+    // ==========================================
+    // 4. CENTIPEDE ENGINE
+    // ==========================================
+    const bugShooter = { x: 160, y: 410 };
+    const centiShots = [];
+    const centipede = [];
+    function initCentipede() {
+      centipede.length = 0;
+      for (let i = 0; i < 10; i++) centipede.push({ x: i * 20, y: 60, dir: 2 });
+    }
+
+    function updateCentipede() {
+      if (input.l && bugShooter.x > 20) bugShooter.x -= 4;
+      if (input.r && bugShooter.x < W - 20) bugShooter.x += 4;
+      // Shots
+      for (let i = centiShots.length - 1; i >= 0; i--) {
+        centiShots[i].y -= 7;
+        centipede.forEach((seg, sIdx) => {
+          if (Math.hypot(centiShots[i].x - seg.x, centiShots[i].y - seg.y) < 12) {
+            centipede.splice(sIdx, 1); centiShots.splice(i, 1);
+            score += 100; sfx(550, 'square', 0.05);
+          }
+        });
+        if (centiShots[i] && centiShots[i].y < 40) centiShots.splice(i, 1);
+      }
+      // Centipede Motion
+      centipede.forEach(seg => {
+        seg.x += seg.dir;
+        if (seg.x > W - 20 || seg.x < 20) { seg.y += 18; seg.dir *= -1; }
+      });
+      if (centipede.length === 0) initCentipede();
+    }
+
+    function renderCentipede() {
+      // Mushrooms
+      ctx.fillStyle = '#e67e22';
+      for (let i = 0; i < 8; i++) ctx.fillRect(40 + i * 35, 120 + (i % 3) * 60, 10, 10);
+      // Centipede
+      centipede.forEach((seg, idx) => {
+        ctx.fillStyle = idx === 0 ? '#e74c3c' : '#2ecc71';
+        ctx.beginPath(); ctx.arc(seg.x, seg.y, 8, 0, Math.PI * 2); ctx.fill();
+      });
+      // Shooter & Shots
+      ctx.fillStyle = '#00ffff'; ctx.fillRect(bugShooter.x - 8, bugShooter.y, 16, 12);
+      centiShots.forEach(s => ctx.fillRect(s.x - 2, s.y, 4, 8));
+    }
+
+    // ==========================================
+    // 5. PITFALL ENGINE
+    // ==========================================
+    const pitman = { x: 50, y: 320, vy: 0, jumping: false };
+    const logs = [{ x: 260, y: 330 }];
+    function updatePitfall() {
+      if (input.l && pitman.x > 20) pitman.x -= 3;
+      if (input.r && pitman.x < W - 20) pitman.x += 3;
+      if (pitman.jumping) {
+        pitman.y += pitman.vy; pitman.vy += 0.5;
+        if (pitman.y >= 320) { pitman.y = 320; pitman.jumping = false; }
+      }
+      logs.forEach(l => {
+        l.x -= 2; if (l.x < -20) l.x = W + 40;
+        if (Math.hypot(pitman.x - l.x, pitman.y - l.y) < 14) { lives--; sfx(140, 'sawtooth', 0.2); l.x = W + 40; }
+      });
+    }
+
+    function renderPitfall() {
+      // Jungle Canopy & Ground
+      ctx.fillStyle = '#1e824c'; ctx.fillRect(0, 40, W, 90);
+      ctx.fillStyle = '#96411b'; ctx.fillRect(0, 340, W, 120);
+      // Pit
+      ctx.fillStyle = '#000'; ctx.fillRect(130, 340, 60, 40);
+      // Rolling Log
+      ctx.fillStyle = '#5c3818'; logs.forEach(l => ctx.fillRect(l.x - 8, l.y, 16, 10));
+      // Pitfall Harry
+      ctx.fillStyle = '#f1c40f'; ctx.fillRect(pitman.x - 6, pitman.y - 20, 12, 12);
+      ctx.fillStyle = '#27ae60'; ctx.fillRect(pitman.x - 6, pitman.y - 8, 12, 12);
+    }
+
+    // ==========================================
+    // 6. Q*BERT ENGINE
+    // ==========================================
+    const qGrid = [];
+    const qbert = { row: 0, col: 0 };
+    function initQbert() {
+      qGrid.length = 0;
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c <= r; c++) {
+          qGrid.push({ r, c, col: '#3498db' });
+        }
+      }
+    }
+
+    function updateQbert() {}
+    function renderQbert() {
+      // Draw Isometric Pyramid Blocks
+      qGrid.forEach(cube => {
+        const cx = W / 2 + (cube.c - cube.r / 2) * 38;
+        const cy = 100 + cube.r * 38;
+        ctx.fillStyle = cube.col;
+        ctx.fillRect(cx - 16, cy, 32, 22);
+      });
+      // Q*Bert Character (Orange sphere with snout)
+      const qx = W / 2 + (qbert.col - qbert.row / 2) * 38;
+      const qy = 100 + qbert.row * 38 - 10;
+      ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.arc(qx, qy, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(qx + 4, qy - 2, 8, 5); // Snout
+    }
+
+    // --- GAME SWITCHING DISPATCHER ---
+    window.switchGame = function(name) {
+      currentGame = name;
+      document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      score = 0; lives = 3;
+      if (name === 'pacman') initPacman();
+      if (name === 'frogger') initFrogger();
+      if (name === 'centipede') initCentipede();
+      if (name === 'qbert') initQbert();
+    };
+    initPacman();
+
+    function handleAction(k) {
+      if (currentGame === 'dk' && (k === 'act' || k === 'u') && !dk.jumping) {
+        dk.jumping = true; dk.vy = -7.5; sfx(400, 'square', 0.1);
+      }
+      if (currentGame === 'pitfall' && (k === 'act' || k === 'u') && !pitman.jumping) {
+        pitman.jumping = true; pitman.vy = -7.5; sfx(450, 'square', 0.1);
+      }
+      if (currentGame === 'centipede' && k === 'act') {
+        centiShots.push({ x: bugShooter.x, y: bugShooter.y }); sfx(700, 'triangle', 0.05);
+      }
+      if (currentGame === 'frogger') {
+        if (k === 'u') frog.y -= 25;
+        if (k === 'd') frog.y += 25;
+        if (k === 'l') frog.x -= 25;
+        if (k === 'r') frog.x += 25;
+        sfx(500, 'sine', 0.04);
+      }
+      if (currentGame === 'qbert') {
+        if (k === 'd' && qbert.row < 5) { qbert.row++; qbert.col = Math.min(qbert.row, qbert.col); }
+        if (k === 'r' && qbert.row < 5) { qbert.row++; qbert.col++; }
+        if (k === 'u' && qbert.row > 0) { qbert.row--; qbert.col = Math.min(qbert.row, qbert.col); }
+        const tile = qGrid.find(g => g.r === qbert.row && g.c === qbert.col);
+        if (tile && tile.col !== '#f1c40f') { tile.col = '#f1c40f'; score += 25; sfx(650, 'sine', 0.08); }
+      }
+    }
+
+    // --- MAIN ENGINE LOOP ---
+    function loop() {
+      tick++;
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+      // Top HUD
+      ctx.font = 'bold 14px Courier New'; ctx.fillStyle = '#ff0055';
+      ctx.fillText(`SCORE: ${score}`, 18, 24);
+      ctx.fillStyle = '#00ffcc';
+      ctx.fillText(`LIVES: ${lives}`, W - 90, 24);
+
+      if (currentGame === 'pacman') { updatePacman(); renderPacman(); }
+      else if (currentGame === 'dk') { updateDK(); renderDK(); }
+      else if (currentGame === 'frogger') { updateFrogger(); renderFrogger(); }
+      else if (currentGame === 'centipede') { updateCentipede(); renderCentipede(); }
+      else if (currentGame === 'pitfall') { updatePitfall(); renderPitfall(); }
+      else if (currentGame === 'qbert') { updateQbert(); renderQbert(); }
+
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
