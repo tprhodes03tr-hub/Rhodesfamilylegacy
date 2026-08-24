@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Avatar: Banshee Sky Battle - Rhodes Legacy</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      background-color: #031321;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #game-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+    }
+    #hud {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      right: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 10;
+      font-weight: 800;
+      font-size: 1rem;
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+    }
+    .hud-badge {
+      background: rgba(4, 25, 45, 0.8);
+      border: 2px solid #00f0ff;
+      padding: 8px 16px;
+      border-radius: 10px;
+    }
+    #reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 28px;
+      height: 28px;
+      border: 2px dashed #00f0ff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #reticle::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      background: #facc15;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    /* Touch Controls */
+    .touch-zone {
+      position: absolute;
+      bottom: 25px;
+      width: 130px;
+      height: 130px;
+      z-index: 20;
+    }
+    #flight-stick {
+      left: 20px;
+      background: rgba(0, 240, 255, 0.08);
+      border: 2px solid rgba(0, 240, 255, 0.4);
+      border-radius: 50%;
+    }
+    .stick-knob {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      width: 50px;
+      height: 50px;
+      background: rgba(0, 240, 255, 0.35);
+      border: 2px solid #00f0ff;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .action-btn {
+      position: absolute;
+      border-radius: 50%;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: #fff;
+    }
+    #shoot-btn {
+      bottom: 115px;
+      right: 25px;
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, rgba(234, 179, 8, 0.6), rgba(239, 68, 68, 0.6));
+      border: 3px solid #facc15;
+      font-size: 0.9rem;
+      box-shadow: 0 0 15px rgba(250, 204, 21, 0.4);
+    }
+    #dive-btn {
+      bottom: 25px;
+      right: 35px;
+      width: 65px;
+      height: 65px;
+      background: rgba(0, 240, 255, 0.3);
+      border: 2px solid #00f0ff;
+      font-size: 0.8rem;
+    }
+    #shoot-btn:active, #dive-btn:active {
+      transform: scale(0.92);
+      opacity: 0.9;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <div id="hud">
+    <div class="hud-badge" id="hud-health">Banshee Health: 100%</div>
+    <div class="hud-badge" id="hud-score">Rival Banshees: 0</div>
+  </div>
+
+  <div id="reticle"></div>
+
+  <!-- Flight Controls -->
+  <div id="flight-stick" class="touch-zone">
+    <div id="flight-knob" class="stick-knob"></div>
+  </div>
+  <button id="shoot-btn" class="action-btn">BOW & ARROW</button>
+  <button id="dive-btn" class="action-btn">DIVE / BOOST</button>
+
+  <script>
+    let scene, camera, renderer;
+    let health = 100, score = 0, isGameOver = false;
+    let enemies = [];
+    let arrows = [];
+    let enemyArrows = [];
+
+    const flightInput = { pitch: 0, yaw: 0 };
+    let boostActive = false;
+    let baseSpeed = 1.0;
+
+    function init() {
+      const container = document.getElementById('game-container');
+
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x061e38, 0.0018);
+
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+      camera.position.set(0, 50, 0);
+      camera.rotation.order = 'YXZ';
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(0x041930);
+      container.appendChild(renderer.domElement);
+
+      // Sky & Sunlight
+      const hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x1e3a5f, 1.2);
+      scene.add(hemiLight);
+
+      const sun = new THREE.DirectionalLight(0xfff0c2, 2.0);
+      sun.position.set(200, 400, 200);
+      scene.add(sun);
+
+      createFloatingIslands();
+      setupControls();
+      spawnEnemyWave();
+    }
+
+    // Floating Pandora Hallelujah Mountains
+    function createFloatingIslands() {
+      const rockMat = new THREE.MeshStandardMaterial({ color: 0x274338, roughness: 0.8 });
+      const foliageMat = new THREE.MeshStandardMaterial({ color: 0x059669, roughness: 0.6 });
+
+      for (let i = 0; i < 35; i++) {
+        const island = new THREE.Group();
+        const baseGeo = new THREE.ConeGeometry(30 + Math.random() * 40, 60 + Math.random() * 50, 6);
+        const rock = new THREE.Mesh(baseGeo, rockMat);
+        rock.rotation.x = Math.PI; // upside down mountain
+        island.add(rock);
+
+        const capGeo = new THREE.CylinderGeometry(28 + Math.random() * 38, 30 + Math.random() * 40, 8, 6);
+        const cap = new THREE.Mesh(capGeo, foliageMat);
+        cap.position.y = 28;
+        island.add(cap);
+
+        island.position.set(
+          THREE.MathUtils.randFloatSpread(1600),
+          THREE.MathUtils.randFloatSpread(400) + 50,
+          THREE.MathUtils.randFloatSpread(1600)
+        );
+        scene.add(island);
+      }
+    }
+
+    // Banshee Model Generator
+    function createBansheeMesh(isEnemy = false) {
+      const banshee = new THREE.Group();
+
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: isEnemy ? 0x991b1b : 0x0284c7, // Crimson vs Vibrant Cyan/Teal
+        roughness: 0.3
+      });
+      const wingMat = new THREE.MeshStandardMaterial({
+        color: isEnemy ? 0xd97706 : 0x38bdf8,
+        roughness: 0.4
+      });
+      const riderMat = new THREE.MeshStandardMaterial({ color: 0x1e40af });
+
+      // Torso & Tail
+      const torso = new THREE.Mesh(new THREE.ConeGeometry(1.6, 7, 6), bodyMat);
+      torso.rotation.x = Math.PI / 2;
+      banshee.add(torso);
+
+      // Head
+      const head = new THREE.Mesh(new THREE.ConeGeometry(1.2, 4, 5), bodyMat);
+      head.position.set(0, 0.4, -4.2);
+      head.rotation.x = -Math.PI / 2;
+      banshee.add(head);
+
+      // Large Banshee Wings
+      const leftWing = new THREE.Mesh(new THREE.BoxGeometry(9, 0.15, 3.5), wingMat);
+      leftWing.position.set(-4.5, 0, -1);
+      leftWing.rotation.y = 0.15;
+      banshee.add(leftWing);
+
+      const rightWing = new THREE.Mesh(new THREE.BoxGeometry(9, 0.15, 3.5), wingMat);
+      rightWing.position.set(4.5, 0, -1);
+      rightWing.rotation.y = -0.15;
+      banshee.add(rightWing);
+
+      // Na'vi Archer Rider
+      const rider = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 2, 5), riderMat);
+      rider.position.set(0, 1.4, -0.8);
+      banshee.add(rider);
+
+      return banshee;
+    }
+
+    function spawnEnemy() {
+      if (isGameOver) return;
+      const enemy = createBansheeMesh(true);
+
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 140 + Math.random() * 80;
+      enemy.position.set(
+        camera.position.x + Math.sin(angle) * dist,
+        camera.position.y + (Math.random() - 0.5) * 60,
+        camera.position.z + Math.cos(angle) * dist
+      );
+
+      enemy.lastShot = Date.now() + Math.random() * 2000;
+      scene.add(enemy);
+      enemies.push(enemy);
+    }
+
+    function spawnEnemyWave() {
+      for (let i = 0; i < 5; i++) {
+        spawnEnemy();
+      }
+    }
+
+    function shootArrow() {
+      if (isGameOver) return;
+
+      const arrowGeo = new THREE.CylinderGeometry(0.08, 0.08, 3.2, 5);
+      const arrowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+
+      const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+      arrow.position.copy(camera.position);
+
+      arrow.quaternion.copy(camera.quaternion);
+      arrow.rotateX(Math.PI / 2);
+      arrow.velocity = dir.clone().multiplyScalar(3.6);
+
+      scene.add(arrow);
+      arrows.push(arrow);
+    }
+
+    function enemyShoot(enemy) {
+      const arrowGeo = new THREE.CylinderGeometry(0.08, 0.08, 3.2, 5);
+      const arrowMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+
+      const dir = new THREE.Vector3().subVectors(camera.position, enemy.position).normalize();
+
+      const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+      arrow.position.copy(enemy.position);
+      arrow.quaternion.copy(enemy.quaternion);
+      arrow.rotateX(Math.PI / 2);
+      arrow.velocity = dir.multiplyScalar(2.2);
+
+      scene.add(arrow);
+      enemyArrows.push(arrow);
+    }
+
+    function setupControls() {
+      const stick = document.getElementById('flight-stick');
+      const knob = document.getElementById('flight-knob');
+      let touchId = null, center = { x: 0, y: 0 };
+
+      stick.addEventListener('touchstart', (e) => {
+        const touch = e.changedTouches[0];
+        touchId = touch.identifier;
+        const rect = stick.getBoundingClientRect();
+        center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      }, { passive: false });
+
+      stick.addEventListener('touchmove', (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          if (t.identifier === touchId) {
+            const dx = t.clientX - center.x;
+            const dy = t.clientY - center.y;
+            const dist = Math.min(45, Math.hypot(dx, dy));
+            const angle = Math.atan2(dy, dx);
+
+            knob.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
+            flightInput.yaw = -(Math.cos(angle) * dist) / 45;
+            flightInput.pitch = -(Math.sin(angle) * dist) / 45;
+          }
+        }
+      }, { passive: false });
+
+      const resetStick = (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === touchId) {
+            touchId = null;
+            knob.style.transform = 'translate(0px, 0px)';
+            flightInput.yaw = 0;
+            flightInput.pitch = 0;
+          }
+        }
+      };
+      stick.addEventListener('touchend', resetStick);
+      stick.addEventListener('touchcancel', resetStick);
+
+      // Buttons
+      document.getElementById('shoot-btn').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        shootArrow();
+      });
+
+      const diveBtn = document.getElementById('dive-btn');
+      diveBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        boostActive = true;
+      });
+      diveBtn.addEventListener('touchend', () => { boostActive = false; });
+      diveBtn.addEventListener('touchcancel', () => { boostActive = false; });
+
+      // Keyboard support
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyW' || e.code === 'ArrowUp') flightInput.pitch = 1;
+        if (e.code === 'KeyS' || e.code === 'ArrowDown') flightInput.pitch = -1;
+        if (e.code === 'KeyA' || e.code === 'ArrowLeft') flightInput.yaw = 1;
+        if (e.code === 'KeyD' || e.code === 'ArrowRight') flightInput.yaw = -1;
+        if (e.code === 'ShiftLeft') boostActive = true;
+        if (e.code === 'Space') shootArrow();
+      });
+      window.addEventListener('keyup', (e) => {
+        if (['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown'].includes(e.code)) flightInput.pitch = 0;
+        if (['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight'].includes(e.code)) flightInput.yaw = 0;
+        if (e.code === 'ShiftLeft') boostActive = false;
+      });
+    }
+
+    function updateHUD() {
+      document.getElementById('hud-health').innerText = `Banshee Health: ${Math.max(0, Math.floor(health))}%`;
+      document.getElementById('hud-score').innerText = `Rival Banshees: ${score}`;
+    }
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (isGameOver) return;
+
+      const delta = clock.getDelta();
+
+      // Steering
+      camera.rotation.y += flightInput.yaw * 1.5 * delta;
+      camera.rotation.x = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, camera.rotation.x + flightInput.pitch * 1.3 * delta));
+
+      // Banshee Forward Motion
+      const speed = (boostActive ? baseSpeed * 2.6 : baseSpeed);
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      camera.position.addScaledVector(forward, speed * 28 * delta);
+
+      // Update Player Arrows
+      for (let i = arrows.length - 1; i >= 0; i--) {
+        const a = arrows[i];
+        a.position.add(a.velocity);
+
+        if (a.position.distanceTo(camera.position) > 260) {
+          scene.remove(a);
+          arrows.splice(i, 1);
+          continue;
+        }
+
+        // Hit enemy banshees
+        for (let j = enemies.length - 1; j >= 0; j--) {
+          const enemy = enemies[j];
+          if (a.position.distanceTo(enemy.position) < 4.5) {
+            scene.remove(enemy);
+            scene.remove(a);
+            enemies.splice(j, 1);
+            arrows.splice(i, 1);
+            score++;
+            updateHUD();
+            setTimeout(spawnEnemy, 2000);
+            break;
+          }
+        }
+      }
+
+      // Update Enemy Arrows
+      for (let i = enemyArrows.length - 1; i >= 0; i--) {
+        const ea = enemyArrows[i];
+        ea.position.add(ea.velocity);
+
+        if (ea.position.distanceTo(camera.position) < 3.0) {
+          health -= 15;
+          scene.remove(ea);
+          enemyArrows.splice(i, 1);
+          updateHUD();
+          if (health <= 0) {
+            isGameOver = true;
+            alert('Your Banshee has fallen! Reload to reconnect with Eywa.');
+          }
+          continue;
+        }
+
+        if (ea.position.distanceTo(camera.position) > 260) {
+          scene.remove(ea);
+          enemyArrows.splice(i, 1);
+        }
+      }
+
+      // Update Enemy Banshees (Dogfight AI)
+      const now = Date.now();
+      enemies.forEach((enemy) => {
+        const toPlayer = new THREE.Vector3().subVectors(camera.position, enemy.position);
+        const dist = toPlayer.length();
+        toPlayer.normalize();
+
+        enemy.position.addScaledVector(toPlayer, 9.5 * delta);
+        enemy.lookAt(camera.position);
+
+        // Flap wings animation
+        const wingFlap = Math.sin(now * 0.008) * 0.3;
+        enemy.children[2].rotation.z = wingFlap;
+        enemy.children[3].rotation.z = -wingFlap;
+
+        // Enemy Archer Shoots
+        if (dist < 120 && now - enemy.lastShot > 3200) {
+          enemyShoot(enemy);
+          enemy.lastShot = now;
+        }
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    init();
+    updateHUD();
+    animate();
+  </script>
+</body>
+</html>
