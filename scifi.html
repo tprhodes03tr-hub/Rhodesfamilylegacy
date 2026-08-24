@@ -2,404 +2,298 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Space Odyssey - Rhodes Legacy</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
+  <title>Deep Space Raider Assault - HD Fleet Edition</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    body {
-      background-color: #020208;
-      color: #fff;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow: hidden;
-      touch-action: none;
-    }
-    #game-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-    }
+    * { box-sizing: border-box; user-select: none; margin: 0; padding: 0; touch-action: none; }
+    body { background: #020208; overflow: hidden; font-family: 'Impact', -apple-system, sans-serif; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+
     #hud {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      right: 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      pointer-events: none;
-      z-index: 10;
-      font-weight: 700;
-      font-size: 1.1rem;
-      text-shadow: 0 0 10px rgba(0, 200, 255, 0.8);
+      position: absolute; top: 12px; left: 16px; right: 16px;
+      display: flex; justify-content: space-between; pointer-events: none;
+      color: #00ffcc; text-shadow: 0 0 8px rgba(0,255,200,0.8);
     }
-    .hud-stat {
-      background: rgba(10, 20, 40, 0.75);
-      border: 1px solid rgba(0, 200, 255, 0.3);
-      padding: 8px 16px;
-      border-radius: 8px;
+    .hud-card {
+      background: rgba(5, 12, 24, 0.75); border: 1px solid rgba(0, 255, 200, 0.4);
+      border-radius: 8px; padding: 8px 14px; backdrop-filter: blur(4px);
     }
+    .val { font-size: 20px; color: #fff; }
+
     #reticle {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 24px;
-      height: 24px;
-      border: 2px solid rgba(0, 220, 255, 0.6);
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 10;
+      position: absolute; top: 50%; left: 50%; width: 44px; height: 44px;
+      transform: translate(-50%, -50%); pointer-events: none;
+      border: 2px dashed rgba(0, 255, 200, 0.7); border-radius: 50%;
     }
     #reticle::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 4px;
-      height: 4px;
-      background: #00e5ff;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
+      content: ''; position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+      background: #ff3366; transform: translate(-50%, -50%); border-radius: 50%;
+      box-shadow: 0 0 8px #ff3366;
     }
-    /* Mobile Controls */
-    .touch-zone {
-      position: absolute;
-      bottom: 25px;
-      width: 130px;
-      height: 130px;
-      z-index: 20;
+
+    #controls {
+      position: absolute; bottom: 20px; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      padding: 0 24px; pointer-events: none;
     }
-    #flight-stick {
-      left: 20px;
-      background: rgba(0, 150, 255, 0.08);
-      border: 2px solid rgba(0, 200, 255, 0.3);
-      border-radius: 50%;
+    .stick-zone {
+      width: 100px; height: 100px; border-radius: 50%;
+      background: rgba(0, 255, 200, 0.05); border: 2px solid rgba(0, 255, 200, 0.3);
+      position: relative; pointer-events: auto;
     }
     .stick-knob {
-      position: absolute;
-      top: 40px;
-      left: 40px;
-      width: 50px;
-      height: 50px;
-      background: rgba(0, 220, 255, 0.35);
-      border: 2px solid #00e5ff;
-      border-radius: 50%;
-      pointer-events: none;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: radial-gradient(circle, #00ffcc, #007766);
+      position: absolute; top: 30px; left: 30px; pointer-events: none;
+      box-shadow: 0 0 10px rgba(0,255,200,0.5);
     }
-    .action-btn {
-      position: absolute;
-      border-radius: 50%;
-      z-index: 20;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      color: #fff;
+    .btn-col { display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
+    .btn-tap {
+      width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 13px; font-weight: bold;
+      backdrop-filter: blur(6px); cursor: pointer; text-shadow: 0 0 6px #000;
     }
-    #photon-btn {
-      bottom: 120px;
-      right: 30px;
-      width: 75px;
-      height: 75px;
-      background: rgba(255, 50, 80, 0.4);
-      border: 2px solid #ff3366;
-      font-size: 0.85rem;
-    }
-    #warp-btn {
-      bottom: 30px;
-      right: 40px;
-      width: 65px;
-      height: 65px;
-      background: rgba(0, 200, 255, 0.3);
-      border: 2px solid #00e5ff;
-      font-size: 0.8rem;
-    }
-    #photon-btn:active, #warp-btn:active {
-      transform: scale(0.93);
-      opacity: 0.9;
-    }
+    #btn-fire { background: radial-gradient(circle, rgba(231,76,60,0.85), rgba(120,30,30,0.9)); width: 72px; height: 72px; }
+    #btn-boost { background: radial-gradient(circle, rgba(0,180,255,0.85), rgba(0,70,140,0.9)); }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-  <div id="game-container"></div>
-
   <div id="hud">
-    <div class="hud-stat" id="hud-shields">Shields: 100%</div>
-    <div class="hud-stat" id="hud-score">Raiders Down: 0</div>
+    <div class="hud-card">SHIELDS: <span class="val" id="shield-val">100%</span></div>
+    <div class="hud-card">RAIDERS DOWN: <span class="val" id="kill-val">0</span></div>
   </div>
 
   <div id="reticle"></div>
 
-  <!-- Flight Controls -->
-  <div id="flight-stick" class="touch-zone">
-    <div id="flight-knob" class="stick-knob"></div>
+  <div id="controls">
+    <div class="stick-zone" id="flightZone"><div class="stick-knob" id="flightKnob"></div></div>
+    <div class="btn-col">
+      <button class="btn-tap" id="btn-boost">BOOST</button>
+      <button class="btn-tap" id="btn-fire">FIRE</button>
+    </div>
   </div>
-  <button id="photon-btn" class="action-btn">FIRE</button>
-  <button id="warp-btn" class="action-btn">BOOST</button>
 
   <script>
-    let scene, camera, renderer;
-    let shields = 100, score = 0, isGameOver = false;
-    let starfield, starGeo;
-    let enemies = [];
-    let lasers = [];
+    // --- SCENE SETUP ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-    const flightInput = { pitch: 0, yaw: 0 };
-    let boostActive = false;
-    let baseSpeed = 0.8;
+    // Deep Starfield
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 1800;
+    const starPos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 700;
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    const starField = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, transparent: true, opacity: 0.85 }));
+    scene.add(starField);
 
-    function init() {
-      const container = document.getElementById('game-container');
+    // Nebula Backdrop
+    const nebula = new THREE.Mesh(
+      new THREE.SphereGeometry(350, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0x120824, side: THREE.BackSide })
+    );
+    scene.add(nebula);
 
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-      camera.position.set(0, 0, 0);
-      camera.rotation.order = 'YXZ';
+    // Directional & Ambient Lighting
+    const ambLight = new THREE.AmbientLight(0x445566, 1.2);
+    scene.add(ambLight);
+    const sunLight = new THREE.DirectionalLight(0xffeedd, 1.5);
+    sunLight.position.set(50, 80, 50);
+    scene.add(sunLight);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      container.appendChild(renderer.domElement);
+    // Player Cockpit Cannons
+    const gunMat = new THREE.MeshStandardMaterial({ color: 0x223344, metalness: 0.8, roughness: 0.3 });
+    const gunL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.9), gunMat);
+    gunL.rotation.x = Math.PI / 2; gunL.position.set(-0.6, -0.4, -0.8);
+    const gunR = gunL.clone(); gunR.position.x = 0.6;
+    camera.add(gunL); camera.add(gunR);
+    scene.add(camera);
 
-      // Space Lighting
-      const ambientLight = new THREE.AmbientLight(0x334466, 1.2);
-      scene.add(ambientLight);
+    // Audio SFX Synthesizer
+    const actx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+      if (actx.state === 'suspended') actx.resume();
+      const osc = actx.createOscillator();
+      const gain = actx.createGain();
+      osc.connect(gain); gain.connect(actx.destination);
 
-      const sunLight = new THREE.DirectionalLight(0xffeedd, 1.8);
-      sunLight.position.set(100, 50, 100);
-      scene.add(sunLight);
-
-      buildStarfield();
-      setupControls();
-      spawnWave();
+      if (type === 'laser') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(900, actx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, actx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.25, actx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, actx.currentTime + 0.12);
+        osc.start(); osc.stop(actx.currentTime + 0.12);
+      } else if (type === 'boom') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(100, actx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(20, actx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.5, actx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, actx.currentTime + 0.35);
+        osc.start(); osc.stop(actx.currentTime + 0.35);
+      }
     }
 
-    function buildStarfield() {
-      starGeo = new THREE.BufferGeometry();
-      const starCoords = [];
-      for (let i = 0; i < 3000; i++) {
-        starCoords.push(
-          THREE.MathUtils.randFloatSpread(1600),
-          THREE.MathUtils.randFloatSpread(1600),
-          THREE.MathUtils.randFloatSpread(1600)
+    // --- DETAILED ENEMY STARFIGHTER BUILDER ---
+    function createRaiderShip() {
+      const ship = new THREE.Group();
+      const hullMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, metalness: 0.7, roughness: 0.4 });
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0xc0392b, metalness: 0.5, roughness: 0.5 });
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+
+      // Fuselage / Cockpit
+      const body = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.8, 6), hullMat);
+      body.rotation.x = -Math.PI / 2;
+      ship.add(body);
+
+      // Cockpit Canopy Visor (Glowing)
+      const canopy = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.7), new THREE.MeshBasicMaterial({ color: 0x00ffcc }));
+      canopy.position.set(0, 0.25, 0.2);
+      ship.add(canopy);
+
+      // Swept Wings (Left & Right)
+      const wingGeo = new THREE.BoxGeometry(1.6, 0.05, 1.2);
+      const wingL = new THREE.Mesh(wingGeo, wingMat);
+      wingL.position.set(-1.1, 0, -0.2);
+      wingL.rotation.y = -0.3; wingL.rotation.z = -0.15;
+      const wingR = new THREE.Mesh(wingGeo, wingMat);
+      wingR.position.set(1.1, 0, -0.2);
+      wingR.rotation.y = 0.3; wingR.rotation.z = 0.15;
+      ship.add(wingL); ship.add(wingR);
+
+      // Dual Engine Afterburners (Glowing Cones on Back)
+      const thrusterGeo = new THREE.CylinderGeometry(0.12, 0.18, 0.4, 8);
+      const thrusterL = new THREE.Mesh(thrusterGeo, glowMat);
+      thrusterL.rotation.x = Math.PI / 2; thrusterL.position.set(-0.3, 0, -1.4);
+      const thrusterR = thrusterL.clone();
+      thrusterR.position.x = 0.3;
+      ship.add(thrusterL); ship.add(thrusterR);
+
+      return ship;
+    }
+
+    const raiders = [];
+    const lasers = [];
+    let kills = 0;
+    let shields = 100;
+    let speed = 0.4;
+
+    function spawnRaider() {
+      const ship = createRaiderShip();
+      const dist = 140 + Math.random() * 50;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = (Math.random() - 0.5) * Math.PI;
+      ship.position.set(dist * Math.cos(theta), dist * Math.sin(phi), dist * Math.sin(theta));
+      scene.add(ship);
+      raiders.push({ group: ship, rollOffset: Math.random() * 10 });
+    }
+    for (let i = 0; i < 7; i++) spawnRaider();
+
+    // Flight Controls
+    let stick = { x: 0, y: 0 };
+    const fZone = document.getElementById("flightZone");
+    const fKnob = document.getElementById("flightKnob");
+    let touchId = null;
+
+    fZone.addEventListener("touchstart", (e) => { touchId = e.changedTouches[0].identifier; });
+    window.addEventListener("touchmove", (e) => {
+      for (let t of e.changedTouches) {
+        if (t.identifier === touchId) {
+          const r = fZone.getBoundingClientRect();
+          const dx = t.clientX - (r.left + 50);
+          const dy = t.clientY - (r.top + 50);
+          const dist = Math.min(Math.hypot(dx, dy), 35);
+          const a = Math.atan2(dy, dx);
+          const kx = Math.cos(a) * dist, ky = Math.sin(a) * dist;
+          fKnob.style.transform = `translate(${kx}px, ${ky}px)`;
+          stick.x = kx / 35; stick.y = ky / 35;
+        }
+      }
+    });
+    const resetStick = (e) => {
+      for (let t of e.changedTouches) {
+        if (t.identifier === touchId) {
+          touchId = null;
+          fKnob.style.transform = `translate(0px, 0px)`;
+          stick.x = 0; stick.y = 0;
+        }
+      }
+    };
+    window.addEventListener("touchend", resetStick);
+    window.addEventListener("touchcancel", resetStick);
+
+    // Fire Laser Action
+    document.getElementById("btn-fire").addEventListener("touchstart", fireLaser);
+    function fireLaser() {
+      playSound('laser');
+      [-0.6, 0.6].forEach(offset => {
+        const bolt = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.05, 2.5),
+          new THREE.MeshBasicMaterial({ color: 0x00ffcc })
         );
-      }
-      starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starCoords, 3));
-      const starMat = new THREE.PointsMaterial({ color: 0xddffff, size: 1.2 });
-      starfield = new THREE.Points(starGeo, starMat);
-      scene.add(starfield);
-    }
-
-    function spawnEnemy() {
-      if (isGameOver) return;
-      const group = new THREE.Group();
-
-      // Enemy hull (Cruiser/Fighter hybrid)
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x991122, roughness: 0.3 });
-      const wingMat = new THREE.MeshStandardMaterial({ color: 0x333344, metalness: 0.8 });
-
-      const body = new THREE.Mesh(new THREE.ConeGeometry(0.8, 3, 5), bodyMat);
-      body.rotation.x = Math.PI / 2;
-      group.add(body);
-
-      const leftWing = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.1, 1.2), wingMat);
-      group.add(leftWing);
-
-      // Spawn in front of player arc
-      const angle = Math.random() * Math.PI * 2;
-      const elevation = (Math.random() - 0.5) * Math.PI * 0.5;
-      const distance = 90 + Math.random() * 40;
-
-      group.position.set(
-        camera.position.x + Math.sin(angle) * Math.cos(elevation) * distance,
-        camera.position.y + Math.sin(elevation) * distance,
-        camera.position.z + Math.cos(angle) * Math.cos(elevation) * distance
-      );
-
-      scene.add(group);
-      enemies.push(group);
-    }
-
-    function spawnWave() {
-      for (let i = 0; i < 5; i++) {
-        spawnEnemy();
-      }
-    }
-
-    function fireLasers() {
-      if (isGameOver) return;
-      const laserGeo = new THREE.CylinderGeometry(0.06, 0.06, 3, 6);
-      const laserMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
-
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-
-      const offsets = [-0.6, 0.6];
-      offsets.forEach(offset => {
-        const laser = new THREE.Mesh(laserGeo, laserMat);
-        laser.position.copy(camera.position);
-
-        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-        laser.position.addScaledVector(right, offset);
-
-        laser.quaternion.copy(camera.quaternion);
-        laser.rotateX(Math.PI / 2);
-        laser.velocity = dir.clone().multiplyScalar(2.8);
-
-        scene.add(laser);
-        lasers.push(laser);
+        bolt.rotation.x = Math.PI / 2;
+        bolt.quaternion.copy(camera.quaternion);
+        bolt.position.copy(camera.position).add(new THREE.Vector3(offset, -0.4, -1).applyQuaternion(camera.quaternion));
+        bolt.vel = new THREE.Vector3(0, 0, -3.8).applyQuaternion(camera.quaternion);
+        scene.add(bolt);
+        lasers.push(bolt);
       });
     }
 
-    function setupControls() {
-      const stick = document.getElementById('flight-stick');
-      const knob = document.getElementById('flight-knob');
-      let touchId = null, center = { x: 0, y: 0 };
+    // Boost Action
+    const boostBtn = document.getElementById("btn-boost");
+    boostBtn.addEventListener("touchstart", () => { speed = 0.95; });
+    boostBtn.addEventListener("touchend", () => { speed = 0.4; });
 
-      stick.addEventListener('touchstart', (e) => {
-        const touch = e.changedTouches[0];
-        touchId = touch.identifier;
-        const rect = stick.getBoundingClientRect();
-        center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-      }, { passive: false });
-
-      stick.addEventListener('touchmove', (e) => {
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          const t = e.changedTouches[i];
-          if (t.identifier === touchId) {
-            const dx = t.clientX - center.x;
-            const dy = t.clientY - center.y;
-            const dist = Math.min(45, Math.hypot(dx, dy));
-            const angle = Math.atan2(dy, dx);
-
-            knob.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
-            flightInput.yaw = -(Math.cos(angle) * dist) / 45;
-            flightInput.pitch = -(Math.sin(angle) * dist) / 45;
-          }
-        }
-      }, { passive: false });
-
-      const resetStick = (e) => {
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          if (e.changedTouches[i].identifier === touchId) {
-            touchId = null;
-            knob.style.transform = 'translate(0px, 0px)';
-            flightInput.yaw = 0;
-            flightInput.pitch = 0;
-          }
-        }
-      };
-      stick.addEventListener('touchend', resetStick);
-      stick.addEventListener('touchcancel', resetStick);
-
-      // Buttons
-      document.getElementById('photon-btn').addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        fireLasers();
-      });
-
-      const warpBtn = document.getElementById('warp-btn');
-      warpBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        boostActive = true;
-      });
-      warpBtn.addEventListener('touchend', () => { boostActive = false; });
-      warpBtn.addEventListener('touchcancel', () => { boostActive = false; });
-
-      // Keyboard support
-      window.addEventListener('keydown', (e) => {
-        if (e.code === 'KeyW') flightInput.pitch = 1;
-        if (e.code === 'KeyS') flightInput.pitch = -1;
-        if (e.code === 'KeyA') flightInput.yaw = 1;
-        if (e.code === 'KeyD') flightInput.yaw = -1;
-        if (e.code === 'ShiftLeft') boostActive = true;
-        if (e.code === 'Space') fireLasers();
-      });
-      window.addEventListener('keyup', (e) => {
-        if (['KeyW', 'KeyS'].includes(e.code)) flightInput.pitch = 0;
-        if (['KeyA', 'KeyD'].includes(e.code)) flightInput.yaw = 0;
-        if (e.code === 'ShiftLeft') boostActive = false;
-      });
-    }
-
-    function updateHUD() {
-      document.getElementById('hud-shields').innerText = `Shields: ${Math.max(0, Math.floor(shields))}%`;
-      document.getElementById('hud-score').innerText = `Raiders Down: ${score}`;
-    }
-
-    const clock = new THREE.Clock();
-
+    // --- GAME LOOP ---
     function animate() {
       requestAnimationFrame(animate);
-      if (isGameOver) return;
 
-      const delta = clock.getDelta();
+      // Player Pitch & Yaw
+      camera.rotation.y -= stick.x * 0.045;
+      camera.rotation.x -= stick.y * 0.045;
+      camera.rotation.x = Math.max(-1.3, Math.min(1.3, camera.rotation.x));
+      camera.translateZ(-speed);
 
-      // Steering
-      camera.rotation.y += flightInput.yaw * 1.6 * delta;
-      camera.rotation.x = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, camera.rotation.x + flightInput.pitch * 1.4 * delta));
-
-      // Ship Forward Motion
-      const speed = (boostActive ? baseSpeed * 2.5 : baseSpeed);
-      const forward = new THREE.Vector3();
-      camera.getWorldDirection(forward);
-      camera.position.addScaledVector(forward, speed * 25 * delta);
-
-      // Reposition Starfield around player
-      starfield.position.copy(camera.position);
-
-      // Update Lasers
+      // Laser Updates
       for (let i = lasers.length - 1; i >= 0; i--) {
         const l = lasers[i];
-        l.position.add(l.velocity);
+        l.position.add(l.vel);
 
-        if (l.position.distanceTo(camera.position) > 180) {
-          scene.remove(l);
-          lasers.splice(i, 1);
-          continue;
-        }
-
-        // Check collision with enemies
-        for (let j = enemies.length - 1; j >= 0; j--) {
-          const enemy = enemies[j];
-          if (l.position.distanceTo(enemy.position) < 2.5) {
-            scene.remove(enemy);
-            scene.remove(l);
-            enemies.splice(j, 1);
-            lasers.splice(i, 1);
-            score++;
-            updateHUD();
-            setTimeout(spawnEnemy, 1800);
-            break;
+        raiders.forEach((r, rIdx) => {
+          if (l.position.distanceTo(r.group.position) < 3.8) {
+            playSound('boom');
+            scene.remove(r.group); raiders.splice(rIdx, 1);
+            scene.remove(l); lasers.splice(i, 1);
+            kills++;
+            document.getElementById("kill-val").innerText = kills;
+            spawnRaider();
           }
+        });
+
+        if (l.position.distanceTo(camera.position) > 280) {
+          scene.remove(l); lasers.splice(i, 1);
         }
       }
 
-      // Update Enemy Raiders
-      enemies.forEach((enemy) => {
-        const toPlayer = new THREE.Vector3().subVectors(camera.position, enemy.position);
-        const dist = toPlayer.length();
-        toPlayer.normalize();
+      // Raider AI & Banking Maneuvers
+      raiders.forEach(r => {
+        r.group.lookAt(camera.position);
+        r.rollOffset += 0.05;
+        r.group.rotation.z = Math.sin(r.rollOffset) * 0.4; // Wing banking
+        r.group.translateZ(0.25);
 
-        enemy.position.addScaledVector(toPlayer, 8.0 * delta);
-        enemy.lookAt(camera.position);
-
-        // Enemy collision damage
-        if (dist < 3.0) {
-          shields -= 25 * delta;
-          updateHUD();
+        if (r.group.position.distanceTo(camera.position) < 4.5) {
+          shields = Math.max(0, shields - 15);
+          document.getElementById("shield-val").innerText = shields + "%";
+          r.group.position.set((Math.random() - 0.5) * 160, (Math.random() - 0.5) * 80, camera.position.z - 130);
           if (shields <= 0) {
-            isGameOver = true;
-            alert('Hull Breach! Mission Failed. Refresh to restart.');
+            alert("SHIP DESTROYED - RAIDERS DOWN: " + kills);
+            location.reload();
           }
         }
       });
@@ -407,14 +301,12 @@
       renderer.render(scene, camera);
     }
 
-    window.addEventListener('resize', () => {
+    window.addEventListener("resize", () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    init();
-    updateHUD();
     animate();
   </script>
 </body>
