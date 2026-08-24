@@ -3,17 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Kino 3D: Undead Survival</title>
+  <title>Kino Undead 3D - HD Enhanced</title>
   <style>
     * { box-sizing: border-box; user-select: none; margin: 0; padding: 0; }
-    body { background: #000; overflow: hidden; font-family: 'Impact', 'Arial Black', sans-serif; }
+    body { background: #05050a; overflow: hidden; font-family: 'Impact', sans-serif; }
     canvas { display: block; width: 100vw; height: 100vh; }
 
-    /* Vignette & Damage Overlay */
+    /* Damage Overlay */
     #overlay {
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
       pointer-events: none;
-      background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.85) 100%);
       box-shadow: inset 0 0 0 rgba(255,0,0,0);
       transition: box-shadow 0.1s ease-out;
     }
@@ -25,14 +24,13 @@
       color: #fff; text-shadow: 2px 2px 4px #000;
     }
     .hud-card {
-      background: linear-gradient(135deg, rgba(20,20,25,0.9), rgba(10,10,12,0.95));
-      border: 2px solid #5a1919; border-radius: 6px; padding: 8px 14px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.9);
+      background: rgba(15, 18, 26, 0.88); border: 2px solid #5a1919;
+      border-radius: 6px; padding: 8px 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.8);
     }
-    #score-val { color: #f1c40f; font-size: 22px; }
-    #round-val { color: #e74c3c; font-size: 32px; letter-spacing: 2px; }
-    #perk-val { color: #1abc9c; font-size: 13px; font-family: sans-serif; font-weight: bold; margin-top: 4px; }
-    #ammo-val { color: #ecf0f1; font-size: 20px; text-align: right; }
+    #score-val { color: #f1c40f; font-size: 24px; }
+    #round-val { color: #e74c3c; font-size: 34px; letter-spacing: 2px; }
+    #perk-val { color: #1abc9c; font-size: 13px; font-family: sans-serif; font-weight: bold; }
+    #ammo-val { color: #ecf0f1; font-size: 18px; text-align: right; }
 
     /* Crosshair */
     #crosshair {
@@ -40,12 +38,12 @@
       transform: translate(-50%, -50%); pointer-events: none;
     }
     #crosshair::before, #crosshair::after {
-      content: ''; position: absolute; background: rgba(255, 255, 255, 0.7);
+      content: ''; position: absolute; background: rgba(0, 255, 200, 0.85);
     }
     #crosshair::before { top: 6px; left: 0; width: 14px; height: 2px; }
     #crosshair::after { top: 0; left: 6px; width: 2px; height: 14px; }
 
-    /* Mobile Controls */
+    /* Controls */
     #controls {
       position: absolute; bottom: 15px; left: 0; right: 0;
       display: flex; justify-content: space-between; align-items: flex-end;
@@ -53,8 +51,8 @@
     }
     .zone {
       width: 110px; height: 110px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.05), rgba(0,0,0,0.6));
-      border: 2px solid rgba(255, 255, 255, 0.2); position: relative;
+      background: radial-gradient(circle, rgba(255,255,255,0.08), rgba(0,0,0,0.7));
+      border: 2px solid rgba(255, 255, 255, 0.3); position: relative;
       pointer-events: auto; touch-action: none;
     }
     .knob {
@@ -65,7 +63,7 @@
 
     .btn-panel { display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
     .action-btn {
-      width: 56px; height: 56px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3);
+      width: 56px; height: 56px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4);
       color: #fff; font-family: 'Impact', sans-serif; font-size: 11px;
       box-shadow: 0 4px 10px #000; cursor: pointer; text-shadow: 1px 1px 2px #000;
     }
@@ -76,6 +74,7 @@
     #btn-mine { background: radial-gradient(circle, #2980b9, #154360); }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
   <div id="overlay"></div>
@@ -88,8 +87,8 @@
     </div>
     <div class="hud-card" style="text-align:right;">
       <div id="round-val">I</div>
-      <div id="ammo-val">M1911</div>
-      <div style="font-size:12px; color:#aaa; font-family:sans-serif;">Nades: <span id="nade-val">2</span> | Mines: <span id="mine-val">1</span></div>
+      <div id="ammo-val">M1911 Pistol</div>
+      <div style="font-size:12px; color:#bbb; font-family:sans-serif;">Nades: <span id="nade-val">2</span> | Mines: <span id="mine-val">1</span></div>
     </div>
   </div>
 
@@ -113,7 +112,7 @@
   </div>
 
   <script>
-    // --- SOUND SYNTHESIZER (Web Audio API) ---
+    // --- AUDIO SYSTEM ---
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     const actx = new AudioCtx();
 
@@ -126,90 +125,98 @@
 
       if (type === 'gun') {
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(300, actx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(40, actx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.3, actx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, actx.currentTime + 0.08);
-        osc.start(); osc.stop(actx.currentTime + 0.08);
+        osc.frequency.setValueAtTime(320, actx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, actx.currentTime + 0.09);
+        gain.gain.setValueAtTime(0.4, actx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, actx.currentTime + 0.09);
+        osc.start(); osc.stop(actx.currentTime + 0.09);
       } else if (type === 'boom') {
         osc.type = 'square';
-        osc.frequency.setValueAtTime(80, actx.currentTime);
+        osc.frequency.setValueAtTime(90, actx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(20, actx.currentTime + 0.4);
         gain.gain.setValueAtTime(0.6, actx.currentTime);
         gain.gain.linearRampToValueAtTime(0.01, actx.currentTime + 0.4);
         osc.start(); osc.stop(actx.currentTime + 0.4);
       } else if (type === 'hit') {
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(150, actx.currentTime);
-        gain.gain.setValueAtTime(0.2, actx.currentTime);
+        osc.frequency.setValueAtTime(140, actx.currentTime);
+        gain.gain.setValueAtTime(0.3, actx.currentTime);
         gain.gain.linearRampToValueAtTime(0.01, actx.currentTime + 0.05);
         osc.start(); osc.stop(actx.currentTime + 0.05);
       } else if (type === 'power') {
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(400, actx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(900, actx.currentTime + 0.3);
-        gain.gain.setValueAtTime(0.3, actx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, actx.currentTime + 0.3);
-        osc.start(); osc.stop(actx.currentTime + 0.3);
+        osc.frequency.setValueAtTime(350, actx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, actx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.35, actx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, actx.currentTime + 0.25);
+        osc.start(); osc.stop(actx.currentTime + 0.25);
       }
     }
 
     // --- PROCEDURAL TEXTURES ---
     function makeTileTexture() {
-      const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+      const c = document.createElement('canvas'); c.width = 512; c.height = 512;
       const ctx = c.getContext('2d');
-      ctx.fillStyle = '#1c1b1f'; ctx.fillRect(0, 0, 256, 256);
-      ctx.strokeStyle = '#0e0e12'; ctx.lineWidth = 6;
-      ctx.strokeRect(0, 0, 128, 128); ctx.strokeRect(128, 0, 128, 128);
-      ctx.strokeRect(0, 128, 128, 128); ctx.strokeRect(128, 128, 128, 128);
-      // Blood spatter stains
-      ctx.fillStyle = 'rgba(90, 10, 10, 0.4)';
-      ctx.beginPath(); ctx.arc(80, 70, 25, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3a3d45'; ctx.fillRect(0, 0, 512, 512);
+      ctx.strokeStyle = '#1b1d22'; ctx.lineWidth = 8;
+      ctx.strokeRect(0, 0, 256, 256); ctx.strokeRect(256, 0, 256, 256);
+      ctx.strokeRect(0, 256, 256, 256); ctx.strokeRect(256, 256, 256, 256);
+      // Floor grunge & blood stains
+      ctx.fillStyle = 'rgba(120, 20, 20, 0.45)';
+      ctx.beginPath(); ctx.arc(180, 160, 45, 0, Math.PI * 2); ctx.fill();
       const tex = new THREE.CanvasTexture(c);
       tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(16, 16);
+      tex.repeat.set(12, 12);
       return tex;
     }
 
     function makeWallTexture() {
-      const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+      const c = document.createElement('canvas'); c.width = 512; c.height = 512;
       const ctx = c.getContext('2d');
-      ctx.fillStyle = '#2c221e'; ctx.fillRect(0, 0, 256, 256);
-      ctx.strokeStyle = '#150f0c'; ctx.lineWidth = 4;
-      for (let y = 0; y < 256; y += 32) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(256, y); ctx.stroke();
-        const offset = (y / 32) % 2 === 0 ? 0 : 32;
-        for (let x = offset; x < 256; x += 64) {
-          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 32); ctx.stroke();
+      ctx.fillStyle = '#4a3b32'; ctx.fillRect(0, 0, 512, 512);
+      ctx.strokeStyle = '#231a15'; ctx.lineWidth = 6;
+      for (let y = 0; y < 512; y += 64) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
+        const offset = (y / 64) % 2 === 0 ? 0 : 64;
+        for (let x = offset; x < 512; x += 128) {
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 64); ctx.stroke();
         }
       }
       const tex = new THREE.CanvasTexture(c);
       tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(12, 3);
+      tex.repeat.set(10, 3);
       return tex;
     }
 
     // --- THREE.JS SCENE SETUP ---
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x060608, 0.04);
+    scene.fog = new THREE.FogExp2(0x10141d, 0.02); // Clearer, less dense fog
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(scene.fog.color);
     document.body.appendChild(renderer.domElement);
 
-    // Dynamic Flashlight
-    const flashlight = new THREE.SpotLight(0xffffff, 1.2, 35, Math.PI / 5, 0.3, 1);
-    camera.add(flashlight);
-    flashlight.target = camera;
+    // BRIGHTER LIGHTING SETUP
+    const ambientLight = new THREE.AmbientLight(0x778899, 1.4); // Bright clear ambient
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+    dirLight.position.set(20, 35, 15);
+    scene.add(dirLight);
+
+    // Muzzle Flash PointLight attached to camera
+    const muzzleFlash = new THREE.PointLight(0xffaa22, 0, 10);
+    muzzleFlash.position.set(0.2, -0.2, -0.8);
+    camera.add(muzzleFlash);
 
     // Arena Floor & Walls
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshStandardMaterial({ map: makeTileTexture(), roughness: 0.6 }));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshStandardMaterial({ map: makeTileTexture(), roughness: 0.5 }));
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
-    const wallMat = new THREE.MeshStandardMaterial({ map: makeWallTexture(), roughness: 0.8 });
+    const wallMat = new THREE.MeshStandardMaterial({ map: makeWallTexture(), roughness: 0.7 });
     const createWall = (w, h, d, x, y, z) => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
       mesh.position.set(x, y, z);
@@ -220,26 +227,26 @@
     createWall(2, 14, 90, -45, 7, 0);
     createWall(2, 14, 90, 45, 7, 0);
 
-    // Atmospheric Torch Point Lights
+    // Torches
     const addTorch = (x, z, col) => {
-      const p = new THREE.PointLight(col, 2.5, 18);
+      const p = new THREE.PointLight(col, 2.8, 22);
       p.position.set(x, 4, z);
       scene.add(p);
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3), new THREE.MeshStandardMaterial({ color: 0x222 }));
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3), new THREE.MeshStandardMaterial({ color: 0x222222 }));
       post.position.set(x, 2.5, z);
       scene.add(post);
     };
-    addTorch(-15, -15, 0xff7722);
-    addTorch(15, -15, 0xff7722);
-    addTorch(-15, 15, 0xff7722);
-    addTorch(15, 15, 0xff7722);
+    addTorch(-18, -18, 0xff8833);
+    addTorch(18, -18, 0xff8833);
+    addTorch(-18, 18, 0xff8833);
+    addTorch(18, 18, 0xff8833);
 
     // --- WEAPONS & PLAYER STATE ---
     const WEAPONS = {
-      M1911: { name: "M1911", dmg: 35, spread: 0.01, delay: 180, color: 0x555555, scale: [0.1, 0.16, 0.45] },
-      MP40:  { name: "MP40 SMG", dmg: 50, spread: 0.03, delay: 95, color: 0x1c2833, scale: [0.12, 0.18, 0.7] },
-      TRENCH:{ name: "Trench Shotgun", dmg: 30, spread: 0.07, pellets: 7, delay: 650, color: 0x4a2311, scale: [0.14, 0.16, 0.8] },
-      RAYGUN:{ name: "Ray Gun", dmg: 300, spread: 0, delay: 350, color: 0x00ffcc, scale: [0.18, 0.22, 0.55], explosive: true }
+      M1911: { name: "M1911 Pistol", dmg: 35, spread: 0.01, delay: 180, color: 0x333333, modelUrl: "" },
+      MP40:  { name: "MP40 SMG", dmg: 50, spread: 0.03, delay: 95, color: 0x1c2833, modelUrl: "" },
+      TRENCH:{ name: "Trench Shotgun", dmg: 30, spread: 0.07, pellets: 7, delay: 650, color: 0x4a2311, modelUrl: "" },
+      RAYGUN:{ name: "Ray Gun Mk II", dmg: 300, spread: 0, delay: 350, color: 0x00ffcc, explosive: true, modelUrl: "" }
     };
 
     const player = {
@@ -247,37 +254,69 @@
       rotY: 0, rotX: 0,
       health: 100, points: 500,
       weapon: WEAPONS.M1911, perk: "None",
-      grenades: 2, mines: 1, speed: 0.14, canShoot: true
+      grenades: 2, mines: 1, speed: 0.15, canShoot: true
     };
     camera.position.copy(player.pos);
 
-    // Gun Model Attachment
-    const gunGroup = new THREE.Group();
-    const gunBody = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: player.weapon.color, metalness: 0.8 }));
-    gunGroup.add(gunBody);
-    gunGroup.scale.set(...player.weapon.scale);
-    gunGroup.position.set(0.25, -0.25, -0.5);
-    camera.add(gunGroup);
+    // --- 3D GUN & GLTF LOADER SETUP ---
+    const gltfLoader = new THREE.GLTFLoader();
+    const gunContainer = new THREE.Group();
+    camera.add(gunContainer);
     scene.add(camera);
 
-    // --- INTERACTABLE CHESTS ---
+    // Detailed Composite Gun Mesh (Fallback + Base)
+    let activeGunMesh = null;
+    function buildProceduralGun(color) {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.14, 0.4), new THREE.MeshStandardMaterial({ color, metalness: 0.8 }));
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.3), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9 }));
+      barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.04, -0.2);
+      const sight = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.03, 0.02), new THREE.MeshBasicMaterial({ color: 0x00ffcc }));
+      sight.position.set(0, 0.08, -0.3);
+      g.add(body); g.add(barrel); g.add(sight);
+      g.position.set(0.24, -0.22, -0.45);
+      return g;
+    }
+
+    function equipWeapon(weaponObj) {
+      player.weapon = weaponObj;
+      while (gunContainer.children.length > 0) gunContainer.remove(gunContainer.children[0]);
+
+      if (weaponObj.modelUrl) {
+        gltfLoader.load(weaponObj.modelUrl, (gltf) => {
+          activeGunMesh = gltf.scene;
+          activeGunMesh.scale.set(0.2, 0.2, 0.2);
+          activeGunMesh.position.set(0.24, -0.22, -0.45);
+          gunContainer.add(activeGunMesh);
+        }, undefined, () => {
+          activeGunMesh = buildProceduralGun(weaponObj.color);
+          gunContainer.add(activeGunMesh);
+        });
+      } else {
+        activeGunMesh = buildProceduralGun(weaponObj.color);
+        gunContainer.add(activeGunMesh);
+      }
+    }
+    equipWeapon(player.weapon);
+
+    // --- INTERACTABLES ---
     // Mystery Box
     const boxGroup = new THREE.Group();
-    const boxMesh = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.2, 1.6), new THREE.MeshStandardMaterial({ color: 0x8b6508, roughness: 0.4 }));
-    const boxGlow = new THREE.PointLight(0xf1c40f, 3, 8);
-    boxGlow.position.set(0, 1, 0);
+    const boxMesh = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.2, 1.6), new THREE.MeshStandardMaterial({ color: 0x8b6508, roughness: 0.3 }));
+    const boxGlow = new THREE.PointLight(0xf1c40f, 3.5, 10);
+    boxGlow.position.set(0, 1.2, 0);
     boxGroup.add(boxMesh); boxGroup.add(boxGlow);
-    boxGroup.position.set(6, 0.6, -20);
+    boxGroup.position.set(8, 0.6, -18);
     scene.add(boxGroup);
 
     // Gobblegum Machine
     const gumGroup = new THREE.Group();
-    const gumCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.9, 3.2, 16), new THREE.MeshStandardMaterial({ color: 0x8e44ad, metalness: 0.5 }));
+    const gumCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.9, 3.2, 16), new THREE.MeshStandardMaterial({ color: 0x8e44ad, metalness: 0.6 }));
     const gumGlobe = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 16), new THREE.MeshStandardMaterial({ color: 0x00ffff, transparent: true, opacity: 0.7 }));
     gumGlobe.position.y = 1.8;
-    const gumGlow = new THREE.PointLight(0x9b59b6, 3, 8);
+    const gumGlow = new THREE.PointLight(0x9b59b6, 3.5, 10);
     gumGroup.add(gumCyl); gumGroup.add(gumGlobe); gumGroup.add(gumGlow);
-    gumGroup.position.set(-6, 1.6, -20);
+    gumGroup.position.set(-8, 1.6, -18);
     scene.add(gumGroup);
 
     // --- HUMANOID ZOMBIE BUILDER ---
@@ -289,34 +328,33 @@
 
     function createZombieModel() {
       const zGroup = new THREE.Group();
-      const zMat = new THREE.MeshStandardMaterial({ color: 0x3d5c3a, roughness: 0.9 });
-      const clothesMat = new THREE.MeshStandardMaterial({ color: 0x1f2421 });
+      const skinMat = new THREE.MeshStandardMaterial({ color: 0x4e6b47, roughness: 0.7 });
+      const clothesMat = new THREE.MeshStandardMaterial({ color: 0x242d38 });
 
       // Torso
-      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.1, 0.5), clothesMat);
-      torso.position.y = 1.2;
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.95, 0.4), clothesMat);
+      torso.position.y = 1.1;
       zGroup.add(torso);
 
       // Head + Glowing Eyes
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), zMat);
-      head.position.set(0, 2.0, 0);
-      const eyeGeo = new THREE.SphereGeometry(0.06, 6, 6);
-      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff1100 });
-      const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.12, 0.05, 0.26);
-      const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.12, 0.05, 0.26);
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), skinMat);
+      head.position.set(0, 1.8, 0);
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeMat); eyeL.position.set(-0.1, 0.05, 0.22);
+      const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeMat); eyeR.position.set(0.1, 0.05, 0.22);
       head.add(eyeL); head.add(eyeR);
       zGroup.add(head);
 
       // Arms (Reach forward)
-      const armGeo = new THREE.BoxGeometry(0.25, 0.25, 0.9);
-      const armL = new THREE.Mesh(armGeo, zMat); armL.position.set(-0.6, 1.4, 0.4);
-      const armR = new THREE.Mesh(armGeo, zMat); armR.position.set(0.6, 1.4, 0.4);
+      const armGeo = new THREE.BoxGeometry(0.2, 0.2, 0.75);
+      const armL = new THREE.Mesh(armGeo, skinMat); armL.position.set(-0.5, 1.25, 0.35);
+      const armR = new THREE.Mesh(armGeo, skinMat); armR.position.set(0.5, 1.25, 0.35);
       zGroup.add(armL); zGroup.add(armR);
 
       // Legs
-      const legGeo = new THREE.BoxGeometry(0.3, 0.8, 0.35);
-      const legL = new THREE.Mesh(legGeo, clothesMat); legL.position.set(-0.25, 0.4, 0);
-      const legR = new THREE.Mesh(legGeo, clothesMat); legR.position.set(0.25, 0.4, 0);
+      const legGeo = new THREE.BoxGeometry(0.25, 0.75, 0.3);
+      const legL = new THREE.Mesh(legGeo, clothesMat); legL.position.set(-0.2, 0.38, 0);
+      const legR = new THREE.Mesh(legGeo, clothesMat); legR.position.set(0.2, 0.38, 0);
       zGroup.add(legL); zGroup.add(legR);
 
       return { group: zGroup, armL, armR, legL, legR };
@@ -325,7 +363,7 @@
     function spawnZombie() {
       const zData = createZombieModel();
       const angle = Math.random() * Math.PI * 2;
-      zData.group.position.set(Math.cos(angle) * 40, 0, Math.sin(angle) * 40);
+      zData.group.position.set(Math.cos(angle) * 38, 0, Math.sin(angle) * 38);
       scene.add(zData.group);
       zombies.push({
         ...zData,
@@ -336,17 +374,17 @@
     }
 
     // --- BLOOD & FX PARTICLES ---
-    function spawnBlood(pos, color = 0x880000) {
-      for (let i = 0; i < 6; i++) {
+    function spawnBlood(pos, color = 0x990000) {
+      for (let i = 0; i < 8; i++) {
         const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color }));
         p.position.copy(pos);
-        p.vel = new THREE.Vector3((Math.random() - 0.5) * 0.2, Math.random() * 0.2, (Math.random() - 0.5) * 0.2);
+        p.vel = new THREE.Vector3((Math.random() - 0.5) * 0.25, Math.random() * 0.25, (Math.random() - 0.5) * 0.25);
         scene.add(p);
         particles.push(p);
       }
     }
 
-    // --- CONTROLS LOGIC ---
+    // --- CONTROLS BINDING ---
     let moveVec = { x: 0, y: 0 };
     let lookVec = { x: 0, y: 0 };
 
@@ -393,9 +431,11 @@
       setTimeout(() => { player.canShoot = true; }, player.weapon.delay);
       playSound('gun');
 
-      // Gun Recoil
-      gunGroup.position.z = -0.38;
-      setTimeout(() => { gunGroup.position.z = -0.5; }, 70);
+      // Muzzle Flash & Recoil
+      muzzleFlash.intensity = 5;
+      setTimeout(() => { muzzleFlash.intensity = 0; }, 45);
+      gunContainer.position.z = 0.08;
+      setTimeout(() => { gunContainer.position.z = 0; }, 70);
 
       const count = player.weapon.pellets || 1;
       for (let i = 0; i < count; i++) {
@@ -410,7 +450,7 @@
 
         if (hits.length > 0) {
           const zObj = hits[0].object.parentZ;
-          spawnBlood(hits[0].point, player.weapon.explosive ? 0x00ffcc : 0x880000);
+          spawnBlood(hits[0].point, player.weapon.explosive ? 0x00ffcc : 0xaa0000);
           playSound('hit');
 
           let dmg = player.perk === "Insta-Kill" ? 9999 : player.weapon.dmg;
@@ -439,9 +479,7 @@
         player.points -= 950;
         playSound('power');
         const pool = [WEAPONS.MP40, WEAPONS.TRENCH, WEAPONS.RAYGUN];
-        player.weapon = pool[Math.floor(Math.random() * pool.length)];
-        gunBody.material.color.setHex(player.weapon.color);
-        gunGroup.scale.set(...player.weapon.scale);
+        equipWeapon(pool[Math.floor(Math.random() * pool.length)]);
         updateUI();
       }
     });
@@ -562,17 +600,17 @@
         z.group.lookAt(player.pos.x, 0, player.pos.z);
         z.group.translateZ(z.speed);
 
-        // Walking Shambling Animation
+        // Walking Animation
         z.stride += 0.15;
         z.legL.rotation.x = Math.sin(z.stride) * 0.6;
         z.legR.rotation.x = -Math.sin(z.stride) * 0.6;
         z.armL.rotation.x = -Math.PI / 2 + Math.sin(z.stride) * 0.2;
         z.armR.rotation.x = -Math.PI / 2 - Math.sin(z.stride) * 0.2;
 
-        // Zombie Attack & Blood Screen
-        if (z.group.position.distanceTo(player.pos) < 1.6) {
-          player.health = Math.max(0, player.health - 0.7);
-          document.getElementById("overlay").style.boxShadow = "inset 0 0 40px rgba(255,0,0,0.8)";
+        // Damage & Screen Vignette
+        if (z.group.position.distanceTo(player.pos) < 1.4) {
+          player.health = Math.max(0, player.health - 0.6);
+          document.getElementById("overlay").style.boxShadow = "inset 0 0 50px rgba(255,0,0,0.8)";
           setTimeout(() => { document.getElementById("overlay").style.boxShadow = "inset 0 0 0 rgba(255,0,0,0)"; }, 120);
           updateUI();
           if (player.health <= 0) {
