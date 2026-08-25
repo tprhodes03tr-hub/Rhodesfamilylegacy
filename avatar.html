@@ -1,320 +1,272 @@
-# MainGame.gd
-# Attach this script to a root Node3D in Godot 4.
-extends Node3D
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avatar: Aerial & Aquatic Vanguard</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #020b14;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+            user-select: none;
+        }
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
+            background: rgba(4, 18, 36, 0.8);
+            padding: 14px 20px;
+            border-radius: 10px;
+            border: 1px solid #1a8cff;
+            box-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
+            pointer-events: none;
+        }
+        .bar-container {
+            width: 200px;
+            height: 14px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 7px;
+            overflow: hidden;
+            margin: 6px 0 12px 0;
+        }
+        #health-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00a6ff);
+            transition: width 0.2s;
+        }
+        #controls-hint {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(4, 18, 36, 0.85);
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: 1px solid #00e5ff;
+            font-size: 13px;
+            text-align: center;
+            pointer-events: none;
+        }
+        #reticle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            border: 2px solid rgba(0, 229, 255, 0.7);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div id="reticle"></div>
+    <div id="hud">
+        <div style="font-size: 16px; font-weight: bold; color: #00e5ff;">WARRIOR ISRAEL</div>
+        <div style="font-size: 12px; margin-top: 4px;">Health</div>
+        <div class="bar-container"><div id="health-bar"></div></div>
+        <div style="font-size: 13px;">Stance: <span id="stance-label" style="color: #00e5ff; font-weight: bold;">Aerial Flight</span></div>
+        <div style="font-size: 13px; margin-top: 4px;">Enemies Remaining: <span id="enemy-count" style="color: #ffaa00; font-weight: bold;">5</span></div>
+    </div>
+    <div id="controls-hint">
+        <strong>W/S:</strong> Pitch | <strong>A/D:</strong> Roll/Turn | <strong>Q/E:</strong> Submerge / Surface | <strong>Space:</strong> Surface Breach Launch<br>
+        <strong>Left Click:</strong> Precision Arrow Fire | <strong>Right Click:</strong> Slow-Mo Focus Aim | <strong>F:</strong> Heavy Breaching Melee
+    </div>
 
-const DEFAULT_PORT: int = 8910
-const DEFAULT_IP: str = "127.0.0.1"
+    <script>
+        // --- SCENE & RENDERER SETUP ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x051d38, 0.008);
 
-# Network & Game State
-var peer: ENetMultiplayerPeer
-var players_container: Node3D
-var projectiles_container: Node3D
-var ui_layer: CanvasLayer
-var status_label: Label
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
 
-func _ready() -> void:
-	setup_environment()
-	setup_networking_ui()
-	
-	players_container = Node3D.new()
-	players_container.name = "Players"
-	add_child(players_container)
-	
-	projectiles_container = Node3D.new()
-	projectiles_container.name = "Projectiles"
-	add_child(projectiles_container)
-	
-	multiplayer.peer_connected.connect(_on_peer_connected)
-	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+        // --- LIGHTING ---
+        const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.4);
+        sunLight.position.set(100, 150, 50);
+        scene.add(sunLight);
+        scene.add(new THREE.AmbientLight(0x224466, 0.8));
 
-# ==============================================================================
-# 1. PROCEDURAL 3D WORLD SETUP (Air, Water, & Lighting)
-# ==============================================================================
-func setup_environment() -> void:
-	# Directional Sunlight
-	var sun = DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-45, 30, 0)
-	sun.light_energy = 1.2
-	add_child(sun)
-	
-	# Water Surface Visual Plane (Y = 0)
-	var water_mesh = MeshInstance3D.new()
-	var plane = PlaneMesh.new()
-	plane.size = Vector2(800, 800)
-	water_mesh.mesh = plane
-	var water_mat = StandardMaterial3D.new()
-	water_mat.albedo_color = Color(0.08, 0.42, 0.65, 0.65)
-	water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water_mat.roughness = 0.15
-	water_mesh.material_override = water_mat
-	water_mesh.position = Vector3(0, 0, 0)
-	add_child(water_mesh)
+        // --- WATER PLANE (Y = 0) ---
+        const waterGeo = new THREE.PlaneGeometry(1200, 1200, 32, 32);
+        const waterMat = new THREE.MeshStandardMaterial({
+            color: 0x006699,
+            transparent: true,
+            opacity: 0.6,
+            roughness: 0.1,
+            metalness: 0.1
+        });
+        const water = new THREE.Mesh(waterGeo, waterMat);
+        water.rotation.x = -Math.PI / 2;
+        scene.add(water);
 
-# ==============================================================================
-# 2. MULTIPLAYER LOBBY & UI
-# ==============================================================================
-func setup_networking_ui() -> void:
-	ui_layer = CanvasLayer.new()
-	add_child(ui_layer)
-	
-	var panel = PanelContainer.new()
-	panel.position = Vector2(20, 20)
-	ui_layer.add_child(panel)
-	
-	var vbox = VBoxContainer.new()
-	panel.add_child(vbox)
-	
-	status_label = Label.new()
-	status_label.text = "Avatar Combat: Host or Join"
-	vbox.add_child(status_label)
-	
-	var host_btn = Button.new()
-	host_btn.text = "Host Session (Server)"
-	host_btn.pressed.connect(_on_host_pressed)
-	vbox.add_child(host_btn)
-	
-	var ip_input = LineEdit.new()
-	ip_input.text = DEFAULT_IP
-	ip_input.placeholder_text = "Server IP"
-	vbox.add_child(ip_input)
-	
-	var join_btn = Button.new()
-	join_btn.text = "Join Session (Client)"
-	join_btn.pressed.connect(func(): _on_join_pressed(ip_input.text))
-	vbox.add_child(join_btn)
+        // --- PLAYER AVATAR ---
+        const playerGroup = new THREE.Group();
+        const bodyGeo = new THREE.ConeGeometry(1.2, 4, 8);
+        bodyGeo.rotateX(Math.PI / 2);
+        const playerMat = new THREE.MeshStandardMaterial({ color: 0x0077cc, roughness: 0.4 });
+        const playerMesh = new THREE.Mesh(bodyGeo, playerMat);
+        playerGroup.add(playerMesh);
 
-func _on_host_pressed() -> void:
-	peer = ENetMultiplayerPeer.new()
-	var err = peer.create_server(DEFAULT_PORT, 8)
-	if err != OK:
-		status_label.text = "Error hosting: " + str(err)
-		return
-	multiplayer.multiplayer_peer = peer
-	status_label.text = "Hosting on port " + str(DEFAULT_PORT)
-	spawn_player_avatar(1)
+        // Wings
+        const wingGeo = new THREE.BoxGeometry(7, 0.1, 1.8);
+        const wingMat = new THREE.MeshStandardMaterial({ color: 0x00aaff });
+        const wings = new THREE.Mesh(wingGeo, wingMat);
+        playerGroup.add(wings);
 
-func _on_join_pressed(ip_address: String) -> void:
-	peer = ENetMultiplayerPeer.new()
-	var address = ip_address if ip_address != "" else DEFAULT_IP
-	var err = peer.create_client(address, DEFAULT_PORT)
-	if err != OK:
-		status_label.text = "Error joining: " + str(err)
-		return
-	multiplayer.multiplayer_peer = peer
-	status_label.text = "Connecting to " + address + "..."
+        playerGroup.position.set(0, 15, 0);
+        scene.add(playerGroup);
 
-func _on_peer_connected(id: int) -> void:
-	if multiplayer.is_server():
-		# Spawn existing players for the newcomer and spawn the newcomer
-		spawn_player_avatar(id)
-		for child in players_container.get_children():
-			rpc_id(id, "sync_spawn_player", child.name.to_int(), child.global_position)
+        // --- GAME STATE ---
+        let stance = "AIR_FLIGHT";
+        let health = 100;
+        let speed = 35;
+        let timeScale = 1.0;
+        const keys = {};
+        const arrows = [];
+        const enemies = [];
 
-func _on_peer_disconnected(id: int) -> void:
-	if players_container.has_node(str(id)):
-		players_container.get_node(str(id)).queue_free()
+        // --- ENEMY SPAWN ---
+        const enemyMat = new THREE.MeshStandardMaterial({ color: 0xd9383a });
+        for (let i = 0; i < 5; i++) {
+            const e = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 5), enemyMat);
+            e.position.set((Math.random() - 0.5) * 200, Math.random() > 0.5 ? 12 : -10, -80 - Math.random() * 150);
+            scene.add(e);
+            enemies.push(e);
+        }
 
-func spawn_player_avatar(id: int, start_pos: Vector3 = Vector3(0, 15, 0)) -> void:
-	if multiplayer.is_server():
-		rpc("sync_spawn_player", id, start_pos)
+        // --- INPUT LISTENERS ---
+        window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
 
-@rpc("call_local", "reliable")
-func sync_spawn_player(id: int, start_pos: Vector3) -> void:
-	if players_container.has_node(str(id)):
-		return
-	var player = AvatarWarrior.new()
-	player.name = str(id)
-	player.global_position = start_pos
-	player.authority_id = id
-	player.main_ref = self
-	players_container.add_child(player)
+        window.addEventListener('mousedown', (e) => {
+            if (e.button === 0) fireArrow(); // Left Click
+            if (e.button === 2) timeScale = 0.35; // Right Click (Slow-Mo Focus)
+        });
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 2) timeScale = 1.0;
+        });
+        window.addEventListener('contextmenu', (e) => e.preventDefault());
 
-# ==============================================================================
-# 3. COMBAT PROJECTILE LOGIC (High-Speed Archery)
-# ==============================================================================
-@rpc("any_peer", "call_local", "reliable")
-func spawn_network_arrow(shooter_id: int, spawn_pos: Vector3, launch_dir: Vector3) -> void:
-	var arrow = ArrowProjectile.new()
-	arrow.global_position = spawn_pos
-	arrow.direction = launch_dir.normalized()
-	arrow.shooter_id = shooter_id
-	arrow.main_ref = self
-	projectiles_container.add_child(arrow)
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'f') executeMeleeStrike();
+        });
 
-@rpc("any_peer", "call_local", "reliable")
-func execute_aoe_melee_strike(origin: Vector3, radius: float, damage: float, attacker_id: int) -> void:
-	for player in players_container.get_children():
-		if player is AvatarWarrior and player.authority_id != attacker_id:
-			if player.global_position.distance_to(origin) <= radius:
-				player.take_damage(damage)
+        // --- COMBAT ACTIONS ---
+        function fireArrow() {
+            const arrowGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.5);
+            arrowGeo.rotateX(Math.PI / 2);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+            arrow.position.copy(playerGroup.position);
+            arrow.quaternion.copy(playerGroup.quaternion);
 
-# ==============================================================================
-# 4. AVATAR WARRIOR CLASS (Flight Archery & Water Breach)
-# ==============================================================================
-class AvatarWarrior extends CharacterBody3D:
-	enum Stance { AIR_FLIGHT, AQUATIC_DIVE }
-	
-	var authority_id: int = 1
-	var main_ref: Node3D
-	var current_stance: Stance = Stance.AIR_FLIGHT
-	
-	# Movement & Combat parameters
-	var flight_speed: float = 38.0
-	var water_speed: float = 24.0
-	var breach_velocity_boost: float = 32.0
-	var health: float = 100.0
-	
-	var camera: Camera3D
-	var mesh_inst: MeshInstance3D
-	var target_sync_pos: Vector3
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(playerGroup.quaternion);
+            arrows.push({ mesh: arrow, dir: forward, life: 2.5 });
+            scene.add(arrow);
+        }
 
-	func _ready() -> void:
-		target_sync_pos = global_position
-		
-		# Avatar Visual Representation
-		mesh_inst = MeshInstance3D.new()
-		var capsule = CapsuleMesh.new()
-		capsule.radius = 0.7
-		capsule.height = 2.4
-		mesh_inst.mesh = capsule
-		var mat = StandardMaterial3D.new()
-		# Blue Na'vi tint
-		mat.albedo_color = Color(0.15, 0.45, 0.85) if authority_id == 1 else Color(0.12, 0.65, 0.75)
-		mesh_inst.material_override = mat
-		add_child(mesh_inst)
-		
-		var col = CollisionShape3D.new()
-		var col_shape = CapsuleShape3D.new()
-		col_shape.radius = 0.7
-		col_shape.height = 2.4
-		col.shape = col_shape
-		add_child(col)
-		
-		# Setup local player camera
-		if authority_id == multiplayer.get_unique_id():
-			camera = Camera3D.new()
-			camera.position = Vector3(0, 3.5, 7.5)
-			camera.rotation_degrees = Vector3(-18, 0, 0)
-			add_child(camera)
-			camera.current = true
+        function executeMeleeStrike() {
+            // Downward spinning breach melee strike
+            const strikeRadius = 16;
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                if (playerGroup.position.distanceTo(enemies[i].position) < strikeRadius) {
+                    scene.remove(enemies[i]);
+                    enemies.splice(i, 1);
+                }
+            }
+            document.getElementById('enemy-count').innerText = enemies.length;
+        }
 
-	func _physics_process(delta: float) -> void:
-		if authority_id != multiplayer.get_unique_id():
-			global_position = global_position.lerp(target_sync_pos, 0.25)
-			return
+        // --- MAIN GAME LOOP ---
+        let clock = new THREE.Clock();
 
-		handle_mode_transitions()
-		
-		match current_stance:
-			Stance.AIR_FLIGHT:
-				handle_aerial_flight(delta)
-			Stance.AQUATIC_DIVE:
-				handle_aquatic_swim(delta)
+        function animate() {
+            requestAnimationFrame(animate);
+            let delta = clock.getDelta() * timeScale;
 
-		move_and_slide()
-		rpc("sync_position_to_peers", global_position, rotation)
+            // Pitch & Yaw
+            if (keys['w']) playerGroup.rotateX(-1.5 * delta);
+            if (keys['s']) playerGroup.rotateX(1.5 * delta);
+            if (keys['a']) playerGroup.rotateY(1.8 * delta);
+            if (keys['d']) playerGroup.rotateY(-1.8 * delta);
 
-	func handle_mode_transitions() -> void:
-		# Auto-switch to diving when beneath water level
-		if global_position.y < 0.0 and current_stance == Stance.AIR_FLIGHT:
-			current_stance = Stance.AQUATIC_DIVE
-		
-		# Aquatic Breach Launch: Surface breach when pressing Jump/Space near Y=0
-		if current_stance == Stance.AQUATIC_DIVE and global_position.y >= -1.0:
-			if Input.is_action_pressed("ui_accept"):
-				current_stance = Stance.AIR_FLIGHT
-				velocity.y = breach_velocity_boost
-				velocity.z *= 1.5
+            // Submerge / Surface
+            if (keys['q']) playerGroup.position.y -= 18 * delta;
+            if (keys['e']) playerGroup.position.y += 18 * delta;
 
-	func handle_aerial_flight(_delta: float) -> void:
-		var forward = -transform.basis.z
-		var right = transform.basis.x
-		var move_input = Vector2.ZERO
-		
-		if Input.is_key_pressed(KEY_W): move_input.y += 1.0
-		if Input.is_key_pressed(KEY_S): move_input.y -= 1.0
-		if Input.is_key_pressed(KEY_D): move_input.x += 1.0
-		if Input.is_key_pressed(KEY_A): move_input.x -= 1.0
-		
-		# Pitch and Yaw controls
-		if Input.is_key_pressed(KEY_UP): rotate_x(deg_to_rad(1.5))
-		if Input.is_key_pressed(KEY_DOWN): rotate_x(deg_to_rad(-1.5))
-		if Input.is_key_pressed(KEY_LEFT): rotate_y(deg_to_rad(2.0))
-		if Input.is_key_pressed(KEY_RIGHT): rotate_y(deg_to_rad(-2.0))
-		
-		# Scene 1: Precision Focus Aim (Slow-Mo)
-		if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
-			Engine.time_scale = 0.4
-		else:
-			Engine.time_scale = 1.0
-			
-		# Aerial Shooting
-		if Input.is_action_just_pressed("ui_select") or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			main_ref.rpc("spawn_network_arrow", authority_id, global_position + forward * 2.0, forward)
-			
-		velocity = forward * (flight_speed * (1.0 + move_input.y * 0.4)) + right * (move_input.x * 12.0)
+            // Forward Flight Movement
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(playerGroup.quaternion);
+            playerGroup.position.addScaledVector(forward, speed * delta);
 
-	func handle_aquatic_swim(_delta: float) -> void:
-		var forward = -transform.basis.z
-		var swim_dir = Vector3.ZERO
-		
-		if Input.is_key_pressed(KEY_W): swim_dir += forward
-		if Input.is_key_pressed(KEY_S): swim_dir -= forward
-		if Input.is_key_pressed(KEY_E): swim_dir.y += 1.0 # Swim up
-		if Input.is_key_pressed(KEY_Q): swim_dir.y -= 1.0 # Dive down
-		
-		velocity = swim_dir.normalized() * water_speed
-		
-		# Scene 2: Heavy Aquatic/Breach Melee Strike
-		if Input.is_key_pressed(KEY_F):
-			main_ref.rpc("execute_aoe_melee_strike", global_position, 5.5, 45.0, authority_id)
+            // Stance Logic & Water Surface Breach
+            if (playerGroup.position.y < 0 && stance !== "AQUATIC_DIVE") {
+                stance = "AQUATIC_DIVE";
+                speed = 22;
+                document.getElementById('stance-label').innerText = "Aquatic Submerged";
+                document.getElementById('stance-label').style.color = "#00ffa2";
+            } else if (playerGroup.position.y >= 0 && stance === "AQUATIC_DIVE") {
+                if (keys[' ']) { // Breach Launch
+                    playerGroup.position.y += 15;
+                    speed = 48; // Burst of breach speed
+                }
+                stance = "AIR_FLIGHT";
+                speed = 35;
+                document.getElementById('stance-label').innerText = "Aerial Flight";
+                document.getElementById('stance-label').style.color = "#00e5ff";
+            }
 
-	@rpc("unreliable")
-	func sync_position_to_peers(pos: Vector3, rot: Vector3) -> void:
-		target_sync_pos = pos
-		rotation = rot
+            // Camera follow behind player
+            const camOffset = new THREE.Vector3(0, 4, 12).applyQuaternion(playerGroup.quaternion);
+            camera.position.lerp(playerGroup.position.clone().add(camOffset), 0.1);
+            camera.lookAt(playerGroup.position);
 
-	func take_damage(amount: float) -> void:
-		health -= amount
-		if health <= 0:
-			global_position = Vector3(0, 20, 0) # Respawn
-			health = 100.0
+            // Update Arrows
+            for (let i = arrows.length - 1; i >= 0; i--) {
+                const a = arrows[i];
+                a.mesh.position.addScaledVector(a.dir, 140 * delta);
+                a.life -= delta;
 
-# ==============================================================================
-# 5. PROJECTILE ENTITY
-# ==============================================================================
-class ArrowProjectile extends Node3D:
-	var speed: float = 110.0
-	var direction: Vector3 = Vector3.FORWARD
-	var shooter_id: int = 1
-	var main_ref: Node3D
-	var lifetime: float = 3.5
+                // Hit Detection
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    if (a.mesh.position.distanceTo(enemies[j].position) < 4.0) {
+                        scene.remove(enemies[j]);
+                        enemies.splice(j, 1);
+                        a.life = 0;
+                        document.getElementById('enemy-count').innerText = enemies.length;
+                        break;
+                    }
+                }
 
-	func _ready() -> void:
-		var mesh = MeshInstance3D.new()
-		var box = BoxMesh.new()
-		box.size = Vector3(0.08, 0.08, 1.6)
-		mesh.mesh = box
-		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(1.0, 0.7, 0.2)
-		mat.emission_enabled = true
-		mat.emission = Color(1.0, 0.5, 0.1)
-		mat.emission_energy_multiplier = 3.0
-		mesh.material_override = mat
-		add_child(mesh)
+                if (a.life <= 0) {
+                    scene.remove(a.mesh);
+                    arrows.splice(i, 1);
+                }
+            }
 
-	func _process(delta: float) -> void:
-		global_position += direction * speed * delta
-		lifetime -= delta
-		
-		# Check collisions against peers
-		if main_ref and multiplayer.is_server():
-			for player in main_ref.players_container.get_children():
-				if player is AvatarWarrior and player.authority_id != shooter_id:
-					if global_position.distance_to(player.global_position) < 1.8:
-						player.take_damage(35.0)
-						queue_free()
-						return
-						
-		if lifetime <= 0.0:
-			queue_free()
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
