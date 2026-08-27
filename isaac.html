@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Isaac the Speedrunner • High-Speed Sonic Edition</title>
+  <title>Isaac the Speedrunner • Corkscrew Spiral & Tunnel Edition</title>
   <style>
     * {
       box-sizing: border-box;
@@ -22,10 +22,7 @@
       min-height: 100vh;
       padding: 10px;
     }
-    header {
-      text-align: center;
-      margin-bottom: 8px;
-    }
+    header { text-align: center; margin-bottom: 8px; }
     h1 {
       font-family: 'Georgia', serif;
       font-size: 1.4rem;
@@ -34,12 +31,8 @@
       text-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
       text-transform: uppercase;
     }
-    .subtitle {
-      font-size: 0.75rem;
-      color: #94a3b8;
-    }
+    .subtitle { font-size: 0.75rem; color: #94a3b8; }
 
-    /* Universal Nav */
     .nav-bar {
       width: 100%;
       max-width: 600px;
@@ -85,7 +78,6 @@
       image-rendering: pixelated;
     }
 
-    /* Touch Controls */
     .touch-controls {
       display: flex;
       justify-content: space-between;
@@ -95,13 +87,10 @@
       margin-top: 10px;
       padding: 0 12px;
     }
-    .d-pad {
-      display: flex;
-      gap: 8px;
-    }
+    .d-pad { display: flex; gap: 8px; }
     .ctrl-btn {
-      width: 60px;
-      height: 60px;
+      width: 58px;
+      height: 58px;
       border-radius: 50%;
       background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
       border: 2px solid #38bdf8;
@@ -119,10 +108,7 @@
       color: #020617;
       transform: scale(0.92);
     }
-    .action-btn-group {
-      display: flex;
-      gap: 10px;
-    }
+    .action-btn-group { display: flex; gap: 10px; }
     .action-btn {
       width: 64px;
       height: 64px;
@@ -143,9 +129,8 @@
       border-color: #fb7185;
       box-shadow: 0 0 12px rgba(225, 29, 72, 0.4);
     }
-    .action-btn:active {
-      transform: scale(0.92);
-    }
+    .action-btn:active { transform: scale(0.92); }
+
     .banner {
       width: 100%;
       max-width: 600px;
@@ -164,7 +149,7 @@
 
   <header>
     <h1>Isaac The Speedrunner</h1>
-    <div class="subtitle">High Velocity Sonic Zone • Emerald Rush</div>
+    <div class="subtitle">Spiral Loops • Speed Tunnels • Boss Vanguard Zone</div>
   </header>
 
   <nav class="nav-bar">
@@ -192,14 +177,15 @@
   </div>
 
   <div class="banner">
-    ⚡ <strong>Controls:</strong> Hold Left/Right to build momentum! Press <strong>DOWN</strong> while running to Spin-Dash roll into enemies!
+    🌀 <strong>Speed Tips:</strong> Build momentum to sprint through the 360° Spiral Loops and warp tubes!
   </div>
 
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    const WORLD_WIDTH = 3400;
+    // Massive 8000px World with seamless camera
+    const WORLD_WIDTH = 8000;
     const GROUND_Y = 270;
 
     let cameraX = 0;
@@ -241,62 +227,102 @@
       if (e.key === 'Shift' || e.key === 'j') input.spin = false;
     });
 
-    // Sonic Momentum Physics State
     const isaac = {
       x: 100,
-      y: GROUND_Y - 50,
+      y: GROUND_Y - 54,
       w: 26,
       h: 52,
       vx: 0,
       vy: 0,
-      accel: 0.18,
-      maxSpeed: 9.5,
-      friction: 0.96,
-      gravity: 0.38,
+      accel: 0.22,
+      maxSpeed: 12.0,
+      friction: 0.97,
+      gravity: 0.40,
       isGrounded: false,
       isRolling: false,
+      inLoop: false,
+      loopProgress: 0,
+      loopCenter: null,
       facing: 1,
       animTime: 0,
       invuln: 0
     };
 
-    // Terrain, Ramps, & Springs
+    // Extended Terrain Layout
     const platforms = [
-      { x: 0, y: GROUND_Y, w: WORLD_WIDTH, h: 50 },
-      { x: 300, y: 220, w: 180, h: 14 },
-      { x: 580, y: 170, w: 200, h: 14 },
-      { x: 920, y: 220, w: 160, h: 14 },
-      { x: 1200, y: 160, w: 240, h: 14 },
-      { x: 1560, y: 210, w: 220, h: 14 },
-      { x: 1900, y: 150, w: 300, h: 14 },
-      { x: 2350, y: 200, w: 250, h: 14 },
-      { x: 2750, y: 160, w: 350, h: 14 }
+      { x: 0, y: GROUND_Y, w: 1400, h: 50 },
+      { x: 300, y: 210, w: 180, h: 14 },
+      { x: 600, y: 160, w: 220, h: 14 },
+      { x: 950, y: 200, w: 180, h: 14 },
+      
+      // Post-Loop 1 Platforms
+      { x: 1750, y: GROUND_Y, w: 1800, h: 50 },
+      { x: 1900, y: 200, w: 240, h: 14 },
+      { x: 2300, y: 150, w: 260, h: 14 },
+      
+      // Speed Tunnel Elevated Path
+      { x: 3800, y: GROUND_Y, w: 2400, h: 50 },
+      { x: 4200, y: 190, w: 300, h: 14 },
+      { x: 4700, y: 140, w: 320, h: 14 },
+      
+      // Final Boss Area
+      { x: 6400, y: GROUND_Y, w: 1600, h: 50 }
     ];
 
-    // Springs & Boost Pads
+    // 360° Spiral Loops
+    const loops = [
+      { centerX: 1550, centerY: GROUND_Y - 60, radius: 70 },
+      { centerX: 3600, centerY: GROUND_Y - 70, radius: 80 },
+      { centerX: 6200, centerY: GROUND_Y - 75, radius: 85 }
+    ];
+
+    // Speed Booster Warp Tunnels
+    const tunnels = [
+      { x: 2700, y: GROUND_Y - 32, w: 280, h: 32, boostSpeed: 14 },
+      { x: 5200, y: GROUND_Y - 32, w: 320, h: 32, boostSpeed: 15 }
+    ];
+
+    // Springs & Pads
     const springs = [
-      { x: 500, y: GROUND_Y - 14, w: 28, h: 14, force: -11 },
-      { x: 1140, y: GROUND_Y - 14, w: 28, h: 14, force: -12.5 },
-      { x: 1820, y: GROUND_Y - 14, w: 28, h: 14, force: -13 }
+      { x: 500, y: GROUND_Y - 14, w: 28, h: 14, force: -12 },
+      { x: 1250, y: GROUND_Y - 14, w: 28, h: 14, force: -13.5 },
+      { x: 2200, y: GROUND_Y - 14, w: 28, h: 14, force: -12.5 },
+      { x: 4600, y: GROUND_Y - 14, w: 28, h: 14, force: -14 }
     ];
 
     const boostPads = [
       { x: 800, y: GROUND_Y - 8, w: 36, h: 8, boost: 12 },
-      { x: 2250, y: GROUND_Y - 8, w: 36, h: 8, boost: 13 }
+      { x: 2600, y: GROUND_Y - 8, w: 36, h: 8, boost: 14 },
+      { x: 5050, y: GROUND_Y - 8, w: 36, h: 8, boost: 15 }
     ];
 
-    // Golden Sonic Rings
+    // Rings List spread across the full 8000px stage
     let ringList = [];
-    for (let x = 200; x < 3200; x += 60) {
-      ringList.push({ x, y: GROUND_Y - 30 - (x % 180 === 0 ? 60 : 0), collected: false });
+    for (let x = 180; x < 7800; x += 55) {
+      if ((x > 1450 && x < 1650) || (x > 3500 && x < 3700)) continue; // skip loop gaps
+      ringList.push({ x, y: GROUND_Y - 30 - (x % 160 === 0 ? 55 : 0), collected: false });
     }
+    // Add rings circling the loops
+    loops.forEach(lp => {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+        ringList.push({
+          x: lp.centerX + Math.cos(a) * (lp.radius - 10),
+          y: lp.centerY + Math.sin(a) * (lp.radius - 10),
+          collected: false
+        });
+      }
+    });
 
-    // Badnik Drones
+    // Enemies (Badniks & Flying Drones)
     let enemies = [
-      { x: 450, y: GROUND_Y - 40, w: 28, h: 28, vx: -1.2, minX: 350, maxX: 550, alive: true },
-      { x: 1050, y: GROUND_Y - 40, w: 28, h: 28, vx: 1.5, minX: 950, maxX: 1180, alive: true },
-      { x: 1700, y: 210 - 32, w: 28, h: 28, vx: -1.4, minX: 1580, maxX: 1750, alive: true },
-      { x: 2500, y: GROUND_Y - 40, w: 28, h: 28, vx: 1.6, minX: 2400, maxX: 2650, alive: true }
+      { x: 450, y: GROUND_Y - 36, w: 28, h: 28, vx: -1.2, minX: 350, maxX: 550, alive: true },
+      { x: 1100, y: GROUND_Y - 36, w: 28, h: 28, vx: 1.5, minX: 980, maxX: 1280, alive: true },
+      { x: 2050, y: 200 - 32, w: 28, h: 28, vx: -1.4, minX: 1920, maxX: 2120, alive: true },
+      { x: 2900, y: GROUND_Y - 36, w: 28, h: 28, vx: 1.8, minX: 2750, maxX: 3100, alive: true },
+      { x: 4400, y: 190 - 32, w: 28, h: 28, vx: -1.5, minX: 4250, maxX: 4480, alive: true },
+      { x: 5500, y: GROUND_Y - 36, w: 28, h: 28, vx: 2.0, minX: 5300, maxX: 5750, alive: true },
+      // Final Boss Drone
+      { x: 7200, y: 160, w: 48, h: 48, vx: -2.2, minX: 6800, maxX: 7500, alive: true, isBoss: true, hp: 6 }
     ];
 
     let particles = [];
@@ -320,103 +346,148 @@
     function update() {
       timer++;
 
-      // High-Speed Momentum
-      if (input.right) {
-        isaac.vx += isaac.accel;
-        isaac.facing = 1;
-      } else if (input.left) {
-        isaac.vx -= isaac.accel;
-        isaac.facing = -1;
-      } else {
-        isaac.vx *= isaac.friction;
-      }
+      // 1. Loop-de-Loop Spiral Logic
+      if (isaac.inLoop) {
+        isaac.loopProgress += 0.065;
+        isaac.x = isaac.loopCenter.centerX + Math.cos(isaac.loopProgress) * isaac.loopCenter.radius;
+        isaac.y = isaac.loopCenter.centerY + Math.sin(isaac.loopProgress) * isaac.loopCenter.radius - 20;
 
-      // Max Speed Cap
-      if (isaac.vx > isaac.maxSpeed) isaac.vx = isaac.maxSpeed;
-      if (isaac.vx < -isaac.maxSpeed) isaac.vx = -isaac.maxSpeed;
-      if (Math.abs(isaac.vx) < 0.05) isaac.vx = 0;
-
-      // Spin-Dash / Roll Mechanic
-      if ((input.down || input.spin) && Math.abs(isaac.vx) > 2) {
-        isaac.isRolling = true;
-        isaac.vx += isaac.facing * 0.15; // Extra roll propulsion
-      } else if (!input.down && !input.spin) {
-        isaac.isRolling = false;
-      }
-
-      // Jump Execution
-      if (input.jump && !jumpPrev && isaac.isGrounded) {
-        isaac.vy = -8.8;
-        isaac.isGrounded = false;
-        spawnHitFX(isaac.x + isaac.w / 2, isaac.y + isaac.h, '#38bdf8', 6);
-      }
-      jumpPrev = input.jump;
-
-      // Gravity & Kinematics
-      isaac.vy += isaac.gravity;
-      isaac.x += isaac.vx;
-      isaac.y += isaac.vy;
-
-      // World Boundary
-      if (isaac.x < 0) isaac.x = 0;
-      if (isaac.x > WORLD_WIDTH - isaac.w) isaac.x = WORLD_WIDTH - isaac.w;
-
-      // Platform Collisions
-      isaac.isGrounded = false;
-      platforms.forEach(plat => {
-        if (
-          isaac.x + isaac.w > plat.x &&
-          isaac.x < plat.x + plat.w &&
-          isaac.y + isaac.h >= plat.y &&
-          isaac.y + isaac.h - isaac.vy <= plat.y + 14 &&
-          isaac.vy >= 0
-        ) {
-          isaac.y = plat.y - isaac.h;
+        if (isaac.loopProgress >= Math.PI * 2.5) {
+          isaac.inLoop = false;
+          isaac.vx = 11;
           isaac.vy = 0;
           isaac.isGrounded = true;
-        }
-      });
-
-      // Springs Collision
-      springs.forEach(s => {
-        if (
-          isaac.x + isaac.w > s.x &&
-          isaac.x < s.x + s.w &&
-          isaac.y + isaac.h >= s.y &&
-          isaac.y + isaac.h - isaac.vy <= s.y + 12
-        ) {
-          isaac.vy = s.force;
-          isaac.isGrounded = false;
           screenShake = 6;
-          spawnHitFX(s.x + s.w / 2, s.y, '#ef4444', 12);
+          spawnHitFX(isaac.x, isaac.y, '#38bdf8', 12);
         }
-      });
+      } else {
+        // Normal Running & Momentum
+        if (input.right) {
+          isaac.vx += isaac.accel;
+          isaac.facing = 1;
+        } else if (input.left) {
+          isaac.vx -= isaac.accel;
+          isaac.facing = -1;
+        } else {
+          isaac.vx *= isaac.friction;
+        }
 
-      // Boost Pads
-      boostPads.forEach(b => {
-        if (
-          isaac.x + isaac.w > b.x &&
-          isaac.x < b.x + b.w &&
-          isaac.y + isaac.h >= b.y &&
-          isaac.y + isaac.h <= b.y + 12
-        ) {
-          isaac.vx = isaac.facing * b.boost;
-          screenShake = 4;
-          spawnHitFX(b.x + b.w / 2, b.y, '#38bdf8', 8);
+        // Cap speed
+        if (isaac.vx > isaac.maxSpeed) isaac.vx = isaac.maxSpeed;
+        if (isaac.vx < -isaac.maxSpeed) isaac.vx = -isaac.maxSpeed;
+        if (Math.abs(isaac.vx) < 0.05) isaac.vx = 0;
+
+        // Spin-Dash
+        if ((input.down || input.spin) && Math.abs(isaac.vx) > 2) {
+          isaac.isRolling = true;
+          isaac.vx += isaac.facing * 0.18;
+        } else if (!input.down && !input.spin) {
+          isaac.isRolling = false;
         }
-      });
+
+        // Check entry into spiral loops
+        loops.forEach(lp => {
+          if (
+            isaac.x >= lp.centerX - lp.radius - 15 &&
+            isaac.x <= lp.centerX - lp.radius + 15 &&
+            isaac.vx > 6 &&
+            isaac.isGrounded
+          ) {
+            isaac.inLoop = true;
+            isaac.loopCenter = lp;
+            isaac.loopProgress = Math.PI * 0.5; // Start at bottom
+            isaac.isRolling = true;
+          }
+        });
+
+        // Jump
+        if (input.jump && !jumpPrev && isaac.isGrounded) {
+          isaac.vy = -9.2;
+          isaac.isGrounded = false;
+          spawnHitFX(isaac.x + isaac.w / 2, isaac.y + isaac.h, '#38bdf8', 6);
+        }
+        jumpPrev = input.jump;
+
+        isaac.vy += isaac.gravity;
+        isaac.x += isaac.vx;
+        isaac.y += isaac.vy;
+
+        // World Bounds
+        if (isaac.x < 0) isaac.x = 0;
+        if (isaac.x > WORLD_WIDTH - isaac.w) isaac.x = WORLD_WIDTH - isaac.w;
+
+        // Platform Collisions
+        isaac.isGrounded = false;
+        platforms.forEach(plat => {
+          if (
+            isaac.x + isaac.w > plat.x &&
+            isaac.x < plat.x + plat.w &&
+            isaac.y + isaac.h >= plat.y &&
+            isaac.y + isaac.h - isaac.vy <= plat.y + 16 &&
+            isaac.vy >= 0
+          ) {
+            isaac.y = plat.y - isaac.h;
+            isaac.vy = 0;
+            isaac.isGrounded = true;
+          }
+        });
+
+        // Warp Tunnels
+        tunnels.forEach(t => {
+          if (
+            isaac.x + isaac.w > t.x &&
+            isaac.x < t.x + t.w &&
+            isaac.y + isaac.h >= t.y
+          ) {
+            isaac.isRolling = true;
+            isaac.vx = t.boostSpeed;
+            isaac.vy = 0;
+            isaac.y = t.y + 4;
+            spawnHitFX(isaac.x, isaac.y + 16, '#06b6d4', 4);
+          }
+        });
+
+        // Springs
+        springs.forEach(s => {
+          if (
+            isaac.x + isaac.w > s.x &&
+            isaac.x < s.x + s.w &&
+            isaac.y + isaac.h >= s.y &&
+            isaac.y + isaac.h - isaac.vy <= s.y + 14
+          ) {
+            isaac.vy = s.force;
+            isaac.isGrounded = false;
+            screenShake = 6;
+            spawnHitFX(s.x + s.w / 2, s.y, '#ef4444', 12);
+          }
+        });
+
+        // Boost Pads
+        boostPads.forEach(b => {
+          if (
+            isaac.x + isaac.w > b.x &&
+            isaac.x < b.x + b.w &&
+            isaac.y + isaac.h >= b.y &&
+            isaac.y + isaac.h <= b.y + 14
+          ) {
+            isaac.vx = isaac.facing * b.boost;
+            screenShake = 4;
+            spawnHitFX(b.x + b.w / 2, b.y, '#38bdf8', 8);
+          }
+        });
+      }
 
       // Collect Rings
       ringList.forEach(r => {
-        if (!r.collected && Math.hypot((isaac.x + isaac.w / 2) - r.x, (isaac.y + isaac.h / 2) - r.y) < 22) {
+        if (!r.collected && Math.hypot((isaac.x + isaac.w / 2) - r.x, (isaac.y + isaac.h / 2) - r.y) < 26) {
           r.collected = true;
           rings++;
           score += 100;
-          spawnHitFX(r.x, r.y, '#facc15', 5);
+          spawnHitFX(r.x, r.y, '#facc15', 4);
         }
       });
 
-      // Badnik Enemy Interaction
+      // Enemy Interactions
       if (isaac.invuln > 0) isaac.invuln--;
 
       enemies.forEach(e => {
@@ -430,15 +501,21 @@
           isaac.y + isaac.h > e.y &&
           isaac.y < e.y + e.h
         ) {
-          // If Isaac is rolling or landing on top, destroy enemy
           if (isaac.isRolling || (!isaac.isGrounded && isaac.vy > 0)) {
-            e.alive = false;
-            isaac.vy = -6; // Bounce
-            score += 200;
-            screenShake = 6;
-            spawnHitFX(e.x + e.w / 2, e.y + e.h / 2, '#ef4444', 14);
+            if (e.isBoss) {
+              e.hp--;
+              isaac.vy = -6;
+              screenShake = 10;
+              spawnHitFX(e.x + e.w / 2, e.y + e.h / 2, '#ef4444', 16);
+              if (e.hp <= 0) { e.alive = false; score += 5000; }
+            } else {
+              e.alive = false;
+              isaac.vy = -6.5;
+              score += 250;
+              screenShake = 6;
+              spawnHitFX(e.x + e.w / 2, e.y + e.h / 2, '#ef4444', 14);
+            }
           } else if (isaac.invuln === 0) {
-            // Take hit & drop rings
             if (rings > 0) {
               rings = Math.max(0, rings - 10);
               isaac.invuln = 60;
@@ -451,16 +528,16 @@
         }
       });
 
-      // Camera Follow Tracking Isaac at Full Speed
+      // Continuous Camera Follow
       const targetCamX = isaac.x + isaac.w / 2 - canvas.width / 2;
-      cameraX += (targetCamX - cameraX) * 0.12;
+      cameraX += (targetCamX - cameraX) * 0.14;
       cameraX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, cameraX));
 
       if (screenShake > 0) screenShake *= 0.85;
       isaac.animTime += Math.abs(isaac.vx) * 0.08 + 0.05;
 
-      // Speed Wind Lines
-      if (Math.abs(isaac.vx) > 7) {
+      // Speed Trail Lines
+      if (Math.abs(isaac.vx) > 7.5 || isaac.inLoop) {
         speedLines.push({
           x: isaac.x + (isaac.facing === 1 ? -10 : isaac.w + 10),
           y: isaac.y + Math.random() * isaac.h,
@@ -477,17 +554,16 @@
         ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
       }
 
-      // 1. Sonic Emerald Hill Style Gradient Sky
+      // Parallax Sonic Sky & Mountains
       const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
       skyGrad.addColorStop(0, '#0284c7');
-      skyGrad.addColorStop(0.5, '#38bdf8');
-      skyGrad.addColorStop(1, '#67e8f9');
+      skyGrad.addColorStop(0.55, '#38bdf8');
+      skyGrad.addColorStop(1, '#a5f3fc');
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Distant Ocean / Mountains
       ctx.fillStyle = '#0369a1';
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 30; i++) {
         const mx = i * 160 - (cameraX * 0.1 % 160);
         ctx.beginPath();
         ctx.moveTo(mx, GROUND_Y);
@@ -496,31 +572,62 @@
         ctx.fill();
       }
 
-      // Checkered Green Hill Pattern (Sonic Grid)
       ctx.save();
       ctx.translate(-cameraX, 0);
 
+      // Platforms & Checkered Soil
       platforms.forEach(plat => {
-        // Platform Base
         ctx.fillStyle = '#15803d'; // Green Grass Top
         ctx.fillRect(plat.x, plat.y, plat.w, 8);
 
-        // Brown Checker Soil
         ctx.fillStyle = '#78350f';
         ctx.fillRect(plat.x, plat.y + 8, plat.w, plat.h - 8);
 
-        // Sonic Checkered Grid details
         ctx.fillStyle = '#92400e';
         for (let x = plat.x; x < plat.x + plat.w; x += 20) {
           for (let y = plat.y + 8; y < plat.y + plat.h; y += 20) {
-            if ((x / 20 + y / 20) % 2 === 0) {
+            if ((Math.floor(x / 20) + Math.floor(y / 20)) % 2 === 0) {
               ctx.fillRect(x, y, 10, 10);
             }
           }
         }
       });
 
-      // Springs (Red)
+      // Draw 360° Corkscrew Spirals
+      loops.forEach(lp => {
+        ctx.strokeStyle = '#15803d';
+        ctx.lineWidth = 14;
+        ctx.beginPath();
+        ctx.arc(lp.centerX, lp.centerY, lp.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(lp.centerX, lp.centerY, lp.radius + 10, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      // Speed Tunnels (Futuristic Glow Tubes)
+      tunnels.forEach(t => {
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.25)';
+        ctx.fillRect(t.x, t.y, t.w, t.h);
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(t.x, t.y, t.w, t.h);
+
+        // Neon Chevrons
+        ctx.fillStyle = '#22d3ee';
+        for (let x = t.x + 10; x < t.x + t.w; x += 40) {
+          ctx.beginPath();
+          ctx.moveTo(x, t.y + 4);
+          ctx.lineTo(x + 14, t.y + t.h / 2);
+          ctx.lineTo(x, t.y + t.h - 4);
+          ctx.fill();
+        }
+      });
+
+      // Springs & Boost Pads
       springs.forEach(s => {
         ctx.fillStyle = '#ef4444';
         ctx.fillRect(s.x, s.y, s.w, s.h);
@@ -528,7 +635,6 @@
         ctx.fillRect(s.x + 4, s.y + 2, s.w - 8, 3);
       });
 
-      // Boost Pads (Yellow / Cyan)
       boostPads.forEach(b => {
         ctx.fillStyle = '#facc15';
         ctx.fillRect(b.x, b.y, b.w, b.h);
@@ -538,7 +644,16 @@
         }
       });
 
-      // Spinning Golden Rings
+      // Goal Plate at World End
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(WORLD_WIDTH - 200, GROUND_Y - 90, 10, 90);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(WORLD_WIDTH - 200, GROUND_Y - 90, 50, 30);
+      ctx.fillStyle = '#020617';
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('GOAL', WORLD_WIDTH - 192, GROUND_Y - 70);
+
+      // Rings
       ringList.forEach(r => {
         if (!r.collected) {
           const squish = Math.abs(Math.sin(isaac.animTime * 2 + r.x));
@@ -554,22 +669,30 @@
         }
       });
 
-      // Badnik Drones
+      // Enemies & Boss
       enemies.forEach(e => {
         if (!e.alive) return;
-        ctx.fillStyle = '#475569';
-        ctx.fillRect(e.x, e.y, e.w, e.h);
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(e.x + 4, e.y + 6, e.w - 8, 8); // Red Visor
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillRect(e.x + 8, e.y + e.h, 4, 6); // Jet
+        if (e.isBoss) {
+          ctx.fillStyle = '#7c2d12';
+          ctx.fillRect(e.x, e.y, e.w, e.h);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(e.x + 8, e.y + 12, e.w - 16, 10);
+          ctx.fillStyle = '#facc15';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.fillText(`BOSS HP: ${e.hp}`, e.x, e.y - 8);
+        } else {
+          ctx.fillStyle = '#475569';
+          ctx.fillRect(e.x, e.y, e.w, e.h);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(e.x + 4, e.y + 6, e.w - 8, 8);
+        }
       });
 
-      // Speed Trail Lines
+      // Speed Wind Lines
       speedLines.forEach((l, idx) => {
         l.x += l.vx;
         l.life--;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(l.x, l.y);
@@ -578,7 +701,6 @@
         if (l.life <= 0) speedLines.splice(idx, 1);
       });
 
-      // Draw Custom Isaac Sonic-Style Character
       drawIsaacCharacter();
 
       // FX Particles
@@ -597,7 +719,6 @@
       drawHUD();
     }
 
-    // Custom Isaac Character Renderer (Long Curly Hair, Glasses, Green Shirt, Blue Shorts)
     function drawIsaacCharacter() {
       const x = isaac.x;
       const y = isaac.y;
@@ -606,25 +727,23 @@
 
       ctx.save();
 
-      // Flash on Invulnerability
       if (isaac.invuln > 0 && Math.floor(timer / 4) % 2 === 0) {
         ctx.restore();
         return;
       }
 
-      if (isaac.isRolling) {
-        // Sonic Spin-Ball State (Cyan / Green Energy Sphere)
+      if (isaac.isRolling || isaac.inLoop) {
         ctx.shadowColor = '#38bdf8';
-        ctx.shadowBlur = 14;
+        ctx.shadowBlur = 16;
         ctx.fillStyle = '#0284c7';
         ctx.beginPath();
-        ctx.arc(x + w / 2, y + h / 2 + 8, 18, 0, Math.PI * 2);
+        ctx.arc(x + w / 2, y + h / 2 + 6, 20, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.strokeStyle = '#facc15';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(x + w / 2, y + h / 2 + 8, 14, isaac.animTime * 6, isaac.animTime * 6 + Math.PI);
+        ctx.arc(x + w / 2, y + h / 2 + 6, 15, isaac.animTime * 8, isaac.animTime * 8 + Math.PI);
         ctx.stroke();
         ctx.restore();
         return;
@@ -634,52 +753,46 @@
       const stride = isRunning ? Math.sin(isaac.animTime * 8) * 8 : 0;
       const bob = isRunning ? Math.abs(Math.sin(isaac.animTime * 8)) * 3 : 0;
 
-      // 1. Long Voluminous Curly Hair (Back Layer)
+      // Long Hair
       ctx.fillStyle = '#1e1b18';
       ctx.fillRect(x + (isaac.facing === 1 ? -4 : 6), y + 4 - bob, 14, 28);
 
-      // 2. Athletic Blue Shorts & Legs
-      ctx.fillStyle = '#1d4ed8'; // Royal Blue Shorts
+      // Blue Shorts
+      ctx.fillStyle = '#1d4ed8';
       ctx.fillRect(x + 4, y + 28 - bob, w - 8, 12);
-      ctx.fillStyle = '#fff'; // White side stripe
+      ctx.fillStyle = '#fff';
       ctx.fillRect(isaac.facing === 1 ? x + w - 6 : x + 4, y + 28 - bob, 2, 12);
 
-      // Legs / Running Stride
-      ctx.fillStyle = '#8d5b4c'; // Warm Skin Tone
+      // Legs
+      ctx.fillStyle = '#8d5b4c';
       ctx.fillRect(x + 5, y + 40 - bob, 6, 10 + stride);
       ctx.fillRect(x + w - 11, y + 40 - bob, 6, 10 - stride);
 
-      // Red & White Sonic Speed Sneakers
+      // Sneakers
       ctx.fillStyle = '#ef4444';
       ctx.fillRect(x + 3, y + 48 - bob + stride, 10, 6);
       ctx.fillRect(x + w - 13, y + 48 - bob - stride, 10, 6);
-      ctx.fillStyle = '#fff'; // White buckle stripe
+      ctx.fillStyle = '#fff';
       ctx.fillRect(x + 6, y + 48 - bob + stride, 3, 6);
       ctx.fillRect(x + w - 10, y + 48 - bob - stride, 3, 6);
 
-      // 3. Green T-Shirt (Minecraft / Craft Style)
-      ctx.fillStyle = '#22c55e'; // Green Graphic Tee
+      // Green Shirt
+      ctx.fillStyle = '#22c55e';
       ctx.fillRect(x + 3, y + 16 - bob, w - 6, 14);
 
-      // Chest Graphic Accent
-      ctx.fillStyle = '#15803d';
-      ctx.fillRect(x + (isaac.facing === 1 ? 12 : 6), y + 19 - bob, 6, 6);
-
-      // Arms
+      // Arm
       ctx.fillStyle = '#8d5b4c';
       const armX = isaac.facing === 1 ? x + w - 4 : x - 2;
       ctx.fillRect(armX, y + 18 - bob, 5, 12);
 
-      // 4. Head, Face & Glasses
-      ctx.fillStyle = '#8d5b4c'; // Face
+      // Face & Glasses
+      ctx.fillStyle = '#8d5b4c';
       ctx.fillRect(x + 5, y + 2 - bob, 16, 14);
 
-      // Hair Crown / Curls Front
       ctx.fillStyle = '#1e1b18';
       ctx.fillRect(x + 4, y - bob, 18, 5);
 
-      // Glasses (Frames & Lenses)
-      ctx.strokeStyle = '#ef4444'; // Red/Burgundy Frames
+      ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 1.5;
       const eyeX = isaac.facing === 1 ? x + 12 : x + 6;
       ctx.strokeRect(eyeX, y + 6 - bob, 8, 5);
@@ -690,7 +803,6 @@
     }
 
     function drawHUD() {
-      // Sonic Top-Left Status Box
       ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
       ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 1.5;
@@ -708,7 +820,6 @@
       ctx.fillStyle = '#fff';
       ctx.fillText(`TIME   00:${sec < 10 ? '0' + sec : sec}`, 18, 50);
 
-      // Speedometer
       const speedPct = Math.min(1, Math.abs(isaac.vx) / isaac.maxSpeed);
       ctx.fillStyle = '#1e293b';
       ctx.fillRect(canvas.width - 120, 10, 110, 14);
