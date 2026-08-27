@@ -62,22 +62,22 @@
       width: 100%;
       max-width: 920px;
       justify-content: space-between;
-      padding: 8px 12px 10px;
+      padding: 8px 10px 10px;
       touch-action: none;
     }
     .dpad, .action-pad {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
     .touch-btn {
       background: linear-gradient(135deg, rgba(223, 177, 91, 0.25), rgba(74, 40, 24, 0.6));
       border: 2px solid #dfb15b;
       color: #ffdf85;
       border-radius: 50%;
-      width: 52px;
-      height: 52px;
+      width: 50px;
+      height: 50px;
       font-weight: bold;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -102,13 +102,13 @@
       background: linear-gradient(180deg, #24131d 0%, #160a12 100%);
       border: 1px solid #4a2818;
       border-radius: 6px;
-      padding: 5px 10px;
-      font-size: 0.78rem;
+      padding: 5px 8px;
+      font-size: 0.75rem;
       color: #c9b39a;
       cursor: pointer;
       transition: all 0.2s ease;
       text-align: center;
-      min-width: 108px;
+      min-width: 100px;
     }
     .char-card:hover {
       border-color: #8c5732;
@@ -203,7 +203,7 @@
 
   <header>
     <h1>Packed in the Marrow</h1>
-    <div class="subtitle">The Legacy Chronicles • Ancestral Vanguard</div>
+    <div class="subtitle">The 4-Chapter Epic Saga • Hotel Sanctuary & Ancestral Vanguard</div>
   </header>
 
   <div id="game-container">
@@ -215,6 +215,7 @@
   <div id="touch-controls">
     <div class="dpad">
       <button class="touch-btn" id="btn-left">◀</button>
+      <button class="touch-btn" id="btn-interact" title="Enter / Stairs / Rest">🚪</button>
       <button class="touch-btn" id="btn-right">▶</button>
     </div>
     <div class="action-pad">
@@ -226,8 +227,8 @@
   </div>
 
   <div class="instructions">
-    <strong>Controls:</strong> [A/D] or [◀/▶] Move | [W/Space/▲] Jump (<strong>Double Jump</strong>) | [J/Z] Strike | [K/X/⚡] <strong>Superpower</strong> | [U/C] Swap Hero<br>
-    Collect glowing DNA relics to <strong>restore +15 Health</strong> and charge your Superpower gauge!
+    <strong>Controls:</strong> [A/D] or [◀/▶] Move | [W/Space/▲] Jump (<strong>Double Jump</strong>) | [E/Down/🚪] <strong>Enter / Use Stairs / Rest</strong> | [J/Z] Strike | [K/X/⚡] <strong>Superpower</strong> | [U/C] Swap Hero<br>
+    Progress through <strong>Chapters 1–4</strong>, enter <strong>Aunt Zelma's Grand Hotel</strong> to rest & heal, and climb the stairways to the rooftop balcony!
   </div>
 
   <!-- Dual Volume Book Showcase Section -->
@@ -311,14 +312,23 @@
         gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
         osc.start(now);
         osc.stop(now + 0.45);
-      } else if (type === 'heal') {
+      } else if (type === 'heal' || type === 'rest') {
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.linearRampToValueAtTime(880, now + 0.35);
+        osc.frequency.setValueAtTime(330, now);
+        osc.frequency.setValueAtTime(440, now + 0.1);
+        osc.frequency.setValueAtTime(660, now + 0.2);
         gain.gain.setValueAtTime(0.3, now);
         gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
         osc.start(now);
         osc.stop(now + 0.35);
+      } else if (type === 'door') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.setValueAtTime(110, now + 0.12);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.25);
       } else if (type === 'coin') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(523.25, now);
@@ -348,9 +358,23 @@
     const V_WIDTH = 960;
     const V_HEIGHT = 540;
 
-    const keys = { left: false, right: false, up: false, attack: false, super: false };
+    const keys = { left: false, right: false, up: false, down: false, attack: false, super: false, interact: false };
 
-    let currentStage = 1;
+    // --- 4 Chapters Configuration ---
+    const CHAPTERS = [
+      { num: 1, title: 'Chapter 1: The Sovereign Groves', sub: 'Mississippi Ancestral Roots', goalX: 4200 },
+      { num: 2, title: "Chapter 2: Aunt Zelma's Grand Hotel", sub: 'Urban Sanctuary & Community Refuge', goalX: 4200 },
+      { num: 3, title: 'Chapter 3: Little Rock & Studio Stage', sub: 'Jefferson Thomas & Scoey Mitchell', goalX: 4200 },
+      { num: 4, title: 'Chapter 4: The Ancestral Summit', sub: 'Two Lives, One Bloodline Unleashed', goalX: 4200 }
+    ];
+
+    let currentChapter = 1;
+    let inHotelInterior = false;
+    let hotelFloor = 1; // 1: Lobby/Lounge, 2: Heritage Suites, 3: Rooftop Balcony
+    let restingEffectTimer = 0;
+    let dialogueMessage = '';
+    let dialogueTimer = 0;
+
     let cameraX = 0;
     let score = 0;
     let marrowEssence = 0;
@@ -380,11 +404,16 @@
       });
     }
 
-    function initStage(stageNum) {
-      currentStage = stageNum;
+    function initChapter(chapNum) {
+      currentChapter = chapNum;
+      inHotelInterior = false;
+      hotelFloor = 1;
       player.x = 100; player.y = 350; player.vx = 0; player.vy = 0;
       cameraX = 0;
       projectiles = []; particles = []; enemies = []; relics = []; platforms = [];
+
+      dialogueMessage = `${CHAPTERS[chapNum - 1].title} Begins!`;
+      dialogueTimer = 180;
 
       for (let p = 0; p < 16; p++) {
         platforms.push({
@@ -401,10 +430,10 @@
           x: 600 + i * 300 + Math.random() * 80,
           y: 366, w: 44, h: 74,
           vx: (Math.random() > 0.5 ? 1 : -1) * 1.4,
-          hp: stageNum === 1 ? 55 : 85,
-          maxHp: stageNum === 1 ? 55 : 85,
-          coatColor: stageNum === 1 ? '#4a151b' : '#241a36',
-          hatColor: stageNum === 1 ? '#2b0c10' : '#140e21',
+          hp: 45 + chapNum * 15,
+          maxHp: 45 + chapNum * 15,
+          coatColor: chapNum === 1 ? '#4a151b' : (chapNum === 2 ? '#241a36' : (chapNum === 3 ? '#162b47' : '#381616')),
+          hatColor: '#140e21',
           facing: -1
         });
       }
@@ -419,6 +448,7 @@
       }
     }
 
+    // --- UI Character Tray ---
     const rosterTray = document.getElementById('rosterTray');
     HEROES.forEach((h, idx) => {
       const card = document.createElement('div');
@@ -483,7 +513,6 @@
       playSfx('super');
 
       if (hero.id === 'fanny') {
-        // Matriarch Grace: Full Heal + Aura Shockwave
         player.health = 100;
         playSfx('heal');
         spawnSparks(player.x + 24, player.y + 35, '#55ff99', 35);
@@ -491,7 +520,6 @@
           if (Math.abs(e.x - player.x) < 320) e.hp -= 35;
         }
       } else if (hero.id === 'tommy' || hero.id === 'elroy') {
-        // Paternal Wave: Massive Screen Blast
         for (let i = -2; i <= 2; i++) {
           projectiles.push({
             x: player.facing === 1 ? player.x + 40 : player.x - 20,
@@ -506,7 +534,6 @@
           });
         }
       } else {
-        // Multi-directional burst
         for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
           projectiles.push({
             x: player.x + 24,
@@ -524,9 +551,114 @@
       spawnSparks(player.x + 24, player.y + 35, hero.color, 30);
     }
 
+    // --- Interactive Hotel & Staircase Rest System ---
+    function interactHotel() {
+      initAudio();
+      if (!inHotelInterior) {
+        // Check if player is standing in front of hotel entrance (around x: 700 to 900 in Chapter 2)
+        if (currentChapter === 2 && Math.abs(player.x - 780) < 140) {
+          inHotelInterior = true;
+          hotelFloor = 1;
+          player.x = 240;
+          player.y = 350;
+          playSfx('door');
+          dialogueMessage = "Welcome to Aunt Zelma's Grand Hotel! Use stairs [▲/▼] to explore floors or rest to heal.";
+          dialogueTimer = 220;
+        }
+      } else {
+        // Inside Hotel: Near Staircase (x: 460 - 540) or Exit Door (x: 80 - 160) or Rest Lounge (x: 700 - 840)
+        if (player.x < 160) {
+          // Exit back to city streets
+          inHotelInterior = false;
+          player.x = 800;
+          player.y = 350;
+          playSfx('door');
+          dialogueMessage = "Exited to City Boulevard.";
+          dialogueTimer = 140;
+        } else if (Math.abs(player.x - 500) < 80) {
+          // Stairwell: Climb floor up or cycle
+          hotelFloor = (hotelFloor % 3) + 1;
+          playSfx('jump');
+          spawnSparks(player.x + 24, player.y + 30, '#ffd700', 16);
+          const floorNames = ["1st Floor: Jazz Lounge & Hearth", "2nd Floor: Heritage Suites", "3rd Floor: Star Balcony & Rooftop"];
+          dialogueMessage = `Climbed stairs to ${floorNames[hotelFloor - 1]}`;
+          dialogueTimer = 180;
+        } else if (player.x > 680) {
+          // Rest in Heritage Lounge
+          player.health = 100;
+          superEnergy = 100;
+          restingEffectTimer = 40;
+          playSfx('rest');
+          dialogueMessage = "Resting at Aunt Zelma's... Health & Superpower Fully Restored! (+100 HP)";
+          dialogueTimer = 200;
+          spawnSparks(player.x + 24, player.y + 30, '#4cd964', 30);
+        }
+      }
+    }
+
+    // --- Environmental Backdrops ---
     function drawDetailedBackground() {
       animFrame++;
-      if (currentStage === 1) {
+      if (inHotelInterior) {
+        // --- Hotel Interior Scenery ---
+        const intGrad = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
+        intGrad.addColorStop(0, '#2b141e');
+        intGrad.addColorStop(0.7, '#421a28');
+        intGrad.addColorStop(1, '#1b0910');
+        ctx.fillStyle = intGrad;
+        ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+        // Vintage Wallpaper Pattern & Wood Paneling
+        ctx.fillStyle = '#30131d';
+        for (let i = 0; i < V_WIDTH; i += 60) {
+          ctx.fillRect(i, 80, 4, 360);
+        }
+
+        // Grand Chandelier
+        ctx.save();
+        ctx.fillStyle = '#ffdf85';
+        ctx.shadowColor = '#dfb15b';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(480, 110, 30, 0, Math.PI);
+        ctx.fill();
+        ctx.fillRect(478, 50, 4, 60);
+        ctx.shadowBlur = 0;
+
+        // Exit Door (Left)
+        ctx.fillStyle = '#4a2518';
+        ctx.fillRect(80, 260, 80, 180);
+        ctx.fillStyle = '#dfb15b';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText("EXIT [E]", 96, 250);
+
+        // Grand Staircase (Center)
+        ctx.fillStyle = '#5c2d1b';
+        ctx.fillRect(460, 240, 90, 200);
+        ctx.fillStyle = '#dfb15b';
+        ctx.fillText("STAIRS [E]", 472, 230);
+        for (let s = 0; s < 6; s++) {
+          ctx.fillStyle = '#dfb15b';
+          ctx.fillRect(460, 260 + s * 30, 90, 4);
+        }
+
+        // Rest Hearth / Sofa Lounge (Right)
+        ctx.fillStyle = '#6b202d';
+        ctx.fillRect(720, 340, 150, 100);
+        ctx.fillStyle = '#4cd964';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText("REST LOUNGE [E]", 735, 330);
+        ctx.fillText("+HEAL FULL", 760, 370);
+        ctx.restore();
+
+        // Floor Name Banner
+        ctx.fillStyle = '#ffdf85';
+        ctx.font = 'bold 20px Georgia, serif';
+        const floorLabels = ["LOBBY & JAZZ LOUNGE", "HERITAGE SUITES", "STARLIGHT ROOFTOP BALCONY"];
+        ctx.fillText(`★ AUNT ZELMA'S HOTEL — FLOOR ${hotelFloor}: ${floorLabels[hotelFloor - 1]} ★`, 210, 60);
+
+      } else if (currentChapter === 1) {
+        // Chapter 1: The Sovereign Groves
         const sky = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
         sky.addColorStop(0, '#12040d');
         sky.addColorStop(0.4, '#2d0f1e');
@@ -535,7 +667,6 @@
         ctx.fillStyle = sky;
         ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
 
-        ctx.save();
         const moonGrad = ctx.createRadialGradient(720, 110, 10, 720, 110, 100);
         moonGrad.addColorStop(0, 'rgba(255, 235, 175, 0.9)');
         moonGrad.addColorStop(0.3, 'rgba(223, 177, 91, 0.35)');
@@ -544,18 +675,6 @@
         ctx.beginPath();
         ctx.arc(720, 110, 100, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
-
-        ctx.save();
-        ctx.fillStyle = '#220b16';
-        for (let i = -1; i < 5; i++) {
-          const bgX = i * 360 - (cameraX * 0.15) % 360;
-          ctx.beginPath();
-          ctx.moveTo(bgX, 440);
-          ctx.lineTo(bgX + 180, 260);
-          ctx.lineTo(bgX + 360, 440);
-          ctx.fill();
-        }
 
         ctx.fillStyle = '#17060f';
         for (let i = -1; i < 6; i++) {
@@ -563,18 +682,10 @@
           ctx.fillRect(treeX + 40, 240, 24, 200);
           ctx.beginPath();
           ctx.arc(treeX + 52, 220, 65, 0, Math.PI * 2);
-          ctx.arc(treeX + 22, 230, 45, 0, Math.PI * 2);
-          ctx.arc(treeX + 82, 230, 45, 0, Math.PI * 2);
           ctx.fill();
-
-          ctx.strokeStyle = 'rgba(223, 177, 91, 0.15)';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(treeX + 52, 220, 50, 0.2, Math.PI - 0.2);
-          ctx.stroke();
         }
-        ctx.restore();
-      } else {
+      } else if (currentChapter === 2) {
+        // Chapter 2: Aunt Zelma's Grand Hotel Exterior
         const citySky = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
         citySky.addColorStop(0, '#0d0614');
         citySky.addColorStop(0.5, '#1e0e28');
@@ -582,69 +693,87 @@
         ctx.fillStyle = citySky;
         ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
 
-        ctx.fillStyle = '#130919';
-        for (let i = -1; i < 6; i++) {
-          const bX = i * 220 - (cameraX * 0.2) % 220;
-          ctx.fillRect(bX, 160 + (i % 3) * 30, 160, 280);
-        }
-
-        ctx.save();
-        const hotelX = 380 - (cameraX * 0.45);
+        const hotelX = 580 - (cameraX * 0.45);
         ctx.fillStyle = '#261320';
         ctx.fillRect(hotelX, 80, 600, 360);
 
-        ctx.fillStyle = '#3a1e32';
         for (let p = 0; p < 5; p++) {
+          ctx.fillStyle = '#3a1e32';
           ctx.fillRect(hotelX + 20 + p * 135, 80, 24, 360);
         }
 
-        for (let row = 0; row < 3; row++) {
-          for (let col = 0; col < 4; col++) {
-            const winGlow = ctx.createRadialGradient(
-              hotelX + 65 + col * 135, 140 + row * 85, 5,
-              hotelX + 65 + col * 135, 140 + row * 85, 35
-            );
-            winGlow.addColorStop(0, '#fff4cc');
-            winGlow.addColorStop(0.6, 'rgba(223, 177, 91, 0.7)');
-            winGlow.addColorStop(1, 'rgba(223, 177, 91, 0.1)');
-            ctx.fillStyle = winGlow;
-            ctx.fillRect(hotelX + 50 + col * 135, 115 + row * 85, 50, 65);
-
-            ctx.strokeStyle = '#1b0918';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(hotelX + 50 + col * 135, 115 + row * 85, 50, 65);
-          }
-        }
+        // Grand Hotel Entrance Archway with prompt
+        ctx.fillStyle = '#4a1e32';
+        ctx.fillRect(hotelX + 160, 280, 100, 160);
+        ctx.fillStyle = '#ffdf85';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText("ENTER [E]", hotelX + 175, 270);
 
         ctx.fillStyle = '#ffdf85';
         ctx.shadowColor = '#dfb15b';
         ctx.shadowBlur = 18;
-        ctx.font = 'bold 26px Georgia, serif';
+        ctx.font = 'bold 24px Georgia, serif';
         ctx.fillText("★ AUNT ZELMA'S GRAND HOTEL ★", hotelX + 50, 68);
         ctx.shadowBlur = 0;
+      } else if (currentChapter === 3) {
+        // Chapter 3: Little Rock & Studio Stage (Stage lights, marquee)
+        const stgSky = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
+        stgSky.addColorStop(0, '#081426');
+        stgSky.addColorStop(0.6, '#102747');
+        stgSky.addColorStop(1, '#081426');
+        ctx.fillStyle = stgSky;
+        ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+        // Hollywood Studio Spotlights
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 235, 150, 0.12)';
+        ctx.beginPath();
+        ctx.moveTo(200, 0); ctx.lineTo(100, 440); ctx.lineTo(350, 440); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(760, 0); ctx.lineTo(600, 440); ctx.lineTo(850, 440); ctx.fill();
         ctx.restore();
+
+        ctx.fillStyle = '#dfb15b';
+        ctx.font = 'bold 20px Georgia, serif';
+        ctx.fillText("LITTLE ROCK TO HOLLYWOOD • COUSINS OF COURAGE", 220, 60);
+      } else {
+        // Chapter 4: The Ancestral Summit (Golden Astral Plane)
+        const sumSky = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
+        sumSky.addColorStop(0, '#291708');
+        sumSky.addColorStop(0.5, '#4a2c10');
+        sumSky.addColorStop(1, '#1f1006');
+        ctx.fillStyle = sumSky;
+        ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+        ctx.fillStyle = '#ffd700';
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 24;
+        ctx.font = 'bold 22px Georgia, serif';
+        ctx.fillText("★ CHAPTER 4: THE ANCESTRAL SUMMIT — LEGACY UNLEASHED ★", 130, 60);
+        ctx.shadowBlur = 0;
       }
 
+      // Ground Texture
       const groundGrad = ctx.createLinearGradient(0, 440, 0, V_HEIGHT);
-      groundGrad.addColorStop(0, currentStage === 1 ? '#34151e' : '#1f1322');
+      groundGrad.addColorStop(0, inHotelInterior ? '#38161f' : '#29111c');
       groundGrad.addColorStop(1, '#0c050a');
       ctx.fillStyle = groundGrad;
       ctx.fillRect(0, 440, V_WIDTH, 100);
 
       ctx.fillStyle = '#dfb15b';
       ctx.fillRect(0, 440, V_WIDTH, 4);
-      ctx.fillStyle = 'rgba(223, 177, 91, 0.4)';
-      ctx.fillRect(0, 444, V_WIDTH, 2);
 
-      for (let l of ambientLeaves) {
-        l.x += l.vx;
-        l.y += l.vy;
-        if (l.y > 440) { l.y = 0; l.x = Math.random() * V_WIDTH; }
-        if (l.x < 0) l.x = V_WIDTH;
-        ctx.fillStyle = 'rgba(223, 177, 91, 0.35)';
-        ctx.beginPath();
-        ctx.arc(l.x, l.y, l.size, 0, Math.PI * 2);
-        ctx.fill();
+      if (!inHotelInterior) {
+        for (let l of ambientLeaves) {
+          l.x += l.vx;
+          l.y += l.vy;
+          if (l.y > 440) { l.y = 0; l.x = Math.random() * V_WIDTH; }
+          if (l.x < 0) l.x = V_WIDTH;
+          ctx.fillStyle = 'rgba(223, 177, 91, 0.35)';
+          ctx.beginPath();
+          ctx.arc(l.x, l.y, l.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
 
@@ -656,27 +785,22 @@
 
       const legBob = Math.sin(animFrame * 0.25 + x) * 6;
 
-      // Legs / Dark Slacks
       ctx.fillStyle = '#151515';
       ctx.fillRect(-12, 10, 10, 26 + legBob);
       ctx.fillRect(2, 10, 10, 26 - legBob);
 
-      // Trench Coat / Torso
       ctx.fillStyle = enemy.coatColor;
       ctx.fillRect(-15, -16, 30, 32);
 
-      // Head
       ctx.fillStyle = '#6e453b';
       ctx.beginPath();
       ctx.arc(0, -25, 10, 0, Math.PI * 2);
       ctx.fill();
 
-      // Fedora Hat
       ctx.fillStyle = enemy.hatColor;
       ctx.fillRect(-14, -31, 28, 4);
       ctx.fillRect(-9, -39, 18, 9);
 
-      // Glowing Adversary Eyes
       ctx.fillStyle = '#ff2b3d';
       ctx.shadowColor = '#ff2b3d';
       ctx.shadowBlur = 8;
@@ -695,7 +819,6 @@
       const legBob = (isMoving && isGrounded) ? Math.sin(animFrame * 0.32) * 10 : 0;
       const breathe = Math.sin(animFrame * 0.08) * 2;
 
-      // Ancestral Shimmer
       ctx.strokeStyle = hero.color;
       ctx.lineWidth = 2;
       ctx.shadowColor = hero.color;
@@ -704,7 +827,6 @@
       ctx.shadowBlur = 0;
 
       if (hero.dual) {
-        // Dual Matriarchs: Aunt Inez & Marie side by side
         ctx.fillStyle = '#4a2566';
         ctx.fillRect(-22, -10 + breathe, 20, 44);
         ctx.fillStyle = '#341a4a';
@@ -719,7 +841,6 @@
         ctx.fillStyle = hero.color;
         ctx.fillRect(-22, 30, 44, 4);
       } else if (hero.dress) {
-        // Fanny May Matriarch Silk Gown
         ctx.fillStyle = hero.suit;
         ctx.beginPath();
         ctx.moveTo(-16, -4 + breathe);
@@ -732,7 +853,6 @@
         ctx.fillStyle = hero.color;
         ctx.fillRect(-22, 33, 44, 3);
       } else {
-        // Tailored Slacks & Shoes
         ctx.fillStyle = hero.suit;
         ctx.fillRect(-14, 10, 12, 26 + legBob);
         ctx.fillRect(2, 10, 12, 26 - legBob);
@@ -741,12 +861,10 @@
         ctx.fillRect(-15, 34 + legBob, 14, 6);
         ctx.fillRect(1, 34 - legBob, 14, 6);
 
-        // Torso Suit Jacket
         ctx.fillStyle = hero.suit;
         const bodyW = hero.bulky ? 36 : 30;
         ctx.fillRect(-bodyW / 2, -16 + breathe, bodyW, 28);
 
-        // White Collar & Tie
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.moveTo(-7, -16 + breathe);
@@ -759,7 +877,6 @@
       }
 
       if (!hero.dual) {
-        // Head & Facial Detailing
         ctx.fillStyle = hero.skin;
         ctx.beginPath();
         ctx.arc(0, -26 + breathe, 12, 0, Math.PI * 2);
@@ -837,7 +954,6 @@
 
     function update() {
       const hero = HEROES[currentHeroIndex];
-      const isMoving = keys.left || keys.right;
 
       if (keys.left) {
         player.vx = -hero.speed;
@@ -853,16 +969,18 @@
       player.x += player.vx;
       player.y += player.vy;
 
-      for (let plat of platforms) {
-        if (player.vy >= 0 &&
-            player.x + player.w > plat.x &&
-            player.x < plat.x + plat.w &&
-            player.y + player.h >= plat.y &&
-            player.y + player.h <= plat.y + 16) {
-          player.y = plat.y - player.h;
-          player.vy = 0;
-          player.isGrounded = true;
-          player.jumpsLeft = 2;
+      if (!inHotelInterior) {
+        for (let plat of platforms) {
+          if (player.vy >= 0 &&
+              player.x + player.w > plat.x &&
+              player.x < plat.x + plat.w &&
+              player.y + player.h >= plat.y &&
+              player.y + player.h <= plat.y + 16) {
+            player.y = plat.y - player.h;
+            player.vy = 0;
+            player.isGrounded = true;
+            player.jumpsLeft = 2;
+          }
         }
       }
 
@@ -875,12 +993,16 @@
 
       if (player.attackCooldown > 0) player.attackCooldown--;
       if (player.invulnerable > 0) player.invulnerable--;
+      if (dialogueTimer > 0) dialogueTimer--;
 
-      cameraX = Math.max(0, player.x - 240);
+      cameraX = inHotelInterior ? 0 : Math.max(0, player.x - 240);
 
-      if (player.x > 4400 && currentStage === 1) initStage(2);
+      // Chapter Progression
+      if (!inHotelInterior && player.x > 4200 && currentChapter < 4) {
+        initChapter(currentChapter + 1);
+      }
 
-      // Projectile updates
+      // Projectiles
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
         p.x += p.vx;
@@ -902,24 +1024,26 @@
         if (p.life <= 0) projectiles.splice(i, 1);
       }
 
-      // Humanoid Enemy AI
-      for (let e of enemies) {
-        if (e.hp <= 0) continue;
-        e.x += e.vx;
-        if (Math.abs(e.x - player.x) < 500) {
-          e.vx = e.x > player.x ? -1.3 : 1.3;
-        }
-        if (player.invulnerable <= 0 &&
-            Math.abs((player.x + player.w / 2) - (e.x + e.w / 2)) < 36 &&
-            Math.abs((player.y + player.h / 2) - (e.y + e.h / 2)) < 46) {
-          player.health = Math.max(0, player.health - 12);
-          player.invulnerable = 42;
-          player.vy = -6;
-          spawnSparks(player.x + 24, player.y + 40, '#ff3344', 14);
+      // Enemies (only active when not inside hotel)
+      if (!inHotelInterior) {
+        for (let e of enemies) {
+          if (e.hp <= 0) continue;
+          e.x += e.vx;
+          if (Math.abs(e.x - player.x) < 500) {
+            e.vx = e.x > player.x ? -1.3 : 1.3;
+          }
+          if (player.invulnerable <= 0 &&
+              Math.abs((player.x + player.w / 2) - (e.x + e.w / 2)) < 36 &&
+              Math.abs((player.y + player.h / 2) - (e.y + e.h / 2)) < 46) {
+            player.health = Math.max(0, player.health - 12);
+            player.invulnerable = 42;
+            player.vy = -6;
+            spawnSparks(player.x + 24, player.y + 40, '#ff3344', 14);
+          }
         }
       }
 
-      // Collect Relics: Restores +15 Health & Grants Super Charge
+      // Collect Relics
       for (let r of relics) {
         if (!r.collected &&
             Math.hypot((player.x + player.w / 2) - r.x, (player.y + player.h / 2) - r.y) < 40) {
@@ -949,56 +1073,46 @@
       ctx.save();
       ctx.translate(-cameraX, 0);
 
-      // Platforms
-      for (let plat of platforms) {
-        ctx.fillStyle = '#3a1f2b';
-        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-        ctx.fillStyle = '#dfb15b';
-        ctx.fillRect(plat.x, plat.y, plat.w, 3);
+      if (!inHotelInterior) {
+        for (let plat of platforms) {
+          ctx.fillStyle = '#3a1f2b';
+          ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+          ctx.fillStyle = '#dfb15b';
+          ctx.fillRect(plat.x, plat.y, plat.w, 3);
+        }
+
+        for (let r of relics) {
+          if (r.collected) continue;
+          ctx.save();
+          const floatY = r.y + Math.sin(animFrame * 0.06 + r.x) * 6;
+          ctx.fillStyle = '#dfb15b';
+          ctx.shadowColor = '#dfb15b';
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.arc(r.x, floatY, 11, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        for (let e of enemies) {
+          if (e.hp <= 0) continue;
+          drawHumanoidEnemy(e.x, e.y, e);
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.fillRect(e.x, e.y - 12, e.w, 6);
+          ctx.fillStyle = '#ff4d4d';
+          ctx.fillRect(e.x, e.y - 12, (e.hp / e.maxHp) * e.w, 6);
+        }
       }
 
-      // Relics
-      for (let r of relics) {
-        if (r.collected) continue;
-        ctx.save();
-        const floatY = r.y + Math.sin(animFrame * 0.06 + r.x) * 6;
-        ctx.fillStyle = '#dfb15b';
-        ctx.shadowColor = '#dfb15b';
-        ctx.shadowBlur = 14;
-        ctx.beginPath();
-        ctx.arc(r.x, floatY, 11, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = '#fff2bf';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(r.x - 8, floatY - 8, 16, 16);
-        ctx.restore();
-      }
-
-      // Humanoid Enemies
-      for (let e of enemies) {
-        if (e.hp <= 0) continue;
-        drawHumanoidEnemy(e.x, e.y, e);
-
-        // Enemy Health Bar
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(e.x, e.y - 12, e.w, 6);
-        ctx.fillStyle = '#ff4d4d';
-        ctx.fillRect(e.x, e.y - 12, (e.hp / e.maxHp) * e.w, 6);
-      }
-
-      // Projectiles
       for (let p of projectiles) {
         drawProjectile(p);
       }
 
-      // Player
       const hero = HEROES[currentHeroIndex];
       if (player.invulnerable % 4 < 2) {
         drawHighDetailCharacter(player.x, player.y, hero, player.facing, Math.abs(player.vx) > 0.4, player.isGrounded);
       }
 
-      // Particles
       for (let pt of particles) {
         ctx.fillStyle = pt.color;
         ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
@@ -1018,7 +1132,6 @@
       ctx.font = 'bold 15px Georgia, serif';
       ctx.fillText(`${hero.name} — ${hero.title}`, 30, 34);
 
-      // Health Bar
       ctx.fillStyle = '#3a1e22';
       ctx.fillRect(30, 42, 140, 10);
       ctx.fillStyle = '#4cd964';
@@ -1026,7 +1139,6 @@
       ctx.strokeStyle = '#1b0910';
       ctx.strokeRect(30, 42, 140, 10);
 
-      // Super Gauge
       ctx.fillStyle = '#222';
       ctx.fillRect(30, 56, 140, 8);
       ctx.fillStyle = '#ffd700';
@@ -1035,17 +1147,30 @@
       ctx.font = '10px sans-serif';
       ctx.fillText(`SUPER [K/⚡]: ${hero.superName}`, 30, 76);
 
-      // Collectibles Tracker
       ctx.fillStyle = '#f7eed8';
       ctx.font = '13px sans-serif';
       ctx.fillText(`Relics (+HP): ${marrowEssence}`, 190, 50);
       ctx.fillText(`Score: ${score}`, 190, 68);
 
-      // Stage Indicator
+      // Chapter Indicator
       ctx.fillStyle = '#dfb15b';
       ctx.font = 'bold 14px Georgia, serif';
-      const stageName = currentStage === 1 ? 'Stage 1: Sovereign Groves' : "Stage 2: Aunt Zelma's Grand Hotel";
-      ctx.fillText(stageName, V_WIDTH - 275, 36);
+      ctx.fillText(CHAPTERS[currentChapter - 1].title, V_WIDTH - 300, 36);
+
+      // Dialogue / Story Toast Overlay
+      if (dialogueTimer > 0) {
+        ctx.fillStyle = 'rgba(12, 5, 10, 0.88)';
+        ctx.fillRect(160, 455, 640, 42);
+        ctx.strokeStyle = '#dfb15b';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(160, 455, 640, 42);
+
+        ctx.fillStyle = '#ffdf85';
+        ctx.font = 'bold 13px Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(dialogueMessage, V_WIDTH / 2, 480);
+        ctx.textAlign = 'left';
+      }
       ctx.restore();
     }
 
@@ -1079,7 +1204,8 @@
         if (!keys.up) handleJump();
         keys.up = true;
       }
-      if (e.code === 'KeyJ' || e.code === 'KeyZ') keys.attack = true;
+      if (e.code === 'KeyE' || e.code === 'ArrowDown' || e.code === 'KeyS') interactHotel();
+      if (e.code === 'KeyJ' || e.code === 'KeyZ') performAttack();
       if (e.code === 'KeyK' || e.code === 'KeyX') triggerSuperpower();
       if (e.code === 'KeyU' || e.code === 'KeyC') swapHeroNext();
       if (['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8'].includes(e.code)) {
@@ -1091,7 +1217,6 @@
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
       if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
       if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') keys.up = false;
-      if (e.code === 'KeyJ' || e.code === 'KeyZ') keys.attack = false;
     });
 
     function bindTouch(id, onDown, onUp) {
@@ -1103,12 +1228,13 @@
 
     bindTouch('btn-left', () => keys.left = true, () => keys.left = false);
     bindTouch('btn-right', () => keys.right = true, () => keys.right = false);
+    bindTouch('btn-interact', () => interactHotel(), () => {});
     bindTouch('btn-jump', () => handleJump(), () => {});
-    bindTouch('btn-atk', () => { keys.attack = true; setTimeout(() => keys.attack = false, 120); }, () => keys.attack = false);
+    bindTouch('btn-atk', () => performAttack(), () => {});
     bindTouch('btn-super', () => triggerSuperpower(), () => {});
     bindTouch('btn-swap', () => swapHeroNext(), () => {});
 
-    initStage(1);
+    initChapter(1);
     requestAnimationFrame(gameLoop);
   </script>
 </body>
