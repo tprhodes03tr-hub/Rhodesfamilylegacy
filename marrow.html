@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Packed in the Marrow: Vanguard Chronicles</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  body, html {
+    width: 100%;
+    height: 100%;
+    background-color: #04060d;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  #game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #000;
+  }
+
+  /* --- ORNATE FANTASY HUD --- */
+  #hud-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    padding: 12px;
+  }
+  .hud-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+  }
+  .player-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(10, 16, 30, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    box-shadow: 0 0 12px rgba(0, 200, 255, 0.2);
+    padding: 6px 12px 6px 6px;
+    border-radius: 8px;
+  }
+  .gem-avatar {
+    width: 32px;
+    height: 32px;
+    background: radial-gradient(circle, #00f0ff, #0051ff);
+    border: 2px solid #fff;
+    transform: rotate(45deg);
+    box-shadow: 0 0 8px #00f0ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .gem-avatar-inner {
+    transform: rotate(-45deg);
+    font-size: 14px;
+    font-weight: 900;
+    color: #fff;
+  }
+  .bars-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .bar-bg {
+    width: 110px;
+    height: 9px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.5);
+  }
+  #hp-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff3366, #ff0033);
+    transition: width 0.15s ease;
+  }
+  #mp-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #00d4ff, #0066ff);
+  }
+
+  .chapter-pill {
+    background: rgba(10, 16, 30, 0.85);
+    border: 1px solid #d4af37;
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+    padding: 6px 14px;
+    border-radius: 20px;
+    color: #ffd700;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .relic-counter {
+    background: rgba(10, 16, 30, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    padding: 6px 12px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .relic-gem {
+    color: #00f0ff;
+    font-size: 14px;
+  }
+
+  /* --- TRANSITION BANNER --- */
+  #chapter-banner {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+    width: 90%;
+  }
+  #chapter-banner h2 {
+    color: #ffd700;
+    font-size: 26px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    text-shadow: 0 0 15px #d4af37, 0 0 30px #ffaa00;
+  }
+  #chapter-banner p {
+    color: #e0f7fc;
+    font-size: 14px;
+    margin-top: 4px;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(0,240,255,0.6);
+  }
+
+  /* --- RESPONSIVE TOUCH CONTROLS --- */
+  .mobile-controls {
+    position: absolute;
+    bottom: 16px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 16px;
+    pointer-events: none;
+  }
+  .d-pad-cluster {
+    pointer-events: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 44px);
+    grid-template-rows: repeat(2, 44px);
+    gap: 6px;
+  }
+  .ctrl-btn {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1.5px solid rgba(0, 240, 255, 0.4);
+    border-radius: 50%;
+    color: #00f0ff;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    touch-action: none;
+  }
+  .ctrl-btn:active {
+    background: #00f0ff;
+    color: #000;
+    transform: scale(0.9);
+  }
+  .action-cluster {
+    pointer-events: auto;
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+  }
+  .action-btn {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 900;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+    touch-action: none;
+  }
+  .action-btn:active {
+    transform: scale(0.92);
+  }
+  #btn-slash {
+    background: radial-gradient(circle, #e63946, #800f1c);
+    border-color: #ff99a8;
+    box-shadow: 0 0 14px rgba(230, 57, 70, 0.7);
+  }
+  #btn-blast {
+    background: radial-gradient(circle, #00d4ff, #0044cc);
+    border-color: #a6f0ff;
+    box-shadow: 0 0 14px rgba(0, 212, 255, 0.7);
+  }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="hud-layer">
+    <div class="hud-top-bar">
+      <div class="player-card">
+        <div class="gem-avatar"><div class="gem-avatar-inner">V</div></div>
+        <div class="bars-col">
+          <div class="bar-bg"><div id="hp-bar-fill"></div></div>
+          <div class="bar-bg"><div id="mp-bar-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="chapter-pill" id="hud-chapter">Chapter I: Balkans Sanctuary</div>
+
+      <div class="relic-counter">
+        <span class="relic-gem">◆</span>
+        <span id="hud-kills">0 / 6</span>
+      </div>
+    </div>
+
+    <div id="chapter-banner">
+      <h2 id="banner-title">ERA CONQUERED</h2>
+      <p id="banner-sub">Entering Mediterranean Gate...</p>
+    </div>
+
+    <div class="mobile-controls">
+      <div class="d-pad-cluster">
+        <div></div>
+        <div class="ctrl-btn" id="btn-up">▲</div>
+        <div></div>
+        <div class="ctrl-btn" id="btn-left">◀</div>
+        <div class="ctrl-btn" id="btn-down">▼</div>
+        <div class="ctrl-btn" id="btn-right">▶</div>
+      </div>
+      <div class="action-cluster">
+        <div class="action-btn" id="btn-blast"><span>BLAST</span></div>
+        <div class="action-btn" id="btn-slash"><span>SLASH</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- 3 DISTINCT CHAPTER SETTINGS ---
+const CHAPTERS = [
+  {
+    title: "Chapter I: Balkan Ridge",
+    subtitle: "Ancient Illyrian Mountain Sanctuary",
+    skyGradient: ["#2d1115", "#5c1d24", "#d9653b"],
+    sunColor: "#ffaa33",
+    sunYRatio: 0.35,
+    mountainColor: "#1a0b12",
+    pillarColor: "#2a1420",
+    groundTop: "#3d1e1a",
+    groundBody: "#1a0b0a",
+    gridColor: "rgba(255, 120, 50, 0.15)",
+    target: 6,
+    enemyType: "Illyrian Raider",
+    enemySkin: "#d4a373",
+    enemyArmor: "#4a3525",
+    enemyHelmet: "#8c6239"
+  },
+  {
+    title: "Chapter II: Mediterranean Fleet",
+    subtitle: "Roman Imperial Coastal Outpost",
+    skyGradient: ["#071b2e", "#103d61", "#e08d3c"],
+    sunColor: "#ff7744",
+    sunYRatio: 0.45,
+    mountainColor: "#0a1f33",
+    pillarColor: "#1d3557",
+    groundTop: "#2a4365",
+    groundBody: "#0b192c",
+    gridColor: "rgba(0, 200, 255, 0.15)",
+    target: 8,
+    enemyType: "Roman Centurion",
+    enemySkin: "#e2b18a",
+    enemyArmor: "#8b0000",
+    enemyHelmet: "#d4af37"
+  },
+  {
+    title: "Chapter III: Mississippi Delta",
+    subtitle: "Synthwave Horizon & Modern Legacy",
+    skyGradient: ["#14052b", "#3d0c5a", "#ec4899"],
+    sunColor: "#f43f5e",
+    sunYRatio: 0.32,
+    mountainColor: "#1e0836",
+    pillarColor: "#2b0947",
+    groundTop: "#4c1d95",
+    groundBody: "#0f051d",
+    gridColor: "rgba(236, 72, 153, 0.2)",
+    target: 12,
+    enemyType: "Shadow Titan",
+    enemySkin: "#a78bfa",
+    enemyArmor: "#312e81",
+    enemyHelmet: "#67e8f9"
+  }
+];
+
+let currentChapter = 0;
+let killsInChapter = 0;
+let playerHp = 100;
+let gameState = "PLAYING"; // "PLAYING", "WARP_TRANSITION"
+let warpTimer = 0;
+let cameraX = 0;
+
+// Input Handling
+const keys = {};
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+function bindTouch(id, onDown, onUp) {
+  const el = document.getElementById(id);
+  el.addEventListener('touchstart', e => { e.preventDefault(); onDown(); });
+  el.addEventListener('touchend', e => { e.preventDefault(); onUp(); });
+}
+
+let touchMoveX = 0, touchMoveY = 0;
+bindTouch('btn-left', () => touchMoveX = -1, () => touchMoveX = 0);
+bindTouch('btn-right', () => touchMoveX = 1, () => touchMoveX = 0);
+bindTouch('btn-up', () => touchMoveY = -1, () => touchMoveY = 0);
+bindTouch('btn-down', () => touchMoveY = 1, () => touchMoveY = 0);
+bindTouch('btn-slash', () => triggerAttack('slash'), () => {});
+bindTouch('btn-blast', () => triggerAttack('blast'), () => {});
+
+// Player Setup
+const player = {
+  x: 100,
+  y: H - 90,
+  w: 24,
+  h: 46,
+  speed: 4,
+  facing: 1,
+  state: 'idle',
+  animTimer: 0,
+  attackCooldown: 0,
+  comboStep: 0
+};
+
+const enemies = [];
+const slashes = [];
+const energyBlasts = [];
+const particles = [];
+const damageNumbers = [];
+
+function triggerAttack(type) {
+  if (player.attackCooldown > 0 || gameState !== "PLAYING") return;
+  player.attackCooldown = 15;
+  player.state = 'attack';
+
+  if (type === 'slash') {
+    player.comboStep = (player.comboStep + 1) % 2;
+    slashes.push({
+      x: player.x + (player.facing === 1 ? 26 : -26),
+      y: player.y,
+      dir: player.facing,
+      radius: 34,
+      life: 12,
+      maxLife: 12,
+      step: player.comboStep
+    });
+  } else if (type === 'blast') {
+    energyBlasts.push({
+      x: player.x + (player.facing === 1 ? 24 : -24),
+      y: player.y - 4,
+      vx: player.facing * 10,
+      life: 45
+    });
+  }
+}
+
+function spawnEnemy() {
+  const ch = CHAPTERS[currentChapter];
+  enemies.push({
+    x: W + 50,
+    y: H - 90 - Math.random() * 30,
+    w: 24,
+    h: 46,
+    hp: 4,
+    maxHp: 4,
+    vx: -(1.2 + Math.random() * 1.4),
+    attackTimer: 60 + Math.random() * 60,
+    animTimer: Math.random() * 20,
+    hurtTimer: 0,
+    skin: ch.enemySkin,
+    armor: ch.enemyArmor,
+    helmet: ch.enemyHelmet
+  });
+}
+
+function addDamagePopup(x, y, amount, isCrit = false) {
+  damageNumbers.push({
+    x: x + (Math.random() - 0.5) * 16,
+    y: y - 20,
+    amount: amount,
+    isCrit: isCrit,
+    life: 1.0,
+    vy: -1.8
+  });
+}
+
+function spawnHitSparks(x, y, color, count = 12) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = 1.5 + Math.random() * 4.5;
+    particles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd,
+      life: 1,
+      decay: 0.03 + Math.random() * 0.04,
+      size: 2 + Math.random() * 3,
+      color: color
+    });
+  }
+}
+
+function startChapterTransition() {
+  gameState = "WARP_TRANSITION";
+  warpTimer = 0;
+  const banner = document.getElementById('chapter-banner');
+  const title = document.getElementById('banner-title');
+  const sub = document.getElementById('banner-sub');
+  
+  const nextIdx = (currentChapter + 1) % CHAPTERS.length;
+  title.innerText = `${CHAPTERS[currentChapter].title} CONQUERED!`;
+  sub.innerText = `Advancing to ${CHAPTERS[nextIdx].title}...`;
+  banner.style.opacity = 1;
+}
+
+// --- UPDATE LOOP ---
+let spawnTimer = 0;
+function update() {
+  const groundY = H - 75;
+  const ch = CHAPTERS[currentChapter];
+
+  if (gameState === "PLAYING") {
+    let dx = touchMoveX;
+    let dy = touchMoveY;
+    if (keys['ArrowLeft'] || keys['KeyA']) dx = -1;
+    if (keys['ArrowRight'] || keys['KeyD']) dx = 1;
+    if (keys['ArrowUp'] || keys['KeyW']) dy = -1;
+    if (keys['ArrowDown'] || keys['KeyS']) dy = 1;
+    if (keys['Space']) triggerAttack('slash');
+    if (keys['KeyJ']) triggerAttack('blast');
+
+    if (dx !== 0) {
+      player.facing = dx > 0 ? 1 : -1;
+      player.state = 'run';
+    } else if (player.attackCooldown <= 0) {
+      player.state = 'idle';
+    }
+
+    player.x = Math.max(30, Math.min(W - 40, player.x + dx * player.speed));
+    player.y = Math.max(groundY - 60, Math.min(groundY, player.y + dy * (player.speed * 0.7)));
+
+    if (player.attackCooldown > 0) player.attackCooldown--;
+    player.animTimer += 0.18;
+
+    // Enemy Spawner
+    spawnTimer++;
+    if (spawnTimer > 85 && enemies.length < 4) {
+      spawnEnemy();
+      spawnTimer = 0;
+    }
+
+  } else if (gameState === "WARP_TRANSITION") {
+    warpTimer++;
+    player.x += 4.5; // Hero dashes forward into dimensional portal
+    spawnHitSparks(player.x - 10, player.y, '#00f0ff', 2);
+
+    if (warpTimer > 90) {
+      currentChapter = (currentChapter + 1) % CHAPTERS.length;
+      killsInChapter = 0;
+      enemies.length = 0;
+      slashes.length = 0;
+      energyBlasts.length = 0;
+      player.x = -30;
+      player.y = groundY;
+      gameState = "PLAYING";
+      document.getElementById('chapter-banner').style.opacity = 0;
+    }
+  }
+
+  // Slashes
+  for (let i = slashes.length - 1; i >= 0; i--) {
+    const sl = slashes[i];
+    sl.life--;
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const e = enemies[j];
+      if (Math.abs(sl.x - e.x) < 32 && Math.abs(sl.y - e.y) < 30) {
+        const dmg = Math.floor(18 + Math.random() * 15);
+        e.hp -= 1.8;
+        e.hurtTimer = 8;
+        e.x += sl.dir * 12; // Knockback
+        addDamagePopup(e.x, e.y, dmg, dmg > 28);
+        spawnHitSparks(e.x, e.y, '#ffea00', 8);
+      }
+    }
+    if (sl.life <= 0) slashes.splice(i, 1);
+  }
+
+  // Energy Blasts
+  for (let i = energyBlasts.length - 1; i >= 0; i--) {
+    const eb = energyBlasts[i];
+    eb.x += eb.vx;
+    eb.life--;
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const e = enemies[j];
+      if (Math.abs(eb.x - e.x) < 26 && Math.abs(eb.y - e.y) < 24) {
+        const dmg = Math.floor(30 + Math.random() * 20);
+        e.hp -= 3;
+        e.hurtTimer = 10;
+        addDamagePopup(e.x, e.y, dmg, true);
+        spawnHitSparks(eb.x, eb.y, '#00f0ff', 14);
+        eb.life = 0;
+        break;
+      }
+    }
+    if (eb.life <= 0 || eb.x > W + 40 || eb.x < -40) energyBlasts.splice(i, 1);
+  }
+
+  // Enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (e.hurtTimer > 0) e.hurtTimer--;
+    else if (gameState === "PLAYING") {
+      e.x += e.vx;
+      e.animTimer += 0.15;
+      if (Math.abs(e.x - player.x) < 26 && Math.abs(e.y - player.y) < 20) {
+        playerHp = Math.max(0, playerHp - 0.35);
+        spawnHitSparks(player.x, player.y, '#ff3366', 2);
+      }
+    }
+
+    if (e.hp <= 0) {
+      spawnHitSparks(e.x, e.y, '#ffd700', 20);
+      enemies.splice(i, 1);
+      killsInChapter++;
+      if (killsInChapter >= ch.target && gameState === "PLAYING") {
+        startChapterTransition();
+      }
+      continue;
+    }
+    if (e.x < -50) enemies.splice(i, 1);
+  }
+
+  // Damage Numbers
+  for (let i = damageNumbers.length - 1; i >= 0; i--) {
+    const d = damageNumbers[i];
+    d.y += d.vy;
+    d.life -= 0.025;
+    if (d.life <= 0) damageNumbers.splice(i, 1);
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // HUD
+  document.getElementById('hp-bar-fill').style.width = playerHp + '%';
+  document.getElementById('hud-chapter').innerText = ch.title;
+  document.getElementById('hud-kills').innerText = `${killsInChapter} / ${ch.target}`;
+}
+
+// --- RENDER SCENERY & SPRITES ---
+function draw() {
+  const ch = CHAPTERS[currentChapter];
+  const groundY = H - 75;
+
+  // 1. SKY GRADIENT
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, ch.skyGradient[0]);
+  sky.addColorStop(0.5, ch.skyGradient[1]);
+  sky.addColorStop(1, ch.skyGradient[2]);
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // 2. SYNTHWAVE / HORIZON SUN
+  const sunY = H * ch.sunYRatio;
+  const sunGrad = ctx.createRadialGradient(W * 0.5, sunY, 10, W * 0.5, sunY, 70);
+  sunGrad.addColorStop(0, '#ffffff');
+  sunGrad.addColorStop(0.3, ch.sunColor);
+  sunGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = sunGrad;
+  ctx.beginPath();
+  ctx.arc(W * 0.5, sunY, 70, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Sun Horizontal Slices
+  ctx.fillStyle = ch.skyGradient[1];
+  for (let i = 0; i < 6; i++) {
+    ctx.fillRect(W * 0.5 - 70, sunY + 12 + (i * 8), 140, 2 + (i * 0.8));
+  }
+
+  // 3. PARALLAX SILHOUETTES
+  ctx.fillStyle = ch.mountainColor;
+  if (currentChapter === 0) {
+    // Jagged Balkan Peaks
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(W * 0.2, groundY - 110);
+    ctx.lineTo(W * 0.45, groundY - 40);
+    ctx.lineTo(W * 0.7, groundY - 130);
+    ctx.lineTo(W, groundY - 20);
+    ctx.lineTo(W, groundY);
+    ctx.fill();
+  } else if (currentChapter === 1) {
+    // Roman Fortress & Galley Ships
+    ctx.fillRect(W * 0.15, groundY - 90, 80, 90);
+    ctx.fillRect(W * 0.6, groundY - 120, 100, 120);
+    // Ship Mast & Rigging
+    ctx.strokeStyle = ch.mountainColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.8, groundY);
+    ctx.lineTo(W * 0.8, groundY - 130);
+    ctx.lineTo(W * 0.88, groundY - 60);
+    ctx.stroke();
+  } else {
+    // Modern / Synth City Skylines
+    for (let i = 0; i < 9; i++) {
+      const bh = 70 + (i % 4) * 30;
+      ctx.fillRect(i * (W / 8), groundY - bh, (W / 9), bh);
+    }
+  }
+
+  // 4. MIDGROUND PILLARS & ARCHES
+  ctx.fillStyle = ch.pillarColor;
+  ctx.fillRect(20, groundY - 140, 18, 140);
+  ctx.fillRect(W - 40, groundY - 140, 18, 140);
+  ctx.fillRect(10, groundY - 150, 40, 14);
+  ctx.fillRect(W - 50, groundY - 150, 40, 14);
+
+  // 5. GROUND FLOOR
+  ctx.fillStyle = ch.groundTop;
+  ctx.fillRect(0, groundY + 15, W, 8);
+  ctx.fillStyle = ch.groundBody;
+  ctx.fillRect(0, groundY + 23, W, H - (groundY + 23));
+
+  // Neon Ground Grid Lines
+  ctx.strokeStyle = ch.gridColor;
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 32) {
+    ctx.beginPath();
+    ctx.moveTo(x, groundY + 23);
+    ctx.lineTo(x + (x - W/2) * 0.6, H);
+    ctx.stroke();
+  }
+
+  // 6. DRAW PARTICLES
+  particles.forEach(p => {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.life;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+  });
+
+  // 7. DRAW CRESCENT SLASH PARTICLES (GLOWING ARC)
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  slashes.forEach(sl => {
+    ctx.strokeStyle = '#00f0ff';
+    ctx.shadowColor = '#00d4ff';
+    ctx.shadowBlur = 18;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    const startAngle = sl.dir === 1 ? -0.7 * Math.PI : 0.3 * Math.PI;
+    const endAngle = sl.dir === 1 ? 0.7 * Math.PI : 1.7 * Math.PI;
+    ctx.arc(sl.x, sl.y, sl.radius, startAngle, endAngle, sl.dir === -1);
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // 8. DRAW ENERGY BLASTS
+  energyBlasts.forEach(eb => {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(eb.x, eb.y, 14, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#00d4ff';
+    ctx.beginPath();
+    ctx.ellipse(eb.x - (eb.vx > 0 ? 8 : -8), eb.y, 10, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // 9. DRAW DETAILED ENEMIES (MULTI-PART ART)
+  enemies.forEach(e => {
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    if (e.hurtTimer > 0) ctx.filter = 'brightness(2.5)';
+
+    // Enemy Health Bar
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(-12, -34, 24, 4);
+    ctx.fillStyle = '#ff3344';
+    ctx.fillRect(-12, -34, (e.hp / e.maxHp) * 24, 4);
+
+    // Stride Offset
+    const legOffset = Math.sin(e.animTimer) * 4;
+
+    // Legs / Boots
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-6 + legOffset, 12, 5, 12);
+    ctx.fillRect(1 - legOffset, 12, 5, 12);
+
+    // Torso Armor
+    ctx.fillStyle = e.armor;
+    ctx.fillRect(-8, -4, 16, 16);
+
+    // Head / Face
+    ctx.fillStyle = e.skin;
+    ctx.fillRect(-5, -16, 10, 11);
+
+    // Helmet & Visor
+    ctx.fillStyle = e.helmet;
+    ctx.fillRect(-7, -20, 14, 7);
+    ctx.fillStyle = '#ff0033';
+    ctx.fillRect(-6, -13, 12, 2);
+
+    // Raider Spear / Weapon
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(-14, -8, 3, 26);
+    ctx.fillStyle = '#d4af37';
+    ctx.fillRect(-16, -14, 7, 7);
+
+    ctx.restore();
+  });
+
+  // 10. DRAW DETAILED PLAYER HERO (VANGUARD WARRIOR)
+  ctx.save();
+  ctx.translate(player.x, player.y);
+
+  const isWalking = player.state === 'run';
+  const walkStride = isWalking ? Math.sin(player.animTimer * 1.5) * 5 : 0;
+
+  // Cape / Scarf Tail
+  ctx.fillStyle = '#e63946';
+  ctx.beginPath();
+  ctx.moveTo(player.facing === 1 ? -6 : 6, -8);
+  ctx.lineTo(player.facing === 1 ? -16 - (isWalking ? 4 : 0) : 16 + (isWalking ? 4 : 0), 4 + Math.sin(player.animTimer) * 3);
+  ctx.lineTo(player.facing === 1 ? -8 : 8, 14);
+  ctx.fill();
+
+  // Armored Boots & Legs
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(-7 + walkStride, 12, 6, 12);
+  ctx.fillRect(1 - walkStride, 12, 6, 12);
+  ctx.fillStyle = '#d4af37'; // Gold Greaves
+  ctx.fillRect(-7 + walkStride, 16, 6, 4);
+  ctx.fillRect(1 - walkStride, 16, 6, 4);
+
+  // Armored Cuirass & Belt
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(-9, -6, 18, 18);
+  ctx.fillStyle = '#d4af37'; // Gold Chestplate Trim
+  ctx.fillRect(-7, -4, 14, 8);
+  ctx.fillStyle = '#00f0ff'; // Vanguard Core Glow
+  ctx.shadowColor = '#00f0ff';
+  ctx.shadowBlur = 8;
+  ctx.fillRect(-2, -1, 4, 4);
+  ctx.shadowBlur = 0;
+
+  // Head & Hair
+  ctx.fillStyle = '#6d4c41'; // Skin tone
+  ctx.fillRect(-6, -18, 12, 11);
+  ctx.fillStyle = '#1a1a1a'; // Dark textured hair
+  ctx.fillRect(-8, -22, 16, 6);
+  ctx.fillRect(player.facing === 1 ? -8 : 4, -18, 4, 8);
+
+  // Golden Circlet / Headband
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(-7, -18, 14, 3);
+
+  // Vanguard Cyan Energy Blade
+  ctx.save();
+  ctx.shadowColor = '#00f0ff';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#00f0ff';
+  const bladeX = player.facing === 1 ? 8 : -14;
+  ctx.fillRect(bladeX, -10, 6, 26);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(bladeX + 1, -8, 4, 22);
+  ctx.restore();
+
+  ctx.restore();
+
+  // 11. DRAW FLOATING DAMAGE NUMBERS
+  damageNumbers.forEach(d => {
+    ctx.save();
+    ctx.globalAlpha = d.life;
+    ctx.font = d.isCrit ? '900 16px sans-serif' : 'bold 12px sans-serif';
+    ctx.fillStyle = d.isCrit ? '#ffea00' : '#ffffff';
+    ctx.shadowColor = d.isCrit ? '#ff3300' : '#000000';
+    ctx.shadowBlur = 6;
+    ctx.fillText((d.isCrit ? "CRIT " : "") + d.amount, d.x, d.y);
+    ctx.restore();
+  });
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+</script>
+</body>
+</html>
