@@ -1,703 +1,398 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Packed in the Marrow: Vanguard Chronicles</title>
-
-  <!-- PWA & Full-Screen Inline Settings -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#1b0408">
-
-  <script>
-    const manifestData = {
-      name: "Packed in the Marrow: Vanguard Chronicles",
-      short_name: "Packed In Marrow",
-      start_url: "./marrow.html",
-      display: "fullscreen",
-      orientation: "portrait",
-      background_color: "#1b0408",
-      theme_color: "#1b0408"
-    };
-    const stringManifest = JSON.stringify(manifestData);
-    const blob = new Blob([stringManifest], {type: 'application/json'});
-    const manifestURL = URL.createObjectURL(blob);
-    const linkTag = document.createElement('link');
-    linkTag.rel = 'manifest';
-    linkTag.href = manifestURL;
-    document.head.appendChild(linkTag);
-  </script>
-
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
-    }
-    body, html {
-      width: 100%;
-      height: 100%;
-      height: 100dvh;
-      background-color: #030408;
-      overflow: hidden;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    }
-    #game-container {
-      position: relative;
-      width: 100vw;
-      height: 100dvh;
-      overflow: hidden;
-    }
-    #gameCanvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    /* ORNATE HUD */
-    #hud-layer {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 16px;
-      box-sizing: border-box;
-      z-index: 10;
-    }
-    .hud-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      width: 100%;
-    }
-    .stat-card {
-      background: linear-gradient(135deg, rgba(20, 15, 25, 0.85), rgba(5, 5, 10, 0.95));
-      border: 1px solid rgba(212, 175, 55, 0.4);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(212, 175, 55, 0.1);
-      border-radius: 8px;
-      padding: 10px 16px;
-      color: #e6edf3;
-      backdrop-filter: blur(4px);
-    }
-    .hero-name {
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      color: #ffd700;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .bar-container {
-      width: 140px;
-      height: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 5px;
-      overflow: hidden;
-      position: relative;
-    }
-    .bar-fill-hp {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, #e63946, #ff4d6d);
-      transition: width 0.2s ease;
-    }
-    .bar-fill-mp {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, #2a9d8f, #48cae4);
-      margin-top: 4px;
-      transition: width 0.2s ease;
-    }
-    .score-display {
-      text-align: right;
-    }
-    .score-title {
-      font-size: 11px;
-      color: #a0aec0;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .score-val {
-      font-size: 20px;
-      font-weight: 800;
-      color: #fff;
-      font-variant-numeric: tabular-nums;
-      text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
-    }
-
-    /* TOUCH CONTROLS */
-    #touch-layer {
-      position: absolute;
-      bottom: 20px;
-      left: 0;
-      width: 100%;
-      display: flex;
-      justify-content: space-between;
-      padding: 0 24px;
-      box-sizing: border-box;
-      pointer-events: none;
-      z-index: 20;
-    }
-    .d-pad, .action-cluster {
-      display: flex;
-      gap: 14px;
-      pointer-events: auto;
-    }
-    .ctrl-btn {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(40, 45, 60, 0.75) 0%, rgba(15, 20, 30, 0.9) 100%);
-      border: 2px solid rgba(212, 175, 55, 0.5);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 0 8px rgba(212, 175, 55, 0.2);
-      color: #ffd700;
-      font-size: 22px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      touch-action: manipulation;
-      backdrop-filter: blur(6px);
-      transition: transform 0.08s ease, border-color 0.08s ease;
-    }
-    .ctrl-btn:active {
-      transform: scale(0.92);
-      border-color: #ffffff;
-      background: radial-gradient(circle, rgba(70, 75, 100, 0.9) 0%, rgba(30, 35, 50, 0.95) 100%);
-    }
-    .btn-action {
-      background: radial-gradient(circle, rgba(160, 30, 40, 0.75) 0%, rgba(80, 10, 20, 0.9) 100%);
-      border-color: rgba(255, 100, 100, 0.6);
-      color: #fff;
-    }
-
-    /* OVERLAYS */
-    #overlay-screen {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(3, 4, 8, 0.85);
-      backdrop-filter: blur(8px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      color: #fff;
-      text-align: center;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-    .game-title {
-      font-size: 32px;
-      font-weight: 900;
-      letter-spacing: 2px;
-      color: #ffd700;
-      text-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-    }
-    .game-subtitle {
-      font-size: 15px;
-      color: #cbd5e1;
-      max-width: 480px;
-      line-height: 1.5;
-      margin-bottom: 28px;
-    }
-    .play-btn {
-      padding: 14px 40px;
-      font-size: 18px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: #0d1117;
-      background: linear-gradient(135deg, #ffd700, #ffae00);
-      border: none;
-      border-radius: 30px;
-      box-shadow: 0 4px 20px rgba(255, 215, 0, 0.4);
-      cursor: pointer;
-      pointer-events: auto;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-    .play-btn:active {
-      transform: scale(0.96);
-      box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Packed in the Marrow: The Multi-Era Epic Game</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    background-color: #0d0b09;
+    color: #e6dfd5;
+    font-family: 'Georgia', serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  #game-container {
+    position: relative;
+    border: 3px solid #8b2500;
+    box-shadow: 0 0 30px rgba(139, 37, 0, 0.5);
+    background: #000;
+    width: 800px;
+    height: 450px;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .ui-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 11, 9, 0.92);
+    padding: 30px;
+    text-align: center;
+  }
+  h1 { font-size: 26px; color: #d4af37; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 2px; }
+  h2 { font-size: 19px; color: #ff6b4a; margin-bottom: 12px; }
+  p { max-width: 620px; margin-bottom: 22px; line-height: 1.5; font-size: 14.5px; color: #cfc5b6; }
+  .btn-group { display: flex; gap: 15px; }
+  button {
+    background: #8b2500;
+    color: #fff;
+    border: 2px solid #d4af37;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: 0.2s;
+  }
+  button:hover {
+    background: #b53200;
+    transform: scale(1.05);
+  }
+  #hud {
+    position: absolute;
+    top: 10px; left: 15px; right: 15px;
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 13.5px;
+    color: #d4af37;
+    pointer-events: none;
+    text-shadow: 1px 1px 2px #000;
+  }
+  .health-bar-container {
+    width: 120px; height: 12px; background: #333; border: 1px solid #d4af37; border-radius: 2px; display: inline-block; vertical-align: middle; margin-left: 6px;
+  }
+  #health-bar-fill {
+    height: 100%; width: 100%; background: #27ae60; transition: width 0.1s;
+  }
+</style>
 </head>
 <body>
-  <div id="game-container">
-    <canvas id="gameCanvas"></canvas>
 
-    <!-- HUD LAYER -->
-    <div id="hud-layer">
-      <div class="hud-top">
-        <div class="stat-card">
-          <div class="hero-name">🛡️ Vanguard Hero</div>
-          <div class="bar-container">
-            <div id="hp-bar" class="bar-fill-hp"></div>
-          </div>
-          <div class="bar-container" style="margin-top: 4px;">
-            <div id="mp-bar" class="bar-fill-mp"></div>
-          </div>
-        </div>
-        <div class="stat-card score-display">
-          <div class="score-title">Honor Score</div>
-          <div id="score-text" class="score-val">0000</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TOUCH CONTROLS (MOBILE) -->
-    <div id="touch-layer">
-      <div class="d-pad">
-        <button id="btn-left" class="ctrl-btn">◀</button>
-        <button id="btn-right" class="ctrl-btn">▶</button>
-      </div>
-      <div class="action-cluster">
-        <button id="btn-jump" class="ctrl-btn">▲</button>
-        <button id="btn-atk" class="ctrl-btn btn-action">⚔️</button>
-      </div>
-    </div>
-
-    <!-- START / GAMEOVER SCREEN -->
-    <div id="overlay-screen">
-      <h1 class="game-title">Packed in the Marrow</h1>
-      <p class="game-subtitle">Vanguard Chronicles: Stand fast across the ancient line of honor and valor.</p>
-      <button id="start-btn" class="play-btn">Engage Battle</button>
+<div id="game-container">
+  <canvas id="canvas" width="800" height="450"></canvas>
+  <div id="hud" style="display:none;">
+    <div id="hud-phase">Phase: 1</div>
+    <div id="hud-faction">Faction: Lineage</div>
+    <div id="hud-hp">HP: <div class="health-bar-container"><div id="health-bar-fill"></div></div></div>
+    <div id="hud-obj">Defeated: 0/5</div>
+  </div>
+  
+  <div id="ui-menu" class="ui-overlay">
+    <h1 id="menu-title">Packed in the Marrow</h1>
+    <h2 id="menu-phase">Phase 1: The Illyrian Highland Forges</h2>
+    <p id="menu-desc">Choose your side in the ancient clash along the Adriatic mountain redoubts.</p>
+    <div class="btn-group">
+      <button id="btn-lineage" onclick="startPhase('LINEAGE')">Play Lineage</button>
+      <button id="btn-oppose" onclick="startPhase('OPPOSITION')">Play Opposition</button>
     </div>
   </div>
+</div>
 
-  <script>
-    // --- GAME ENGINE & ART GENERATOR ---
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const hpBar = document.getElementById('hp-bar');
-    const mpBar = document.getElementById('mp-bar');
-    const scoreText = document.getElementById('score-text');
-    const overlay = document.getElementById('overlay-screen');
-    const startBtn = document.getElementById('start-btn');
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 
-    let W, H;
-    function resizeCanvas() {
-      W = canvas.width = window.innerWidth;
-      H = canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+let gameState = 'MENU';
+let currentPhase = 1;
+const totalPhases = 7;
+let selectedFaction = 'LINEAGE';
+let kills = 0;
+let targetKills = 5;
 
-    // GAME STATE
-    let running = false;
-    let score = 0;
-    let cameraX = 0;
+const phases = {
+  1: {
+    title: "Phase 1: Illyrian Highland Forges",
+    desc: "Balkan shield-warriors defend mountain forge passes against Roman expansion.",
+    lineageName: "Illyrian Shield-Master",
+    lineageColor: "#2b5c8f",
+    opposeName: "Roman Centurion",
+    opposeColor: "#a32626",
+    bg: "#1c2321",
+    ground: "#111413"
+  },
+  2: {
+    title: "Phase 2: Siege of Jerusalem & Desert Exodus",
+    desc: "Levites evacuate sacred scrolls, finding safe harbor with the Banu Hashim.",
+    lineageName: "Levite Scroll Guardian",
+    lineageColor: "#d4af37",
+    opposeName: "Roman Siege Cohort",
+    opposeColor: "#8f1d1d",
+    bg: "#3b2816",
+    ground: "#21160c"
+  },
+  3: {
+    title: "Phase 3: The Golden Age of Al-Andalus",
+    desc: "Moorish scholars, engineers, and allies build civil infrastructure across Iberia.",
+    lineageName: "Moorish Architect / Scholar",
+    lineageColor: "#1e7e34",
+    opposeName: "Visigothic Inquisitor",
+    opposeColor: "#6c2c84",
+    bg: "#192a38",
+    ground: "#0d161d"
+  },
+  4: {
+    title: "Phase 4: Sovereign Trade of the Mali Empire",
+    desc: "Master merchants protect gold and salt barges along the Niger River.",
+    lineageName: "Mali Ironmaster / Merchant",
+    lineageColor: "#e67e22",
+    opposeName: "Saharan Marauder",
+    opposeColor: "#7f8c8d",
+    bg: "#3d2b1f",
+    ground: "#1c140e"
+  },
+  5: {
+    title: "Phase 5: Dismal Swamp Maroon Sanctuary",
+    desc: "Maroon warriors hold hidden canal networks against slave patrol posses.",
+    lineageName: "Maroon Swamp Defender",
+    lineageColor: "#27ae60",
+    opposeName: "Colonial Militia Patrol",
+    opposeColor: "#95a5a6",
+    bg: "#15261d",
+    ground: "#09120e"
+  },
+  6: {
+    title: "Phase 6: Southern Forges & Reconstruction",
+    desc: "Fred and Lucius Hatten defend the family anvil and homestead from raiders.",
+    lineageName: "Southern Anvil Blacksmith",
+    lineageColor: "#c0392b",
+    opposeName: "Depredator / Raider",
+    opposeColor: "#34495e",
+    bg: "#2c2c2c",
+    ground: "#181818"
+  },
+  7: {
+    title: "Phase 7: Modern Legacy & Urban Frontier",
+    desc: "Honor the multi-millennial journey from ancient coasts to modern victory.",
+    lineageName: "Rhodes Modern Vanguard",
+    lineageColor: "#8e44ad",
+    opposeName: "Historical Adversity",
+    opposeColor: "#d35400",
+    bg: "#1a1c23",
+    ground: "#0c0d10"
+  }
+};
 
-    // INPUT TRACKING
-    const keys = { left: false, right: false, up: false, attack: false };
+const player = {
+  x: 100, y: 320, w: 30, h: 54,
+  vx: 0, vy: 0, speed: 4.8,
+  hp: 100, maxHp: 100,
+  isAttacking: false, attackTimer: 0,
+  facingRight: true,
+  color: "#2b5c8f"
+};
 
-    // MOBILE TOUCH BINDINGS
-    function bindTouch(id, keyName) {
-      const btn = document.getElementById(id);
-      btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
-      btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
-      btn.addEventListener('mousedown', (e) => { e.preventDefault(); keys[keyName] = true; });
-      btn.addEventListener('mouseup', (e) => { e.preventDefault(); keys[keyName] = false; });
-    }
-    bindTouch('btn-left', 'left');
-    bindTouch('btn-right', 'right');
-    bindTouch('btn-jump', 'up');
-    bindTouch('btn-atk', 'attack');
+let enemies = [];
+const keys = {};
 
-    // KEYBOARD BINDINGS
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'ArrowLeft' || e.key === 'a') keys.left = true;
-      if (e.code === 'ArrowRight' || e.key === 'd') keys.right = true;
-      if (e.code === 'ArrowUp' || e.key === 'w' || e.code === 'Space') keys.up = true;
-      if (e.key === 'j' || e.key === 'z') keys.attack = true;
-    });
-    window.addEventListener('keyup', (e) => {
-      if (e.code === 'ArrowLeft' || e.key === 'a') keys.left = false;
-      if (e.code === 'ArrowRight' || e.key === 'd') keys.right = false;
-      if (e.code === 'ArrowUp' || e.key === 'w' || e.code === 'Space') keys.up = false;
-      if (e.key === 'j' || e.key === 'z') keys.attack = false;
-    });
+window.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if ((e.key === ' ' || e.key.toLowerCase() === 'f') && !player.isAttacking && gameState === 'PLAYING') {
+    player.isAttacking = true;
+    player.attackTimer = 14;
+  }
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
 
-    // --- ART ASSET GENERATORS (CUSTOM PROCEDURAL SPRITES) ---
-    function drawHumanWarrior(x, y, facing, isEnemy, options = {}) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(facing, 1);
+function startPhase(faction) {
+  selectedFaction = faction;
+  gameState = 'PLAYING';
+  kills = 0;
+  player.hp = 100;
+  player.x = 80;
+  
+  const pData = phases[currentPhase];
+  player.color = faction === 'LINEAGE' ? pData.lineageColor : pData.opposeColor;
+  
+  document.getElementById('ui-menu').style.display = 'none';
+  document.getElementById('hud').style.display = 'flex';
+  
+  document.getElementById('hud-phase').innerText = `Phase ${currentPhase}: ${pData.title}`;
+  document.getElementById('hud-faction').innerText = faction === 'LINEAGE' ? pData.lineageName : pData.opposeName;
+  updateHealthBar();
+  
+  enemies = [];
+  spawnEnemy();
+}
 
-      const skinColor = options.skin || '#8d5524';
-      const armorColor = options.armor || '#3a506b';
-      const helmetColor = options.helmet || '#ffd700';
-      const anim = options.animTimer || 0;
-      const hurt = options.hurt || false;
-      const state = options.state || 'idle';
+function updateHealthBar() {
+  const fill = document.getElementById('health-bar-fill');
+  const pct = Math.max(0, (player.hp / player.maxHp) * 100);
+  fill.style.width = pct + "%";
+  fill.style.background = pct > 50 ? '#27ae60' : pct > 25 ? '#e67e22' : '#c0392b';
+}
 
-      if (hurt) {
-        ctx.globalAlpha = 0.6;
-        ctx.fillStyle = '#ff2222';
-      }
+function spawnEnemy() {
+  const pData = phases[currentPhase];
+  const eColor = selectedFaction === 'LINEAGE' ? pData.opposeColor : pData.lineageColor;
+  enemies.push({
+    x: 830, y: 320, w: 28, h: 54,
+    hp: 45 + (currentPhase * 5),
+    speed: 1.8 + Math.random() * 1.6,
+    color: eColor
+  });
+}
 
-      // Cape
-      ctx.fillStyle = isEnemy ? '#590d22' : '#800e13';
-      ctx.beginPath();
-      ctx.moveTo(-6, -42);
-      ctx.lineTo(-18 - Math.sin(anim * 0.15) * 4, -15);
-      ctx.lineTo(-12, 0);
-      ctx.lineTo(-2, -35);
-      ctx.fill();
+function update() {
+  if (gameState !== 'PLAYING') return;
 
-      // Shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 16, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
+  // Horizontal Movement
+  player.vx = 0;
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+    player.vx = -player.speed;
+    player.facingRight = false;
+  }
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+    player.vx = player.speed;
+    player.facingRight = true;
+  }
+  player.x += player.vx;
+  if (player.x < 0) player.x = 0;
+  if (player.x > canvas.width - player.w) player.x = canvas.width - player.w;
 
-      // Legs / Greaves
-      ctx.fillStyle = '#1c1917';
-      const legOffset = (state === 'run') ? Math.sin(anim * 0.25) * 6 : 0;
-      ctx.fillRect(-8, -18 + legOffset, 5, 18 - legOffset);
-      ctx.fillRect(3, -18 - legOffset, 5, 18 + legOffset);
+  // Attack timer
+  if (player.isAttacking) {
+    player.attackTimer--;
+    if (player.attackTimer <= 0) player.isAttacking = false;
+  }
 
-      // Torso & Cuirass
-      ctx.fillStyle = armorColor;
-      ctx.beginPath();
-      ctx.roundRect(-10, -42, 20, 26, 4);
-      ctx.fill();
-
-      // Gold Trim Accent
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(-8, -40, 16, 12);
-
-      // Head / Face
-      ctx.fillStyle = skinColor;
-      ctx.beginPath();
-      ctx.arc(0, -48, 7, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Vanguard Corinthian/Centurion Helmet
-      ctx.fillStyle = helmetColor;
-      ctx.beginPath();
-      ctx.moveTo(-8, -54);
-      ctx.lineTo(8, -54);
-      ctx.lineTo(6, -45);
-      ctx.lineTo(-6, -45);
-      ctx.closePath();
-      ctx.fill();
-
-      // Helmet Plume / Crest
-      ctx.fillStyle = isEnemy ? '#9d0208' : '#e63946';
-      ctx.beginPath();
-      ctx.ellipse(0, -56, 10, 4, 0, 0, Math.PI);
-      ctx.fill();
-
-      // Arms & Weapon / Shield
-      ctx.fillStyle = skinColor;
-      ctx.fillRect(-12, -38, 4, 16); // back arm
-
-      // Shield (Front)
-      if (!isEnemy) {
-        ctx.fillStyle = '#b8860b';
-        ctx.beginPath();
-        ctx.ellipse(-10, -30, 8, 14, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#ffd700';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-
-      // Sword Arm
-      const swordSwing = (state === 'attack') ? Math.sin(anim * 0.4) * 20 : 0;
-      ctx.fillStyle = skinColor;
-      ctx.fillRect(8, -38 + swordSwing, 4, 14);
-
-      // Blade
-      ctx.fillStyle = '#e2e8f0';
-      ctx.fillRect(10, -48 + swordSwing, 4, 24);
-      ctx.fillStyle = '#ffd700';
-      ctx.fillRect(8, -26 + swordSwing, 8, 3); // Crossguard
-
-      ctx.restore();
-    }
-
-    // --- GAME ENTITIES ---
-    const player = {
-      x: 100,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      speed: 4.5,
-      hp: 100,
-      maxHp: 100,
-      mp: 100,
-      facing: 1,
-      isGrounded: false,
-      state: 'idle',
-      animTimer: 0,
-      attackCooldown: 0
-    };
-
-    const enemies = [];
-    const damageNumbers = [];
-
-    function spawnEnemy(x) {
-      enemies.push({
-        x: x,
-        y: H - 120,
-        hp: 40,
-        maxHp: 40,
-        speed: 1.8,
-        facing: -1,
-        animTimer: Math.random() * 100,
-        skin: '#78350f',
-        armor: '#4a0404',
-        helmet: '#854d0e',
-        hurtTimer: 0
-      });
-    }
-
-    // LEVEL INITIALIZATION
-    function initGame() {
-      player.x = 120;
-      player.y = H - 120;
-      player.hp = 100;
-      player.mp = 100;
-      score = 0;
-      enemies.length = 0;
-      damageNumbers.length = 0;
-
-      for (let i = 1; i <= 6; i++) {
-        spawnEnemy(500 + i * 280);
-      }
-      running = true;
-      overlay.style.display = 'none';
-    }
-
-    startBtn.addEventListener('click', initGame);
-
-    // --- MAIN GAME LOOP ---
-    function update() {
-      if (!running) return;
-
-      player.animTimer++;
-
-      // Player Movement
-      if (keys.left) {
-        player.vx = -player.speed;
-        player.facing = -1;
-        player.state = 'run';
-      } else if (keys.right) {
-        player.vx = player.speed;
-        player.facing = 1;
-        player.state = 'run';
-      } else {
-        player.vx = 0;
-        if (player.state !== 'attack') player.state = 'idle';
-      }
-
-      // Jump
-      if (keys.up && player.isGrounded) {
-        player.vy = -12;
-        player.isGrounded = false;
-      }
-
-      // Attack
-      if (keys.attack && player.attackCooldown <= 0) {
-        player.state = 'attack';
-        player.attackCooldown = 18;
-
-        // Hit Check
-        enemies.forEach(e => {
-          const dist = Math.abs(player.x - e.x);
-          const inFront = (player.facing === 1 && e.x > player.x) || (player.facing === -1 && e.x < player.x);
-          if (dist < 55 && inFront) {
-            const dmg = 20 + Math.floor(Math.random() * 10);
-            e.hp -= dmg;
-            e.hurtTimer = 8;
-            score += dmg * 10;
-            damageNumbers.push({ x: e.x, y: e.y - 40, text: dmg, life: 1.0, isCrit: dmg > 25 });
-          }
-        });
-      }
-
-      if (player.attackCooldown > 0) {
-        player.attackCooldown--;
-        if (player.attackCooldown === 0) player.state = 'idle';
-      }
-
-      // Gravity & Floor Collision
-      player.vy += 0.65;
-      player.x += player.vx;
-      player.y += player.vy;
-
-      const floorLevel = H - 120;
-      if (player.y >= floorLevel) {
-        player.y = floorLevel;
-        player.vy = 0;
-        player.isGrounded = true;
-      }
-
-      // Camera Follow
-      cameraX += (player.x - cameraX - W * 0.35) * 0.1;
-
-      // Enemy Updates
-      for (let i = enemies.length - 1; i >= 0; i--) {
-        const e = enemies[i];
-        e.animTimer++;
-        if (e.hurtTimer > 0) e.hurtTimer--;
-
-        // Patrol / Chase towards player
-        const dx = player.x - e.x;
-        e.facing = dx > 0 ? 1 : -1;
-
-        if (Math.abs(dx) > 35 && Math.abs(dx) < 400) {
-          e.x += e.facing * e.speed;
+  // Update Enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    let e = enemies[i];
+    if (e.x > player.x + 35) {
+      e.x -= e.speed;
+    } else if (e.x < player.x - 35) {
+      e.x += e.speed;
+    } else {
+      // Enemy melee hit
+      if (Math.random() < 0.035) {
+        player.hp -= (6 + currentPhase);
+        updateHealthBar();
+        if (player.hp <= 0) {
+          player.hp = 0;
+          showGameOver();
         }
+      }
+    }
 
-        // Enemy Attack
-        if (Math.abs(dx) < 38 && Math.abs(player.y - e.y) < 20) {
-          if (Math.random() < 0.03) {
-            player.hp -= 8;
-            hpBar.style.width = Math.max(0, (player.hp / player.maxHp) * 100) + '%';
-            if (player.hp <= 0) {
-              running = false;
-              overlay.style.display = 'flex';
-              document.querySelector('.game-title').innerText = 'Battle Honor Recorded';
-              document.querySelector('.game-subtitle').innerText = `Final Honor Score: ${score}`;
-              startBtn.innerText = 'Rally the Line';
-            }
-          }
-        }
-
-        // Enemy Defeat
+    // Player strikes enemy
+    if (player.isAttacking && player.attackTimer === 9) {
+      let hitBoxX = player.facingRight ? player.x + player.w : player.x - 35;
+      if (Math.abs(hitBoxX - e.x) < 55) {
+        e.hp -= 32;
         if (e.hp <= 0) {
           enemies.splice(i, 1);
-          score += 250;
-          spawnEnemy(player.x + 600 + Math.random() * 200);
+          kills++;
+          if (kills < targetKills) {
+            spawnEnemy();
+          } else {
+            showPhaseVictory();
+          }
         }
       }
-
-      // Damage Numbers
-      for (let i = damageNumbers.length - 1; i >= 0; i--) {
-        const d = damageNumbers[i];
-        d.y -= 1;
-        d.life -= 0.03;
-        if (d.life <= 0) damageNumbers.splice(i, 1);
-      }
-
-      // Update HUD
-      scoreText.innerText = score.toString().padStart(4, '0');
     }
+  }
 
-    // --- RENDER PASS ---
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
+  document.getElementById('hud-obj').innerText = `Defeated: ${kills}/${targetKills}`;
+}
 
-      // 1. SKY & DISTANT PILLARS
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-      skyGrad.addColorStop(0, '#0c0d1a');
-      skyGrad.addColorStop(0.6, '#1e1428');
-      skyGrad.addColorStop(1, '#3b1c2b');
-      ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, W, H);
+function showPhaseVictory() {
+  gameState = 'VICTORY';
+  const menu = document.getElementById('ui-menu');
+  menu.style.display = 'flex';
+  document.getElementById('hud').style.display = 'none';
+  
+  if (currentPhase < totalPhases) {
+    document.getElementById('menu-title').innerText = `Phase ${currentPhase} Complete!`;
+    document.getElementById('menu-phase').innerText = `${phases[currentPhase].title} Secured`;
+    document.getElementById('menu-desc').innerText = `The bloodline advances to the next epoch: ${phases[currentPhase + 1].title}.`;
+    
+    document.getElementById('btn-lineage').style.display = 'inline-block';
+    document.getElementById('btn-oppose').style.display = 'inline-block';
+    document.getElementById('btn-lineage').innerText = `Advance as Lineage`;
+    document.getElementById('btn-oppose').innerText = `Advance as Opposition`;
+    
+    document.getElementById('btn-lineage').onclick = () => { currentPhase++; startPhase('LINEAGE'); };
+    document.getElementById('btn-oppose').onclick = () => { currentPhase++; startPhase('OPPOSITION'); };
+  } else {
+    document.getElementById('menu-title').innerText = "Epic Journey Completed!";
+    document.getElementById('menu-phase').innerText = "The Unbroken Living Cord";
+    document.getElementById('menu-desc').innerText = "From ancient Illyria to modern Michigan, you have guided the lineage through all seven historical epochs. The legacy is victorious.";
+    document.getElementById('btn-lineage').style.display = 'none';
+    document.getElementById('btn-oppose').innerText = "Play Again from Phase 1";
+    document.getElementById('btn-oppose').onclick = () => { currentPhase = 1; location.reload(); };
+  }
+}
 
-      // 2. PARALLAX DISTANT RUINS & MOUNTAINS
-      ctx.fillStyle = '#170f20';
-      for (let i = 0; i < 15; i++) {
-        const mx = (i * 220 - cameraX * 0.2) % (W + 400) - 200;
-        ctx.beginPath();
-        ctx.moveTo(mx, H - 120);
-        ctx.lineTo(mx + 110, H - 280);
-        ctx.lineTo(mx + 220, H - 120);
-        ctx.fill();
-      }
+function showGameOver() {
+  gameState = 'MENU';
+  const menu = document.getElementById('ui-menu');
+  menu.style.display = 'flex';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('menu-title').innerText = "Fallen in Battle";
+  document.getElementById('menu-phase').innerText = `Phase ${currentPhase} Interrupted`;
+  document.getElementById('menu-desc').innerText = "Regroup your forces, summon your ancestral fortitude, and retake the field.";
+  document.getElementById('btn-lineage').style.display = 'inline-block';
+  document.getElementById('btn-oppose').style.display = 'inline-block';
+  document.getElementById('btn-lineage').innerText = "Retry as Lineage";
+  document.getElementById('btn-oppose').innerText = "Retry as Opposition";
+  document.getElementById('btn-lineage').onclick = () => startPhase('LINEAGE');
+  document.getElementById('btn-oppose').onclick = () => startPhase('OPPOSITION');
+}
 
-      // 3. MIDGROUND ANCIENT COLUMNS
-      ctx.fillStyle = '#26172e';
-      for (let i = 0; i < 20; i++) {
-        const colX = (i * 180 - cameraX * 0.5) % (W + 300) - 100;
-        ctx.fillRect(colX, H - 240, 24, 120);
-        ctx.fillRect(colX - 4, H - 248, 32, 8); // Capital
-      }
+function render() {
+  const pData = phases[currentPhase];
+  ctx.fillStyle = pData.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 4. BATTLEGROUND TERRAIN / STONE BARS
-      ctx.fillStyle = '#1c1424';
-      ctx.fillRect(0, H - 120, W, 120);
-      ctx.fillStyle = '#d4af37';
-      ctx.fillRect(0, H - 120, W, 4); // Golden ground border line
+  // Ground platform
+  ctx.fillStyle = pData.ground;
+  ctx.fillRect(0, 374, canvas.width, 76);
+  ctx.fillStyle = '#d4af37';
+  ctx.fillRect(0, 374, canvas.width, 3);
 
-      // Camera Offset Matrix
-      ctx.save();
-      ctx.translate(-cameraX, 0);
+  // Draw Player
+  ctx.fillStyle = player.color;
+  ctx.fillRect(player.x, player.y, player.w, player.h);
 
-      // 5. DRAW ENEMIES
-      enemies.forEach(e => {
-        // Enemy Health Bar
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(e.x - 14, e.y - 62, 28, 4);
-        ctx.fillStyle = '#ff3344';
-        ctx.fillRect(e.x - 14, e.y - 62, (e.hp / e.maxHp) * 28, 4);
-
-        drawHumanWarrior(e.x, e.y, e.facing, true, {
-          skin: e.skin,
-          armor: e.armor,
-          helmet: e.helmet,
-          animTimer: e.animTimer,
-          hurt: e.hurtTimer > 0,
-          state: 'run'
-        });
-      });
-
-      // 6. DRAW PLAYER HERO
-      drawHumanWarrior(player.x, player.y, player.facing, false, {
-        skin: '#8d5524',
-        armor: '#1e293b',
-        helmet: '#ffd700',
-        animTimer: player.animTimer,
-        hurt: false,
-        state: player.state
-      });
-
-      // 7. DAMAGE POPUPS
-      damageNumbers.forEach(d => {
-        ctx.save();
-        ctx.globalAlpha = d.life;
-        ctx.font = d.isCrit ? '900 15px sans-serif' : 'bold 13px sans-serif';
-        ctx.fillStyle = d.isCrit ? '#ffea00' : '#ffffff';
-        ctx.shadowColor = d.isCrit ? '#ff3300' : '#000000';
-        ctx.shadowBlur = 6;
-        ctx.fillText((d.isCrit ? "CRIT " : "") + d.text, d.x - 10, d.y);
-        ctx.restore();
-      });
-
-      ctx.restore();
+  // Weapon swing visual
+  if (player.isAttacking) {
+    ctx.fillStyle = "#d4af37";
+    if (player.facingRight) {
+      ctx.fillRect(player.x + player.w, player.y + 18, 30, 8);
+    } else {
+      ctx.fillRect(player.x - 30, player.y + 18, 30, 8);
     }
+  }
 
-    function gameLoop() {
-      update();
-      draw();
-      requestAnimationFrame(gameLoop);
-    }
+  // Draw Enemies
+  for (let e of enemies) {
+    ctx.fillStyle = e.color;
+    ctx.fillRect(e.x, e.y, e.w, e.h);
+  }
 
-    player.y = H - 120;
-    gameLoop();
-  </script>
+  requestAnimationFrame(loop);
+}
+
+function loop() {
+  update();
+  render();
+}
+
+loop();
+</script>
 </body>
 </html>
