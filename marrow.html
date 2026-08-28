@@ -1,891 +1,703 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Packed in the Marrow: Vanguard Chronicles</title>
-<style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: none;
-  }
-  body, html {
-    width: 100%;
-    height: 100%;
-    height: 100dvh;
-    background-color: #030408;
-    overflow: hidden;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  }
-  #game-container {
-    position: relative;
-    width: 100vw;
-    height: 100dvh;
-    overflow: hidden;
-  }
-  #gameCanvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Packed in the Marrow: Vanguard Chronicles</title>
 
-  /* --- ORNATE HUD --- */
-  #hud-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    padding: env(safe-area-inset-top, 10px) 12px env(safe-area-inset-bottom, 10px);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-  .hud-top-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-  }
-  .player-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(10, 16, 30, 0.85);
-    border: 1px solid rgba(0, 240, 255, 0.4);
-    box-shadow: 0 0 10px rgba(0, 200, 255, 0.2);
-    padding: 4px 10px 4px 6px;
-    border-radius: 8px;
-  }
-  .gem-avatar {
-    width: 28px;
-    height: 28px;
-    background: radial-gradient(circle, #00f0ff, #0051ff);
-    border: 1.5px solid #fff;
-    transform: rotate(45deg);
-    box-shadow: 0 0 8px #00f0ff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .gem-avatar-inner {
-    transform: rotate(-45deg);
-    font-size: 13px;
-    font-weight: 900;
-    color: #fff;
-  }
-  .bar-bg {
-    width: 95px;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 2px 0;
-  }
-  #hp-bar-fill {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #ff3366, #ff0033);
-    transition: width 0.15s ease;
-  }
-  #mp-bar-fill {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #00d4ff, #0066ff);
-  }
-  .chapter-badge {
-    background: rgba(10, 16, 30, 0.85);
-    border: 1px solid #d4af37;
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
-    padding: 5px 12px;
-    border-radius: 20px;
-    color: #ffd700;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-  .relic-badge {
-    background: rgba(10, 16, 30, 0.85);
-    border: 1px solid rgba(0, 240, 255, 0.3);
-    padding: 5px 10px;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 11px;
-    font-weight: bold;
-  }
-  .relic-badge span {
-    color: #00f0ff;
-  }
+  <!-- PWA & Full-Screen Inline Settings -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1b0408">
 
-  /* --- BANNER --- */
-  #chapter-banner {
-    position: absolute;
-    top: 38%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    opacity: 0;
-    transition: opacity 0.4s ease;
-    pointer-events: none;
-    width: 90%;
-  }
-  #chapter-banner h2 {
-    color: #ffd700;
-    font-size: 24px;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    text-shadow: 0 0 15px #d4af37, 0 0 30px #ffaa00;
-  }
-  #chapter-banner p {
-    color: #e0f7fc;
-    font-size: 13px;
-    margin-top: 4px;
-    letter-spacing: 1px;
-    text-shadow: 0 0 8px rgba(0,240,255,0.6);
-  }
+  <script>
+    const manifestData = {
+      name: "Packed in the Marrow: Vanguard Chronicles",
+      short_name: "Packed In Marrow",
+      start_url: "./marrow.html",
+      display: "fullscreen",
+      orientation: "portrait",
+      background_color: "#1b0408",
+      theme_color: "#1b0408"
+    };
+    const stringManifest = JSON.stringify(manifestData);
+    const blob = new Blob([stringManifest], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
+    const linkTag = document.createElement('link');
+    linkTag.rel = 'manifest';
+    linkTag.href = manifestURL;
+    document.head.appendChild(linkTag);
+  </script>
 
-  /* --- TOUCH CONTROLS (ELEVATED ABOVE SYSTEM BAR) --- */
-  .mobile-controls {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    padding-bottom: 24px; /* Lifted up cleanly */
-    pointer-events: none;
-  }
-  .d-pad-cluster {
-    pointer-events: auto;
-    display: grid;
-    grid-template-columns: repeat(3, 50px);
-    grid-template-rows: repeat(2, 50px);
-    gap: 6px;
-  }
-  .ctrl-btn {
-    background: rgba(15, 23, 42, 0.85);
-    border: 2px solid rgba(0, 240, 255, 0.5);
-    border-radius: 50%;
-    color: #00f0ff;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-    touch-action: none;
-  }
-  .ctrl-btn:active {
-    background: #00f0ff;
-    color: #000;
-    transform: scale(0.92);
-  }
-  .action-cluster {
-    pointer-events: auto;
-    display: flex;
-    gap: 14px;
-    align-items: center;
-  }
-  .action-btn {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    border: 2.5px solid #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-weight: 900;
-    font-size: 11px;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
-    touch-action: none;
-  }
-  .action-btn:active {
-    transform: scale(0.92);
-  }
-  #btn-slash {
-    background: radial-gradient(circle, #e63946, #800f1c);
-    border-color: #ff99a8;
-    box-shadow: 0 0 14px rgba(230, 57, 70, 0.7);
-  }
-  #btn-blast {
-    background: radial-gradient(circle, #00d4ff, #0044cc);
-    border-color: #a6f0ff;
-    box-shadow: 0 0 14px rgba(0, 212, 255, 0.7);
-  }
-</style>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      background-color: #030408;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ORNATE HUD */
+    #hud-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      width: 100%;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, rgba(20, 15, 25, 0.85), rgba(5, 5, 10, 0.95));
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(212, 175, 55, 0.1);
+      border-radius: 8px;
+      padding: 10px 16px;
+      color: #e6edf3;
+      backdrop-filter: blur(4px);
+    }
+    .hero-name {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #ffd700;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .bar-container {
+      width: 140px;
+      height: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-fill-hp {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #e63946, #ff4d6d);
+      transition: width 0.2s ease;
+    }
+    .bar-fill-mp {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #2a9d8f, #48cae4);
+      margin-top: 4px;
+      transition: width 0.2s ease;
+    }
+    .score-display {
+      text-align: right;
+    }
+    .score-title {
+      font-size: 11px;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .score-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+    }
+
+    /* TOUCH CONTROLS */
+    #touch-layer {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 20;
+    }
+    .d-pad, .action-cluster {
+      display: flex;
+      gap: 14px;
+      pointer-events: auto;
+    }
+    .ctrl-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(40, 45, 60, 0.75) 0%, rgba(15, 20, 30, 0.9) 100%);
+      border: 2px solid rgba(212, 175, 55, 0.5);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 0 8px rgba(212, 175, 55, 0.2);
+      color: #ffd700;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      backdrop-filter: blur(6px);
+      transition: transform 0.08s ease, border-color 0.08s ease;
+    }
+    .ctrl-btn:active {
+      transform: scale(0.92);
+      border-color: #ffffff;
+      background: radial-gradient(circle, rgba(70, 75, 100, 0.9) 0%, rgba(30, 35, 50, 0.95) 100%);
+    }
+    .btn-action {
+      background: radial-gradient(circle, rgba(160, 30, 40, 0.75) 0%, rgba(80, 10, 20, 0.9) 100%);
+      border-color: rgba(255, 100, 100, 0.6);
+      color: #fff;
+    }
+
+    /* OVERLAYS */
+    #overlay-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(3, 4, 8, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .game-title {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #ffd700;
+      text-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .game-subtitle {
+      font-size: 15px;
+      color: #cbd5e1;
+      max-width: 480px;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+    .play-btn {
+      padding: 14px 40px;
+      font-size: 18px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #0d1117;
+      background: linear-gradient(135deg, #ffd700, #ffae00);
+      border: none;
+      border-radius: 30px;
+      box-shadow: 0 4px 20px rgba(255, 215, 0, 0.4);
+      cursor: pointer;
+      pointer-events: auto;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .play-btn:active {
+      transform: scale(0.96);
+      box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+    }
+  </style>
 </head>
 <body>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
 
-<div id="game-container">
-  <canvas id="gameCanvas"></canvas>
-
-  <div id="hud-layer">
-    <div class="hud-top-bar">
-      <div class="player-status">
-        <div class="gem-avatar"><div class="gem-avatar-inner">V</div></div>
-        <div>
-          <div class="bar-bg"><div id="hp-bar-fill"></div></div>
-          <div class="bar-bg"><div id="mp-bar-fill"></div></div>
+    <!-- HUD LAYER -->
+    <div id="hud-layer">
+      <div class="hud-top">
+        <div class="stat-card">
+          <div class="hero-name">🛡️ Vanguard Hero</div>
+          <div class="bar-container">
+            <div id="hp-bar" class="bar-fill-hp"></div>
+          </div>
+          <div class="bar-container" style="margin-top: 4px;">
+            <div id="mp-bar" class="bar-fill-mp"></div>
+          </div>
+        </div>
+        <div class="stat-card score-display">
+          <div class="score-title">Honor Score</div>
+          <div id="score-text" class="score-val">0000</div>
         </div>
       </div>
-
-      <div class="chapter-badge" id="hud-chapter">Chapter I: Balkans</div>
-
-      <div class="relic-badge">
-        <span>◆</span> <span id="hud-kills">0 / 6</span>
-      </div>
     </div>
 
-    <div id="chapter-banner">
-      <h2 id="banner-title">ERA CONQUERED</h2>
-      <p id="banner-sub">Transitioning Sectors...</p>
-    </div>
-
-    <div class="mobile-controls">
-      <div class="d-pad-cluster">
-        <div></div>
-        <div class="ctrl-btn" id="btn-up">▲</div>
-        <div></div>
-        <div class="ctrl-btn" id="btn-left">◀</div>
-        <div class="ctrl-btn" id="btn-down">▼</div>
-        <div class="ctrl-btn" id="btn-right">▶</div>
+    <!-- TOUCH CONTROLS (MOBILE) -->
+    <div id="touch-layer">
+      <div class="d-pad">
+        <button id="btn-left" class="ctrl-btn">◀</button>
+        <button id="btn-right" class="ctrl-btn">▶</button>
       </div>
       <div class="action-cluster">
-        <div class="action-btn" id="btn-blast">BLAST</div>
-        <div class="action-btn" id="btn-slash">SLASH</div>
+        <button id="btn-jump" class="ctrl-btn">▲</button>
+        <button id="btn-atk" class="ctrl-btn btn-action">⚔️</button>
       </div>
     </div>
+
+    <!-- START / GAMEOVER SCREEN -->
+    <div id="overlay-screen">
+      <h1 class="game-title">Packed in the Marrow</h1>
+      <p class="game-subtitle">Vanguard Chronicles: Stand fast across the ancient line of honor and valor.</p>
+      <button id="start-btn" class="play-btn">Engage Battle</button>
+    </div>
   </div>
-</div>
 
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+  <script>
+    // --- GAME ENGINE & ART GENERATOR ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const hpBar = document.getElementById('hp-bar');
+    const mpBar = document.getElementById('mp-bar');
+    const scoreText = document.getElementById('score-text');
+    const overlay = document.getElementById('overlay-screen');
+    const startBtn = document.getElementById('start-btn');
 
-let W, H;
-function resize() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
+    let W, H;
+    function resizeCanvas() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
-// --- 3 HISTORICAL ERAS ---
-const CHAPTERS = [
-  {
-    title: "Chapter I: Balkan Ridge",
-    subtitle: "Ancient Illyrian Mountain Sanctuary",
-    skyGradient: ["#1c0b10", "#42151b", "#c4532b"],
-    sunColor: "#ff9933",
-    mountainColor: "#170810",
-    pillarColor: "#220e19",
-    groundTop: "#3d1e1a",
-    groundBody: "#140807",
-    gridColor: "rgba(255, 120, 50, 0.15)",
-    target: 6,
-    enemyType: "Illyrian Raider",
-    enemySkin: "#b27c52",
-    enemyArmor: "#4a3525",
-    enemyHelmet: "#8c6239"
-  },
-  {
-    title: "Chapter II: Mediterranean Fleet",
-    subtitle: "Roman Imperial Coastal Outpost",
-    skyGradient: ["#051525", "#0c314f", "#cf7c2b"],
-    sunColor: "#ff6633",
-    mountainColor: "#081827",
-    pillarColor: "#152a45",
-    groundTop: "#1f385c",
-    groundBody: "#081220",
-    gridColor: "rgba(0, 200, 255, 0.15)",
-    target: 8,
-    enemyType: "Roman Centurion",
-    enemySkin: "#c98f65",
-    enemyArmor: "#8b111e",
-    enemyHelmet: "#d4af37"
-  },
-  {
-    title: "Chapter III: Mississippi Delta",
-    subtitle: "Synthwave Horizon & Modern Vanguard",
-    skyGradient: ["#100424", "#300a47", "#e03e8c"],
-    sunColor: "#f43f5e",
-    mountainColor: "#150527",
-    pillarColor: "#200637",
-    groundTop: "#4c1d95",
-    groundBody: "#0b0317",
-    gridColor: "rgba(236, 72, 153, 0.2)",
-    target: 12,
-    enemyType: "Shadow Titan",
-    enemySkin: "#8b6cb0",
-    enemyArmor: "#241e5e",
-    enemyHelmet: "#00f0ff"
-  }
-];
+    // GAME STATE
+    let running = false;
+    let score = 0;
+    let cameraX = 0;
 
-let currentChapter = 0;
-let killsInChapter = 0;
-let playerHp = 100;
-let gameState = "PLAYING"; // "PLAYING", "WARP_TRANSITION"
-let warpTimer = 0;
+    // INPUT TRACKING
+    const keys = { left: false, right: false, up: false, attack: false };
 
-// Input State
-const keys = {};
-window.addEventListener('keydown', e => keys[e.code] = true);
-window.addEventListener('keyup', e => keys[e.code] = false);
+    // MOBILE TOUCH BINDINGS
+    function bindTouch(id, keyName) {
+      const btn = document.getElementById(id);
+      btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
+      btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+      btn.addEventListener('mousedown', (e) => { e.preventDefault(); keys[keyName] = true; });
+      btn.addEventListener('mouseup', (e) => { e.preventDefault(); keys[keyName] = false; });
+    }
+    bindTouch('btn-left', 'left');
+    bindTouch('btn-right', 'right');
+    bindTouch('btn-jump', 'up');
+    bindTouch('btn-atk', 'attack');
 
-function bindTouch(id, onDown, onUp) {
-  const el = document.getElementById(id);
-  el.addEventListener('touchstart', e => { e.preventDefault(); onDown(); });
-  el.addEventListener('touchend', e => { e.preventDefault(); onUp(); });
-}
-
-let touchMoveX = 0, touchMoveY = 0;
-bindTouch('btn-left', () => touchMoveX = -1, () => touchMoveX = 0);
-bindTouch('btn-right', () => touchMoveX = 1, () => touchMoveX = 0);
-bindTouch('btn-up', () => touchMoveY = -1, () => touchMoveY = 0);
-bindTouch('btn-down', () => touchMoveY = 1, () => touchMoveY = 0);
-bindTouch('btn-slash', () => triggerAttack('slash'), () => {});
-bindTouch('btn-blast', () => triggerAttack('blast'), () => {});
-
-// Player Character
-const player = {
-  x: 80,
-  y: 0,
-  speed: 4,
-  facing: 1,
-  state: 'idle',
-  animTimer: 0,
-  attackCooldown: 0,
-  combo: 0
-};
-
-const enemies = [];
-const slashes = [];
-const energyBlasts = [];
-const particles = [];
-const damageNumbers = [];
-
-function triggerAttack(type) {
-  if (player.attackCooldown > 0 || gameState !== "PLAYING") return;
-  player.attackCooldown = 14;
-  player.state = 'attack';
-
-  if (type === 'slash') {
-    player.combo = (player.combo + 1) % 2;
-    slashes.push({
-      x: player.x + (player.facing === 1 ? 30 : -30),
-      y: player.y - 18,
-      dir: player.facing,
-      radius: 40,
-      life: 12,
-      maxLife: 12
+    // KEYBOARD BINDINGS
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'ArrowLeft' || e.key === 'a') keys.left = true;
+      if (e.code === 'ArrowRight' || e.key === 'd') keys.right = true;
+      if (e.code === 'ArrowUp' || e.key === 'w' || e.code === 'Space') keys.up = true;
+      if (e.key === 'j' || e.key === 'z') keys.attack = true;
     });
-  } else if (type === 'blast') {
-    energyBlasts.push({
-      x: player.x + (player.facing === 1 ? 28 : -28),
-      y: player.y - 20,
-      vx: player.facing * 11,
-      life: 45
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'ArrowLeft' || e.key === 'a') keys.left = false;
+      if (e.code === 'ArrowRight' || e.key === 'd') keys.right = false;
+      if (e.code === 'ArrowUp' || e.key === 'w' || e.code === 'Space') keys.up = false;
+      if (e.key === 'j' || e.key === 'z') keys.attack = false;
     });
-  }
-}
 
-function spawnEnemy() {
-  const ch = CHAPTERS[currentChapter];
-  enemies.push({
-    x: W + 50,
-    y: (H - 120) - Math.random() * 25,
-    hp: 4,
-    maxHp: 4,
-    vx: -(1.3 + Math.random() * 1.3),
-    animTimer: Math.random() * 20,
-    hurtTimer: 0,
-    skin: ch.enemySkin,
-    armor: ch.enemyArmor,
-    helmet: ch.enemyHelmet
-  });
-}
+    // --- ART ASSET GENERATORS (CUSTOM PROCEDURAL SPRITES) ---
+    function drawHumanWarrior(x, y, facing, isEnemy, options = {}) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(facing, 1);
 
-function addDamagePopup(x, y, amount, isCrit = false) {
-  damageNumbers.push({
-    x: x + (Math.random() - 0.5) * 16,
-    y: y - 35,
-    amount: amount,
-    isCrit: isCrit,
-    life: 1.0,
-    vy: -1.8
-  });
-}
+      const skinColor = options.skin || '#8d5524';
+      const armorColor = options.armor || '#3a506b';
+      const helmetColor = options.helmet || '#ffd700';
+      const anim = options.animTimer || 0;
+      const hurt = options.hurt || false;
+      const state = options.state || 'idle';
 
-function spawnHitSparks(x, y, color, count = 10) {
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const spd = 1.5 + Math.random() * 4.5;
-    particles.push({
-      x: x,
-      y: y,
-      vx: Math.cos(angle) * spd,
-      vy: Math.sin(angle) * spd,
-      life: 1,
-      decay: 0.03 + Math.random() * 0.04,
-      size: 2 + Math.random() * 2.5,
-      color: color
-    });
-  }
-}
+      if (hurt) {
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = '#ff2222';
+      }
 
-function startChapterTransition() {
-  gameState = "WARP_TRANSITION";
-  warpTimer = 0;
-  const banner = document.getElementById('chapter-banner');
-  const title = document.getElementById('banner-title');
-  const sub = document.getElementById('banner-sub');
-  
-  const nextIdx = (currentChapter + 1) % CHAPTERS.length;
-  title.innerText = `${CHAPTERS[currentChapter].title} CONQUERED!`;
-  sub.innerText = `Entering ${CHAPTERS[nextIdx].title}...`;
-  banner.style.opacity = 1;
-}
+      // Cape
+      ctx.fillStyle = isEnemy ? '#590d22' : '#800e13';
+      ctx.beginPath();
+      ctx.moveTo(-6, -42);
+      ctx.lineTo(-18 - Math.sin(anim * 0.15) * 4, -15);
+      ctx.lineTo(-12, 0);
+      ctx.lineTo(-2, -35);
+      ctx.fill();
 
-let spawnTimer = 0;
-function update() {
-  const groundY = H - 120;
-  const ch = CHAPTERS[currentChapter];
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 16, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
 
-  if (gameState === "PLAYING") {
-    let dx = touchMoveX;
-    let dy = touchMoveY;
-    if (keys['ArrowLeft'] || keys['KeyA']) dx = -1;
-    if (keys['ArrowRight'] || keys['KeyD']) dx = 1;
-    if (keys['ArrowUp'] || keys['KeyW']) dy = -1;
-    if (keys['ArrowDown'] || keys['KeyS']) dy = 1;
-    if (keys['Space']) triggerAttack('slash');
-    if (keys['KeyJ']) triggerAttack('blast');
+      // Legs / Greaves
+      ctx.fillStyle = '#1c1917';
+      const legOffset = (state === 'run') ? Math.sin(anim * 0.25) * 6 : 0;
+      ctx.fillRect(-8, -18 + legOffset, 5, 18 - legOffset);
+      ctx.fillRect(3, -18 - legOffset, 5, 18 + legOffset);
 
-    if (dx !== 0) {
-      player.facing = dx > 0 ? 1 : -1;
-      player.state = 'run';
-    } else if (player.attackCooldown <= 0) {
-      player.state = 'idle';
+      // Torso & Cuirass
+      ctx.fillStyle = armorColor;
+      ctx.beginPath();
+      ctx.roundRect(-10, -42, 20, 26, 4);
+      ctx.fill();
+
+      // Gold Trim Accent
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-8, -40, 16, 12);
+
+      // Head / Face
+      ctx.fillStyle = skinColor;
+      ctx.beginPath();
+      ctx.arc(0, -48, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Vanguard Corinthian/Centurion Helmet
+      ctx.fillStyle = helmetColor;
+      ctx.beginPath();
+      ctx.moveTo(-8, -54);
+      ctx.lineTo(8, -54);
+      ctx.lineTo(6, -45);
+      ctx.lineTo(-6, -45);
+      ctx.closePath();
+      ctx.fill();
+
+      // Helmet Plume / Crest
+      ctx.fillStyle = isEnemy ? '#9d0208' : '#e63946';
+      ctx.beginPath();
+      ctx.ellipse(0, -56, 10, 4, 0, 0, Math.PI);
+      ctx.fill();
+
+      // Arms & Weapon / Shield
+      ctx.fillStyle = skinColor;
+      ctx.fillRect(-12, -38, 4, 16); // back arm
+
+      // Shield (Front)
+      if (!isEnemy) {
+        ctx.fillStyle = '#b8860b';
+        ctx.beginPath();
+        ctx.ellipse(-10, -30, 8, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Sword Arm
+      const swordSwing = (state === 'attack') ? Math.sin(anim * 0.4) * 20 : 0;
+      ctx.fillStyle = skinColor;
+      ctx.fillRect(8, -38 + swordSwing, 4, 14);
+
+      // Blade
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(10, -48 + swordSwing, 4, 24);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillRect(8, -26 + swordSwing, 8, 3); // Crossguard
+
+      ctx.restore();
     }
 
-    player.x = Math.max(30, Math.min(W - 40, player.x + dx * player.speed));
-    player.y = Math.max(groundY - 50, Math.min(groundY, player.y + dy * (player.speed * 0.7)));
+    // --- GAME ENTITIES ---
+    const player = {
+      x: 100,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      speed: 4.5,
+      hp: 100,
+      maxHp: 100,
+      mp: 100,
+      facing: 1,
+      isGrounded: false,
+      state: 'idle',
+      animTimer: 0,
+      attackCooldown: 0
+    };
 
-    if (player.attackCooldown > 0) player.attackCooldown--;
-    player.animTimer += 0.18;
+    const enemies = [];
+    const damageNumbers = [];
 
-    spawnTimer++;
-    if (spawnTimer > 85 && enemies.length < 4) {
-      spawnEnemy();
-      spawnTimer = 0;
+    function spawnEnemy(x) {
+      enemies.push({
+        x: x,
+        y: H - 120,
+        hp: 40,
+        maxHp: 40,
+        speed: 1.8,
+        facing: -1,
+        animTimer: Math.random() * 100,
+        skin: '#78350f',
+        armor: '#4a0404',
+        helmet: '#854d0e',
+        hurtTimer: 0
+      });
     }
 
-  } else if (gameState === "WARP_TRANSITION") {
-    warpTimer++;
-    player.x += 5; // Hero dashes forward into warp gate
-    spawnHitSparks(player.x - 10, player.y - 20, '#00f0ff', 2);
-
-    if (warpTimer > 85) {
-      currentChapter = (currentChapter + 1) % CHAPTERS.length;
-      killsInChapter = 0;
+    // LEVEL INITIALIZATION
+    function initGame() {
+      player.x = 120;
+      player.y = H - 120;
+      player.hp = 100;
+      player.mp = 100;
+      score = 0;
       enemies.length = 0;
-      slashes.length = 0;
-      energyBlasts.length = 0;
-      player.x = -30;
-      player.y = groundY;
-      gameState = "PLAYING";
-      document.getElementById('chapter-banner').style.opacity = 0;
-    }
-  }
+      damageNumbers.length = 0;
 
-  // Slashes
-  for (let i = slashes.length - 1; i >= 0; i--) {
-    const sl = slashes[i];
-    sl.life--;
-    for (let j = enemies.length - 1; j >= 0; j--) {
-      const e = enemies[j];
-      if (Math.abs(sl.x - e.x) < 38 && Math.abs(sl.y - (e.y - 20)) < 35) {
-        const dmg = Math.floor(20 + Math.random() * 15);
-        e.hp -= 1.8;
-        e.hurtTimer = 8;
-        e.x += sl.dir * 14;
-        addDamagePopup(e.x, e.y, dmg, dmg > 30);
-        spawnHitSparks(e.x, e.y - 20, '#ffea00', 8);
+      for (let i = 1; i <= 6; i++) {
+        spawnEnemy(500 + i * 280);
       }
+      running = true;
+      overlay.style.display = 'none';
     }
-    if (sl.life <= 0) slashes.splice(i, 1);
-  }
 
-  // Blasts
-  for (let i = energyBlasts.length - 1; i >= 0; i--) {
-    const eb = energyBlasts[i];
-    eb.x += eb.vx;
-    eb.life--;
-    for (let j = enemies.length - 1; j >= 0; j--) {
-      const e = enemies[j];
-      if (Math.abs(eb.x - e.x) < 28 && Math.abs(eb.y - (e.y - 20)) < 28) {
-        const dmg = Math.floor(35 + Math.random() * 20);
-        e.hp -= 3;
-        e.hurtTimer = 10;
-        addDamagePopup(e.x, e.y, dmg, true);
-        spawnHitSparks(eb.x, eb.y, '#00f0ff', 14);
-        eb.life = 0;
-        break;
+    startBtn.addEventListener('click', initGame);
+
+    // --- MAIN GAME LOOP ---
+    function update() {
+      if (!running) return;
+
+      player.animTimer++;
+
+      // Player Movement
+      if (keys.left) {
+        player.vx = -player.speed;
+        player.facing = -1;
+        player.state = 'run';
+      } else if (keys.right) {
+        player.vx = player.speed;
+        player.facing = 1;
+        player.state = 'run';
+      } else {
+        player.vx = 0;
+        if (player.state !== 'attack') player.state = 'idle';
       }
-    }
-    if (eb.life <= 0 || eb.x > W + 40 || eb.x < -40) energyBlasts.splice(i, 1);
-  }
 
-  // Enemies
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    const e = enemies[i];
-    if (e.hurtTimer > 0) e.hurtTimer--;
-    else if (gameState === "PLAYING") {
-      e.x += e.vx;
-      e.animTimer += 0.15;
-      if (Math.abs(e.x - player.x) < 26 && Math.abs(e.y - player.y) < 20) {
-        playerHp = Math.max(0, playerHp - 0.35);
-        spawnHitSparks(player.x, player.y - 20, '#ff3366', 2);
+      // Jump
+      if (keys.up && player.isGrounded) {
+        player.vy = -12;
+        player.isGrounded = false;
       }
-    }
 
-    if (e.hp <= 0) {
-      spawnHitSparks(e.x, e.y - 20, '#ffd700', 20);
-      enemies.splice(i, 1);
-      killsInChapter++;
-      if (killsInChapter >= ch.target && gameState === "PLAYING") {
-        startChapterTransition();
+      // Attack
+      if (keys.attack && player.attackCooldown <= 0) {
+        player.state = 'attack';
+        player.attackCooldown = 18;
+
+        // Hit Check
+        enemies.forEach(e => {
+          const dist = Math.abs(player.x - e.x);
+          const inFront = (player.facing === 1 && e.x > player.x) || (player.facing === -1 && e.x < player.x);
+          if (dist < 55 && inFront) {
+            const dmg = 20 + Math.floor(Math.random() * 10);
+            e.hp -= dmg;
+            e.hurtTimer = 8;
+            score += dmg * 10;
+            damageNumbers.push({ x: e.x, y: e.y - 40, text: dmg, life: 1.0, isCrit: dmg > 25 });
+          }
+        });
       }
-      continue;
+
+      if (player.attackCooldown > 0) {
+        player.attackCooldown--;
+        if (player.attackCooldown === 0) player.state = 'idle';
+      }
+
+      // Gravity & Floor Collision
+      player.vy += 0.65;
+      player.x += player.vx;
+      player.y += player.vy;
+
+      const floorLevel = H - 120;
+      if (player.y >= floorLevel) {
+        player.y = floorLevel;
+        player.vy = 0;
+        player.isGrounded = true;
+      }
+
+      // Camera Follow
+      cameraX += (player.x - cameraX - W * 0.35) * 0.1;
+
+      // Enemy Updates
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        e.animTimer++;
+        if (e.hurtTimer > 0) e.hurtTimer--;
+
+        // Patrol / Chase towards player
+        const dx = player.x - e.x;
+        e.facing = dx > 0 ? 1 : -1;
+
+        if (Math.abs(dx) > 35 && Math.abs(dx) < 400) {
+          e.x += e.facing * e.speed;
+        }
+
+        // Enemy Attack
+        if (Math.abs(dx) < 38 && Math.abs(player.y - e.y) < 20) {
+          if (Math.random() < 0.03) {
+            player.hp -= 8;
+            hpBar.style.width = Math.max(0, (player.hp / player.maxHp) * 100) + '%';
+            if (player.hp <= 0) {
+              running = false;
+              overlay.style.display = 'flex';
+              document.querySelector('.game-title').innerText = 'Battle Honor Recorded';
+              document.querySelector('.game-subtitle').innerText = `Final Honor Score: ${score}`;
+              startBtn.innerText = 'Rally the Line';
+            }
+          }
+        }
+
+        // Enemy Defeat
+        if (e.hp <= 0) {
+          enemies.splice(i, 1);
+          score += 250;
+          spawnEnemy(player.x + 600 + Math.random() * 200);
+        }
+      }
+
+      // Damage Numbers
+      for (let i = damageNumbers.length - 1; i >= 0; i--) {
+        const d = damageNumbers[i];
+        d.y -= 1;
+        d.life -= 0.03;
+        if (d.life <= 0) damageNumbers.splice(i, 1);
+      }
+
+      // Update HUD
+      scoreText.innerText = score.toString().padStart(4, '0');
     }
-    if (e.x < -50) enemies.splice(i, 1);
-  }
 
-  // Popups & FX
-  for (let i = damageNumbers.length - 1; i >= 0; i--) {
-    const d = damageNumbers[i];
-    d.y += d.vy;
-    d.life -= 0.025;
-    if (d.life <= 0) damageNumbers.splice(i, 1);
-  }
+    // --- RENDER PASS ---
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
 
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life -= p.decay;
-    if (p.life <= 0) particles.splice(i, 1);
-  }
+      // 1. SKY & DISTANT PILLARS
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+      skyGrad.addColorStop(0, '#0c0d1a');
+      skyGrad.addColorStop(0.6, '#1e1428');
+      skyGrad.addColorStop(1, '#3b1c2b');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, W, H);
 
-  document.getElementById('hp-bar-fill').style.width = playerHp + '%';
-  document.getElementById('hud-chapter').innerText = ch.title;
-  document.getElementById('hud-kills').innerText = `${killsInChapter} / ${ch.target}`;
-}
+      // 2. PARALLAX DISTANT RUINS & MOUNTAINS
+      ctx.fillStyle = '#170f20';
+      for (let i = 0; i < 15; i++) {
+        const mx = (i * 220 - cameraX * 0.2) % (W + 400) - 200;
+        ctx.beginPath();
+        ctx.moveTo(mx, H - 120);
+        ctx.lineTo(mx + 110, H - 280);
+        ctx.lineTo(mx + 220, H - 120);
+        ctx.fill();
+      }
 
-// --- HUMAN-PROPORTIONED SPRITE PAINTERS ---
-function drawHumanWarrior(x, y, facing, isEnemy, config, animTimer, isHurt, state) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(facing, 1);
+      // 3. MIDGROUND ANCIENT COLUMNS
+      ctx.fillStyle = '#26172e';
+      for (let i = 0; i < 20; i++) {
+        const colX = (i * 180 - cameraX * 0.5) % (W + 300) - 100;
+        ctx.fillRect(colX, H - 240, 24, 120);
+        ctx.fillRect(colX - 4, H - 248, 32, 8); // Capital
+      }
 
-  if (isHurt) ctx.filter = 'brightness(2.2)';
+      // 4. BATTLEGROUND TERRAIN / STONE BARS
+      ctx.fillStyle = '#1c1424';
+      ctx.fillRect(0, H - 120, W, 120);
+      ctx.fillStyle = '#d4af37';
+      ctx.fillRect(0, H - 120, W, 4); // Golden ground border line
 
-  const isWalking = state === 'run' || isEnemy;
-  const legSwing = Math.sin(animTimer * 1.6) * 7;
-  const armSwing = Math.cos(animTimer * 1.6) * 6;
+      // Camera Offset Matrix
+      ctx.save();
+      ctx.translate(-cameraX, 0);
 
-  // 1. Flowing Cape (Player)
-  if (!isEnemy) {
-    ctx.fillStyle = '#b91c1c';
-    ctx.beginPath();
-    ctx.moveTo(-6, -34);
-    ctx.quadraticCurveTo(-18 - (isWalking ? 6 : 0), -16, -14, 0);
-    ctx.lineTo(-4, 0);
-    ctx.closePath();
-    ctx.fill();
-  }
+      // 5. DRAW ENEMIES
+      enemies.forEach(e => {
+        // Enemy Health Bar
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(e.x - 14, e.y - 62, 28, 4);
+        ctx.fillStyle = '#ff3344';
+        ctx.fillRect(e.x - 14, e.y - 62, (e.hp / e.maxHp) * 28, 4);
 
-  // 2. Back Leg & Boot
-  ctx.fillStyle = '#1e1b18';
-  ctx.beginPath();
-  ctx.roundRect(-5 - legSwing, -12, 6, 14, 2);
-  ctx.fill();
-  ctx.fillStyle = isEnemy ? config.helmet : '#d4af37';
-  ctx.fillRect(-5 - legSwing, -4, 6, 4); // Greave
+        drawHumanWarrior(e.x, e.y, e.facing, true, {
+          skin: e.skin,
+          armor: e.armor,
+          helmet: e.helmet,
+          animTimer: e.animTimer,
+          hurt: e.hurtTimer > 0,
+          state: 'run'
+        });
+      });
 
-  // 3. Front Leg & Boot
-  ctx.fillStyle = '#2d251e';
-  ctx.beginPath();
-  ctx.roundRect(1 + legSwing, -12, 6, 14, 2);
-  ctx.fill();
-  ctx.fillStyle = isEnemy ? config.helmet : '#d4af37';
-  ctx.fillRect(1 + legSwing, -4, 6, 4); // Greave
+      // 6. DRAW PLAYER HERO
+      drawHumanWarrior(player.x, player.y, player.facing, false, {
+        skin: '#8d5524',
+        armor: '#1e293b',
+        helmet: '#ffd700',
+        animTimer: player.animTimer,
+        hurt: false,
+        state: player.state
+      });
 
-  // 4. Torso & Muscled Cuirass
-  ctx.fillStyle = config.armor;
-  ctx.beginPath();
-  ctx.roundRect(-7, -34, 14, 22, [4, 4, 2, 2]);
-  ctx.fill();
+      // 7. DAMAGE POPUPS
+      damageNumbers.forEach(d => {
+        ctx.save();
+        ctx.globalAlpha = d.life;
+        ctx.font = d.isCrit ? '900 15px sans-serif' : 'bold 13px sans-serif';
+        ctx.fillStyle = d.isCrit ? '#ffea00' : '#ffffff';
+        ctx.shadowColor = d.isCrit ? '#ff3300' : '#000000';
+        ctx.shadowBlur = 6;
+        ctx.fillText((d.isCrit ? "CRIT " : "") + d.text, d.x - 10, d.y);
+        ctx.restore();
+      });
 
-  // Gold Trim / Chest Emblem
-  ctx.fillStyle = isEnemy ? '#d4af37' : '#00f0ff';
-  if (!isEnemy) {
-    ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 8;
-  }
-  ctx.beginPath();
-  ctx.arc(0, -25, 3.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // 5. Head & Facial Features
-  ctx.fillStyle = config.skin;
-  ctx.beginPath();
-  ctx.ellipse(0, -42, 6, 7.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Defined Jawline & Hair
-  ctx.fillStyle = '#1a1412';
-  ctx.beginPath();
-  ctx.arc(0, -45, 6.5, Math.PI, Math.PI * 2);
-  ctx.fill();
-  ctx.fillRect(-6, -45, 3, 6); // Sideburn/hairlock
-
-  // Eyes
-  ctx.fillStyle = isEnemy ? '#ff0033' : '#e0f7fc';
-  ctx.fillRect(2, -43, 2, 2);
-
-  // Helmet / Headband
-  if (isEnemy) {
-    ctx.fillStyle = config.helmet;
-    ctx.beginPath();
-    ctx.roundRect(-6.5, -48, 13, 6, [3, 3, 0, 0]);
-    ctx.fill();
-    // Roman/Illyrian Plume
-    ctx.fillStyle = '#dc2626';
-    ctx.fillRect(-2, -53, 4, 6);
-  } else {
-    // Golden Vanguard Circlet
-    ctx.fillStyle = '#ffd700';
-    ctx.fillRect(-6, -45, 12, 2.5);
-  }
-
-  // 6. Shield (Lead Arm)
-  ctx.fillStyle = isEnemy ? '#8b0000' : '#0099cc';
-  ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.ellipse(-6 + armSwing, -24, 4.5, 11, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // 7. Weapon (Attack Arm)
-  if (isEnemy) {
-    // Raider Spear
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(4 - armSwing, -10);
-    ctx.lineTo(4 - armSwing, -48);
-    ctx.stroke();
-    // Bronze Spearhead
-    ctx.fillStyle = config.helmet;
-    ctx.beginPath();
-    ctx.moveTo(1 - armSwing, -48);
-    ctx.lineTo(7 - armSwing, -48);
-    ctx.lineTo(4 - armSwing, -56);
-    ctx.closePath();
-    ctx.fill();
-  } else {
-    // Vanguard Energy Blade
-    ctx.save();
-    ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 12;
-    ctx.fillStyle = '#00f0ff';
-    ctx.beginPath();
-    ctx.roundRect(6, -38, 4.5, 24, 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(7.5, -36, 1.5, 20);
-    ctx.restore();
-  }
-
-  ctx.restore();
-}
-
-// --- RENDER SCENE ---
-function draw() {
-  const ch = CHAPTERS[currentChapter];
-  const groundY = H - 120;
-
-  // 1. SKY GRADIENT
-  const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, ch.skyGradient[0]);
-  sky.addColorStop(0.5, ch.skyGradient[1]);
-  sky.addColorStop(1, ch.skyGradient[2]);
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, H);
-
-  // 2. SYNTHWAVE / HORIZON SUN
-  const sunY = H * 0.38;
-  const sunGrad = ctx.createRadialGradient(W * 0.5, sunY, 10, W * 0.5, sunY, 75);
-  sunGrad.addColorStop(0, '#ffffff');
-  sunGrad.addColorStop(0.35, ch.sunColor);
-  sunGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = sunGrad;
-  ctx.beginPath();
-  ctx.arc(W * 0.5, sunY, 75, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Sun Horizontal Slices
-  ctx.fillStyle = ch.skyGradient[1];
-  for (let i = 0; i < 6; i++) {
-    ctx.fillRect(W * 0.5 - 75, sunY + 14 + (i * 9), 150, 2 + (i * 0.9));
-  }
-
-  // 3. PARALLAX SILHOUETTES
-  ctx.fillStyle = ch.mountainColor;
-  if (currentChapter === 0) {
-    ctx.beginPath();
-    ctx.moveTo(0, groundY);
-    ctx.lineTo(W * 0.2, groundY - 110);
-    ctx.lineTo(W * 0.45, groundY - 40);
-    ctx.lineTo(W * 0.7, groundY - 130);
-    ctx.lineTo(W, groundY - 20);
-    ctx.lineTo(W, groundY);
-    ctx.fill();
-  } else if (currentChapter === 1) {
-    ctx.fillRect(W * 0.15, groundY - 90, 80, 90);
-    ctx.fillRect(W * 0.6, groundY - 120, 100, 120);
-    ctx.strokeStyle = ch.mountainColor;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(W * 0.8, groundY);
-    ctx.lineTo(W * 0.8, groundY - 130);
-    ctx.lineTo(W * 0.88, groundY - 60);
-    ctx.stroke();
-  } else {
-    for (let i = 0; i < 9; i++) {
-      const bh = 70 + (i % 4) * 30;
-      ctx.fillRect(i * (W / 8), groundY - bh, (W / 9), bh);
+      ctx.restore();
     }
-  }
 
-  // 4. PILLARS & ARCHES
-  ctx.fillStyle = ch.pillarColor;
-  ctx.fillRect(16, groundY - 140, 20, 140);
-  ctx.fillRect(W - 36, groundY - 140, 20, 140);
-  ctx.fillRect(6, groundY - 150, 40, 14);
-  ctx.fillRect(W - 46, groundY - 150, 40, 14);
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
 
-  // 5. GROUND FLOOR
-  ctx.fillStyle = ch.groundTop;
-  ctx.fillRect(0, groundY, W, 8);
-  ctx.fillStyle = ch.groundBody;
-  ctx.fillRect(0, groundY + 8, W, H - (groundY + 8));
-
-  // Neon Grid Lines
-  ctx.strokeStyle = ch.gridColor;
-  ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 36) {
-    ctx.beginPath();
-    ctx.moveTo(x, groundY + 8);
-    ctx.lineTo(x + (x - W/2) * 0.7, H);
-    ctx.stroke();
-  }
-
-  // 6. DRAW PARTICLES
-  particles.forEach(p => {
-    ctx.fillStyle = p.color;
-    ctx.globalAlpha = p.life;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
-  });
-
-  // 7. GLOWING CRESCENT SLASH TRAIL
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  slashes.forEach(sl => {
-    ctx.strokeStyle = '#00f0ff';
-    ctx.shadowColor = '#00d4ff';
-    ctx.shadowBlur = 20;
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    const startAngle = sl.dir === 1 ? -0.7 * Math.PI : 0.3 * Math.PI;
-    const endAngle = sl.dir === 1 ? 0.7 * Math.PI : 1.7 * Math.PI;
-    ctx.arc(sl.x, sl.y, sl.radius, startAngle, endAngle, sl.dir === -1);
-    ctx.stroke();
-  });
-  ctx.restore();
-
-  // 8. ENERGY BLASTS
-  energyBlasts.forEach(eb => {
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 14;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.ellipse(eb.x, eb.y, 14, 6, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#00d4ff';
-    ctx.beginPath();
-    ctx.ellipse(eb.x - (eb.vx > 0 ? 8 : -8), eb.y, 10, 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  });
-
-  // 9. DRAW ENEMIES
-  enemies.forEach(e => {
-    // Health Bar
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(e.x - 14, e.y - 62, 28, 4);
-    ctx.fillStyle = '#ff3344';
-    ctx.fillRect(e.x - 14, e.y - 62, (e.hp / e.maxHp) * 28, 4);
-
-    drawHumanWarrior(e.x, e.y, -1, true, {
-      skin: e.skin,
-      armor: e.armor,
-      helmet: e.helmet
-    }, e.animTimer, e.hurtTimer > 0, 'run');
-  });
-
-  // 10. DRAW PLAYER HERO
-  drawHumanWarrior(player.x, player.y, player.facing, false, {
-    skin: '#8d5524',
-    armor: '#1e293b',
-    helmet: '#ffd700'
-  }, player.animTimer, false, player.state);
-
-  // 11. FLOATING DAMAGE POPUPS
-  damageNumbers.forEach(d => {
-    ctx.save();
-    ctx.globalAlpha = d.life;
-    ctx.font = d.isCrit ? '900 15px sans-serif' : 'bold 12px sans-serif';
-    ctx.fillStyle = d.isCrit ? '#ffea00' : '#ffffff';
-    ctx.shadowColor = d.isCrit ? '#ff3300' : '#000000';
-    ctx.shadowBlur = 6;
-    ctx.fillText((d.isCrit ? "CRIT " : "") + d.amount, d.x, d.y);
-    ctx.restore();
-  });
-}
-
-function gameLoop() {
-  update();
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-
-player.y = H - 120;
-gameLoop();
-</script>
+    player.y = H - 120;
+    gameLoop();
+  </script>
 </body>
 </html>
