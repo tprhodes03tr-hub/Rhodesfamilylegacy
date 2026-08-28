@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Vanguard: Star Horizon</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  body, html {
+    width: 100%;
+    height: 100%;
+    background-color: #030308;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  #gameCanvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    background: #02020a;
+  }
+  #ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .hud-panel {
+    position: absolute;
+    top: 14px;
+    display: flex;
+    gap: 12px;
+    padding: 0 16px;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .hud-badge {
+    background: rgba(4, 15, 30, 0.75);
+    border: 1px solid rgba(0, 220, 255, 0.4);
+    box-shadow: 0 0 10px rgba(0, 200, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: #e0f7fc;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .hud-badge span {
+    color: #00e5ff;
+  }
+  #warp-btn {
+    position: absolute;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: auto;
+    display: none;
+    padding: 12px 28px;
+    font-size: 16px;
+    font-weight: 900;
+    color: #fff;
+    background: linear-gradient(135deg, #0051ff, #00d4ff);
+    border: 2px solid #ffffff;
+    border-radius: 30px;
+    box-shadow: 0 0 25px #00d4ff;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    animation: pulse 1s infinite alternate;
+  }
+  @keyframes pulse {
+    0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 15px #00d4ff; }
+    100% { transform: translateX(-50%) scale(1.08); box-shadow: 0 0 30px #00ffff; }
+  }
+  .mobile-controls {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 24px;
+    pointer-events: none;
+  }
+  .control-group {
+    pointer-events: auto;
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+  }
+  .touch-btn {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    touch-action: none;
+  }
+  .touch-btn:active {
+    transform: scale(0.92);
+  }
+  #btn-fire {
+    background: radial-gradient(circle, #e63946, #9b111e);
+    border-color: #ff8b94;
+    box-shadow: 0 0 15px rgba(230, 57, 70, 0.6);
+  }
+  #btn-boost {
+    background: radial-gradient(circle, #0077b6, #023e8a);
+    border-color: #90e0ef;
+    box-shadow: 0 0 15px rgba(0, 119, 182, 0.6);
+  }
+  #dpad-zone {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px dashed rgba(0, 229, 255, 0.3);
+    position: relative;
+    pointer-events: auto;
+    touch-action: none;
+  }
+  #dpad-knob {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #00f0ff, #0077b6);
+    position: absolute;
+    top: 45px;
+    left: 45px;
+    box-shadow: 0 0 12px #00f0ff;
+    pointer-events: none;
+  }
+  #banner {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #00f0ff;
+    font-size: 32px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 6px;
+    text-shadow: 0 0 20px #00f0ff;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    text-align: center;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui-layer">
+  <div class="hud-panel">
+    <div class="hud-badge">Sector: <span id="sector-val">1 - Orion Edge</span></div>
+    <div class="hud-badge">Shields: <span id="shields-val">100%</span></div>
+    <div class="hud-badge">Raiders Down: <span id="kills-val">0 / 6</span></div>
+  </div>
+
+  <button id="warp-btn" onclick="triggerWarp()">Engage Warp Drive</button>
+  <div id="banner"></div>
+
+  <div class="mobile-controls">
+    <div id="dpad-zone">
+      <div id="dpad-knob"></div>
+    </div>
+    <div class="control-group">
+      <div class="touch-btn" id="btn-boost">BOOST</div>
+      <div class="touch-btn" id="btn-fire">FIRE</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- GAME STATE ---
+const SECTOR_THEMES = [
+  { name: "1 - Orion Edge", bg1: "#050515", bg2: "#02020a", nebula: "rgba(0, 150, 255, 0.08)", target: 6 },
+  { name: "2 - Crimson Veil", bg1: "#1a050d", bg2: "#080104", nebula: "rgba(255, 30, 80, 0.12)", target: 8 },
+  { name: "3 - Obsidian Abyss", bg1: "#0b130e", bg2: "#010503", nebula: "rgba(0, 255, 120, 0.08)", target: 12 }
+];
+
+let currentSector = 0;
+let killsInSector = 0;
+let shields = 100;
+let gameState = 'PLAYING'; // 'PLAYING', 'WARPING_OUT', 'WARPING_STREAK', 'WARPING_IN'
+let warpTimer = 0;
+
+// Input tracking
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'KeyW' && killsInSector >= SECTOR_THEMES[currentSector].target && gameState === 'PLAYING') {
+    triggerWarp();
+  }
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+// Touch D-Pad setup
+let touchStick = { active: false, startX: 0, startY: 0, curX: 0, curY: 0, dx: 0, dy: 0 };
+const dpadZone = document.getElementById('dpad-zone');
+const dpadKnob = document.getElementById('dpad-knob');
+
+dpadZone.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  const rect = dpadZone.getBoundingClientRect();
+  touchStick.active = true;
+  touchStick.startX = rect.left + rect.width / 2;
+  touchStick.startY = rect.top + rect.height / 2;
+  updateStick(t.clientX, t.clientY);
+}, { passive: false });
+
+window.addEventListener('touchmove', e => {
+  if (!touchStick.active) return;
+  for (let t of e.touches) {
+    if (t.target === dpadZone || touchStick.active) {
+      updateStick(t.clientX, t.clientY);
+      break;
+    }
+  }
+}, { passive: false });
+
+function endStick() {
+  touchStick.active = false;
+  touchStick.dx = 0;
+  touchStick.dy = 0;
+  dpadKnob.style.transform = `translate(0px, 0px)`;
+}
+window.addEventListener('touchend', endStick);
+window.addEventListener('touchcancel', endStick);
+
+function updateStick(cx, cy) {
+  const maxR = 40;
+  let diffX = cx - touchStick.startX;
+  let diffY = cy - touchStick.startY;
+  let dist = Math.hypot(diffX, diffY);
+  if (dist > maxR) {
+    diffX = (diffX / dist) * maxR;
+    diffY = (diffY / dist) * maxR;
+  }
+  touchStick.dx = diffX / maxR;
+  touchStick.dy = diffY / maxR;
+  dpadKnob.style.transform = `translate(${diffX}px, ${diffY}px)`;
+}
+
+// Touch Buttons
+let isTouchingFire = false;
+let isTouchingBoost = false;
+const btnFire = document.getElementById('btn-fire');
+const btnBoost = document.getElementById('btn-boost');
+
+btnFire.addEventListener('touchstart', e => { e.preventDefault(); isTouchingFire = true; });
+btnFire.addEventListener('touchend', e => { e.preventDefault(); isTouchingFire = false; });
+btnBoost.addEventListener('touchstart', e => { e.preventDefault(); isTouchingBoost = true; });
+btnBoost.addEventListener('touchend', e => { e.preventDefault(); isTouchingBoost = false; });
+
+// --- STARFIELD ---
+const stars = [];
+for (let i = 0; i < 180; i++) {
+  stars.push({
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+    speed: 0.5 + Math.random() * 2.5,
+    size: 0.8 + Math.random() * 2,
+    alpha: 0.3 + Math.random() * 0.7
+  });
+}
+
+// --- PLAYER ---
+const player = {
+  x: 100,
+  y: window.innerHeight / 2,
+  vx: 0,
+  vy: 0,
+  speed: 6,
+  boostSpeed: 10,
+  width: 52,
+  height: 24,
+  fireCooldown: 0
+};
+
+// --- ARRAYS ---
+const lasers = [];
+const enemyLasers = [];
+const enemies = [];
+const particles = [];
+
+// --- WEAPONS & SPAWN ---
+function firePlayerLaser() {
+  if (player.fireCooldown > 0) return;
+  player.fireCooldown = 11;
+  // Twin lasers from wingtips
+  lasers.push({ x: player.x + 26, y: player.y - 10, vx: 18, vy: 0 });
+  lasers.push({ x: player.x + 26, y: player.y + 10, vx: 18, vy: 0 });
+}
+
+let enemySpawnTimer = 0;
+function spawnEnemy() {
+  const type = Math.random() > 0.4 ? 'cruiser' : 'interceptor';
+  enemies.push({
+    x: W + 60,
+    y: 80 + Math.random() * (H - 180),
+    type: type,
+    hp: type === 'cruiser' ? 3 : 1,
+    maxHp: type === 'cruiser' ? 3 : 1,
+    width: type === 'cruiser' ? 48 : 34,
+    height: type === 'cruiser' ? 26 : 18,
+    vx: -(2.5 + Math.random() * 2),
+    vy: (Math.random() - 0.5) * 2,
+    shootTimer: 60 + Math.random() * 100,
+    flyAngle: 0
+  });
+}
+
+function spawnExplosion(x, y, color, count = 18) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 5;
+    particles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: 0.02 + Math.random() * 0.03,
+      size: 2 + Math.random() * 3.5,
+      color: color
+    });
+  }
+}
+
+// --- WARP DRIVE LOGIC ---
+function triggerWarp() {
+  if (gameState !== 'PLAYING') return;
+  gameState = 'WARPING_OUT';
+  warpTimer = 0;
+  document.getElementById('warp-btn').style.display = 'none';
+  showBanner("WARP DRIVE ENGAGED");
+}
+
+function showBanner(text) {
+  const b = document.getElementById('banner');
+  b.innerText = text;
+  b.style.opacity = 1;
+  setTimeout(() => { b.style.opacity = 0; }, 2200);
+}
+
+// --- MAIN LOOP ---
+function update() {
+  const curSectorTheme = SECTOR_THEMES[currentSector];
+
+  // 1. STARFIELD SPEED / STRETCH LOGIC
+  let starSpeedMultiplier = 1;
+  if (gameState === 'WARPING_OUT') starSpeedMultiplier = 6;
+  if (gameState === 'WARPING_STREAK') starSpeedMultiplier = 35;
+  if (gameState === 'WARPING_IN') starSpeedMultiplier = 0.5;
+
+  stars.forEach(s => {
+    s.x -= s.speed * starSpeedMultiplier;
+    if (s.x < 0) {
+      s.x = W + 10;
+      s.y = Math.random() * H;
+    }
+  });
+
+  // 2. STATE MACHINE
+  if (gameState === 'PLAYING') {
+    // Movement
+    let mx = 0, my = 0;
+    if (keys['ArrowUp'] || keys['KeyW']) my -= 1;
+    if (keys['ArrowDown'] || keys['KeyS']) my += 1;
+    if (keys['ArrowLeft'] || keys['KeyA']) mx -= 1;
+    if (keys['ArrowRight'] || keys['KeyD']) mx += 1;
+
+    if (touchStick.active) {
+      mx = touchStick.dx;
+      my = touchStick.dy;
+    }
+
+    const isBoosting = keys['ShiftLeft'] || keys['KeyB'] || isTouchingBoost;
+    const currentSpeed = isBoosting ? player.boostSpeed : player.speed;
+
+    player.vx = mx * currentSpeed;
+    player.vy = my * currentSpeed;
+    player.x = Math.max(30, Math.min(W - 80, player.x + player.vx));
+    player.y = Math.max(40, Math.min(H - 40, player.y + player.vy));
+
+    // Exhaust particles
+    if (Math.random() > 0.2) {
+      particles.push({
+        x: player.x - 22,
+        y: player.y + (Math.random() - 0.5) * 6,
+        vx: -(3 + Math.random() * (isBoosting ? 8 : 4)),
+        vy: (Math.random() - 0.5) * 1.5,
+        life: 1,
+        decay: isBoosting ? 0.05 : 0.03,
+        size: isBoosting ? 4 : 2.5,
+        color: isBoosting ? '#00ffff' : '#0099ff'
+      });
+    }
+
+    // Weapons
+    if (player.fireCooldown > 0) player.fireCooldown--;
+    if (keys['Space'] || keys['KeyJ'] || isTouchingFire) firePlayerLaser();
+
+    // Spawning Enemies
+    enemySpawnTimer++;
+    if (enemySpawnTimer > 90 && enemies.length < 5) {
+      spawnEnemy();
+      enemySpawnTimer = 0;
+    }
+
+  } else if (gameState === 'WARPING_OUT') {
+    warpTimer++;
+    // Ship centers vertically and accelerates forward
+    player.y += (H / 2 - player.y) * 0.05;
+    player.x += 1.5;
+    if (warpTimer > 60) {
+      gameState = 'WARPING_STREAK';
+      warpTimer = 0;
+    }
+
+  } else if (gameState === 'WARPING_STREAK') {
+    warpTimer++;
+    player.x += 18; // Streaks off screen
+    if (warpTimer > 75) {
+      // Sector Transition
+      currentSector = (currentSector + 1) % SECTOR_THEMES.length;
+      killsInSector = 0;
+      enemies.length = 0;
+      lasers.length = 0;
+      enemyLasers.length = 0;
+
+      // Drop ship back at left screen
+      player.x = -60;
+      player.y = H / 2;
+      gameState = 'WARPING_IN';
+      warpTimer = 0;
+      showBanner(SECTOR_THEMES[currentSector].name);
+    }
+
+  } else if (gameState === 'WARPING_IN') {
+    warpTimer++;
+    player.x += (120 - player.x) * 0.07; // Glide into standard combat position
+    if (warpTimer > 60) {
+      gameState = 'PLAYING';
+    }
+  }
+
+  // 3. UPDATE LASERS
+  for (let i = lasers.length - 1; i >= 0; i--) {
+    const l = lasers[i];
+    l.x += l.vx;
+    if (l.x > W + 50) lasers.splice(i, 1);
+  }
+
+  for (let i = enemyLasers.length - 1; i >= 0; i--) {
+    const el = enemyLasers[i];
+    el.x += el.vx;
+    el.y += el.vy;
+    // Collision with player
+    if (gameState === 'PLAYING' && Math.hypot(el.x - player.x, el.y - player.y) < 22) {
+      shields = Math.max(0, shields - 12);
+      spawnExplosion(player.x, player.y, '#00e5ff', 8);
+      enemyLasers.splice(i, 1);
+      continue;
+    }
+    if (el.x < -40 || el.y < -40 || el.y > H + 40) enemyLasers.splice(i, 1);
+  }
+
+  // 4. UPDATE ENEMIES
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    e.x += e.vx;
+    e.flyAngle += 0.04;
+    e.y += Math.sin(e.flyAngle) * 1.5;
+
+    // Raider Shoot
+    e.shootTimer--;
+    if (e.shootTimer <= 0 && gameState === 'PLAYING' && e.x < W - 40) {
+      enemyLasers.push({ x: e.x - 20, y: e.y, vx: -10, vy: (player.y - e.y) * 0.01 });
+      e.shootTimer = 100 + Math.random() * 80;
+    }
+
+    // Laser Hit Check
+    for (let j = lasers.length - 1; j >= 0; j--) {
+      const l = lasers[j];
+      if (Math.abs(l.x - e.x) < e.width / 2 + 10 && Math.abs(l.y - e.y) < e.height / 2 + 6) {
+        e.hp--;
+        lasers.splice(j, 1);
+        spawnExplosion(l.x, l.y, '#ffea00', 5);
+        if (e.hp <= 0) break;
+      }
+    }
+
+    // Enemy Death
+    if (e.hp <= 0) {
+      spawnExplosion(e.x, e.y, '#ff4422', 24);
+      spawnExplosion(e.x, e.y, '#ffcc00', 12);
+      enemies.splice(i, 1);
+      killsInSector++;
+      if (killsInSector >= curSectorTheme.target && gameState === 'PLAYING') {
+        document.getElementById('warp-btn').style.display = 'block';
+      }
+      continue;
+    }
+
+    if (e.x < -60) enemies.splice(i, 1);
+  }
+
+  // 5. UPDATE PARTICLES
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // UI Updates
+  document.getElementById('sector-val').innerText = curSectorTheme.name;
+  document.getElementById('shields-val').innerText = shields + "%";
+  document.getElementById('kills-val').innerText = `${killsInSector} / ${curSectorTheme.target}`;
+}
+
+// --- RENDER ---
+function draw() {
+  const theme = SECTOR_THEMES[currentSector];
+
+  // Deep Space Gradient
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, theme.bg1);
+  grad.addColorStop(1, theme.bg2);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Sector Nebula Cloud
+  ctx.fillStyle = theme.nebula;
+  ctx.beginPath();
+  ctx.arc(W * 0.7, H * 0.4, H * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw Starfield (Streaks during Warp)
+  stars.forEach(s => {
+    ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+    if (gameState === 'WARPING_STREAK' || gameState === 'WARPING_OUT') {
+      ctx.strokeStyle = `rgba(180, 225, 255, ${s.alpha})`;
+      ctx.lineWidth = s.size;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(s.x + (gameState === 'WARPING_STREAK' ? 120 : 35), s.y);
+      ctx.stroke();
+    } else {
+      ctx.fillRect(s.x, s.y, s.size, s.size);
+    }
+  });
+
+  // Draw Particles
+  particles.forEach(p => {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.life;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+  });
+
+  // Draw Player Lasers
+  lasers.forEach(l => {
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#00f0ff';
+    ctx.fillRect(l.x - 12, l.y - 2, 24, 4);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(l.x - 6, l.y - 1, 14, 2);
+    ctx.shadowBlur = 0;
+  });
+
+  // Draw Enemy Lasers
+  enemyLasers.forEach(el => {
+    ctx.shadowColor = '#ff1133';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#ff1133';
+    ctx.fillRect(el.x - 10, el.y - 2, 20, 4);
+    ctx.shadowBlur = 0;
+  });
+
+  // Draw Enemies (Distinct Raider Cruisers)
+  enemies.forEach(e => {
+    ctx.save();
+    ctx.translate(e.x, e.y);
+
+    // Glowing Engine
+    ctx.shadowColor = '#ff3300';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#ff5500';
+    ctx.fillRect(e.width / 2 - 4, -3, 6, 6);
+
+    // Hull (High Contrast Dark Slate + Red Markings)
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#1e2530';
+    ctx.beginPath();
+    ctx.moveTo(-e.width / 2, 0); // Nose
+    ctx.lineTo(e.width / 2, -e.height / 2); // Top wing
+    ctx.lineTo(e.width / 4, 0); // Center join
+    ctx.lineTo(e.width / 2, e.height / 2); // Bottom wing
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#ff3344';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Red Cockpit Glint
+    ctx.fillStyle = '#ff0033';
+    ctx.beginPath();
+    ctx.arc(-e.width / 6, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  });
+
+  // Draw Player Ship (Starfighter Profile View)
+  ctx.save();
+  ctx.translate(player.x, player.y);
+
+  // Warp flash rings
+  if (gameState === 'WARPING_OUT' || gameState === 'WARPING_IN') {
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.6)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 30 + (warpTimer % 30), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Ship Main Wings & Body
+  ctx.shadowColor = '#00d4ff';
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = '#e2e8f0'; // Bright metallic white/silver
+  ctx.beginPath();
+  ctx.moveTo(26, 0); // Sharp nose cone pointing right
+  ctx.lineTo(-14, -14); // Upper wing tip
+  ctx.lineTo(-8, -4); // Wing join
+  ctx.lineTo(-24, -6); // Engine block top
+  ctx.lineTo(-24, 6); // Engine block bottom
+  ctx.lineTo(-8, 4);
+  ctx.lineTo(-14, 14); // Lower wing tip
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit Canopy
+  ctx.fillStyle = '#00e5ff';
+  ctx.beginPath();
+  ctx.ellipse(4, 0, 9, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cyan Wing Decals
+  ctx.strokeStyle = '#0077b6';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(10, 0);
+  ctx.lineTo(-8, -8);
+  ctx.moveTo(10, 0);
+  ctx.lineTo(-8, 8);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// --- GAME LOOP RUNNER ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
