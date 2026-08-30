@@ -1,88 +1,603 @@
-// --- State & UI Variables ---
-let currentSector = 1;
-const sectorNames = ["ORION EDGE", "DEEP SECTOR", "CRIMSON VEIL", "NEBULA PRIME", "VOID REACH"];
-let isWarping = false;
-let warpReady = false;
-let warpSpeed = 1;
-
-const warpOverlay = document.getElementById('warpOverlay');
-const warpBtn = document.getElementById('warpBtn');
-const warpBanner = document.getElementById('warpBanner');
-const sectorBanner = document.getElementById('sectorBanner');
-
-// --- Triggered When All Wave Raiders Are Down ---
-function checkWaveCompletion() {
-  if (raidersRemaining <= 0 && !warpReady && !isWarping) {
-    warpReady = true;
-    showWarpPrompt();
-  }
-}
-
-function showWarpPrompt() {
-  warpOverlay.style.display = 'flex';
-  warpBtn.style.display = 'block';
-  warpBanner.style.display = 'none';
-  sectorBanner.style.display = 'none';
-}
-
-// --- Warp Drive Sequence ---
-warpBtn.addEventListener('click', () => {
-  if (!warpReady || isWarping) return;
-  
-  warpReady = false;
-  isWarping = true;
-  warpBtn.style.display = 'none';
-  warpBanner.style.display = 'block';
-
-  // Accelerate starfield particles
-  let warpInterval = setInterval(() => {
-    if (warpSpeed < 25) {
-      warpSpeed += 1.5;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Space Odyssey: Orion Sector</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
     }
-  }, 50);
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #030614;
+      font-family: 'Courier New', Courier, monospace;
+      color: #00ffcc;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at 50% 50%, #080e2b 0%, #02040a 100%);
+    }
+    #hud {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 10;
+      pointer-events: none;
+      text-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    #hud span {
+      color: #ffffff;
+      font-weight: bold;
+    }
+    .status-alert {
+      color: #ffaa00 !important;
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse {
+      from { opacity: 0.6; }
+      to { opacity: 1; }
+    }
+    #touch-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 20;
+      pointer-events: auto;
+    }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+    }
+    .touch-btn {
+      width: 65px;
+      height: 65px;
+      border-radius: 50%;
+      background: rgba(0, 255, 204, 0.1);
+      border: 2px solid #00ffcc;
+      color: #00ffcc;
+      font-weight: bold;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      backdrop-filter: blur(4px);
+    }
+    .touch-btn:active {
+      background: rgba(0, 255, 204, 0.4);
+      box-shadow: 0 0 12px #00ffcc;
+    }
+  </style>
+</head>
+<body>
 
-  // Sector jump timing
-  setTimeout(() => {
-    currentSector++;
-    const nextSectorName = sectorNames[(currentSector - 1) % sectorNames.length];
-    
-    // Update Sector HUD
-    const sectorDisplay = document.getElementById('sectorDisplay');
-    if (sectorDisplay) {
-      sectorDisplay.innerText = `SECTOR ${currentSector} - ${nextSectorName}`;
+  <div id="hud">
+    <div>SECTOR: <span>ORION PRIME</span></div>
+    <div>RAIDERS DOWN: <span id="kill-count">0</span></div>
+    <div>HULL INTEGRITY: <span id="hull-status">100%</span></div>
+    <div>TACTICAL MODE: <span id="mode-status">INTEGRATED</span></div>
+    <div>ORBITAL STATUS: <span id="orbit-status">DEEP SPACE</span></div>
+  </div>
+
+  <div id="touch-controls">
+    <div class="btn-group">
+      <div class="touch-btn" id="btn-left">◀ ROT</div>
+      <div class="touch-btn" id="btn-right">ROT ▶</div>
+      <div class="touch-btn" id="btn-thrust">THRUST</div>
+    </div>
+    <div class="btn-group">
+      <div class="touch-btn" id="btn-separate">SPLIT / DOCK</div>
+      <div class="touch-btn" id="btn-fire" style="border-color: #ff3366; color: #ff3366;">FIRE</div>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Game Variables
+    let score = 0;
+    const keys = {};
+
+    // Planet Object
+    const planet = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: 90,
+      gravityRadius: 280,
+      gravityStrength: 0.18,
+      color: '#1a446c',
+      atmosphere: 'rgba(0, 180, 255, 0.15)'
+    };
+
+    // Stars Background
+    const stars = Array.from({ length: 120 }, () => ({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      size: Math.random() * 2,
+      brightness: Math.random()
+    }));
+
+    // Player Starship (Stardrive section + Master Hull)
+    const ship = {
+      x: canvas.width / 2 - 200,
+      y: canvas.height / 2,
+      vx: 0,
+      vy: -2,
+      angle: 0,
+      rotSpeed: 0.05,
+      thrust: 0.12,
+      friction: 0.988,
+      hull: 100,
+      separated: false
+    };
+
+    // Saucer Section (Separation Drone)
+    const saucer = {
+      x: ship.x,
+      y: ship.y,
+      vx: 0,
+      vy: 0,
+      angle: 0,
+      speed: 3.5,
+      active: false,
+      fireTimer: 0
+    };
+
+    // Wingmen Escorts
+    const escorts = [
+      { offsetDist: 50, offsetAngle: 2.3, x: 0, y: 0, fireTimer: 0 },
+      { offsetDist: 50, offsetAngle: -2.3, x: 0, y: 0, fireTimer: 15 }
+    ];
+
+    // Projectiles & Enemies
+    let lasers = [];
+    let enemyLasers = [];
+    let enemies = [];
+    let particles = [];
+
+    // Controls
+    window.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (e.code === 'KeyV') toggleSeparation();
+    });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+    // Touch Setup
+    function bindTouch(id, keyName, action) {
+      const el = document.getElementById(id);
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); if (keyName) keys[keyName] = true; if (action) action(); });
+      el.addEventListener('touchend', (e) => { e.preventDefault(); if (keyName) keys[keyName] = false; });
+    }
+    bindTouch('btn-left', 'ArrowLeft');
+    bindTouch('btn-right', 'ArrowRight');
+    bindTouch('btn-thrust', 'ArrowUp');
+    bindTouch('btn-fire', 'Space');
+    bindTouch('btn-separate', null, toggleSeparation);
+
+    function toggleSeparation() {
+      ship.separated = !ship.separated;
+      if (ship.separated) {
+        saucer.active = true;
+        saucer.x = ship.x + Math.cos(ship.angle) * 30;
+        saucer.y = ship.y + Math.sin(ship.angle) * 30;
+        saucer.vx = ship.vx + Math.cos(ship.angle) * 3;
+        saucer.vy = ship.vy + Math.sin(ship.angle) * 3;
+      } else {
+        saucer.active = false;
+      }
+      document.getElementById('mode-status').textContent = ship.separated ? "MULTI-VECTOR SPLIT" : "INTEGRATED";
+      document.getElementById('mode-status').style.color = ship.separated ? "#ff3366" : "#00ffcc";
     }
 
-    warpBanner.style.display = 'none';
-    sectorBanner.innerText = `${currentSector} - ${nextSectorName}`;
-    sectorBanner.style.display = 'block';
+    function spawnEnemy() {
+      if (enemies.length < 5) {
+        const edge = Math.floor(Math.random() * 4);
+        let x, y;
+        if (edge === 0) { x = Math.random() * canvas.width; y = -30; }
+        if (edge === 1) { x = canvas.width + 30; y = Math.random() * canvas.height; }
+        if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height + 30; }
+        if (edge === 3) { x = -30; y = Math.random() * canvas.height; }
+        enemies.push({ x, y, vx: 0, vy: 0, angle: 0, hp: 2, shootCooldown: 60 });
+      }
+    }
 
-    // Decelerate back to normal flight
-    setTimeout(() => {
-      clearInterval(warpInterval);
-      let slowDown = setInterval(() => {
-        if (warpSpeed > 1) {
-          warpSpeed -= 1.5;
-        } else {
-          warpSpeed = 1;
-          clearInterval(slowDown);
-          isWarping = false;
-          warpOverlay.style.display = 'none';
-          
-          // Spawn next wave of raiders
-          spawnRaiderWave(currentSector);
+    let fireCooldown = 0;
+    function update() {
+      // Rotate Ship
+      if (keys['ArrowLeft'] || keys['KeyA']) ship.angle -= ship.rotSpeed;
+      if (keys['ArrowRight'] || keys['KeyD']) ship.angle += ship.rotSpeed;
+
+      // Thrust Ship
+      if (keys['ArrowUp'] || keys['KeyW']) {
+        ship.vx += Math.cos(ship.angle) * ship.thrust;
+        ship.vy += Math.sin(ship.angle) * ship.thrust;
+        // Thrust Particle
+        particles.push({
+          x: ship.x - Math.cos(ship.angle) * 20,
+          y: ship.y - Math.sin(ship.angle) * 20,
+          vx: -Math.cos(ship.angle) * 2 + (Math.random() - 0.5),
+          vy: -Math.sin(ship.angle) * 2 + (Math.random() - 0.5),
+          life: 20,
+          color: '#00ffee'
+        });
+      }
+
+      // Planet Gravity Orbit Calculations
+      const dx = planet.x - ship.x;
+      const dy = planet.y - ship.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const orbitStatus = document.getElementById('orbit-status');
+
+      if (dist < planet.gravityRadius && dist > planet.radius) {
+        const force = (1 - dist / planet.gravityRadius) * planet.gravityStrength;
+        ship.vx += (dx / dist) * force;
+        ship.vy += (dy / dist) * force;
+        orbitStatus.textContent = "ORBIT CAPTURE (BURN TO BREAK)";
+        orbitStatus.className = "status-alert";
+      } else {
+        orbitStatus.textContent = "DEEP SPACE";
+        orbitStatus.className = "";
+      }
+
+      // Planet Collision Bounce
+      if (dist < planet.radius + 15) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        ship.vx = -nx * 2;
+        ship.vy = -ny * 2;
+        ship.hull -= 0.2;
+      }
+
+      // Apply Ship Movement
+      ship.vx *= ship.friction;
+      ship.vy *= ship.friction;
+      ship.x += ship.vx;
+      ship.y += ship.vy;
+
+      // Wrap Screen Bounds
+      if (ship.x < 0) ship.x = canvas.width;
+      if (ship.x > canvas.width) ship.x = 0;
+      if (ship.y < 0) ship.y = canvas.height;
+      if (ship.y > canvas.height) ship.y = 0;
+
+      // Player Firing
+      if ((keys['Space'] || keys['KeyJ']) && fireCooldown <= 0) {
+        lasers.push({
+          x: ship.x + Math.cos(ship.angle) * 22,
+          y: ship.y + Math.sin(ship.angle) * 22,
+          vx: Math.cos(ship.angle) * 9 + ship.vx,
+          vy: Math.sin(ship.angle) * 9 + ship.vy,
+          life: 60,
+          color: '#00ffcc'
+        });
+        fireCooldown = 12;
+      }
+      if (fireCooldown > 0) fireCooldown--;
+
+      // Escort Starships Logic
+      escorts.forEach(escort => {
+        const targetX = ship.x + Math.cos(ship.angle + escort.offsetAngle) * escort.offsetDist;
+        const targetY = ship.y + Math.sin(ship.angle + escort.offsetAngle) * escort.offsetDist;
+        escort.x += (targetX - escort.x) * 0.12;
+        escort.y += (targetY - escort.y) * 0.12;
+
+        // Escort Auto-Fire
+        escort.fireTimer++;
+        if (escort.fireTimer > 35 && enemies.length > 0) {
+          const nearest = enemies[0];
+          const edx = nearest.x - escort.x;
+          const edy = nearest.y - escort.y;
+          const eAngle = Math.atan2(edy, edx);
+          lasers.push({
+            x: escort.x,
+            y: escort.y,
+            vx: Math.cos(eAngle) * 8,
+            vy: Math.sin(eAngle) * 8,
+            life: 50,
+            color: '#33ccff'
+          });
+          escort.fireTimer = 0;
         }
-      }, 50);
-    }, 1500);
-  }, 2000);
-});
+      });
 
-// --- In your background star update loop ---
-function updateStars() {
-  for (let star of stars) {
-    star.x -= star.speed * warpSpeed; // Scales star streaks during warp
-    if (star.x < 0) {
-      star.x = canvas.width;
-      star.y = Math.random() * canvas.height;
+      // Automated Saucer AI Logic (Multi-Vector Attack)
+      if (saucer.active) {
+        let target = enemies[0];
+        if (target) {
+          const sAngle = Math.atan2(target.y - saucer.y, target.x - saucer.x);
+          saucer.vx += Math.cos(sAngle) * 0.15;
+          saucer.vy += Math.sin(sAngle) * 0.15;
+          saucer.angle = sAngle;
+        } else {
+          // Circle primary starship if no enemies
+          const orbitAngle = Date.now() * 0.002;
+          const targetX = ship.x + Math.cos(orbitAngle) * 80;
+          const targetY = ship.y + Math.sin(orbitAngle) * 80;
+          saucer.vx += (targetX - saucer.x) * 0.05;
+          saucer.vy += (targetY - saucer.y) * 0.05;
+          saucer.angle = Math.atan2(ship.y - saucer.y, ship.x - saucer.x);
+        }
+        saucer.vx *= 0.95;
+        saucer.vy *= 0.95;
+        saucer.x += saucer.vx;
+        saucer.y += saucer.vy;
+
+        saucer.fireTimer++;
+        if (saucer.fireTimer > 25 && enemies.length > 0) {
+          lasers.push({
+            x: saucer.x + Math.cos(saucer.angle) * 15,
+            y: saucer.y + Math.sin(saucer.angle) * 15,
+            vx: Math.cos(saucer.angle) * 8.5,
+            vy: Math.sin(saucer.angle) * 8.5,
+            life: 55,
+            color: '#ffdd00'
+          });
+          saucer.fireTimer = 0;
+        }
+      }
+
+      // Enemies Logic
+      enemies.forEach((enemy, eIdx) => {
+        const target = saucer.active && Math.random() > 0.5 ? saucer : ship;
+        const angleToTarget = Math.atan2(target.y - enemy.y, target.x - enemy.x);
+        enemy.angle = angleToTarget;
+        enemy.vx = Math.cos(angleToTarget) * 1.5;
+        enemy.vy = Math.sin(angleToTarget) * 1.5;
+        enemy.x += enemy.vx;
+        enemy.y += enemy.vy;
+
+        // Enemy Shooting
+        enemy.shootCooldown--;
+        if (enemy.shootCooldown <= 0) {
+          enemyLasers.push({
+            x: enemy.x,
+            y: enemy.y,
+            vx: Math.cos(enemy.angle) * 5,
+            vy: Math.sin(enemy.angle) * 5,
+            life: 80
+          });
+          enemy.shootCooldown = 90 + Math.random() * 40;
+        }
+      });
+
+      // Update Lasers
+      lasers.forEach((l, idx) => {
+        l.x += l.vx;
+        l.y += l.vy;
+        l.life--;
+        if (l.life <= 0) lasers.splice(idx, 1);
+
+        // Laser vs Enemy Collision
+        enemies.forEach((enemy, eIdx) => {
+          const dist = Math.hypot(l.x - enemy.x, l.y - enemy.y);
+          if (dist < 20) {
+            enemy.hp--;
+            lasers.splice(idx, 1);
+            if (enemy.hp <= 0) {
+              for (let i = 0; i < 8; i++) {
+                particles.push({
+                  x: enemy.x,
+                  y: enemy.y,
+                  vx: (Math.random() - 0.5) * 4,
+                  vy: (Math.random() - 0.5) * 4,
+                  life: 25,
+                  color: '#ff3344'
+                });
+              }
+              enemies.splice(eIdx, 1);
+              score++;
+              document.getElementById('kill-count').textContent = score;
+            }
+          }
+        });
+      });
+
+      // Enemy Lasers vs Player
+      enemyLasers.forEach((el, idx) => {
+        el.x += el.vx;
+        el.y += el.vy;
+        el.life--;
+        if (el.life <= 0) enemyLasers.splice(idx, 1);
+
+        if (Math.hypot(el.x - ship.x, el.y - ship.y) < 18) {
+          ship.hull = Math.max(0, ship.hull - 5);
+          document.getElementById('hull-status').textContent = `${Math.round(ship.hull)}%`;
+          enemyLasers.splice(idx, 1);
+        }
+      });
+
+      // Update Particles
+      particles.forEach((p, idx) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(idx, 1);
+      });
+
+      spawnEnemy();
     }
-  }
-}
+
+    // Render Routines
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Stars
+      ctx.fillStyle = '#ffffff';
+      stars.forEach(s => {
+        ctx.globalAlpha = 0.3 + s.brightness * 0.7;
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+      });
+      ctx.globalAlpha = 1.0;
+
+      // Planet Gravity Well Field
+      ctx.beginPath();
+      ctx.arc(planet.x, planet.y, planet.gravityRadius, 0, Math.PI * 2);
+      ctx.fillStyle = planet.atmosphere;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0, 255, 204, 0.15)';
+      ctx.setLineDash([4, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Planet Body
+      ctx.beginPath();
+      ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
+      ctx.fillStyle = planet.color;
+      ctx.shadowBlur = 25;
+      ctx.shadowColor = '#00bbff';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Particles
+      particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, 2, 2);
+      });
+
+      // Lasers
+      lasers.forEach(l => {
+        ctx.strokeStyle = l.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(l.x, l.y);
+        ctx.lineTo(l.x - l.vx * 1.5, l.y - l.vy * 1.5);
+        ctx.stroke();
+      });
+
+      // Enemy Lasers
+      enemyLasers.forEach(el => {
+        ctx.strokeStyle = '#ff2244';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(el.x, el.y);
+        ctx.lineTo(el.x - el.vx * 1.5, el.y - el.vy * 1.5);
+        ctx.stroke();
+      });
+
+      // Draw Main Ship (Stardrive Section)
+      ctx.save();
+      ctx.translate(ship.x, ship.y);
+      ctx.rotate(ship.angle);
+      
+      // Secondary hull / nacelles
+      ctx.strokeStyle = '#00ffcc';
+      ctx.fillStyle = '#061a24';
+      ctx.lineWidth = 2;
+
+      // Stardrive Body
+      ctx.beginPath();
+      ctx.moveTo(-15, -12);
+      ctx.lineTo(8, -6);
+      ctx.lineTo(8, 6);
+      ctx.lineTo(-15, 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Nacelle Warp Glow
+      ctx.fillStyle = '#00e5ff';
+      ctx.fillRect(-18, -14, 12, 3);
+      ctx.fillRect(-18, 11, 12, 3);
+
+      // Render integrated saucer if docked
+      if (!ship.separated) {
+        ctx.beginPath();
+        ctx.arc(6, 0, 16, -Math.PI / 2, Math.PI / 2);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+        ctx.fillStyle = '#0a2e3f';
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Draw Separated Saucer Drone
+      if (saucer.active) {
+        ctx.save();
+        ctx.translate(saucer.x, saucer.y);
+        ctx.rotate(saucer.angle);
+        ctx.strokeStyle = '#ffdd00';
+        ctx.fillStyle = '#2b2605';
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Draw Wingmen Escorts
+      escorts.forEach(escort => {
+        ctx.save();
+        ctx.translate(escort.x, escort.y);
+        ctx.rotate(ship.angle);
+        ctx.strokeStyle = '#33ccff';
+        ctx.fillStyle = '#051928';
+        ctx.lineWidth = 1.5;
+
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(-8, -6);
+        ctx.lineTo(-4, 0);
+        ctx.lineTo(-8, 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // Draw Enemies
+      enemies.forEach(enemy => {
+        ctx.save();
+        ctx.translate(enemy.x, enemy.y);
+        ctx.rotate(enemy.angle);
+        ctx.strokeStyle = '#ff3344';
+        ctx.fillStyle = '#280608';
+        ctx.lineWidth = 1.5;
+
+        ctx.beginPath();
+        ctx.moveTo(12, 0);
+        ctx.lineTo(-10, -10);
+        ctx.lineTo(-6, 0);
+        ctx.lineTo(-10, 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
+  </script>
+</body>
+</html>
