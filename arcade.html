@@ -2,23 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Rhodes Legacy Retro Arcade</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
       background: #090d16;
       color: #f8fafc;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: system-ui, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
+      overflow-x: hidden;
     }
     nav#hub {
       display: flex;
-      gap: 12px;
-      padding: 14px 20px;
+      gap: 8px;
+      padding: 10px;
       background: #0f172a;
       width: 100%;
       justify-content: center;
@@ -29,576 +30,440 @@
       background: #1e293b;
       color: #00e5ff;
       border: 1px solid #00e5ff;
-      padding: 8px 18px;
+      padding: 8px 14px;
       border-radius: 6px;
-      font-weight: 700;
+      font-weight: 800;
+      font-size: 0.8rem;
       cursor: pointer;
-      transition: all 0.2s ease;
-      text-transform: uppercase;
-      letter-spacing: 1px;
     }
-    .hub-btn:hover, .hub-btn.active {
+    .hub-btn.active {
       background: #00e5ff;
       color: #090d16;
-      box-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
-    }
-    #gameArea {
-      margin-top: 15px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
     }
     #hud {
       display: flex;
       justify-content: space-between;
-      width: 600px;
-      margin-bottom: 8px;
-      font-size: 1.1rem;
-      font-weight: bold;
+      width: 95%;
+      max-width: 360px;
+      margin: 8px 0;
+      font-weight: 800;
       color: #38bdf8;
+      font-size: 0.9rem;
     }
     canvas {
       background: #000;
-      border: 3px solid #1e293b;
+      border: 2px solid #1e293b;
       border-radius: 8px;
-      box-shadow: 0 0 25px rgba(0,0,0,0.8);
+      width: 360px;
+      height: 380px;
     }
-    .controls-hint {
+    /* Mobile Touch D-Pad & Controls */
+    #mobileControls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 360px;
       margin-top: 10px;
-      color: #94a3b8;
-      font-size: 0.9rem;
+      padding: 0 10px;
     }
+    .dpad {
+      display: grid;
+      grid-template-columns: 45px 45px 45px;
+      grid-template-rows: 45px 45px 45px;
+      gap: 4px;
+    }
+    .ctrl-btn {
+      background: #1e293b;
+      border: 2px solid #38bdf8;
+      color: #38bdf8;
+      font-size: 1.2rem;
+      font-weight: 900;
+      border-radius: 8px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .ctrl-btn:active { background: #38bdf8; color: #090d16; }
+    .action-btn {
+      width: 70px;
+      height: 70px;
+      border-radius: 35px;
+      background: #ef4444;
+      border: 3px solid #fca5a5;
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 900;
+    }
+    .action-btn:active { background: #b91c1c; }
   </style>
 </head>
 <body>
 
   <nav id="hub">
     <button class="hub-btn active" onclick="switchGame('pacman')">Ms. Pac-Man</button>
-    <button class="hub-btn" onclick="switchGame('cubic')">Cubic (Q*bert)</button>
+    <button class="hub-btn" onclick="switchGame('cubic')">Cubic</button>
     <button class="hub-btn" onclick="switchGame('frogger')">Frogger</button>
     <button class="hub-btn" onclick="switchGame('kong')">Donkey Kong</button>
   </nav>
 
-  <div id="gameArea">
-    <div id="hud">
-      <span id="titleDisplay">GAME: MS. PAC-MAN</span>
-      <span id="scoreDisplay">SCORE: 0</span>
-      <span id="livesDisplay">LIVES: 3</span>
+  <div id="hud">
+    <span id="titleDisplay">MS. PAC-MAN</span>
+    <span id="scoreDisplay">SCORE: 0</span>
+    <span id="livesDisplay">LIVES: 3</span>
+  </div>
+
+  <canvas id="gameCanvas" width="360" height="380"></canvas>
+
+  <div id="mobileControls">
+    <div class="dpad">
+      <div></div>
+      <button class="ctrl-btn" ontouchstart="pressKey('ArrowUp')" onclick="pressKey('ArrowUp')">▲</button>
+      <div></div>
+      <button class="ctrl-btn" ontouchstart="pressKey('ArrowLeft')" onclick="pressKey('ArrowLeft')">◀</button>
+      <div></div>
+      <button class="ctrl-btn" ontouchstart="pressKey('ArrowRight')" onclick="pressKey('ArrowRight')">▶</button>
+      <div></div>
+      <button class="ctrl-btn" ontouchstart="pressKey('ArrowDown')" onclick="pressKey('ArrowDown')">▼</button>
+      <div></div>
     </div>
-    <canvas id="arcadeCanvas" width="600" height="500"></canvas>
-    <div class="controls-hint">Use <b>Arrow Keys</b> to move. Press <b>Spacebar</b> to Jump (Donkey Kong).</div>
+    <button class="action-btn" ontouchstart="pressKey(' ')" onclick="pressKey(' ')">JUMP</button>
   </div>
 
   <script>
-    const canvas = document.getElementById('arcadeCanvas');
+    const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const titleDisplay = document.getElementById('titleDisplay');
-    const scoreDisplay = document.getElementById('scoreDisplay');
-    const livesDisplay = document.getElementById('livesDisplay');
-
     let currentGame = 'pacman';
     let score = 0;
     let lives = 3;
-    let keys = {};
 
-    window.addEventListener('keydown', e => { 
-      keys[e.key] = true; 
-      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
-    });
-    window.addEventListener('keyup', e => { keys[e.key] = false; });
+    function pressKey(k) {
+      if (currentGame === 'pacman') handlePacInput(k);
+      else if (currentGame === 'cubic') handleCubicInput(k);
+      else if (currentGame === 'frogger') handleFrogInput(k);
+      else if (currentGame === 'kong') handleKongInput(k);
+    }
 
-    function switchGame(gameKey) {
-      currentGame = gameKey;
+    function switchGame(key) {
+      currentGame = key;
       score = 0;
       lives = 3;
       document.querySelectorAll('.hub-btn').forEach(b => b.classList.remove('active'));
       event.target.classList.add('active');
-
-      if (gameKey === 'pacman') initPacman();
-      if (gameKey === 'cubic') initCubic();
-      if (gameKey === 'frogger') initFrogger();
-      if (gameKey === 'kong') initKong();
+      if (key === 'pacman') initPac();
+      if (key === 'cubic') initCubic();
+      if (key === 'frogger') initFrog();
+      if (key === 'kong') initKong();
     }
 
-    // ==========================================
-    // 1. MS. PAC-MAN (WITH SIDE TUNNEL WRAP)
-    // ==========================================
-    let pac = { x: 300, y: 250, vx: 0, vy: 0, speed: 3, radius: 12, mouth: 0.2, mouthSpeed: 0.03 };
+    // --- 1. MS. PAC-MAN WITH WALLS & WRAP ---
+    let pac = { x: 180, y: 280, dirX: 0, dirY: 0, mouth: 0.2, mouthSpd: 0.03 };
+    const pacWalls = [
+      { x: 30, y: 30, w: 300, h: 10 },
+      { x: 30, y: 340, w: 300, h: 10 },
+      { x: 30, y: 30, w: 10, h: 120 },
+      { x: 30, y: 220, w: 10, h: 120 },
+      { x: 320, y: 30, w: 10, h: 120 },
+      { x: 320, y: 220, w: 10, h: 120 },
+      { x: 80, y: 80, w: 70, h: 40 },
+      { x: 210, y: 80, w: 70, h: 40 },
+      { x: 140, y: 160, w: 80, h: 50 },
+      { x: 80, y: 250, w: 70, h: 40 },
+      { x: 210, y: 250, w: 70, h: 40 }
+    ];
     let pellets = [];
 
-    function initPacman() {
-      titleDisplay.innerText = "GAME: MS. PAC-MAN";
-      pac.x = 300; pac.y = 250; pac.vx = 0; pac.vy = 0;
+    function initPac() {
+      document.getElementById('titleDisplay').innerText = "MS. PAC-MAN";
+      pac = { x: 180, y: 280, dirX: 0, dirY: 0, mouth: 0.2, mouthSpd: 0.03 };
       pellets = [];
-      for (let x = 40; x < canvas.width; x += 40) {
-        for (let y = 50; y < canvas.height - 30; y += 40) {
-          pellets.push({ x, y, active: true });
+      for (let x = 55; x <= 305; x += 25) {
+        for (let y = 55; y <= 325; y += 25) {
+          let blocked = pacWalls.some(w => x >= w.x - 5 && x <= w.x + w.w + 5 && y >= w.y - 5 && y <= w.y + w.h + 5);
+          if (!blocked) pellets.push({ x, y, active: true });
         }
       }
     }
 
-    function updatePacman() {
-      if (keys['ArrowLeft']) { pac.vx = -pac.speed; pac.vy = 0; }
-      if (keys['ArrowRight']) { pac.vx = pac.speed; pac.vy = 0; }
-      if (keys['ArrowUp']) { pac.vy = -pac.speed; pac.vx = 0; }
-      if (keys['ArrowDown']) { pac.vy = pac.speed; pac.vx = 0; }
+    function handlePacInput(k) {
+      if (k === 'ArrowLeft') { pac.dirX = -2.5; pac.dirY = 0; }
+      if (k === 'ArrowRight') { pac.dirX = 2.5; pac.dirY = 0; }
+      if (k === 'ArrowUp') { pac.dirX = 0; pac.dirY = -2.5; }
+      if (k === 'ArrowDown') { pac.dirX = 0; pac.dirY = 2.5; }
+    }
 
-      pac.x += pac.vx;
-      pac.y += pac.vy;
+    function updatePac() {
+      let nextX = pac.x + pac.dirX;
+      let nextY = pac.y + pac.dirY;
 
-      // SIDE TUNNEL WRAP
-      if (pac.x < -pac.radius) pac.x = canvas.width + pac.radius;
-      if (pac.x > canvas.width + pac.radius) pac.x = -pac.radius;
+      // Wrap tunnel detection
+      if (nextX < 0) nextX = 360;
+      if (nextX > 360) nextX = 0;
 
-      // Bounds Y
-      if (pac.y < pac.radius) pac.y = pac.radius;
-      if (pac.y > canvas.height - pac.radius) pac.y = canvas.height - pac.radius;
+      // Wall collisions
+      let hit = pacWalls.some(w => nextX + 9 > w.x && nextX - 9 < w.x + w.w && nextY + 9 > w.y && nextY - 9 < w.y + w.h);
+      if (!hit) {
+        pac.x = nextX;
+        pac.y = nextY;
+      }
 
-      // Pellets
+      // Eat pellets
       pellets.forEach(p => {
-        if (p.active && Math.hypot(p.x - pac.x, p.y - pac.y) < pac.radius + 4) {
+        if (p.active && Math.hypot(p.x - pac.x, p.y - pac.y) < 10) {
           p.active = false;
           score += 10;
         }
       });
 
-      pac.mouth += pac.mouthSpeed;
-      if (pac.mouth > 0.4 || pac.mouth < 0.05) pac.mouthSpeed = -pac.mouthSpeed;
+      pac.mouth += pac.mouthSpd;
+      if (pac.mouth > 0.45 || pac.mouth < 0.05) pac.mouthSpd = -pac.mouthSpd;
     }
 
-    function drawPacman() {
+    function drawPac() {
+      // Maze Walls
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 3;
+      pacWalls.forEach(w => ctx.strokeRect(w.x, w.y, w.w, w.h));
+
       // Pellets
-      ctx.fillStyle = '#ffb8de';
+      ctx.fillStyle = '#fbcfe8';
       pellets.forEach(p => {
         if (p.active) {
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
           ctx.fill();
         }
       });
 
       // Ms. Pac-Man
-      ctx.fillStyle = '#ffde59';
+      ctx.fillStyle = '#facc15';
       ctx.beginPath();
       let angle = 0;
-      if (pac.vx < 0) angle = Math.PI;
-      else if (pac.vy < 0) angle = -Math.PI / 2;
-      else if (pac.vy > 0) angle = Math.PI / 2;
+      if (pac.dirX < 0) angle = Math.PI;
+      else if (pac.dirY < 0) angle = -Math.PI / 2;
+      else if (pac.dirY > 0) angle = Math.PI / 2;
 
-      ctx.arc(pac.x, pac.y, pac.radius, angle + pac.mouth * Math.PI, angle + (2 - pac.mouth) * Math.PI);
+      ctx.arc(pac.x, pac.y, 11, angle + pac.mouth * Math.PI, angle + (2 - pac.mouth) * Math.PI);
       ctx.lineTo(pac.x, pac.y);
       ctx.fill();
 
       // Red Bow
-      ctx.fillStyle = '#ff0055';
+      ctx.fillStyle = '#ef4444';
       ctx.beginPath();
-      ctx.arc(pac.x, pac.y - 12, 4, 0, Math.PI * 2);
+      ctx.arc(pac.x, pac.y - 10, 3.5, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // ==========================================
-    // 2. CUBIC / Q*BERT (WITH ENEMY REVERSALS)
-    // ==========================================
-    let qPlayer = { row: 0, col: 0, hopTimer: 0 };
-    let coily = { row: 0, col: 0, timer: 0, isEgg: true };
-    let pyramid = [];
+    // --- 2. CUBIC (Q*BERT) ---
+    let qbert = { r: 0, c: 0 };
+    let cPyramid = [];
 
     function initCubic() {
-      titleDisplay.innerText = "GAME: CUBIC";
-      pyramid = [];
+      document.getElementById('titleDisplay').innerText = "CUBIC";
+      cPyramid = [];
       for (let r = 0; r < 7; r++) {
-        let rowCubes = [];
-        for (let c = 0; c <= r; c++) {
-          rowCubes.push({ visited: false });
-        }
-        pyramid.push(rowCubes);
+        let row = [];
+        for (let c = 0; c <= r; c++) row.push({ visited: false });
+        cPyramid.push(row);
       }
-      qPlayer = { row: 0, col: 0, hopTimer: 0 };
-      coily = { row: 0, col: 0, timer: 0, isEgg: true };
+      qbert = { r: 0, c: 0 };
     }
 
-    function getCubePos(r, c) {
-      const topX = 300;
-      const startY = 80;
-      const x = topX + (c - r / 2) * 44;
-      const y = startY + r * 50;
-      return { x, y };
-    }
+    function handleCubicInput(k) {
+      if (k === 'ArrowUp' && qbert.r > 0 && qbert.c > 0) { qbert.r--; qbert.c--; }
+      else if (k === 'ArrowRight' && qbert.r > 0 && qbert.c < qbert.r) { qbert.r--; }
+      else if (k === 'ArrowLeft' && qbert.r < 6) { qbert.r++; }
+      else if (k === 'ArrowDown' && qbert.r < 6) { qbert.r++; qbert.c++; }
 
-    function updateCubic() {
-      if (qPlayer.hopTimer > 0) qPlayer.hopTimer--;
-      else {
-        let moved = false;
-        if (keys['ArrowUp'] && keys['ArrowLeft'] && qPlayer.row > 0 && qPlayer.col > 0) { qPlayer.row--; qPlayer.col--; moved = true; }
-        else if (keys['ArrowUp'] && keys['ArrowRight'] && qPlayer.row > 0 && qPlayer.col < qPlayer.row) { qPlayer.row--; moved = true; }
-        else if (keys['ArrowDown'] && keys['ArrowLeft'] && qPlayer.row < 6) { qPlayer.row++; moved = true; }
-        else if (keys['ArrowDown'] && keys['ArrowRight'] && qPlayer.row < 6) { qPlayer.row++; qPlayer.col++; moved = true; }
-
-        if (moved) {
-          qPlayer.hopTimer = 18;
-          if (!pyramid[qPlayer.row][qPlayer.col].visited) {
-            pyramid[qPlayer.row][qPlayer.col].visited = true;
-            score += 25;
-          }
-        }
-      }
-
-      // Coily Chaser
-      coily.timer++;
-      if (coily.timer > 40) {
-        coily.timer = 0;
-        if (coily.isEgg) {
-          if (coily.row < 6) {
-            coily.row++;
-            if (Math.random() > 0.5) coily.col++;
-          } else {
-            coily.isEgg = false;
-          }
-        } else {
-          // Track player
-          if (qPlayer.row > coily.row) coily.row++;
-          else if (qPlayer.row < coily.row && coily.col > 0) coily.row--;
-          if (qPlayer.col > coily.col) coily.col++;
-          else if (qPlayer.col < coily.col) coily.col--;
-
-          // Enemy turns colors back!
-          if (pyramid[coily.row] && pyramid[coily.row][coily.col]) {
-            pyramid[coily.row][coily.col].visited = false;
-          }
-
-          // Catch player
-          if (coily.row === qPlayer.row && coily.col === qPlayer.col) {
-            lives--;
-            qPlayer.row = 0; qPlayer.col = 0;
-            coily = { row: 0, col: 0, timer: 0, isEgg: true };
-          }
-        }
+      if (!cPyramid[qbert.r][qbert.c].visited) {
+        cPyramid[qbert.r][qbert.c].visited = true;
+        score += 25;
       }
     }
 
     function drawCubic() {
-      // Draw Isometric Pyramid
       for (let r = 0; r < 7; r++) {
         for (let c = 0; c <= r; c++) {
-          let pos = getCubePos(r, c);
-          let visited = pyramid[r][c].visited;
-
-          // Top Face
-          ctx.fillStyle = visited ? "#eab308" : "#3b82f6";
+          let x = 180 + (c - r / 2) * 36;
+          let y = 60 + r * 38;
+          ctx.fillStyle = cPyramid[r][c].visited ? '#f59e0b' : '#2563eb';
           ctx.beginPath();
-          ctx.moveTo(pos.x, pos.y);
-          ctx.lineTo(pos.x + 22, pos.y + 12);
-          ctx.lineTo(pos.x, pos.y + 24);
-          ctx.lineTo(pos.x - 22, pos.y + 12);
-          ctx.closePath();
-          ctx.fill();
-
-          // Left Face
-          ctx.fillStyle = "#1e3a8a";
-          ctx.beginPath();
-          ctx.moveTo(pos.x - 22, pos.y + 12);
-          ctx.lineTo(pos.x, pos.y + 24);
-          ctx.lineTo(pos.x, pos.y + 44);
-          ctx.lineTo(pos.x - 22, pos.y + 32);
-          ctx.closePath();
-          ctx.fill();
-
-          // Right Face
-          ctx.fillStyle = "#172554";
-          ctx.beginPath();
-          ctx.moveTo(pos.x, pos.y + 24);
-          ctx.lineTo(pos.x + 22, pos.y + 12);
-          ctx.lineTo(pos.x + 22, pos.y + 32);
-          ctx.lineTo(pos.x, pos.y + 44);
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + 18, y + 10);
+          ctx.lineTo(x, y + 20);
+          ctx.lineTo(x - 18, y + 10);
           ctx.closePath();
           ctx.fill();
         }
       }
-
-      // Q*bert
-      let qPos = getCubePos(qPlayer.row, qPlayer.col);
-      ctx.fillStyle = "#f97316";
+      let qx = 180 + (qbert.c - qbert.r / 2) * 36;
+      let qy = 60 + qbert.r * 38;
+      ctx.fillStyle = '#ea580c';
       ctx.beginPath();
-      ctx.arc(qPos.x, qPos.y + 8, 12, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Coily (Egg / Snake)
-      let cPos = getCubePos(coily.row, coily.col);
-      ctx.fillStyle = coily.isEgg ? "#c084fc" : "#ef4444";
-      ctx.beginPath();
-      ctx.arc(cPos.x, cPos.y + 8, 10, 0, Math.PI * 2);
+      ctx.arc(qx, qy + 6, 9, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // ==========================================
-    // 3. FROGGER (FLY, PADS, VEHICLES)
-    // ==========================================
-    let frog = { x: 285, y: 460, size: 24, hopCooldown: 0 };
-    let pads = [
-      { x: 50, filled: false },
-      { x: 170, filled: false },
-      { x: 290, filled: false },
-      { x: 410, filled: false },
-      { x: 530, filled: false }
+    // --- 3. FROGGER ---
+    let frog = { x: 170, y: 340 };
+    let fPads = [30, 100, 170, 240, 310].map(x => ({ x, filled: false }));
+    let fCars = [
+      { x: 0, y: 280, w: 35, s: 2, c: '#ef4444' },
+      { x: 180, y: 240, w: 45, s: -2.5, c: '#eab308' },
+      { x: 50, y: 150, w: 60, s: 1.8, c: '#854d0e' },
+      { x: 200, y: 110, w: 70, s: -2, c: '#854d0e' }
     ];
-    let fly = { padIndex: 2, active: true, timer: 0 };
-    let vehicles = [];
-    let logs = [];
 
-    function initFrogger() {
-      titleDisplay.innerText = "GAME: FROGGER";
-      frog.x = 285; frog.y = 460;
-      pads.forEach(p => p.filled = false);
-      vehicles = [
-        { x: 0, y: 410, w: 40, h: 22, speed: 2, color: "#f43f5e" },
-        { x: 200, y: 410, w: 40, h: 22, speed: 2, color: "#f43f5e" },
-        { x: 400, y: 360, w: 60, h: 24, speed: -3, color: "#eab308" },
-        { x: 100, y: 310, w: 45, h: 22, speed: 2.5, color: "#06b6d4" }
-      ];
-      logs = [
-        { x: 50, y: 210, w: 100, h: 26, speed: 1.8 },
-        { x: 300, y: 210, w: 100, h: 26, speed: 1.8 },
-        { x: 200, y: 160, w: 140, h: 26, speed: -2.2 },
-        { x: 80, y: 110, w: 90, h: 26, speed: 1.5 },
-        { x: 350, y: 110, w: 90, h: 26, speed: 1.5 }
-      ];
+    function initFrog() {
+      document.getElementById('titleDisplay').innerText = "FROGGER";
+      frog = { x: 170, y: 340 };
+      fPads.forEach(p => p.filled = false);
     }
 
-    function updateFrogger() {
-      if (frog.hopCooldown > 0) frog.hopCooldown--;
-      else {
-        if (keys['ArrowUp']) { frog.y -= 45; frog.hopCooldown = 12; }
-        if (keys['ArrowDown'] && frog.y < 460) { frog.y += 45; frog.hopCooldown = 12; }
-        if (keys['ArrowLeft'] && frog.x > 20) { frog.x -= 30; frog.hopCooldown = 12; }
-        if (keys['ArrowRight'] && frog.x < 560) { frog.x += 30; frog.hopCooldown = 12; }
-      }
+    function handleFrogInput(k) {
+      if (k === 'ArrowUp') frog.y -= 38;
+      if (k === 'ArrowDown' && frog.y < 340) frog.y += 38;
+      if (k === 'ArrowLeft' && frog.x > 20) frog.x -= 30;
+      if (k === 'ArrowRight' && frog.x < 320) frog.x += 30;
 
-      // Move Cars
-      vehicles.forEach(v => {
-        v.x += v.speed;
-        if (v.speed > 0 && v.x > canvas.width) v.x = -v.w;
-        if (v.speed < 0 && v.x < -v.w) v.x = canvas.width;
-
-        // Collision Check
-        if (frog.y >= 300 && frog.y <= 430) {
-          if (frog.x + frog.size > v.x && frog.x < v.x + v.w && frog.y + frog.size > v.y && frog.y < v.y + v.h) {
-            resetFrog();
-          }
-        }
-      });
-
-      // River Log Floating
-      if (frog.y >= 100 && frog.y <= 240) {
-        let onLog = false;
-        logs.forEach(l => {
-          l.x += l.speed;
-          if (l.speed > 0 && l.x > canvas.width) l.x = -l.w;
-          if (l.speed < 0 && l.x < -l.w) l.x = canvas.width;
-
-          if (frog.x + 10 > l.x && frog.x + frog.size - 10 < l.x + l.w && Math.abs(frog.y - l.y) < 18) {
-            onLog = true;
-            frog.x += l.speed;
-          }
-        });
-        if (!onLog) resetFrog(); // drowned
-      }
-
-      // Landing Pads
-      if (frog.y < 90) {
-        let landed = false;
-        pads.forEach((p, idx) => {
-          if (Math.abs(frog.x - p.x) < 25 && !p.filled) {
+      if (frog.y < 80) {
+        fPads.forEach(p => {
+          if (Math.abs(frog.x - p.x) < 20 && !p.filled) {
             p.filled = true;
             score += 100;
-            if (fly.active && fly.padIndex === idx) {
-              score += 200;
-              fly.active = false;
-            }
-            landed = true;
           }
         });
-        frog.x = 285; frog.y = 460;
+        frog = { x: 170, y: 340 };
       }
     }
 
-    function resetFrog() {
-      lives--;
-      frog.x = 285; frog.y = 460;
-    }
+    function updateFrog() {
+      fCars.forEach(c => {
+        c.x += c.s;
+        if (c.s > 0 && c.x > 360) c.x = -c.w;
+        if (c.s < 0 && c.x < -c.w) c.x = 360;
 
-    function drawFrogger() {
-      // River and Road Backgrounds
-      ctx.fillStyle = '#0284c7'; ctx.fillRect(0, 90, canvas.width, 170); // River
-      ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 290, canvas.width, 160); // Road
-
-      // Pads & Fly
-      pads.forEach((p, idx) => {
-        ctx.fillStyle = p.filled ? '#22c55e' : '#047857';
-        ctx.beginPath();
-        ctx.arc(p.x, 60, 20, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (fly.active && fly.padIndex === idx && !p.filled) {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(p.x - 4, 56, 8, 8); // Bonus Fly
+        if (frog.y >= 230 && frog.y <= 300) {
+          if (frog.x + 12 > c.x && frog.x < c.x + c.w && Math.abs(frog.y - c.y) < 18) {
+            lives--;
+            frog = { x: 170, y: 340 };
+          }
         }
       });
-
-      // Logs
-      ctx.fillStyle = '#854d0e';
-      logs.forEach(l => { ctx.fillRect(l.x, l.y, l.w, l.h); });
-
-      // Vehicles
-      vehicles.forEach(v => {
-        ctx.fillStyle = v.color;
-        ctx.fillRect(v.x, v.y, v.w, v.h);
-      });
-
-      // Frog
-      ctx.fillStyle = '#4ade80';
-      ctx.fillRect(frog.x, frog.y, frog.size, frog.size);
     }
 
-    // ==========================================
-    // 4. DONKEY KONG (GORILLA, PRINCESS, LADDERS)
-    // ==========================================
-    let dkMario = { x: 50, y: 440, vx: 0, vy: 0, isGrounded: true, isClimbing: false };
+    function drawFrog() {
+      ctx.fillStyle = '#0284c7'; ctx.fillRect(0, 90, 360, 100);
+      ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 220, 360, 100);
+
+      fPads.forEach(p => {
+        ctx.fillStyle = p.filled ? '#22c55e' : '#047857';
+        ctx.beginPath();
+        ctx.arc(p.x, 65, 14, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      fCars.forEach(c => {
+        ctx.fillStyle = c.c;
+        ctx.fillRect(c.x, c.y - 10, c.w, 20);
+      });
+
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(frog.x - 8, frog.y - 8, 16, 16);
+    }
+
+    // --- 4. DONKEY KONG ---
+    let dk = { x: 40, y: 330, vy: 0, grounded: true };
     let barrels = [];
-    let dkTimer = 0;
-    let ladders = [
-      { x: 500, y1: 370, y2: 450 },
-      { x: 100, y1: 270, y2: 350 },
-      { x: 480, y1: 170, y2: 250 }
-    ];
+    let bTimer = 0;
 
     function initKong() {
-      titleDisplay.innerText = "GAME: DONKEY KONG";
-      dkMario = { x: 50, y: 440, vx: 0, vy: 0, isGrounded: true, isClimbing: false };
+      document.getElementById('titleDisplay').innerText = "DONKEY KONG";
+      dk = { x: 40, y: 330, vy: 0, grounded: true };
       barrels = [];
     }
 
+    function handleKongInput(k) {
+      if (k === 'ArrowLeft') dk.x -= 12;
+      if (k === 'ArrowRight') dk.x += 12;
+      if (k === ' ' && dk.grounded) { dk.vy = -7; dk.grounded = false; }
+      if (k === 'ArrowUp' && (dk.x > 290 && dk.x < 330) && dk.y > 240) dk.y -= 15;
+      if (k === 'ArrowUp' && (dk.x > 30 && dk.x < 70) && dk.y > 150 && dk.y <= 250) dk.y -= 15;
+    }
+
     function updateKong() {
-      // Horizontal
-      if (keys['ArrowLeft']) dkMario.vx = -3;
-      else if (keys['ArrowRight']) dkMario.vx = 3;
-      else dkMario.vx = 0;
+      dk.vy += 0.35;
+      dk.y += dk.vy;
 
-      // Jump
-      if (keys[' '] && dkMario.isGrounded) {
-        dkMario.vy = -8;
-        dkMario.isGrounded = false;
-      }
-
-      // Ladders
-      let nearLadder = ladders.find(l => Math.abs(dkMario.x - l.x) < 18 && dkMario.y >= l.y1 && dkMario.y <= l.y2);
-      if (nearLadder) {
-        if (keys['ArrowUp']) { dkMario.y -= 2.5; dkMario.isClimbing = true; }
-        if (keys['ArrowDown']) { dkMario.y += 2.5; dkMario.isClimbing = true; }
-      } else {
-        dkMario.isClimbing = false;
-      }
-
-      // Gravity
-      if (!dkMario.isClimbing) {
-        dkMario.vy += 0.4;
-        dkMario.y += dkMario.vy;
-      }
-
-      dkMario.x += dkMario.vx;
-
-      // Platform Collisions (Girders)
-      const platformHeights = [460, 360, 260, 160];
-      dkMario.isGrounded = false;
-      platformHeights.forEach(ph => {
-        if (dkMario.y + 20 >= ph && dkMario.y + 20 <= ph + 10 && dkMario.vy >= 0) {
-          dkMario.y = ph - 20;
-          dkMario.vy = 0;
-          dkMario.isGrounded = true;
+      [330, 240, 150].forEach(tier => {
+        if (dk.y >= tier && dk.y <= tier + 8 && dk.vy >= 0) {
+          dk.y = tier;
+          dk.vy = 0;
+          dk.grounded = true;
         }
       });
 
-      // Spawn Barrels from DK
-      dkTimer++;
-      if (dkTimer > 120) {
-        dkTimer = 0;
-        barrels.push({ x: 140, y: 140, vx: 3, tier: 3 });
+      bTimer++;
+      if (bTimer > 100) {
+        bTimer = 0;
+        barrels.push({ x: 90, y: 140, vx: 2, tier: 150 });
       }
 
-      // Update Barrels
       barrels.forEach(b => {
         b.x += b.vx;
-        if (b.x > 550 && b.tier === 3) { b.tier = 2; b.vx = -3; b.y = 240; }
-        if (b.x < 50 && b.tier === 2) { b.tier = 1; b.vx = 3; b.y = 340; }
-        if (b.x > 550 && b.tier === 1) { b.tier = 0; b.vx = -3; b.y = 440; }
+        if (b.x > 320 && b.tier === 150) { b.tier = 240; b.y = 230; b.vx = -2; }
+        if (b.x < 40 && b.tier === 240) { b.tier = 330; b.y = 320; b.vx = 2; }
 
-        // Check Jump Over Barrel
-        if (Math.hypot(b.x - dkMario.x, b.y - dkMario.y) < 18) {
+        if (Math.hypot(b.x - dk.x, b.y - dk.y) < 14) {
           lives--;
-          dkMario.x = 50; dkMario.y = 440;
+          dk = { x: 40, y: 330, vy: 0, grounded: true };
         }
       });
-
-      // Win Condition: Reach Princess
-      if (dkMario.y <= 160 && dkMario.x > 320 && dkMario.x < 420) {
-        score += 500;
-        initKong();
-      }
     }
 
     function drawKong() {
-      // Girders
+      // Girders & Ladders
       ctx.fillStyle = '#ef4444';
-      ctx.fillRect(20, 460, 560, 10);
-      ctx.fillRect(20, 360, 560, 10);
-      ctx.fillRect(20, 260, 560, 10);
-      ctx.fillRect(20, 160, 560, 10);
+      ctx.fillRect(20, 340, 320, 8);
+      ctx.fillRect(20, 250, 320, 8);
+      ctx.fillRect(20, 160, 320, 8);
 
-      // Ladders
       ctx.fillStyle = '#06b6d4';
-      ladders.forEach(l => {
-        ctx.fillRect(l.x - 8, l.y1, 4, l.y2 - l.y1);
-        ctx.fillRect(l.x + 8, l.y1, 4, l.y2 - l.y1);
-      });
+      ctx.fillRect(305, 250, 16, 90);
+      ctx.fillRect(45, 160, 16, 90);
 
-      // Donkey Kong Sprite
-      ctx.fillStyle = '#78350f';
-      ctx.fillRect(80, 100, 45, 55);
-
-      // Princess Pauline Sprite
-      ctx.fillStyle = '#f472b6';
-      ctx.fillRect(360, 120, 20, 35);
+      // Donkey Kong & Pauline
+      ctx.fillStyle = '#78350f'; ctx.fillRect(40, 110, 35, 45);
+      ctx.fillStyle = '#ec4899'; ctx.fillRect(250, 125, 16, 30);
 
       // Barrels
-      ctx.fillStyle = '#d97706';
+      ctx.fillStyle = '#f59e0b';
       barrels.forEach(b => {
         ctx.beginPath();
-        ctx.arc(b.x, b.y + 8, 10, 0, Math.PI * 2);
+        ctx.arc(b.x, b.y, 7, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Player (Mario/Jumpman)
+      // Player
       ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(dkMario.x - 10, dkMario.y - 10, 20, 25);
+      ctx.fillRect(dk.x - 7, dk.y - 12, 14, 18);
     }
 
-    // ==========================================
-    // MAIN GAME LOOP
-    // ==========================================
-    function mainLoop() {
+    // --- MAIN ENGINE LOOP ---
+    function loop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      scoreDisplay.innerText = `SCORE: ${score}`;
-      livesDisplay.innerText = `LIVES: ${lives}`;
+      document.getElementById('scoreDisplay').innerText = `SCORE: ${score}`;
+      document.getElementById('livesDisplay').innerText = `LIVES: ${lives}`;
 
-      if (currentGame === 'pacman') { updatePacman(); drawPacman(); }
-      else if (currentGame === 'cubic') { updateCubic(); drawCubic(); }
-      else if (currentGame === 'frogger') { updateFrogger(); drawFrogger(); }
-      else if (currentGame === 'kong') { updateKong(); drawKong(); }
+      if (currentGame === 'pacman') { updatePac(); drawPac(); }
+      if (currentGame === 'cubic') { drawCubic(); }
+      if (currentGame === 'frogger') { updateFrog(); drawFrog(); }
+      if (currentGame === 'kong') { updateKong(); drawKong(); }
 
-      requestAnimationFrame(mainLoop);
+      requestAnimationFrame(loop);
     }
 
-    initPacman();
-    mainLoop();
+    initPac();
+    loop();
   </script>
 </body>
 </html>
