@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Rhodes Family Legacy | Books & Master Arcade</title>
+  <title>Rhodes Family Legacy | Books & Master Arcade Hub</title>
   <style>
     :root {
       --bg: #070a13;
@@ -13,6 +13,7 @@
       --red: #e63946;
       --blue: #0284c7;
       --purple: #8b5cf6;
+      --cyan: #00e5ff;
       --green: #22c55e;
       --text: #e2e8f0;
     }
@@ -66,7 +67,6 @@
       overflow: hidden;
       background: #000;
       border: 1px solid #2a3b60;
-      position: relative;
     }
     video {
       width: 100%;
@@ -186,7 +186,7 @@
       min-height: 28px;
     }
 
-    /* Lineage Hero Selection */
+    /* Hero Selector Grid */
     .vanguard-roster {
       margin-top: 10px;
       background: #0a0f1d;
@@ -256,7 +256,7 @@
       cursor: pointer;
     }
 
-    /* Mobile Arcade Controls */
+    /* Controls */
     .arcade-controls {
       display: flex;
       justify-content: space-between;
@@ -305,7 +305,7 @@
 
   <div class="promo-bar">★ 20% OFF ON PAYHIP! CODE: MARROW20 ★</div>
 
-  <!-- Video Header -->
+  <!-- Video Header (Autoplay & Continuous Loop) -->
   <div class="container">
     <h2>Book Collection Premiere</h2>
     <div class="video-wrap">
@@ -315,12 +315,12 @@
       </video>
     </div>
     <div class="video-controls-bar">
-      <button class="video-btn" onclick="toggleAudio()">🔊 Play / Unmute Video</button>
-      <label class="video-btn">📁 Load Local File <input type="file" id="videoInput" accept="video/mp4,video/*"></label>
+      <button class="video-btn" onclick="toggleAudio()">🔊 Play / Unmute Sound</button>
+      <label class="video-btn">📁 Choose Video File <input type="file" id="videoInput" accept="video/mp4,video/*"></label>
     </div>
   </div>
 
-  <!-- Book Covers Trilogy -->
+  <!-- Trilogy Books Grid -->
   <div class="container">
     <h2>The Complete Rhodes Family Trilogy</h2>
     <div class="books-grid">
@@ -398,10 +398,10 @@
     <!-- Main Screen -->
     <div class="screen-wrap" id="canvasWrap">
       <canvas id="mainCanvas" width="320" height="340"></canvas>
-      <div id="statusText" class="status-caption">Chapter 1: The Illyrian Frontier • Eliminate guards to open vortex!</div>
+      <div id="statusText" class="status-caption">Chapter 1: The Illyrian Frontier • Eliminate guards to open the vortex!</div>
     </div>
 
-    <!-- Lineage Hero Selector -->
+    <!-- Vanguard Lineage Hero Selector -->
     <div class="vanguard-roster" id="vanguardRoster">
       <div class="roster-title">SELECT LINEAGE VANGUARD HERO</div>
       <div class="hero-grid">
@@ -480,14 +480,16 @@
   </div>
 
   <script>
-    /* Video Playback Engine */
+    /* Continuous Video Engine */
     const bookVideo = document.getElementById('bookVideo');
     const videoInput = document.getElementById('videoInput');
+
     function toggleAudio() {
       if (bookVideo.paused) { bookVideo.play(); }
       bookVideo.muted = !bookVideo.muted;
       statusText.innerText = bookVideo.muted ? "Video Muted" : "Video Playing with Sound!";
     }
+
     videoInput.addEventListener('change', e => {
       const file = e.target.files[0];
       if (file) {
@@ -495,6 +497,13 @@
         bookVideo.muted = false;
         bookVideo.play();
       }
+    });
+
+    // Auto-start loop fallback for tablets
+    document.addEventListener('DOMContentLoaded', () => {
+      bookVideo.play().catch(() => {
+        // Handled silently if tablet requires explicit touch
+      });
     });
 
     const canvas = document.getElementById('mainCanvas');
@@ -505,13 +514,14 @@
     const keys = { left: false, right: false, up: false, down: false, atk: false, pow: false, burst: false };
 
     /* -------------------------------------------------------------
-       1. VANGUARD HERO ENGINE (HUMANOID SPRITES + SPECIAL POWERS)
+       1. VANGUARD HERO (AUTHENTIC SCENERY & ARMORED ENEMY GUARDS)
     ------------------------------------------------------------- */
     let currentHero = { name: 'Tommy Philip', ability: 'Energy Blade', color: '#38bdf8' };
     const vg = {
-      hero: { x: 30, y: 250, vx: 0, vy: 0, grounded: true, hp: 100, mp: 100, dir: 1, anim: 0, atkTimer: 0, powTimer: 0 },
-      guards: [{ x: 180, y: 250, hp: 50, dir: -1 }, { x: 260, y: 250, hp: 50, dir: -1 }],
-      chapter: 1, vortex: false, score: 500, projectiles: []
+      hero: { x: 30, y: 250, vx: 0, vy: 0, grounded: true, hp: 100, mp: 100, dir: 1, atkTimer: 0, powTimer: 0 },
+      guards: [{ x: 190, y: 250, hp: 50, dir: -1, spearTimer: 0 }, { x: 270, y: 250, hp: 50, dir: -1, spearTimer: 20 }],
+      chapter: 1, vortex: false, score: 500, projectiles: [],
+      torches: [{ x: 50, y: 220 }, { x: 140, y: 210 }, { x: 230, y: 220 }]
     };
 
     function selectHero(name, ability, color) {
@@ -522,35 +532,71 @@
       statusText.innerText = `Selected Hero: ${name} • Power: ${ability}`;
     }
 
-    function drawHumanoid(x, y, color, isHero = true, dir = 1, walking = false) {
+    function drawHero(x, y, color, dir, walking) {
       ctx.save();
       ctx.translate(x, y);
-      if (dir === -1) { ctx.scale(-1, 1); }
+      if (dir === -1) ctx.scale(-1, 1);
 
       // Head
-      ctx.fillStyle = isHero ? '#fde047' : '#ef4444';
-      ctx.beginPath(); ctx.arc(0, -18, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath(); ctx.arc(0, -22, 6, 0, Math.PI * 2); ctx.fill();
 
-      // Torso & Armor
+      // Torso & Tunic
       ctx.fillStyle = color;
-      ctx.fillRect(-4, -13, 8, 14);
+      ctx.fillRect(-5, -16, 10, 16);
 
-      // Limbs (Animated Arms & Legs)
-      ctx.fillStyle = '#fff';
-      const swing = walking ? Math.sin(Date.now() * 0.015) * 4 : 0;
-      // Arms
-      ctx.fillRect(-7, -11 + swing, 3, 10);
-      ctx.fillRect(4, -11 - swing, 3, 10);
+      // Cape
+      ctx.fillStyle = '#e11d48';
+      ctx.fillRect(-8, -15, 4, 18);
+
+      // Limbs
+      const swing = walking ? Math.sin(Date.now() * 0.018) * 5 : 0;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-8, -13 + swing, 3, 11);
+      ctx.fillRect(5, -13 - swing, 3, 11);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-5, 0 + swing, 4, 12);
+      ctx.fillRect(1, 0 - swing, 4, 12);
+
+      // Active Weapon
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(7, -10 - swing, 10, 3);
+      ctx.restore();
+    }
+
+    function drawArmoredGuard(x, y, dir) {
+      ctx.save();
+      ctx.translate(x, y);
+      if (dir === -1) ctx.scale(-1, 1);
+
+      // Bronze Helmet
+      ctx.fillStyle = '#b45309';
+      ctx.fillRect(-6, -26, 12, 10);
+      ctx.fillStyle = '#dc2626'; // Red Crest
+      ctx.fillRect(-2, -31, 4, 6);
+
+      // Face
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(-3, -20, 6, 5);
+
+      // Armor Breastplate
+      ctx.fillStyle = '#991b1b';
+      ctx.fillRect(-6, -16, 12, 16);
+
+      // Shield
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath(); ctx.ellipse(-8, -8, 5, 11, 0, 0, Math.PI * 2); ctx.fill();
+
+      // Spear
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(6, -26, 3, 34);
+      ctx.fillStyle = '#cbd5e1'; // Spear Tip
+      ctx.fillRect(5, -31, 5, 6);
+
       // Legs
       ctx.fillStyle = '#1e293b';
-      ctx.fillRect(-4, 1 + swing, 3, 9);
-      ctx.fillRect(1, 1 - swing, 3, 9);
-
-      // Weapon
-      if (isHero) {
-        ctx.fillStyle = color;
-        ctx.fillRect(6, -8 - swing, 7, 3);
-      }
+      ctx.fillRect(-5, 0, 4, 12);
+      ctx.fillRect(1, 0, 4, 12);
       ctx.restore();
     }
 
@@ -559,19 +605,18 @@
       let walking = false;
       if (keys.left) { h.x -= 2.6; h.dir = -1; walking = true; }
       if (keys.right) { h.x += 2.6; h.dir = 1; walking = true; }
-      if (keys.up && h.grounded) { h.vy = -6.8; h.grounded = false; }
+      if (keys.up && h.grounded) { h.vy = -7.2; h.grounded = false; }
 
-      // Physics
       h.vy += 0.38;
       h.y += h.vy;
       if (h.y >= 265) { h.y = 265; h.vy = 0; h.grounded = true; }
       h.x = Math.max(10, Math.min(295, h.x));
 
-      // Melee Attack (ATK)
+      // Melee Slash
       if (keys.atk && h.atkTimer === 0) {
         h.atkTimer = 16;
         vg.guards.forEach(g => {
-          if (g.hp > 0 && Math.abs(h.x - g.x) < 32 && Math.abs(h.y - g.y) < 20) {
+          if (g.hp > 0 && Math.abs(h.x - g.x) < 36 && Math.abs(h.y - g.y) < 22) {
             g.hp -= 25;
             if (g.hp <= 0) vg.score += 250;
           }
@@ -579,17 +624,15 @@
       }
       if (h.atkTimer > 0) h.atkTimer--;
 
-      // Super Power (POW)
+      // Super Power
       if (keys.pow && h.mp >= 35 && h.powTimer === 0) {
         h.mp -= 35;
         h.powTimer = 25;
         if (currentHero.name === 'Uncle Aaron' || currentHero.name === 'Ben Hatton') {
-          // Projectile Bow / Blaster
-          vg.projectiles.push({ x: h.x + h.dir * 10, y: h.y - 8, vx: h.dir * 6, color: currentHero.color });
+          vg.projectiles.push({ x: h.x + h.dir * 12, y: h.y - 10, vx: h.dir * 7, color: currentHero.color });
         } else {
-          // Area shockwave/cleave
           vg.guards.forEach(g => {
-            if (g.hp > 0 && Math.abs(h.x - g.x) < 70) {
+            if (g.hp > 0 && Math.abs(h.x - g.x) < 75) {
               g.hp -= 45;
               if (g.hp <= 0) vg.score += 300;
             }
@@ -599,11 +642,11 @@
       if (h.powTimer > 0) h.powTimer--;
       if (h.mp < 100) h.mp += 0.2;
 
-      // Projectiles update
+      // Projectiles
       vg.projectiles.forEach((p, idx) => {
         p.x += p.vx;
         vg.guards.forEach(g => {
-          if (g.hp > 0 && Math.abs(p.x - g.x) < 14 && Math.abs(p.y - g.y) < 16) {
+          if (g.hp > 0 && Math.abs(p.x - g.x) < 16 && Math.abs(p.y - g.y) < 18) {
             g.hp -= 50;
             vg.projectiles.splice(idx, 1);
             if (g.hp <= 0) vg.score += 250;
@@ -614,38 +657,58 @@
       // Guard AI
       vg.guards.forEach(g => {
         if (g.hp > 0) {
-          g.x += g.dir * 0.7;
-          if (g.x < 140) g.dir = 1;
+          g.x += g.dir * 0.8;
+          if (g.x < 130) g.dir = 1;
           if (g.x > 290) g.dir = -1;
+          if (Math.abs(h.x - g.x) < 24 && Math.abs(h.y - g.y) < 15) {
+            h.hp = Math.max(0, h.hp - 0.2); // Guard attack
+          }
         }
       });
 
-      // Vortex portal
+      // Vortex
       vg.vortex = vg.guards.every(g => g.hp <= 0);
       if (vg.vortex && h.x > 265) {
         vg.chapter++;
         h.x = 20;
         vg.guards = [{ x: 180, y: 265, hp: 60, dir: -1 }, { x: 260, y: 265, hp: 60, dir: -1 }];
-        statusText.innerText = `Chapter ${vg.chapter}: Roman Conflict • Guards eliminated, ignite vortex!`;
+        statusText.innerText = `Chapter ${vg.chapter}: Roman Conflict • Advance through the gate!`;
       }
     }
 
     function renderVanguard() {
-      // Sky & Mountains
-      ctx.fillStyle = '#0f172a';
+      // Sky & Celestial Sun
+      ctx.fillStyle = '#080d1a';
       ctx.fillRect(0, 0, 320, 340);
       ctx.fillStyle = '#fde047';
-      ctx.beginPath(); ctx.arc(160, 65, 24, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(160, 60, 22, 0, Math.PI * 2); ctx.fill();
 
+      // Distant Layered Mountains
+      ctx.fillStyle = '#111928';
+      ctx.beginPath(); ctx.moveTo(0, 275); ctx.lineTo(80, 130); ctx.lineTo(160, 275); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(140, 275); ctx.lineTo(230, 110); ctx.lineTo(320, 275); ctx.fill();
+
+      // Ancient Colonnades & Ruins
       ctx.fillStyle = '#1e293b';
-      ctx.beginPath(); ctx.moveTo(20, 285); ctx.lineTo(100, 140); ctx.lineTo(180, 285); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(130, 285); ctx.lineTo(210, 130); ctx.lineTo(290, 285); ctx.fill();
+      for (let x = 30; x < 300; x += 70) {
+        ctx.fillRect(x, 175, 12, 100);
+        ctx.fillRect(x - 4, 168, 20, 7);
+      }
+      ctx.fillRect(20, 164, 280, 6);
+
+      // Glowing Wall Torches
+      vg.torches.forEach(t => {
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(t.x, t.y, 4, 12);
+        ctx.fillStyle = (Date.now() % 300 < 150) ? '#f97316' : '#fde047';
+        ctx.beginPath(); ctx.arc(t.x + 2, t.y - 3, 5, 0, Math.PI * 2); ctx.fill();
+      });
 
       // Ground
       ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(0, 284, 320, 3);
-      ctx.fillStyle = '#090d16';
-      ctx.fillRect(0, 287, 320, 53);
+      ctx.fillRect(0, 275, 320, 3);
+      ctx.fillStyle = '#070a12';
+      ctx.fillRect(0, 278, 320, 62);
 
       // HUD
       ctx.fillStyle = '#000';
@@ -660,16 +723,16 @@
       ctx.font = 'bold 9px sans-serif';
       ctx.fillText(`CH. ${vg.chapter} SCORE: ${vg.score}`, 14, 42);
 
-      // Portal
+      // Vortex
       if (vg.vortex) {
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 3;
-        ctx.strokeRect(265, 215, 34, 70);
+        ctx.strokeRect(265, 205, 36, 70);
         ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
-        ctx.fillRect(265, 215, 34, 70);
+        ctx.fillRect(265, 205, 36, 70);
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 7px sans-serif';
-        ctx.fillText('ENTER VORTEX', 255, 208);
+        ctx.fillText('ENTER VORTEX', 255, 198);
       }
 
       // Projectiles
@@ -678,30 +741,247 @@
         ctx.fillRect(p.x, p.y, 8, 3);
       });
 
-      // Guards
+      // Armored Guards
       vg.guards.forEach(g => {
-        if (g.hp > 0) {
-          drawHumanoid(g.x, g.y, '#dc2626', false, g.dir, true);
-        }
+        if (g.hp > 0) drawArmoredGuard(g.x, g.y, g.dir);
       });
 
       // Hero
-      drawHumanoid(vg.hero.x, vg.hero.y, currentHero.color, true, vg.hero.dir, keys.left || keys.right);
+      drawHero(vg.hero.x, vg.hero.y, currentHero.color, vg.hero.dir, keys.left || keys.right);
 
-      // Special Ability Visual FX
+      // Special Ability Visual Aura
       if (vg.hero.powTimer > 0) {
         ctx.strokeStyle = currentHero.color;
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.arc(vg.hero.x, vg.hero.y - 4, 30, 0, Math.PI * 2);
+        ctx.arc(vg.hero.x, vg.hero.y - 6, 32, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
 
     /* -------------------------------------------------------------
-       2. RETRO ARCADE CLASSICS (DK, FROGGER, DEFENDER, GALAXY, PACMAN)
+       2. ARCADE DEFENDER (AUTHENTIC FIGHTER JET & RADAR TERRAIN)
     ------------------------------------------------------------- */
-    // DONKEY KONG
+    const def = {
+      ship: { x: 50, y: 150, dir: 1, thrust: 0 },
+      lasers: [],
+      humans: [{ x: 60, y: 275, st: 'g' }, { x: 160, y: 275, st: 'g' }, { x: 250, y: 275, st: 'g' }],
+      aliens: [{ x: 180, y: 50, vy: 1, st: 'h', tgt: null }, { x: 260, y: 70, vy: -1, st: 'h', tgt: null }],
+      terrain: [0, 275, 40, 235, 90, 290, 150, 220, 210, 280, 270, 245, 320, 275]
+    };
+
+    function drawDefenderShip(x, y, dir) {
+      ctx.save();
+      ctx.translate(x, y);
+      if (dir === -1) ctx.scale(-1, 1);
+
+      // Fuselage & Delta Wings
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(-10, -6);
+      ctx.lineTo(8, -1);
+      ctx.lineTo(16, 0); // Needle Nose
+      ctx.lineTo(8, 1);
+      ctx.lineTo(-10, 6);
+      ctx.lineTo(-6, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      // Cockpit Canopy
+      ctx.fillStyle = '#00e5ff';
+      ctx.fillRect(0, -2, 6, 4);
+
+      // Afterburner Flame
+      if (keys.left || keys.right) {
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(-14, -2, 5, 4);
+        ctx.fillStyle = '#fde047';
+        ctx.fillRect(-17, -1, 3, 2);
+      }
+      ctx.restore();
+    }
+
+    function updateDefender() {
+      if (keys.left)  { def.ship.x -= 3; def.ship.dir = -1; }
+      if (keys.right) { def.ship.x += 3; def.ship.dir = 1; }
+      if (keys.up)    def.ship.y -= 3;
+      if (keys.down)  def.ship.y += 3;
+
+      def.ship.x = Math.max(10, Math.min(290, def.ship.x));
+      def.ship.y = Math.max(30, Math.min(240, def.ship.y));
+
+      if (keys.atk && def.lasers.length < 5) {
+        def.lasers.push({ x: def.ship.dir === 1 ? def.ship.x + 18 : def.ship.x - 18, y: def.ship.y, vx: def.ship.dir * 8 });
+        keys.atk = false;
+      }
+
+      def.lasers.forEach((l, i) => {
+        l.x += l.vx;
+        if (l.x < 0 || l.x > 320) def.lasers.splice(i, 1);
+      });
+
+      def.humans.forEach(h => {
+        if (h.st === 'falling') {
+          h.y += 1.6;
+          if (h.y >= 275) { h.y = 275; h.st = 'g'; }
+          if (Math.hypot(def.ship.x - h.x, def.ship.y - h.y) < 18) { h.st = 'g'; h.y = 275; }
+        }
+      });
+
+      def.aliens.forEach(a => {
+        if (a.st === 'h') {
+          const t = def.humans.find(h => h.st === 'g');
+          if (t) {
+            a.x += a.x < t.x ? 0.8 : -0.8; a.y += 0.5;
+            if (Math.hypot(a.x - t.x, a.y - t.y) < 12) { a.st = 'a'; a.tgt = t; t.st = 'c'; }
+          }
+        } else if (a.st === 'a') {
+          a.y -= 0.8;
+          if (a.tgt) { a.tgt.x = a.x; a.tgt.y = a.y + 12; }
+          if (a.y <= 25) { a.st = 'h'; if (a.tgt) { a.tgt.y = 275; a.tgt.st = 'g'; } }
+        }
+
+        def.lasers.forEach((l, li) => {
+          if (Math.hypot(l.x - a.x, l.y - a.y) < 14) {
+            if (a.st === 'a' && a.tgt) a.tgt.st = 'falling';
+            a.x = 280; a.y = 50; a.st = 'h'; def.lasers.splice(li, 1);
+          }
+        });
+      });
+    }
+
+    function renderDefender() {
+      ctx.fillStyle = '#030712';
+      ctx.fillRect(0, 0, 320, 340);
+
+      // Radar Screen Box
+      ctx.strokeStyle = '#38bdf8';
+      ctx.strokeRect(30, 8, 260, 16);
+
+      // Vector Terrain
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(def.terrain[0], def.terrain[1]);
+      for (let i = 2; i < def.terrain.length; i += 2) ctx.lineTo(def.terrain[i], def.terrain[i+1]);
+      ctx.stroke();
+
+      // Lasers
+      ctx.fillStyle = '#f43f5e';
+      def.lasers.forEach(l => ctx.fillRect(l.x, l.y - 1, 14, 2));
+
+      // Humans
+      def.humans.forEach(h => {
+        ctx.fillStyle = '#38bdf8'; ctx.fillRect(h.x, h.y, 4, 8);
+        ctx.fillStyle = '#fef08a'; ctx.fillRect(h.x, h.y - 3, 4, 3);
+      });
+
+      // Aliens
+      def.aliens.forEach(a => {
+        ctx.fillStyle = '#4ade80';
+        ctx.fillRect(a.x - 6, a.y - 6, 12, 12);
+        if (a.st === 'a') {
+          ctx.strokeStyle = 'rgba(74, 222, 128, 0.45)';
+          ctx.strokeRect(a.x - 5, a.y + 6, 10, 8);
+        }
+      });
+
+      // Defender Jet
+      drawDefenderShip(def.ship.x, def.ship.y, def.ship.dir);
+    }
+
+    /* -------------------------------------------------------------
+       3. GALAXY SWARM (BOSS SWOOP & TRACTOR BEAM CAPTURE)
+    ------------------------------------------------------------- */
+    const gx = {
+      x: 150, bullets: [],
+      stars: Array.from({length: 40}, () => ({ x: Math.random() * 320, y: Math.random() * 340 })),
+      fleet: [
+        { x: 60, y: 50, vx: 1.2, swooping: false },
+        { x: 140, y: 50, vx: 1.2, swooping: false },
+        { x: 220, y: 50, vx: 1.2, swooping: false }
+      ],
+      tractor: { active: false, x: 0, y: 0 }
+    };
+
+    function updateGalaxy() {
+      if (keys.left) gx.x -= 3;
+      if (keys.right) gx.x += 3;
+      gx.x = Math.max(20, Math.min(280, gx.x));
+
+      if (keys.atk && gx.bullets.length < 8) {
+        gx.bullets.push({ x: gx.x - 7, y: 290 }, { x: gx.x + 9, y: 290 });
+        keys.atk = false;
+      }
+      gx.bullets.forEach((b, i) => { b.y -= 7; if (b.y < 0) gx.bullets.splice(i, 1); });
+
+      // Starfield scroll
+      gx.stars.forEach(s => { s.y += 1.8; if (s.y > 340) s.y = 0; });
+
+      // Enemy Fleet Swoop & Capture
+      gx.fleet.forEach(boss => {
+        boss.x += boss.vx;
+        if (boss.x < 30 || boss.x > 270) boss.vx *= -1;
+
+        if (Math.random() < 0.005 && !gx.tractor.active) {
+          gx.tractor.active = true;
+          gx.tractor.x = boss.x;
+          gx.tractor.y = boss.y;
+        }
+      });
+
+      if (gx.tractor.active) {
+        gx.tractor.y += 2;
+        if (gx.tractor.y > 300) gx.tractor.active = false;
+        // Ship captured if hit by beam
+        if (Math.abs(gx.x - gx.tractor.x) < 20 && Math.abs(295 - gx.tractor.y) < 20) {
+          statusText.innerText = "Captured by Galaxy Flagship Tractor Beam!";
+        }
+      }
+    }
+
+    function renderGalaxy() {
+      ctx.fillStyle = '#050714';
+      ctx.fillRect(0, 0, 320, 340);
+
+      // Starfield
+      ctx.fillStyle = '#fff';
+      gx.stars.forEach(s => ctx.fillRect(s.x, s.y, 1.5, 1.5));
+
+      // Bullets
+      ctx.fillStyle = '#38bdf8';
+      gx.bullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 8));
+
+      // Boss Fleet
+      gx.fleet.forEach(boss => {
+        ctx.fillStyle = '#eab308'; // Flagship
+        ctx.fillRect(boss.x - 8, boss.y, 16, 10);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(boss.x - 4, boss.y - 4, 8, 4);
+      });
+
+      // Tractor Beam
+      if (gx.tractor.active) {
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.35)';
+        ctx.beginPath();
+        ctx.moveTo(gx.tractor.x, gx.tractor.y);
+        ctx.lineTo(gx.tractor.x - 25, 340);
+        ctx.lineTo(gx.tractor.x + 25, 340);
+        ctx.fill();
+      }
+
+      // Dual Ship
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(gx.x - 9, 300, 8, 14);
+      ctx.fillRect(gx.x + 3, 300, 8, 14);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(gx.x - 9, 308, 8, 4);
+      ctx.fillRect(gx.x + 3, 308, 8, 4);
+    }
+
+    /* -------------------------------------------------------------
+       4. RESTORED DONKEY KONG & FROGGER
+    ------------------------------------------------------------- */
     const dk = {
       mario: { x: 25, y: 290, grounded: true, climbing: false, vy: 0 },
       ladders: [{ x: 260, y: 240, w: 20, h: 60 }, { x: 50, y: 160, w: 20, h: 80 }, { x: 240, y: 80, w: 20, h: 80 }, { x: 140, y: 30, w: 20, h: 50 }],
@@ -756,7 +1036,6 @@
       }
     }
 
-    // FROGGER
     const fr = {
       frog: { x: 150, y: 300 }, cd: 0,
       lilyPads: [{ x: 26, win: false }, { x: 86, win: false }, { x: 146, win: false }, { x: 206, win: false }, { x: 266, win: false }],
@@ -796,89 +1075,16 @@
       fr.lilyPads.forEach(p => {
         ctx.fillStyle = '#1e3a8a'; ctx.fillRect(p.x, 8, 28, 28);
         ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(p.x + 14, 22, 12, 0, Math.PI * 2); ctx.fill();
-        if (p.win) { ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(p.x + 14, 22, 6, 0, Math.PI*2); ctx.fill(); }
+        if (p.win) { ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(p.x + 14, 22, 6, 0, Math.PI * 2); ctx.fill(); }
       });
       fr.logs.forEach(l => { ctx.fillStyle = '#92400e'; ctx.fillRect(l.x, l.y, l.w, 18); });
       fr.cars.forEach(c => { ctx.fillStyle = c.c; ctx.fillRect(c.x, c.y, c.w, 14); });
       ctx.fillStyle = '#22c55e'; ctx.fillRect(fr.frog.x, fr.frog.y, 14, 14);
     }
 
-    // DEFENDER
-    const def = {
-      ship: { x: 50, y: 150, dir: 1 }, lasers: [],
-      humans: [{ x: 60, y: 275, st: 'g' }, { x: 160, y: 275, st: 'g' }, { x: 250, y: 275, st: 'g' }],
-      aliens: [{ x: 180, y: 50, vy: 1, st: 'h', tgt: null }, { x: 260, y: 70, vy: -1, st: 'h', tgt: null }]
-    };
-    function updateDefender() {
-      if (keys.left) { def.ship.x -= 3; def.ship.dir = -1; }
-      if (keys.right) { def.ship.x += 3; def.ship.dir = 1; }
-      if (keys.up) def.ship.y -= 3; if (keys.down) def.ship.y += 3;
-      if (keys.atk && def.lasers.length < 4) {
-        def.lasers.push({ x: def.ship.dir === 1 ? def.ship.x + 20 : def.ship.x - 10, y: def.ship.y + 6, vx: def.ship.dir * 8 });
-        keys.atk = false;
-      }
-      def.lasers.forEach((l, i) => { l.x += l.vx; if (l.x < 0 || l.x > 320) def.lasers.splice(i, 1); });
-      def.humans.forEach(h => {
-        if (h.st === 'falling') {
-          h.y += 1.5; if (h.y >= 275) { h.y = 275; h.st = 'g'; }
-          if (Math.hypot(def.ship.x - h.x, def.ship.y - h.y) < 18) { h.st = 'g'; h.y = 275; }
-        }
-      });
-      def.aliens.forEach(a => {
-        if (a.st === 'h') {
-          const t = def.humans.find(h => h.st === 'g');
-          if (t) {
-            a.x += a.x < t.x ? 0.8 : -0.8; a.y += 0.5;
-            if (Math.hypot(a.x - t.x, a.y - t.y) < 12) { a.st = 'a'; a.tgt = t; t.st = 'c'; }
-          }
-        } else if (a.st === 'a') {
-          a.y -= 0.8; if (a.tgt) { a.tgt.x = a.x; a.tgt.y = a.y + 12; }
-          if (a.y <= 25) { a.st = 'h'; if (a.tgt) { a.tgt.y = 275; a.tgt.st = 'g'; } }
-        }
-        def.lasers.forEach((l, li) => {
-          if (Math.hypot(l.x - a.x, l.y - a.y) < 14) {
-            if (a.st === 'a' && a.tgt) a.tgt.st = 'falling';
-            a.x = 280; a.y = 50; a.st = 'h'; def.lasers.splice(li, 1);
-          }
-        });
-      });
-    }
-    function renderDefender() {
-      ctx.fillStyle = '#030712'; ctx.fillRect(0, 0, 320, 340);
-      ctx.strokeStyle = '#f97316'; ctx.beginPath();
-      ctx.moveTo(0, 280); ctx.lineTo(60, 240); ctx.lineTo(140, 290); ctx.lineTo(220, 230); ctx.lineTo(320, 280); ctx.stroke();
-      ctx.fillStyle = '#f43f5e'; def.lasers.forEach(l => ctx.fillRect(l.x, l.y, 14, 2));
-      def.humans.forEach(h => { ctx.fillStyle = '#38bdf8'; ctx.fillRect(h.x, h.y, 4, 8); });
-      def.aliens.forEach(a => {
-        ctx.fillStyle = '#4ade80'; ctx.fillRect(a.x, a.y, 12, 12);
-        if (a.st === 'a') { ctx.strokeStyle = 'rgba(74,222,128,0.4)'; ctx.strokeRect(a.x, a.y + 12, 12, 10); }
-      });
-      ctx.fillStyle = '#fff'; ctx.fillRect(def.ship.x, def.ship.y, 16, 6);
-    }
-
-    // GALAXY SWARM (DUAL FIREPOWER)
-    const gx = { x: 150, bullets: [], stars: Array.from({length:35}, () => ({x:Math.random()*320, y:Math.random()*340})) };
-    function updateGalaxy() {
-      if (keys.left) gx.x -= 3; if (keys.right) gx.x += 3;
-      gx.x = Math.max(20, Math.min(280, gx.x));
-      if (keys.atk && gx.bullets.length < 8) {
-        gx.bullets.push({ x: gx.x - 6, y: 290 }, { x: gx.x + 10, y: 290 });
-        keys.atk = false;
-      }
-      gx.bullets.forEach((b, i) => { b.y -= 6; if (b.y < 0) gx.bullets.splice(i, 1); });
-      gx.stars.forEach(s => { s.y += 1.5; if (s.y > 340) s.y = 0; });
-    }
-    function renderGalaxy() {
-      ctx.fillStyle = '#050714'; ctx.fillRect(0, 0, 320, 340);
-      ctx.fillStyle = '#fff'; gx.stars.forEach(s => ctx.fillRect(s.x, s.y, 1.5, 1.5));
-      ctx.fillStyle = '#38bdf8'; gx.bullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 8));
-      // Dual Ships
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(gx.x - 8, 300, 10, 14);
-      ctx.fillRect(gx.x + 8, 300, 10, 14);
-    }
-
-    // PAC-MAN
+    /* -------------------------------------------------------------
+       5. PAC-MAN, TETRIS, TYCOON & SENSORY
+    ------------------------------------------------------------- */
     const pm = { x: 150, y: 170, dir: 1, dots: Array.from({length: 12}, (_, i) => ({x: 30 + i * 24, y: 170, e: false})) };
     function updatePacman() {
       if (keys.left) { pm.x -= 2; pm.dir = -1; }
@@ -897,9 +1103,6 @@
       ctx.lineTo(pm.x, pm.y); ctx.fill();
     }
 
-    /* -------------------------------------------------------------
-       3. TETRIS & TYCOON GOLD
-    ------------------------------------------------------------- */
     const tetris = { p: { x: 4, y: 0 }, timer: 0 };
     function updateTetris() {
       if (++tetris.timer > 20) {
@@ -941,9 +1144,6 @@
       ctx.textAlign = 'start';
     }
 
-    /* -------------------------------------------------------------
-       4. SENSORY ROOM
-    ------------------------------------------------------------- */
     const sensoryParts = Array.from({length: 60}, () => ({x: Math.random()*320, y: Math.random()*340, vx: (Math.random()-0.5)*1.5, vy: (Math.random()-0.5)*1.5, hue: Math.random()*360}));
     function renderSensory() {
       ctx.fillStyle = 'rgba(7, 10, 19, 0.15)'; ctx.fillRect(0, 0, 320, 340);
@@ -956,7 +1156,7 @@
     }
 
     /* -------------------------------------------------------------
-       MODE SWITCHER & MINI-GAMES
+       MODE SWITCHER & WORD PUZZLE
     ------------------------------------------------------------- */
     function setMode(newMode) {
       mode = newMode;
