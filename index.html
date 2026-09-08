@@ -1,10 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>The Rhodes Family Legacy & Ancestral Vanguard</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rhodes Family Legacy - The Ancestral Vanguard & Arcade</title>
+  <!-- Three.js CDN for 3D Graphics -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: #151d30;
+      --border-color: #334155;
+      --accent-gold: #f59e0b;
+      --accent-blue: #38bdf8;
+      --accent-red: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -12,1087 +25,609 @@
       user-select: none;
       -webkit-user-select: none;
     }
+
     body {
-      background-color: #070a12;
-      color: #e2e8f0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 8px 6px 30px;
-      overflow-x: hidden;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.5;
+      padding-bottom: 3rem;
     }
+
     .container {
-      width: 100%;
-      max-width: 460px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0.75rem;
     }
 
-    /* TRILOGY SHOWCASE */
-    .section-title {
-      color: #f6c358;
-      text-align: center;
-      font-size: 1.05rem;
-      font-weight: 800;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      padding: 4px 0;
-      text-shadow: 0 0 10px rgba(246, 195, 88, 0.3);
-    }
-    .trilogy-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-    }
-    .book-card {
-      background: #111827;
-      border: 1px solid #374151;
-      border-radius: 8px;
-      padding: 5px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
-    }
-    .book-cover {
-      width: 100%;
-      aspect-ratio: 2/3;
+    /* Historical Header Quote */
+    .quote-card {
+      background: rgba(30, 41, 59, 0.6);
+      border-left: 4px solid var(--accent-gold);
+      padding: 0.75rem 1rem;
       border-radius: 4px;
-      object-fit: cover;
-      background: #1a202c;
-      border: 1px solid #4a5568;
-      display: block;
-    }
-    .buy-btn {
-      width: 100%;
-      margin-top: 5px;
-      background: #e59824;
-      color: #0b0f19;
-      font-weight: 800;
-      font-size: 0.68rem;
-      text-align: center;
-      padding: 6px 2px;
-      border-radius: 4px;
-      text-decoration: none;
-      border: none;
-      cursor: pointer;
-      display: block;
-    }
-    .buy-btn:active {
-      background: #c27d14;
-    }
-
-    /* QUOTE CARD */
-    .quote-box {
-      background: #0d1322;
-      border-left: 3px solid #f6c358;
-      padding: 8px 10px;
-      border-radius: 4px;
-      font-size: 0.78rem;
-      line-height: 1.35;
+      font-size: 0.85rem;
       color: #cbd5e1;
+      margin-bottom: 0.75rem;
       font-style: italic;
     }
 
-    /* GAME PANEL */
-    .game-wrapper {
-      background: #0b0f19;
-      border: 2px solid #e59824;
-      border-radius: 10px;
-      padding: 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.8);
+    /* 3D Game Screen Frame */
+    .game-viewport-card {
+      position: relative;
+      border: 2px solid var(--accent-gold);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     }
-    .hud-bar {
+
+    #three-canvas-container {
+      width: 100%;
+      height: 280px;
+      display: block;
+    }
+
+    /* In-Game HUD Overlay */
+    .hud-overlay {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      right: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.72rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      color: #38bdf8;
-      padding: 2px 4px;
+      pointer-events: none;
+      text-shadow: 0 2px 4px #000;
+      z-index: 10;
     }
-    .hp-container {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      color: #f87171;
-    }
-    .hp-track {
-      width: 65px;
+
+    .hud-blue { color: var(--accent-blue); }
+    .hud-gold { color: var(--accent-gold); }
+    
+    .hp-bar-bg {
+      display: inline-block;
+      width: 70px;
       height: 8px;
       background: #334155;
       border-radius: 4px;
       overflow: hidden;
-      border: 1px solid #64748b;
-    }
-    .hp-fill {
-      width: 100%;
-      height: 100%;
-      background: #ef4444;
-      transition: width 0.15s;
-    }
-    canvas {
-      width: 100%;
-      height: 250px;
-      background: #050811;
-      border-radius: 6px;
-      display: block;
-    }
-    .chapter-banner {
-      background: #0a0f1d;
-      border: 1px solid #334155;
-      color: #f6c358;
-      text-align: center;
-      font-size: 0.76rem;
-      font-weight: 700;
-      padding: 4px 6px;
-      border-radius: 4px;
-      letter-spacing: 0.5px;
-      min-height: 24px;
+      vertical-align: middle;
+      margin-left: 4px;
     }
 
-    /* CHAMPION SELECT */
-    .subhead {
-      color: #f6c358;
-      text-align: center;
-      font-size: 0.72rem;
-      font-weight: 800;
-      letter-spacing: 0.5px;
+    .hp-fill {
+      height: 100%;
+      width: 85%;
+      background: var(--accent-red);
+      transition: width 0.2s ease;
     }
+
+    .chapter-banner {
+      background: #0f172a;
+      text-align: center;
+      padding: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #fbbf24;
+      border-top: 1px solid #1e293b;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    /* Touch Controls & Roster */
+    .control-deck {
+      background: var(--card-bg);
+      padding: 0.75rem;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+
+    .deck-title {
+      font-size: 0.7rem;
+      text-align: center;
+      color: #fbbf24;
+      font-weight: 800;
+      letter-spacing: 1px;
+      margin-bottom: 0.5rem;
+    }
+
     .roster-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 5px;
+      gap: 6px;
+      margin-bottom: 0.75rem;
     }
+
     .champ-btn {
       background: #1e293b;
       border: 1px solid #475569;
-      color: #e2e8f0;
-      padding: 5px 2px;
       border-radius: 6px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      color: #e2e8f0;
+      padding: 6px 4px;
+      text-align: center;
       cursor: pointer;
-      font-size: 0.68rem;
-      font-weight: 700;
-      transition: all 0.15s;
-    }
-    .champ-btn span {
-      font-size: 0.58rem;
-      color: #94a3b8;
-      margin-top: 1px;
-      font-weight: 400;
-    }
-    .champ-btn.active {
-      border: 1.5px solid #38bdf8;
-      background: #0369a1;
-      color: #ffffff;
-      box-shadow: 0 0 8px rgba(56,189,248,0.5);
-    }
-    .champ-btn.active span {
-      color: #bae6fd;
     }
 
-    /* ACTION CONTROLS */
-    .controls-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1.2fr 1.4fr;
-      gap: 5px;
-      margin-top: 2px;
+    .champ-btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
     }
-    .act-btn {
-      background: #1e293b;
-      border: 1px solid #475569;
-      color: #f8fafc;
-      font-weight: 800;
-      font-size: 0.72rem;
-      padding: 10px 4px;
+
+    .champ-btn .name {
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: block;
+    }
+
+    .champ-btn .power {
+      font-size: 0.62rem;
+      color: #94a3b8;
+      display: block;
+    }
+
+    .champ-btn.active .power {
+      color: #e0f2fe;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.2fr 1.5fr;
+      gap: 6px;
+    }
+
+    .btn-act {
+      background: #334155;
+      border: 1px solid #64748b;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 10px 0;
       border-radius: 6px;
       cursor: pointer;
       text-align: center;
     }
-    .act-btn:active {
+
+    .btn-act:active {
       transform: scale(0.96);
-      background: #334155;
-    }
-    .burst-btn {
-      background: #e11d48;
-      border: 1px solid #f43f5e;
-      color: #ffffff;
-      box-shadow: 0 0 8px rgba(225,29,72,0.6);
-    }
-    .burst-btn:active {
-      background: #9f1239;
+      background: #475569;
     }
 
-    /* VIDEO HUB & UPLOADER */
-    .video-hub-card {
-      background: #111827;
-      border: 1px solid #374151;
-      border-radius: 8px;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    .btn-burst {
+      background: linear-gradient(135deg, #e11d48, #be123c);
+      border: 1px solid #fb7185;
+      color: #fff;
+      box-shadow: 0 0 8px rgba(225, 29, 72, 0.4);
     }
-    .video-player-container {
+
+    /* Video Hub Section */
+    .hub-header {
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #fbbf24;
+      margin: 1.5rem 0 0.75rem 0;
+      letter-spacing: 1px;
+    }
+
+    .video-hub-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 0.75rem;
+    }
+
+    .video-viewport {
       width: 100%;
-      aspect-ratio: 16/9;
-      background: #000000;
+      height: 180px;
+      background: #000;
       border-radius: 6px;
       overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid #4b5563;
+      margin-bottom: 0.75rem;
     }
-    .video-player-container video {
+
+    .video-viewport video, .video-viewport iframe {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      border: none;
     }
-    .upload-bar {
-      display: flex;
-      gap: 6px;
-      align-items: center;
+
+    /* Arcade Grid Section */
+    .arcade-section {
+      margin-top: 1.5rem;
     }
-    .upload-label {
-      flex: 1;
-      background: #1f2937;
-      border: 1px dashed #f6c358;
-      color: #f6c358;
-      padding: 6px;
-      border-radius: 5px;
-      font-size: 0.72rem;
-      font-weight: 700;
+
+    .arcade-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--accent-gold);
+      margin-bottom: 0.75rem;
       text-align: center;
-      cursor: pointer;
     }
-    .upload-label:hover {
-      background: #283548;
+
+    .arcade-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .arcade-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .arcade-card h4 {
+      font-size: 0.8rem;
+      margin-bottom: 0.25rem;
+      color: #f1f5f9;
+    }
+
+    .arcade-card p {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      flex-grow: 1;
+    }
+
+    .arcade-launch-btn {
+      background: #0284c7;
+      color: #fff;
+      text-align: center;
+      padding: 5px 0;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-decoration: none;
+      border-radius: 4px;
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <div class="section-title">&#10022; The Packed in the Marrow Trilogy &#10022;</div>
-    <div class="trilogy-grid">
-      <div class="book-card">
-        <img class="book-cover" id="cover-vol1" src="packed-in-the-marrow-vol1.jpg" alt="Packed in the Marrow: From Father to Son" />
-        <button class="buy-btn" onclick="window.open('https://payhip.com','_blank')">BUY VOL. 1</button>
-      </div>
-      <div class="book-card">
-        <img class="book-cover" id="cover-vol2" src="cousins-of-courage-vol2.jpg" alt="Cousins of Courage: Vol 2" />
-        <button class="buy-btn" onclick="window.open('https://payhip.com','_blank')">BUY VOL. 2</button>
-      </div>
-      <div class="book-card">
-        <img class="book-cover" id="cover-vol3" src="the-colbert-legacy-vol3.jpg" alt="The Colbert Legacy: Vol 3" />
-        <button class="buy-btn" onclick="window.open('https://payhip.com','_blank')">BUY VOL. 3</button>
-      </div>
+<div class="container">
+
+  <!-- Historical Intro Quote -->
+  <div class="quote-card">
+    "When I asked my father about integrating the school from Little Rock, he explained that he was not chosen to integrate Central High School because, had someone put their hands on him or spit on him, he would not have simply stood there for the history books. He was a natural-born fighter who knew his own limits and character."
+  </div>
+
+  <!-- THE ANCESTRAL VANGUARD: 3D HERO SHOWCASE -->
+  <div class="game-viewport-card">
+    
+    <div class="hud-overlay">
+      <span class="hud-blue">SCORE: <span id="val-score">7800</span></span>
+      <span>HERO: <span class="hp-bar-bg"><span id="hero-hp" class="hp-fill"></span></span></span>
+      <span class="hud-gold">WAVE: <span id="val-wave">[6/8]</span></span>
     </div>
 
-    <div class="quote-box">
-      "When I asked my father about integrating the school from Little Rock, he explained that he was not chosen to integrate Central High School because, had someone put their hands on him or spit on him, he would not have simply stood there for the history books. He was a natural-born fighter who knew his own limits and character."
+    <!-- 3D Three.js Container -->
+    <div id="three-canvas-container"></div>
+
+    <div class="chapter-banner">
+      Chapter 5: The Mississippi Delta • High Water Levee
     </div>
 
-    <div class="game-wrapper">
-      <div class="hud-bar">
-        <div>SCORE: <span id="hud-score">0</span></div>
-        <div class="hp-container">
-          <span>HERO:</span>
-          <div class="hp-track"><div id="hud-hp" class="hp-fill"></div></div>
-        </div>
-        <div id="hud-status" style="color:#f6c358;">WAVE KILLS: [0/8]</div>
-      </div>
-
-      <canvas id="gameCanvas" width="460" height="250"></canvas>
-
-      <div class="chapter-banner" id="chapter-banner">
-        Chapter 1: The Great Dismal Swamp Refuge • Maroon Sanctuary
-      </div>
-
-      <div class="subhead">&#10022; SELECT ANCESTRAL CHAMPION &amp; SUPERPOWER &#10022;</div>
+    <!-- Control & Roster Deck -->
+    <div class="control-deck">
+      <div class="deck-title">✦ SELECT ANCESTRAL CHAMPION & SUPERPOWER ✦</div>
+      
       <div class="roster-grid">
-        <button class="champ-btn active" id="btn-champ-inez" onclick="selectChampion('inez')">
-          Inez &amp; Tweet
-          <span>Twin Sister Tag</span>
+        <button class="champ-btn active" onclick="selectChampion('inez', this)">
+          <span class="name">Inez & Tweet</span>
+          <span class="power">Twin Sister Tag</span>
         </button>
-        <button class="champ-btn" id="btn-champ-elroy" onclick="selectChampion('elroy')">
-          Elroy Rhodes
-          <span>Delta Heavy</span>
+        <button class="champ-btn" onclick="selectChampion('elroy', this)">
+          <span class="name">Elroy Rhodes</span>
+          <span class="power">Delta Heavy</span>
         </button>
-        <button class="champ-btn" id="btn-champ-bear" onclick="selectChampion('bear')">
-          Uncle Bear
-          <span>Maroon Shock</span>
+        <button class="champ-btn" onclick="selectChampion('bear', this)">
+          <span class="name">Uncle Bear</span>
+          <span class="power">Maroon Shock</span>
         </button>
-        <button class="champ-btn" id="btn-champ-aaron" onclick="selectChampion('aaron')">
-          Uncle Aaron
-          <span>Pioneer Volley</span>
+        <button class="champ-btn" onclick="selectChampion('aaron', this)">
+          <span class="name">Uncle Aaron</span>
+          <span class="power">Pioneer Volley</span>
         </button>
-        <button class="champ-btn" id="btn-champ-fanny" onclick="selectChampion('fanny')">
-          Fanny May
-          <span>Coincoin Barrier</span>
+        <button class="champ-btn" onclick="selectChampion('fanny', this)">
+          <span class="name">Fanny May</span>
+          <span class="power">Coincoin Barrier</span>
         </button>
-        <button class="champ-btn" id="btn-champ-tp" onclick="selectChampion('tp')">
-          TP Mitchell
-          <span>Lineage Beam</span>
+        <button class="champ-btn" onclick="selectChampion('tp', this)">
+          <span class="name">TP Mitchell</span>
+          <span class="power">Lineage Beam</span>
         </button>
       </div>
 
-      <div class="controls-grid">
-        <button class="act-btn" id="btn-left">&#9664; LEFT</button>
-        <button class="act-btn" id="btn-right">RIGHT &#9654;</button>
-        <button class="act-btn" id="btn-attack">ATK / BOW</button>
-        <button class="act-btn burst-btn" id="btn-burst">BURST PWR</button>
-      </div>
-    </div>
-
-    <div class="section-title">&#10022; Ancestral Video Hub &#10022;</div>
-    <div class="video-hub-card">
-      <div class="video-player-container">
-        <video id="video-player" controls playsinline>
-          <source id="video-source" src="" type="video/mp4">
-          Your browser does not support video playback.
-        </video>
-      </div>
-      <div class="upload-bar">
-        <label for="video-uploader" class="upload-label">
-          &#128249; CLICK TO SELECT &amp; UPLOAD YOUR VIDEO FILE TO PLAY
-        </label>
-        <input type="file" id="video-uploader" accept="video/*" style="display: none;" onchange="loadUploadedVideo(event)">
+      <div class="action-row">
+        <button class="btn-act" onmousedown="moveHero(-1)" ontouchstart="moveHero(-1)">◀ LEFT</button>
+        <button class="btn-act" onmousedown="moveHero(1)" ontouchstart="moveHero(1)">RIGHT ▶</button>
+        <button class="btn-act" onclick="triggerAttack()">ATK / BOW</button>
+        <button class="btn-act btn-burst" onclick="triggerBurst()">BURST PWR</button>
       </div>
     </div>
   </div>
 
-  <script>
-    /* BOOK COVERS: DETAILED EMBEDDED CANVAS GENERATORS */
-    function renderDetailedCover(imgId, config) {
-      const img = document.getElementById(imgId);
-      const drawArt = () => {
-        const c = document.createElement("canvas");
-        c.width = 320; c.height = 480;
-        const cx = c.getContext("2d");
+  <!-- ANCESTRAL VIDEO HUB -->
+  <div class="hub-header">✦ ANCESTRAL VIDEO HUB ✦</div>
+  <div class="video-hub-box">
+    <div class="video-viewport">
+      <!-- Replace 'your-vanguard-video.mp4' with your actual video or embedded player -->
+      <video controls poster="" preload="metadata">
+        <source src="assets/vanguard-cinematic.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+    <div style="font-size:0.75rem; color:#94a3b8; text-align:center;">
+      Cinematic Chronicles: The Rise of the Ancestral Vanguard
+    </div>
+  </div>
 
-        cx.fillStyle = config.bg;
-        cx.fillRect(0, 0, 320, 480);
-        cx.fillStyle = "rgba(0,0,0,0.18)";
-        for (let i = 0; i < 320; i += 4) cx.fillRect(i, 0, 2, 480);
+  <!-- THE ARCADE VAULT (All Other Games) -->
+  <div class="arcade-section">
+    <div class="arcade-title">✦ THE ARCADE VAULT ✦</div>
+    <div class="arcade-grid">
+      
+      <div class="arcade-card">
+        <h4>Isaac Rhodes Adventures</h4>
+        <p>Classic platformer through historical lands.</p>
+        <a href="games/isaac-adventures/index.html" class="arcade-launch-btn">PLAY GAME</a>
+      </div>
 
-        cx.strokeStyle = config.gold;
-        cx.lineWidth = 5;
-        cx.strokeRect(10, 10, 300, 460);
-        cx.lineWidth = 1.5;
-        cx.strokeRect(15, 15, 290, 450);
+      <div class="arcade-card">
+        <h4>Lion Guard Defense</h4>
+        <p>Dynamic line defense and tactical protection.</p>
+        <a href="games/lion-guard/index.html" class="arcade-launch-btn">PLAY GAME</a>
+      </div>
 
-        cx.fillStyle = config.gold;
-        cx.textAlign = "center";
-        cx.font = "bold 17px Georgia, serif";
-        cx.fillText(config.mainTitle, 160, 48);
+      <div class="arcade-card">
+        <h4>Banshee Sky Battle</h4>
+        <p>High-altitude aerial defense dogfights.</p>
+        <a href="games/banshee/index.html" class="arcade-launch-btn">PLAY GAME</a>
+      </div>
 
-        cx.font = "italic 13px Georgia, serif";
-        cx.fillStyle = "#fef08a";
-        cx.fillText(config.subTitle, 160, 70);
+      <div class="arcade-card">
+        <h4>Space Odyssey</h4>
+        <p>Retro galactic exploration and arcade survival.</p>
+        <a href="games/space-odyssey/index.html" class="arcade-launch-btn">PLAY GAME</a>
+      </div>
 
-        if (config.type === "tree") {
-          cx.save();
-          cx.translate(160, 240);
-          cx.strokeStyle = config.gold;
-          cx.fillStyle = config.gold;
-          cx.lineWidth = 4;
-          for (let y = -40; y <= 50; y += 12) {
-            const xOffset = Math.sin(y * 0.12) * 22;
-            cx.beginPath(); cx.arc(xOffset, y, 4, 0, Math.PI * 2); cx.fill();
-            cx.beginPath(); cx.arc(-xOffset, y, 4, 0, Math.PI * 2); cx.fill();
-            cx.beginPath(); cx.moveTo(xOffset, y); cx.lineTo(-xOffset, y); cx.stroke();
-          }
-          for (let a = 0; a < Math.PI * 2; a += 0.4) {
-            const lx = Math.cos(a) * 60;
-            const ly = -65 + Math.sin(a) * 35;
-            cx.beginPath(); cx.arc(lx, ly, 18, 0, Math.PI * 2); cx.fill();
-          }
-          cx.restore();
-        } else if (config.type === "cousins") {
-          cx.strokeStyle = config.gold;
-          cx.lineWidth = 4;
-          cx.beginPath(); cx.ellipse(115, 195, 45, 55, 0, 0, Math.PI * 2); cx.stroke();
-          cx.fillStyle = "#1e293b"; cx.fill();
-          cx.beginPath(); cx.ellipse(205, 290, 45, 55, 0, 0, Math.PI * 2); cx.stroke();
-          cx.fill();
-          cx.strokeStyle = config.gold;
-          cx.lineWidth = 3;
-          cx.beginPath(); cx.moveTo(155, 200); cx.quadraticCurveTo(175, 240, 165, 280); cx.stroke();
-        }
+      <div class="arcade-card">
+        <h4>Legacy Monopoly Go</h4>
+        <p>Strategic ancestral property board builder.</p>
+        <a href="games/monopoly-go/index.html" class="arcade-launch-btn">LAUNCH BOARD</a>
+      </div>
 
-        cx.fillStyle = config.gold;
-        cx.font = "bold 13px Georgia, serif";
-        cx.fillText("TOMMY PHILIP RHODES", 160, 420);
-        cx.font = "italic 11px Georgia, serif";
-        cx.fillStyle = "#cbd5e1";
-        cx.fillText(config.footerLine, 160, 438);
+      <div class="arcade-card">
+        <h4>Ancestral Word Search</h4>
+        <p>Interactive lineage puzzles and hidden names.</p>
+        <a href="games/word-search/index.html" class="arcade-launch-btn">LAUNCH PUZZLE</a>
+      </div>
 
-        img.src = c.toDataURL();
-      };
+      <div class="arcade-card">
+        <h4>Suitcase Riddle</h4>
+        <p>Mystery puzzle game solving historical clues.</p>
+        <a href="games/suitcase-riddle/index.html" class="arcade-launch-btn">SOLVE RIDDLE</a>
+      </div>
 
-      const testImg = new Image();
-      testImg.onload = () => { img.src = testImg.src; };
-      testImg.onerror = drawArt;
-      testImg.src = img.getAttribute("src");
+      <div class="arcade-card">
+        <h4>Sensory Waves Room</h4>
+        <p>Audio-visual meditative legacy frequency space.</p>
+        <a href="games/sensory-room/index.html" class="arcade-launch-btn">ENTER ROOM</a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- 3D ENGINE SCRIPT -->
+<script>
+  let scene, camera, renderer;
+  let heroGroup, enemyGroup, projectiles = [];
+  let currentChampion = 'inez';
+  let isBursting = false;
+
+  const rosterConfig = {
+    inez:   { name: "Inez & Tweet", color: 0xec4899, aura: 0xf43f5e, weaponColor: 0xfb7185, speed: 0.25 },
+    elroy:  { name: "Elroy Rhodes", color: 0x15803d, aura: 0x22c55e, weaponColor: 0x4ade80, speed: 0.18 },
+    bear:   { name: "Uncle Bear",   color: 0x7c2d12, aura: 0xea580c, weaponColor: 0xf97316, speed: 0.15 },
+    aaron:  { name: "Uncle Aaron",  color: 0x0369a1, aura: 0x38bdf8, weaponColor: 0x7dd3fc, speed: 0.22 },
+    fanny:  { name: "Fanny May",    color: 0xa855f7, aura: 0xd8b4fe, weaponColor: 0xe9d5ff, speed: 0.20 },
+    tp:     { name: "TP Mitchell",  color: 0xeab308, aura: 0xfde047, weaponColor: 0xfef08a, speed: 0.20 }
+  };
+
+  function initThree() {
+    const container = document.getElementById('three-canvas-container');
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // Scene & Camera setup (matching the cinematic angle)
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f172a);
+    scene.fog = new THREE.FogExp2(0x0f172a, 0.04);
+
+    camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(0, 3, 9);
+    camera.lookAt(0, 1, 0);
+
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // Dynamic Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffd700, 0.8);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+
+    // Battle Ground (Levee / Temple Floor)
+    const floorGeo = new THREE.PlaneGeometry(30, 20);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = 0;
+    scene.add(floor);
+
+    // Background Pillars (Matching the video scenery)
+    for(let i = -10; i <= 10; i += 3) {
+      const pillarGeo = new THREE.CylinderGeometry(0.3, 0.3, 8);
+      const pillarMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+      const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+      pillar.position.set(i, 4, -5);
+      scene.add(pillar);
     }
 
-    renderDetailedCover("cover-vol1", {
-      bg: "#451218",
-      gold: "#d4af37",
-      mainTitle: "Packed in the Marrow:",
-      subTitle: "From Father to Son",
-      type: "tree",
-      footerLine: "THE RHODES FAMILY LEGACY"
-    });
+    // Spawn Hero & Enemies
+    buildHeroModel();
+    spawnEnemies();
 
-    renderDetailedCover("cover-vol2", {
-      bg: "#10233d",
-      gold: "#e6b749",
-      mainTitle: "COUSINS OF COURAGE",
-      subTitle: "Jefferson Thomas and Scoey Mitchell",
-      type: "cousins",
-      footerLine: "Two Lives, One Bloodline"
-    });
+    // Resize Handler
+    window.addEventListener('resize', onWindowResize);
 
-    renderDetailedCover("cover-vol3", {
-      bg: "#0d2b17",
-      gold: "#d4af37",
-      mainTitle: "THE COLBERT LEGACY",
-      subTitle: "Volume Three • Lineage Historian",
-      type: "tree",
-      footerLine: "Packed in the Marrow Series"
-    });
+    // Animation Loop
+    animate();
+  }
 
-    function loadUploadedVideo(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const player = document.getElementById("video-player");
-        const source = document.getElementById("video-source");
-        const videoURL = URL.createObjectURL(file);
-        source.src = videoURL;
-        player.load();
-        player.play();
+  function buildHeroModel() {
+    if(heroGroup) scene.remove(heroGroup);
+
+    heroGroup = new THREE.Group();
+    const config = rosterConfig[currentChampion];
+
+    // Body
+    const bodyGeo = new THREE.CylinderGeometry(0.2, 0.35, 1.2, 8);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: config.color, roughness: 0.3 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.8;
+    heroGroup.add(body);
+
+    // Head
+    const headGeo = new THREE.SphereGeometry(0.22, 12, 12);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x5a3825 });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 1.6;
+    heroGroup.add(head);
+
+    // Glowing Power Aura
+    const auraGeo = new THREE.RingGeometry(0.4, 0.6, 16);
+    const auraMat = new THREE.MeshBasicMaterial({ color: config.aura, side: THREE.DoubleSide });
+    const aura = new THREE.Mesh(auraGeo, auraMat);
+    aura.rotation.x = Math.PI / 2;
+    aura.position.y = 0.05;
+    heroGroup.add(aura);
+
+    heroGroup.position.set(-3, 0, 0);
+    scene.add(heroGroup);
+  }
+
+  function spawnEnemies() {
+    enemyGroup = new THREE.Group();
+    for(let i = 0; i < 3; i++) {
+      const eGeo = new THREE.CylinderGeometry(0.2, 0.3, 1.1, 8);
+      const eMat = new THREE.MeshStandardMaterial({ color: 0x991b1b });
+      const enemy = new THREE.Mesh(eGeo, eMat);
+      enemy.position.set(2 + (i * 1.5), 0.75, (Math.random() - 0.5) * 2);
+      enemyGroup.add(enemy);
+    }
+    scene.add(enemyGroup);
+  }
+
+  function selectChampion(key, btn) {
+    currentChampion = key;
+    document.querySelectorAll('.champ-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildHeroModel();
+  }
+
+  function moveHero(dir) {
+    if(!heroGroup) return;
+    heroGroup.position.x += dir * rosterConfig[currentChampion].speed;
+    if(heroGroup.position.x < -5) heroGroup.position.x = -5;
+    if(heroGroup.position.x > 0) heroGroup.position.x = 0;
+  }
+
+  function triggerAttack() {
+    if(!heroGroup) return;
+    const config = rosterConfig[currentChampion];
+
+    // Projectile Mesh
+    const projGeo = new THREE.SphereGeometry(0.15, 8, 8);
+    const projMat = new THREE.MeshBasicMaterial({ color: config.weaponColor });
+    const proj = new THREE.Mesh(projGeo, projMat);
+    proj.position.set(heroGroup.position.x + 0.5, 1.0, heroGroup.position.z);
+    
+    scene.add(proj);
+    projectiles.push(proj);
+
+    // Update Score
+    const scoreElem = document.getElementById('val-score');
+    scoreElem.textContent = parseInt(scoreElem.textContent) + 50;
+  }
+
+  function triggerBurst() {
+    if(isBursting) return;
+    isBursting = true;
+
+    // Cinematic Camera Zoom In
+    const originalZ = camera.position.z;
+    const originalY = camera.position.y;
+    camera.position.set(heroGroup.position.x + 1, 1.5, 3.5);
+
+    // Multi-beam explosion
+    for(let i = 0; i < 5; i++) {
+      setTimeout(() => triggerAttack(), i * 60);
+    }
+
+    setTimeout(() => {
+      camera.position.set(0, originalY, originalZ);
+      isBursting = false;
+    }, 600);
+  }
+
+  function onWindowResize() {
+    const container = document.getElementById('three-canvas-container');
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+
+    // Advance Projectiles
+    for(let i = projectiles.length - 1; i >= 0; i--) {
+      const p = projectiles[i];
+      p.position.x += 0.25;
+
+      // Check collision or offscreen
+      if(p.position.x > 6) {
+        scene.remove(p);
+        projectiles.splice(i, 1);
       }
     }
 
-    /* ENGINE: STABLE ROTATION & MULTI-CHAPTER ANCESTRAL VANGUARD */
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-
-    const chapters = [
-      { id: 1, title: "Chapter 1: The Great Dismal Swamp Refuge • Maroon Sanctuary", bg: "#06130c", type: "swamp", mist: true, bossName: "Empress of the Mire" },
-      { id: 2, title: "Chapter 2: The Illyrian Temple • Phoenician Peaks", bg: "#090d22", type: "temple", mist: false, bossName: "Phoenician Commander" },
-      { id: 3, title: "Chapter 3: Central High 1957 • The Frontline of Courage", bg: "#1e1b18", type: "school", mist: false, bossName: "Chief Enforcer" },
-      { id: 4, title: "Chapter 4: The Maroon Outpost at Black River", bg: "#150e09", type: "outpost", mist: false, bossName: "Garrison Overlord" },
-      { id: 5, title: "Chapter 5: Molly's Freedom Crossing", bg: "#130a1c", type: "crossing", mist: true, bossName: "Border Patrol Enforcer" },
-      { id: 6, title: "Chapter 6: The Colbert Iron Forge • Mobile River Basin", bg: "#1f1209", type: "forge", mist: false, bossName: "The Iron Baron" },
-      { id: 7, title: "Chapter 7: The Mississippi Delta • High Water Levee", bg: "#171004", type: "delta", mist: true, bossName: "Delta Baroness" }
-    ];
-
-    let currentChapterIndex = 0;
-    let waveKills = 0;
-    const killsToSpawnBoss = 8;
-    let score = 0;
-    let bossFightActive = false;
-    let currentBoss = null;
-
-    const mistParticles = [];
-    for (let i = 0; i < 22; i++) {
-      mistParticles.push({
-        x: Math.random() * canvas.width,
-        y: 145 + Math.random() * 45,
-        r: 25 + Math.random() * 25,
-        speed: 0.35 + Math.random() * 0.35,
-        alpha: 0.08 + Math.random() * 0.07
+    // Bobbing animation for enemies
+    if(enemyGroup) {
+      enemyGroup.children.forEach((e, idx) => {
+        e.position.y = 0.75 + Math.sin(Date.now() * 0.005 + idx) * 0.08;
       });
     }
 
-    const champions = {
-      inez: {
-        name: "Inez & Tweet",
-        power: "Twin Sister Tag",
-        color: "#c084fc",
-        headColor: "#8d5b4c",
-        shirtColor: "#9333ea",
-        attackSpeed: 16,
-        burst: "sister_tag"
-      },
-      elroy: {
-        name: "Elroy Rhodes",
-        power: "Delta Heavy",
-        color: "#38bdf8",
-        headColor: "#663e2c",
-        shirtColor: "#0284c7",
-        attackSpeed: 24,
-        burst: "delta_heavy"
-      },
-      bear: {
-        name: "Uncle Bear",
-        power: "Maroon Shock",
-        color: "#f59e0b",
-        headColor: "#4a2a1a",
-        shirtColor: "#d97706",
-        attackSpeed: 20,
-        burst: "maroon_shock"
-      },
-      aaron: {
-        name: "Uncle Aaron",
-        power: "Pioneer Volley",
-        color: "#4ade80",
-        headColor: "#7c4a36",
-        shirtColor: "#16a34a",
-        attackSpeed: 14,
-        burst: "pioneer_volley"
-      },
-      fanny: {
-        name: "Fanny May",
-        power: "Coincoin Barrier",
-        color: "#f472b6",
-        headColor: "#8d5b4c",
-        shirtColor: "#db2777",
-        attackSpeed: 18,
-        burst: "coincoin_barrier"
-      },
-      tp: {
-        name: "TP Mitchell",
-        power: "Lineage Beam",
-        color: "#60a5fa",
-        headColor: "#593726",
-        shirtColor: "#2563eb",
-        attackSpeed: 18,
-        burst: "lineage_beam"
-      }
-    };
+    renderer.render(scene, camera);
+  }
 
-    let activeChampKey = "inez";
-    let activeChamp = champions[activeChampKey];
+  window.onload = initThree;
+</script>
 
-    const player = {
-      x: 35,
-      y: 175,
-      w: 16,
-      h: 36,
-      speed: 3.5,
-      hp: 100,
-      maxHp: 100,
-      cooldown: 0,
-      barrierTimer: 0,
-      beamTimer: 0
-    };
-
-    let twinFlyIn = null;
-    let heroProjectiles = [];
-    let enemyProjectiles = [];
-    let enemies = [];
-    const keys = { left: false, right: false };
-
-    /* SAFE CHARACTER SELECTION (Prevents Touch/DOM Freezes) */
-    function selectChampion(key) {
-      if (!champions[key]) return;
-      activeChampKey = key;
-      activeChamp = champions[key];
-      twinFlyIn = null;
-      document.querySelectorAll(".champ-btn").forEach(b => b.classList.remove("active"));
-      const activeBtn = document.getElementById("btn-champ-" + key);
-      if (activeBtn) activeBtn.classList.add("active");
-    }
-
-    function drawHumanoid(ctx, x, y, headColor, shirtColor, pantsColor, isEnemy = false, isFlying = false, isBoss = false) {
-      ctx.save();
-      const scale = isBoss ? 1.6 : 1.0;
-      ctx.translate(x, y);
-      ctx.scale(isEnemy ? -scale : scale, scale);
-
-      ctx.fillStyle = headColor;
-      ctx.beginPath();
-      ctx.ellipse(8, -26, 6, 7.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = isEnemy ? (isBoss ? "#7f1d1d" : "#1e1b4b") : "#111827";
-      ctx.beginPath();
-      ctx.arc(8, -28, 6.5, Math.PI, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = shirtColor;
-      ctx.beginPath();
-      ctx.roundRect(3, -18, 10, 15, 3);
-      ctx.fill();
-
-      ctx.fillStyle = shirtColor;
-      ctx.beginPath();
-      ctx.roundRect(10, -17, 4, 10, 2);
-      ctx.fill();
-      ctx.fillStyle = headColor;
-      ctx.fillRect(11, -7, 3, 3);
-
-      if (isFlying) {
-        ctx.fillStyle = "#ec4899";
-        ctx.beginPath();
-        ctx.moveTo(3, -8);
-        ctx.lineTo(-12, 14);
-        ctx.lineTo(8, 6);
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        ctx.fillStyle = pantsColor;
-        ctx.fillRect(4, -3, 3.5, 11);
-        ctx.fillRect(8.5, -3, 3.5, 11);
-        ctx.fillStyle = "#09090b";
-        ctx.fillRect(3, 8, 4.5, 3);
-        ctx.fillRect(8.5, 8, 4.5, 3);
-      }
-
-      ctx.strokeStyle = isEnemy ? "#ef4444" : "#f6c358";
-      ctx.lineWidth = isBoss ? 3 : 2;
-      ctx.beginPath();
-      ctx.moveTo(11, -16);
-      ctx.lineTo(11, -2);
-      ctx.stroke();
-
-      ctx.restore();
-    }
-
-    function spawnPatrolEnemy() {
-      if (bossFightActive || enemies.length >= 4) return;
-      enemies.push({
-        x: canvas.width + 10,
-        y: 175,
-        w: 16,
-        h: 36,
-        hp: 20,
-        maxHp: 20,
-        speed: 1.1 + Math.random() * 0.7,
-        direction: -1,
-        patrolLimit: canvas.width - (60 + Math.random() * 120),
-        fireCooldown: 40 + Math.floor(Math.random() * 50),
-        color: "#dc2626",
-        headColor: "#9a634a",
-        isBoss: false
-      });
-    }
-
-    function spawnSceneBoss() {
-      bossFightActive = true;
-      enemies = [];
-      const ch = chapters[currentChapterIndex];
-      currentBoss = {
-        name: ch.bossName,
-        x: canvas.width - 60,
-        y: 175,
-        w: 26,
-        h: 56,
-        hp: 160,
-        maxHp: 160,
-        speed: 1.4,
-        direction: -1,
-        fireCooldown: 30,
-        color: "#991b1b",
-        headColor: "#78350f",
-        isBoss: true
-      };
-      enemies.push(currentBoss);
-      document.getElementById("chapter-banner").innerText = `⚠️ BOSS BATTLE: ${ch.bossName.toUpperCase()} ENTERS!`;
-    }
-
-    function heroAttack() {
-      if (player.cooldown > 0) return;
-      player.cooldown = activeChamp.attackSpeed;
-
-      heroProjectiles.push({
-        x: player.x + 14,
-        y: player.y - 12,
-        vx: 6.5,
-        vy: 0,
-        radius: 4,
-        color: activeChamp.color,
-        damage: 12
-      });
-    }
-
-    function heroBurst() {
-      const mode = activeChamp.burst;
-
-      if (mode === "sister_tag") {
-        twinFlyIn = {
-          inezX: -30,
-          inezY: 55,
-          tweetX: -70,
-          tweetY: 90,
-          timer: 240
-        };
-      } else if (mode === "delta_heavy") {
-        heroProjectiles.push({
-          x: player.x + 12,
-          y: player.y - 8,
-          vx: 5.5,
-          vy: 0,
-          radius: 14,
-          color: "#38bdf8",
-          damage: 45
-        });
-      } else if (mode === "maroon_shock") {
-        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
-          heroProjectiles.push({
-            x: player.x + 8,
-            y: player.y - 12,
-            vx: Math.cos(a) * 5.5,
-            vy: Math.sin(a) * 5.5,
-            radius: 5,
-            color: "#f59e0b",
-            damage: 24
-          });
-        }
-      } else if (mode === "pioneer_volley") {
-        for (let i = -2; i <= 2; i++) {
-          heroProjectiles.push({
-            x: player.x + 12,
-            y: player.y - 12,
-            vx: 8,
-            vy: i * 1.5,
-            radius: 4,
-            color: "#4ade80",
-            damage: 18
-          });
-        }
-      } else if (mode === "coincoin_barrier") {
-        player.barrierTimer = 220;
-      } else if (mode === "lineage_beam") {
-        player.beamTimer = 65;
-      }
-    }
-
-    const bindBtn = (id, onDown, onUp) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener("touchstart", (e) => { e.preventDefault(); onDown(); });
-      el.addEventListener("touchend", (e) => { e.preventDefault(); if (onUp) onUp(); });
-      el.addEventListener("mousedown", (e) => { e.preventDefault(); onDown(); });
-      el.addEventListener("mouseup", (e) => { e.preventDefault(); if (onUp) onUp(); });
-    };
-
-    bindBtn("btn-left", () => { keys.left = true; }, () => { keys.left = false; });
-    bindBtn("btn-right", () => { keys.right = true; }, () => { keys.right = false; });
-    bindBtn("btn-attack", () => { heroAttack(); });
-    bindBtn("btn-burst", () => { heroBurst(); });
-
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft" || e.key === "a") keys.left = true;
-      if (e.key === "ArrowRight" || e.key === "d") keys.right = true;
-      if (e.key === " " || e.key === "f") heroAttack();
-      if (e.key === "b" || e.key === "e") heroBurst();
-    });
-    window.addEventListener("keyup", (e) => {
-      if (e.key === "ArrowLeft" || e.key === "a") keys.left = false;
-      if (e.key === "ArrowRight" || e.key === "d") keys.right = false;
-    });
-
-    function advanceChapter() {
-      currentChapterIndex = (currentChapterIndex + 1) % chapters.length;
-      waveKills = 0;
-      bossFightActive = false;
-      currentBoss = null;
-      enemies = [];
-      heroProjectiles = [];
-      enemyProjectiles = [];
-      player.hp = Math.min(player.maxHp, player.hp + 40);
-      document.getElementById("chapter-banner").innerText = chapters[currentChapterIndex].title;
-    }
-
-    let spawnTicker = 0;
-
-    function update() {
-      if (keys.left) player.x = Math.max(10, player.x - player.speed);
-      if (keys.right) player.x = Math.min(canvas.width - 30, player.x + player.speed);
-
-      if (player.cooldown > 0) player.cooldown--;
-      if (player.barrierTimer > 0) player.barrierTimer--;
-
-      if (player.beamTimer > 0) {
-        player.beamTimer--;
-        enemies.forEach(en => {
-          en.hp -= 2.2;
-          if (en.hp <= 0) handleEnemyDefeat(en);
-        });
-      }
-
-      if (twinFlyIn) {
-        twinFlyIn.timer--;
-        if (twinFlyIn.inezX < player.x + 35) twinFlyIn.inezX += 4;
-        if (twinFlyIn.tweetX < player.x + 65) twinFlyIn.tweetX += 4.5;
-
-        if (twinFlyIn.timer % 15 === 0) {
-          let target = enemies[0] || { x: canvas.width - 50, y: 175 };
-          const targetY = target.y - 18;
-
-          const dxInez = (target.x - 4) - twinFlyIn.inezX;
-          const dyInez = targetY - twinFlyIn.inezY;
-          const distInez = Math.hypot(dxInez, dyInez) || 1;
-          heroProjectiles.push({
-            x: twinFlyIn.inezX + 12,
-            y: twinFlyIn.inezY,
-            vx: (dxInez / distInez) * 7.5,
-            vy: (dyInez / distInez) * 7.5,
-            radius: 4,
-            color: "#c084fc",
-            damage: 12
-          });
-
-          const dxTweet = (target.x + 8) - twinFlyIn.tweetX;
-          const dyTweet = targetY - twinFlyIn.tweetY;
-          const distTweet = Math.hypot(dxTweet, dyTweet) || 1;
-          heroProjectiles.push({
-            x: twinFlyIn.tweetX + 12,
-            y: twinFlyIn.tweetY,
-            vx: (dxTweet / distTweet) * 7.5,
-            vy: (dyTweet / distTweet) * 7.5,
-            radius: 4,
-            color: "#f472b6",
-            damage: 12
-          });
-        }
-        if (twinFlyIn.timer <= 0) twinFlyIn = null;
-      }
-
-      mistParticles.forEach(m => {
-        m.x += m.speed;
-        if (m.x - m.r > canvas.width) m.x = -m.r;
-      });
-
-      if (!bossFightActive) {
-        spawnTicker++;
-        if (spawnTicker > 70) {
-          spawnPatrolEnemy();
-          spawnTicker = 0;
-        }
-      }
-
-      /* Hero Projectiles update & boundary cleanup */
-      for (let i = heroProjectiles.length - 1; i >= 0; i--) {
-        const p = heroProjectiles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-
-        for (let j = enemies.length - 1; j >= 0; j--) {
-          const en = enemies[j];
-          const hitHeight = en.isBoss ? 56 : 36;
-          const hitWidth = en.isBoss ? 26 : 16;
-          if (
-            p.x > en.x - hitWidth &&
-            p.x < en.x + hitWidth &&
-            p.y > en.y - hitHeight &&
-            p.y < en.y
-          ) {
-            en.hp -= p.damage;
-            heroProjectiles.splice(i, 1);
-            if (en.hp <= 0) handleEnemyDefeat(en);
-            break;
-          }
-        }
-        if (p && (p.x > canvas.width + 60 || p.x < -60 || p.y < -40 || p.y > canvas.height + 40)) {
-          heroProjectiles.splice(i, 1);
-        }
-      }
-
-      for (let i = enemies.length - 1; i >= 0; i--) {
-        const en = enemies[i];
-        en.x += en.speed * en.direction;
-
-        if (en.isBoss) {
-          if (en.x < canvas.width * 0.45) en.direction = 1;
-          if (en.x > canvas.width - 40) en.direction = -1;
-        } else {
-          if (en.x < en.patrolLimit) en.direction = 1;
-          if (en.x > canvas.width - 20) en.direction = -1;
-        }
-
-        en.fireCooldown--;
-        if (en.fireCooldown <= 0) {
-          en.fireCooldown = en.isBoss ? 35 : (65 + Math.floor(Math.random() * 30));
-          enemyProjectiles.push({
-            x: en.x - 10,
-            y: en.y - 14,
-            vx: en.isBoss ? -5 : -4.2,
-            vy: (player.y - en.y) * 0.02,
-            radius: en.isBoss ? 6 : 4,
-            color: en.isBoss ? "#f87171" : "#fb923c",
-            damage: en.isBoss ? 16 : 8
-          });
-        }
-      }
-
-      for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
-        const ep = enemyProjectiles[i];
-        ep.x += ep.vx;
-        ep.y += ep.vy;
-
-        if (
-          ep.x > player.x &&
-          ep.x < player.x + player.w + 4 &&
-          ep.y > player.y - player.h &&
-          ep.y < player.y
-        ) {
-          if (player.barrierTimer <= 0) {
-            player.hp -= ep.damage;
-            if (player.hp < 0) player.hp = 0;
-          }
-          enemyProjectiles.splice(i, 1);
-          continue;
-        }
-
-        if (ep.x < -30 || ep.y < -20 || ep.y > canvas.height + 20) {
-          enemyProjectiles.splice(i, 1);
-        }
-      }
-
-      document.getElementById("hud-score").innerText = score;
-      document.getElementById("hud-hp").style.width = Math.max(0, (player.hp / player.maxHp) * 100) + "%";
-      if (!bossFightActive) {
-        document.getElementById("hud-status").innerText = `WAVE KILLS: [${waveKills}/${killsToSpawnBoss}]`;
-      } else {
-        document.getElementById("hud-status").innerText = `BOSS HP: [${Math.max(0, Math.floor(currentBoss.hp))}]`;
-      }
-
-      if (!bossFightActive && waveKills >= killsToSpawnBoss) {
-        spawnSceneBoss();
-      }
-    }
-
-    function handleEnemyDefeat(en) {
-      const idx = enemies.indexOf(en);
-      if (idx !== -1) enemies.splice(idx, 1);
-
-      if (en.isBoss) {
-        score += 1000;
-        advanceChapter();
-      } else {
-        score += 100;
-        waveKills++;
-      }
-    }
-
-    function draw() {
-      const ch = chapters[currentChapterIndex];
-      ctx.fillStyle = ch.bg;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      if (ch.type === "swamp") {
-        ctx.fillStyle = "#0c2415";
-        for (let x = 10; x < canvas.width; x += 65) {
-          ctx.fillRect(x, 30, 20, 150);
-          ctx.beginPath(); ctx.arc(x + 10, 30, 26, 0, Math.PI * 2); ctx.fill();
-        }
-      } else if (ch.type === "temple") {
-        ctx.fillStyle = "#1e293b";
-        for (let x = 30; x < canvas.width; x += 80) {
-          ctx.fillRect(x, 60, 16, 120);
-          ctx.fillRect(x - 4, 52, 24, 8);
-          ctx.fillStyle = "#f59e0b";
-          ctx.beginPath(); ctx.arc(x + 8, 46, 5 + Math.random() * 3, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = "#1e293b";
-        }
-      } else if (ch.type === "school") {
-        ctx.fillStyle = "#2d1b18";
-        for (let x = 20; x < canvas.width; x += 70) {
-          ctx.fillRect(x, 45, 18, 135);
-          ctx.fillStyle = "#facc15";
-          ctx.fillRect(x + 4, 70, 10, 15);
-          ctx.fillStyle = "#2d1b18";
-        }
-      } else if (ch.type === "forge") {
-        ctx.fillStyle = "#271206";
-        for (let x = 30; x < canvas.width; x += 85) {
-          ctx.fillRect(x, 50, 22, 130);
-          ctx.fillStyle = "#ea580c";
-          ctx.fillRect(x - 5, 140, 32, 12);
-          ctx.fillStyle = "#271206";
-        }
-      } else {
-        ctx.fillStyle = "#1c1917";
-        for (let x = 20; x < canvas.width; x += 75) {
-          ctx.fillRect(x, 70, 12, 110);
-        }
-      }
-
-      ctx.fillStyle = (ch.type === "swamp" || ch.type === "crossing") ? "#1b3322" : (ch.type === "forge" ? "#451a03" : "#3e2716");
-      ctx.fillRect(0, 180, canvas.width, 70);
-      ctx.fillStyle = "#e59824";
-      ctx.fillRect(0, 178, canvas.width, 3);
-
-      if (ch.mist) {
-        ctx.save();
-        mistParticles.forEach(m => {
-          ctx.fillStyle = `rgba(203, 213, 225, ${m.alpha})`;
-          ctx.beginPath();
-          ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
-          ctx.fill();
-        });
-        ctx.restore();
-      }
-
-      if (player.beamTimer > 0) {
-        ctx.fillStyle = "rgba(96, 165, 250, 0.75)";
-        ctx.fillRect(player.x + 14, player.y - 18, canvas.width, 12);
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(player.x + 14, player.y - 15, canvas.width, 5);
-      }
-
-      if (player.barrierTimer > 0) {
-        ctx.strokeStyle = "#f6c358";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(player.x + 8, player.y - 14, 24, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      drawHumanoid(ctx, player.x, player.y, activeChamp.headColor, activeChamp.shirtColor, "#1e293b", false, false, false);
-
-      if (twinFlyIn) {
-        drawHumanoid(ctx, twinFlyIn.inezX, twinFlyIn.inezY, "#8d5b4c", "#9333ea", "#3b0764", false, true, false);
-        drawHumanoid(ctx, twinFlyIn.tweetX, twinFlyIn.tweetY, "#8d5b4c", "#ec4899", "#831843", false, true, false);
-      }
-
-      enemies.forEach(en => {
-        drawHumanoid(ctx, en.x, en.y, en.headColor, en.color, "#09090b", true, false, en.isBoss);
-        const barW = en.isBoss ? 38 : 22;
-        const barY = en.isBoss ? en.y - 58 : en.y - 38;
-        ctx.fillStyle = "#1e293b";
-        ctx.fillRect(en.x - barW / 2, barY, barW, 4);
-        ctx.fillStyle = en.isBoss ? "#ef4444" : "#f97316";
-        ctx.fillRect(en.x - barW / 2, barY, (en.hp / en.maxHp) * barW, 4);
-      });
-
-      heroProjectiles.forEach(p => {
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      enemyProjectiles.forEach(ep => {
-        ctx.fillStyle = ep.color;
-        ctx.beginPath();
-        ctx.arc(ep.x, ep.y, ep.radius, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    }
-
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    loop();
-  </script>
 </body>
 </html>
