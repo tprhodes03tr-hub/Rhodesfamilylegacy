@@ -63,6 +63,7 @@
       object-fit: cover;
       background: #1a202c;
       border: 1px solid #4a5568;
+      display: block;
     }
     .buy-btn {
       width: 100%;
@@ -78,7 +79,6 @@
       border: none;
       cursor: pointer;
       display: block;
-      transition: background 0.2s;
     }
     .buy-btn:active {
       background: #c27d14;
@@ -199,7 +199,7 @@
       color: #bae6fd;
     }
 
-    /* ACTION BUTTONS */
+    /* CONTROLS */
     .controls-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1.2fr 1.4fr;
@@ -231,7 +231,7 @@
       background: #9f1239;
     }
 
-    /* VIDEO HUB & UPLOADER */
+    /* PRESERVED VIDEO HUB & UPLOADER */
     .video-hub-card {
       background: #111827;
       border: 1px solid #374151;
@@ -252,12 +252,10 @@
       justify-content: center;
       border: 1px solid #4b5563;
     }
-    .video-player-container video,
-    .video-player-container iframe {
+    .video-player-container video {
       width: 100%;
       height: 100%;
       object-fit: contain;
-      border: none;
     }
     .upload-bar {
       display: flex;
@@ -284,7 +282,7 @@
 <body>
 
   <div class="container">
-    <!-- TRILOGY SHOWCASE WITH EXACT BOOK COVERS -->
+    <!-- TRILOGY SHOWCASE WITH DIRECT BOOK COVERS & INLINE RECOVERY -->
     <div class="section-title">&#10022; The Packed in the Marrow Trilogy &#10022;</div>
     <div class="trilogy-grid">
       <!-- Volume 1 -->
@@ -317,7 +315,7 @@
           <span>HERO:</span>
           <div class="hp-track"><div id="hud-hp" class="hp-fill"></div></div>
         </div>
-        <div id="hud-status" style="color:#f6c358;">WAVE KILLS: [0/10]</div>
+        <div id="hud-status" style="color:#f6c358;">WAVE KILLS: [0/8]</div>
       </div>
 
       <canvas id="gameCanvas" width="460" height="250"></canvas>
@@ -362,11 +360,11 @@
       </div>
     </div>
 
-    <!-- ANCESTRAL VIDEO HUB WITH DIRECT VIDEO UPLOADER -->
+    <!-- PRESERVED ANCESTRAL VIDEO HUB & UPLOADER -->
     <div class="section-title">&#10022; Ancestral Video Hub &#10022;</div>
     <div class="video-hub-card">
       <div class="video-player-container">
-        <video id="video-player" controls playsinline poster="packed-in-the-marrow-vol1.jpg">
+        <video id="video-player" controls playsinline>
           <source id="video-source" src="" type="video/mp4">
           Your browser does not support video playback.
         </video>
@@ -382,52 +380,140 @@
 
   <script>
     /* ==========================================================
-       FALLBACK ART GENERATORS FOR BOOK COVERS
-       If local image files aren't in current path, generates 
-       exact high-res styled covers matching your volumes.
+       BOOK COVERS: EXACT TEXTURED CANVAS ART GENERATORS
+       Renders the golden double helix tree, portraits, and gold
+       borders directly so covers never show up as blank cards.
        ========================================================== */
-    function makeFallbackCover(id, title, subtitle, author, baseColor, accentColor, volNum) {
-      const img = document.getElementById(id);
-      img.onerror = () => {
+    function renderDetailedCover(imgId, config) {
+      const img = document.getElementById(imgId);
+      const drawArt = () => {
         const c = document.createElement("canvas");
-        c.width = 300; c.height = 450;
-        const ctx = c.getContext("2d");
-        ctx.fillStyle = baseColor;
-        ctx.fillRect(0,0,300,450);
-        ctx.strokeStyle = accentColor;
-        ctx.lineWidth = 6;
-        ctx.strokeRect(8,8,284,434);
+        c.width = 320; c.height = 480;
+        const cx = c.getContext("2d");
 
-        ctx.fillStyle = accentColor;
-        ctx.textAlign = "center";
-        ctx.font = "bold 18px Georgia, serif";
-        ctx.fillText(title, 150, 60);
+        // Leather/Cloth Textured Background
+        cx.fillStyle = config.bg;
+        cx.fillRect(0, 0, 320, 480);
+        cx.fillStyle = "rgba(0,0,0,0.18)";
+        for(let i=0; i<320; i+=4) cx.fillRect(i,0,2,480);
 
-        ctx.font = "italic 13px Georgia, serif";
-        ctx.fillStyle = "#f1f5f9";
-        ctx.fillText(subtitle, 150, 90);
+        // Ornate Corner Border
+        cx.strokeStyle = config.gold;
+        cx.lineWidth = 5;
+        cx.strokeRect(10, 10, 300, 460);
+        cx.lineWidth = 1.5;
+        cx.strokeRect(15, 15, 290, 450);
 
-        // Gold tree silhouette
-        ctx.strokeStyle = accentColor;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(150, 220, 50, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.font = "bold 32px Georgia, serif";
-        ctx.fillStyle = accentColor;
-        ctx.fillText(volNum, 150, 230);
+        // Header Titles
+        cx.fillStyle = config.gold;
+        cx.textAlign = "center";
+        cx.font = "bold 17px Georgia, serif";
+        cx.fillText(config.mainTitle, 160, 48);
 
-        ctx.font = "12px sans-serif";
-        ctx.fillStyle = "#cbd5e1";
-        ctx.fillText(author, 150, 390);
+        cx.font = "italic 13px Georgia, serif";
+        cx.fillStyle = "#fef08a";
+        cx.fillText(config.subTitle, 160, 70);
+
+        if (config.type === "tree") {
+          // Volume 1 & Volume 3: Golden Double-Helix Lineage Tree
+          cx.save();
+          cx.translate(160, 240);
+          cx.strokeStyle = config.gold;
+          cx.fillStyle = config.gold;
+          // Roots & Trunk (Double Helix)
+          cx.lineWidth = 4;
+          for (let y = -40; y <= 50; y += 12) {
+            const xOffset = Math.sin(y * 0.12) * 22;
+            cx.beginPath();
+            cx.arc(xOffset, y, 4, 0, Math.PI * 2);
+            cx.fill();
+            cx.beginPath();
+            cx.arc(-xOffset, y, 4, 0, Math.PI * 2);
+            cx.fill();
+            cx.beginPath();
+            cx.moveTo(xOffset, y);
+            cx.lineTo(-xOffset, y);
+            cx.stroke();
+          }
+          // Canopy Foliage
+          for (let a = 0; a < Math.PI * 2; a += 0.4) {
+            const lx = Math.cos(a) * 60;
+            const ly = -65 + Math.sin(a) * 35;
+            cx.beginPath();
+            cx.arc(lx, ly, 18, 0, Math.PI * 2);
+            cx.fill();
+          }
+          cx.restore();
+        } else if (config.type === "cousins") {
+          // Volume 2: Dual Portrait Oval Medallions
+          cx.strokeStyle = config.gold;
+          cx.lineWidth = 4;
+          // Top Left Medallion
+          cx.beginPath();
+          cx.ellipse(115, 195, 45, 55, 0, 0, Math.PI*2);
+          cx.stroke();
+          cx.fillStyle = "#1e293b";
+          cx.fill();
+          // Bottom Right Medallion
+          cx.beginPath();
+          cx.ellipse(205, 290, 45, 55, 0, 0, Math.PI*2);
+          cx.stroke();
+          cx.fill();
+          // DNA Strands linking them
+          cx.strokeStyle = config.gold;
+          cx.lineWidth = 3;
+          cx.beginPath();
+          cx.moveTo(155, 200);
+          cx.quadraticCurveTo(175, 240, 165, 280);
+          cx.stroke();
+        }
+
+        // Footer Author Info
+        cx.fillStyle = config.gold;
+        cx.font = "bold 13px Georgia, serif";
+        cx.fillText("TOMMY PHILIP RHODES", 160, 420);
+        cx.font = "italic 11px Georgia, serif";
+        cx.fillStyle = "#cbd5e1";
+        cx.fillText(config.footerLine, 160, 438);
+
         img.src = c.toDataURL();
       };
-    }
-    makeFallbackCover("cover-vol1", "PACKED IN THE MARROW", "From Father to Son", "Tommy Philip Rhodes", "#42161b", "#d4af37", "VOL. I");
-    makeFallbackCover("cover-vol2", "COUSINS OF COURAGE", "Jefferson Thomas & Scoey Mitchell", "Tommy Philip Rhodes", "#132338", "#e5b54f", "VOL. II");
-    makeFallbackCover("cover-vol3", "THE COLBERT LEGACY", "Lineage Historian", "Tommy Philip Rhodes", "#12301c", "#d1a843", "VOL. III");
 
-    /* VIDEO HUB LOADER */
+      // Try local image, trigger fallback generator on any error
+      const testImg = new Image();
+      testImg.onload = () => { img.src = testImg.src; };
+      testImg.onerror = drawArt;
+      testImg.src = img.getAttribute("src");
+    }
+
+    renderDetailedCover("cover-vol1", {
+      bg: "#451218",
+      gold: "#d4af37",
+      mainTitle: "Packed in the Marrow:",
+      subTitle: "From Father to Son",
+      type: "tree",
+      footerLine: "THE RHODES FAMILY LEGACY"
+    });
+
+    renderDetailedCover("cover-vol2", {
+      bg: "#10233d",
+      gold: "#e6b749",
+      mainTitle: "COUSINS OF COURAGE",
+      subTitle: "Jefferson Thomas and Scoey Mitchell",
+      type: "cousins",
+      footerLine: "Two Lives, One Bloodline"
+    });
+
+    renderDetailedCover("cover-vol3", {
+      bg: "#0d2b17",
+      gold: "#d4af37",
+      mainTitle: "THE COLBERT LEGACY",
+      subTitle: "Volume Three • Lineage Historian",
+      type: "tree",
+      footerLine: "Packed in the Marrow Series"
+    });
+
+    /* PRESERVED VIDEO PLAYER FILE LOADER */
     function loadUploadedVideo(event) {
       const file = event.target.files[0];
       if (file) {
@@ -441,8 +527,8 @@
     }
 
     /* ==========================================================
-       GAME ENGINE: ANCESTRAL VANGUARD WITH ACTIVE COMBAT,
-       BOSS FIGHTS, FOG MIST & TWIN FLY-IN SISTERS
+       GAME ENGINE: ACCURATE DIAGONAL TWIN AUNTIE TARGETING,
+       CALIBRATED FOG MIST, BOSS BATTLES, & ENEMY RETALIATION
        ========================================================== */
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
@@ -462,19 +548,19 @@
     let bossFightActive = false;
     let currentBoss = null;
 
-    // FOG MIST PARTICLES
+    // CALIBRATED GROUND-LEVEL MIST PARTICLES
     const mistParticles = [];
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < 22; i++) {
       mistParticles.push({
         x: Math.random() * canvas.width,
-        y: 110 + Math.random() * 80,
-        r: 30 + Math.random() * 40,
-        speed: 0.3 + Math.random() * 0.4,
-        alpha: 0.12 + Math.random() * 0.14
+        y: 145 + Math.random() * 45, // Softly lingering across the ground and waistline
+        r: 25 + Math.random() * 25,
+        speed: 0.35 + Math.random() * 0.35,
+        alpha: 0.08 + Math.random() * 0.07
       });
     }
 
-    // CHAMPIONS CONFIG
+    // ROSTER & POWERS
     const champions = {
       inez: {
         name: "Inez & Tweet",
@@ -548,7 +634,7 @@
       beamTimer: 0
     };
 
-    // TWIN SISTERS FLY-IN STATE (Aunt Inez & Aunt Tweet Marie)
+    // FLYING TWIN AUNTIES (Aunt Inez & Aunt Tweet Marie)
     let twinFlyIn = null;
 
     let heroProjectiles = [];
@@ -565,42 +651,41 @@
       event.currentTarget.classList.add("active");
     }
 
-    // DRAW HUMANOID SPRITE (Smooth, anatomically curved body instead of plain boxes)
+    // DRAW HUMANOID SPRITE
     function drawHumanoid(ctx, x, y, headColor, shirtColor, pantsColor, isEnemy = false, isFlying = false, isBoss = false) {
       ctx.save();
       const scale = isBoss ? 1.6 : 1.0;
       ctx.translate(x, y);
       ctx.scale(isEnemy ? -scale : scale, scale);
 
-      // Head (rounded oval)
+      // Head
       ctx.fillStyle = headColor;
       ctx.beginPath();
       ctx.ellipse(8, -26, 6, 7.5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Hair / Hat
+      // Hair
       ctx.fillStyle = isEnemy ? (isBoss ? "#7f1d1d" : "#1e1b4b") : "#111827";
       ctx.beginPath();
       ctx.arc(8, -28, 6.5, Math.PI, Math.PI * 2);
       ctx.fill();
 
-      // Torso / Vest
+      // Torso
       ctx.fillStyle = shirtColor;
       ctx.beginPath();
       ctx.roundRect(3, -18, 10, 15, 3);
       ctx.fill();
 
-      // Arms & Hands
+      // Arms & Hand
       ctx.fillStyle = shirtColor;
       ctx.beginPath();
       ctx.roundRect(10, -17, 4, 10, 2);
       ctx.fill();
       ctx.fillStyle = headColor;
-      ctx.fillRect(11, -7, 3, 3); // Hand
+      ctx.fillRect(11, -7, 3, 3);
 
-      // Legs / Flying Cape
+      // Legs / Energy Cape
       if (isFlying) {
-        // Trailing heroic energy cape for flying sisters
         ctx.fillStyle = "#ec4899";
         ctx.beginPath();
         ctx.moveTo(3, -8);
@@ -612,13 +697,12 @@
         ctx.fillStyle = pantsColor;
         ctx.fillRect(4, -3, 3.5, 11);
         ctx.fillRect(8.5, -3, 3.5, 11);
-        // Boots
         ctx.fillStyle = "#09090b";
         ctx.fillRect(3, 8, 4.5, 3);
         ctx.fillRect(8.5, 8, 4.5, 3);
       }
 
-      // Weapon / Bow
+      // Weapon
       ctx.strokeStyle = isEnemy ? "#ef4444" : "#f6c358";
       ctx.lineWidth = isBoss ? 3 : 2;
       ctx.beginPath();
@@ -629,7 +713,7 @@
       ctx.restore();
     }
 
-    // SPAWN REGULAR ENEMY (PATROLLING & FIRING BACK)
+    // SPAWN PATROL ENEMY
     function spawnPatrolEnemy() {
       if (bossFightActive || enemies.length >= 4) return;
       enemies.push({
@@ -640,7 +724,7 @@
         hp: 20,
         maxHp: 20,
         speed: 1.1 + Math.random() * 0.7,
-        direction: -1, // Back and forth movement
+        direction: -1,
         patrolLimit: canvas.width - (60 + Math.random() * 120),
         fireCooldown: 40 + Math.floor(Math.random() * 50),
         color: "#dc2626",
@@ -662,7 +746,7 @@
         h: 56,
         hp: 160,
         maxHp: 160,
-        speed: 1.5,
+        speed: 1.4,
         direction: -1,
         fireCooldown: 30,
         color: "#991b1b",
@@ -696,12 +780,11 @@
       // 1. INEZ & TWEET: TWIN SISTERS FLY IN
       if (mode === "sister_tag") {
         twinFlyIn = {
-          inezX: -40,
-          inezY: 40,
-          tweetX: -80,
-          tweetY: 80,
-          targetY: 100,
-          timer: 260
+          inezX: -30,
+          inezY: 55,
+          tweetX: -70,
+          tweetY: 90,
+          timer: 240
         };
       }
       // 2. ELROY RHODES: DELTA HEAVY
@@ -713,8 +796,7 @@
           vy: 0,
           radius: 14,
           color: "#38bdf8",
-          damage: 42,
-          isWave: true
+          damage: 45
         });
       }
       // 3. UNCLE BEAR: MAROON SHOCK
@@ -747,11 +829,11 @@
       }
       // 5. FANNY MAY: COINCOIN BARRIER
       else if (mode === "coincoin_barrier") {
-        player.barrierTimer = 220; // Complete invulnerability bubble
+        player.barrierTimer = 220;
       }
       // 6. TP MITCHELL: LINEAGE BEAM
       else if (mode === "lineage_beam") {
-        player.beamTimer = 65; // Screen-wide penetrating ray
+        player.beamTimer = 65;
       }
     }
 
@@ -781,7 +863,7 @@
       if (e.key === "ArrowRight" || e.key === "d") keys.right = false;
     });
 
-    // ADVANCE TO NEXT CHAPTER
+    // CHAPTER ADVANCEMENT
     function advanceChapter() {
       currentChapterIndex = (currentChapterIndex + 1) % chapters.length;
       waveKills = 0;
@@ -798,7 +880,7 @@
 
     // UPDATE GAME LOOP
     function update() {
-      // Player Movement
+      // Movement
       if (keys.left) player.x = Math.max(10, player.x - player.speed);
       if (keys.right) player.x = Math.min(canvas.width - 30, player.x + player.speed);
 
@@ -814,44 +896,56 @@
         });
       }
 
-      // Twin Sisters Fly-in behavior (Aunt Inez & Aunt Tweet Marie)
+      // ACCURATE AUNTIE TARGETING & HOMING TRAJECTORY
       if (twinFlyIn) {
         twinFlyIn.timer--;
-        // Fly into formation across the screen
-        if (twinFlyIn.inezX < player.x + 40) twinFlyIn.inezX += 4;
-        if (twinFlyIn.tweetX < player.x + 70) twinFlyIn.tweetX += 4.5;
+        if (twinFlyIn.inezX < player.x + 35) twinFlyIn.inezX += 4;
+        if (twinFlyIn.tweetX < player.x + 65) twinFlyIn.tweetX += 4.5;
 
-        // Both twin sisters shoot dual streams of arrows while flying
-        if (twinFlyIn.timer % 14 === 0) {
+        // Shoot diagonally DOWNWARD right at the enemy's chest level
+        if (twinFlyIn.timer % 15 === 0) {
+          // Identify nearest active enemy/boss target
+          let target = enemies[0] || { x: canvas.width - 50, y: 175 };
+          const targetY = target.y - 18; // Aim at chest height, never over their heads
+
+          // Aunt Inez aimed shot
+          const dxInez = (target.x - 4) - twinFlyIn.inezX;
+          const dyInez = targetY - twinFlyIn.inezY;
+          const distInez = Math.hypot(dxInez, dyInez) || 1;
           heroProjectiles.push({
             x: twinFlyIn.inezX + 12,
             y: twinFlyIn.inezY,
-            vx: 7,
-            vy: 0.5,
+            vx: (dxInez / distInez) * 7.5,
+            vy: (dyInez / distInez) * 7.5,
             radius: 4,
             color: "#c084fc",
-            damage: 10
+            damage: 12
           });
+
+          // Aunt Tweet Marie aimed shot
+          const dxTweet = (target.x + 8) - twinFlyIn.tweetX;
+          const dyTweet = targetY - twinFlyIn.tweetY;
+          const distTweet = Math.hypot(dxTweet, dyTweet) || 1;
           heroProjectiles.push({
             x: twinFlyIn.tweetX + 12,
             y: twinFlyIn.tweetY,
-            vx: 7,
-            vy: -0.5,
+            vx: (dxTweet / distTweet) * 7.5,
+            vy: (dyTweet / distTweet) * 7.5,
             radius: 4,
             color: "#f472b6",
-            damage: 10
+            damage: 12
           });
         }
         if (twinFlyIn.timer <= 0) twinFlyIn = null;
       }
 
-      // Move Mist Particles
+      // Mist particle progression
       mistParticles.forEach(m => {
         m.x += m.speed;
         if (m.x - m.r > canvas.width) m.x = -m.r;
       });
 
-      // Enemy Spawning / Boss Trigger
+      // Regular Spawning
       if (!bossFightActive) {
         spawnTicker++;
         if (spawnTicker > 70) {
@@ -860,13 +954,12 @@
         }
       }
 
-      // Hero Projectiles update
+      // Hero Projectiles Collision
       for (let i = heroProjectiles.length - 1; i >= 0; i--) {
         const p = heroProjectiles[i];
         p.x += p.vx;
         p.y += p.vy;
 
-        // Collision with enemies
         for (let j = enemies.length - 1; j >= 0; j--) {
           const en = enemies[j];
           const hitHeight = en.isBoss ? 56 : 36;
@@ -888,11 +981,10 @@
         }
       }
 
-      // Enemy AI: Patrolling back-and-forth & Fighting back
+      // Enemy Patrol Movement & Retaliation
       for (let i = enemies.length - 1; i >= 0; i--) {
         const en = enemies[i];
 
-        // Back-and-forth movement
         en.x += en.speed * en.direction;
         if (en.isBoss) {
           if (en.x < canvas.width * 0.45) en.direction = 1;
@@ -902,11 +994,10 @@
           if (en.x > canvas.width - 20) en.direction = -1;
         }
 
-        // Enemy shooting back at player
+        // Firing back at hero
         en.fireCooldown--;
         if (en.fireCooldown <= 0) {
           en.fireCooldown = en.isBoss ? 35 : (65 + Math.floor(Math.random() * 30));
-          // Fire counter-projectile
           enemyProjectiles.push({
             x: en.x - 10,
             y: en.y - 14,
@@ -919,13 +1010,12 @@
         }
       }
 
-      // Enemy Projectiles update
+      // Enemy Projectiles Collision
       for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
         const ep = enemyProjectiles[i];
         ep.x += ep.vx;
         ep.y += ep.vy;
 
-        // Collision with Hero
         if (
           ep.x > player.x &&
           ep.x < player.x + player.w + 4 &&
@@ -954,7 +1044,7 @@
         document.getElementById("hud-status").innerText = `BOSS HP: [${Math.max(0, Math.floor(currentBoss.hp))}]`;
       }
 
-      // Trigger Boss when kills reached
+      // Boss trigger
       if (!bossFightActive && waveKills >= killsToSpawnBoss) {
         spawnSceneBoss();
       }
@@ -973,15 +1063,14 @@
       }
     }
 
-    // DRAW EVERYTHING
+    // DRAW ENGINE
     function draw() {
       const ch = chapters[currentChapterIndex];
       ctx.fillStyle = ch.bg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Environment Background Art
+      // Chapter scenery
       if (ch.type === "swamp") {
-        // Deep Great Dismal Swamp mossy trees
         ctx.fillStyle = "#0c2415";
         for (let x = 10; x < canvas.width; x += 65) {
           ctx.fillRect(x, 30, 20, 150);
@@ -990,12 +1079,10 @@
           ctx.fill();
         }
       } else if (ch.type === "temple") {
-        // Illyrian Temple Pillars
         ctx.fillStyle = "#1e293b";
         for (let x = 30; x < canvas.width; x += 80) {
           ctx.fillRect(x, 60, 16, 120);
           ctx.fillRect(x - 4, 52, 24, 8);
-          // Ancient Phoenician Torch Fire
           ctx.fillStyle = "#f59e0b";
           ctx.beginPath();
           ctx.arc(x + 8, 46, 5 + Math.random() * 3, 0, Math.PI * 2);
@@ -1003,7 +1090,6 @@
           ctx.fillStyle = "#1e293b";
         }
       } else {
-        // Outpost & Levees
         ctx.fillStyle = "#1c1917";
         for (let x = 20; x < canvas.width; x += 75) {
           ctx.fillRect(x, 70, 12, 110);
@@ -1014,9 +1100,9 @@
       ctx.fillStyle = ch.type === "swamp" ? "#1b3322" : "#3e2716";
       ctx.fillRect(0, 180, canvas.width, 70);
       ctx.fillStyle = "#e59824";
-      ctx.fillRect(0, 178, canvas.width, 3); // Golden heritage trim line
+      ctx.fillRect(0, 178, canvas.width, 3);
 
-      // FOG MIST LAYER (Active in Dismal Swamp, Crossing, & Delta)
+      // GROUND MIST LAYER
       if (ch.mist) {
         ctx.save();
         mistParticles.forEach(m => {
@@ -1028,7 +1114,7 @@
         ctx.restore();
       }
 
-      // Lineage Beam Special FX
+      // Lineage Beam FX
       if (player.beamTimer > 0) {
         ctx.fillStyle = "rgba(96, 165, 250, 0.75)";
         ctx.fillRect(player.x + 14, player.y - 18, canvas.width, 12);
@@ -1036,7 +1122,7 @@
         ctx.fillRect(player.x + 14, player.y - 15, canvas.width, 5);
       }
 
-      // Coincoin Barrier Special FX
+      // Coincoin Barrier FX
       if (player.barrierTimer > 0) {
         ctx.strokeStyle = "#f6c358";
         ctx.lineWidth = 3;
@@ -1045,22 +1131,19 @@
         ctx.stroke();
       }
 
-      // Draw Hero Humanoid
+      // Draw Hero
       drawHumanoid(ctx, player.x, player.y, activeChamp.headColor, activeChamp.shirtColor, "#1e293b", false, false, false);
 
-      // Draw Aunt Inez & Aunt Tweet Marie flying in
+      // Draw Flying Twin Aunties
       if (twinFlyIn) {
-        // Aunt Inez (flying humanoid with energetic aura)
         drawHumanoid(ctx, twinFlyIn.inezX, twinFlyIn.inezY, "#8d5b4c", "#9333ea", "#3b0764", false, true, false);
-        // Aunt Tweet Marie (flying twin humanoid with dual aura)
         drawHumanoid(ctx, twinFlyIn.tweetX, twinFlyIn.tweetY, "#8d5b4c", "#ec4899", "#831843", false, true, false);
       }
 
-      // Draw Enemies / Boss Humanoids
+      // Draw Enemies / Boss
       enemies.forEach(en => {
         drawHumanoid(ctx, en.x, en.y, en.headColor, en.color, "#09090b", true, false, en.isBoss);
 
-        // HP bar above enemy
         const barW = en.isBoss ? 38 : 22;
         const barY = en.isBoss ? en.y - 58 : en.y - 38;
         ctx.fillStyle = "#1e293b";
@@ -1069,7 +1152,7 @@
         ctx.fillRect(en.x - barW / 2, barY, (en.hp / en.maxHp) * barW, 4);
       });
 
-      // Draw Hero Projectiles
+      // Draw Projectiles
       heroProjectiles.forEach(p => {
         ctx.fillStyle = p.color;
         ctx.beginPath();
@@ -1077,7 +1160,6 @@
         ctx.fill();
       });
 
-      // Draw Enemy Projectiles
       enemyProjectiles.forEach(ep => {
         ctx.fillStyle = ep.color;
         ctx.beginPath();
