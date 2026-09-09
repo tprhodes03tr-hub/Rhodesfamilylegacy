@@ -216,7 +216,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      position: relative;
     }
     video {
       width: 100%;
@@ -333,7 +332,7 @@
       </button>
     </div>
 
-    <!-- On-Screen Controls -->
+    <!-- Controls -->
     <div class="controls">
       <button class="ctrl-btn" id="btnLeft">◀ LEFT</button>
       <button class="ctrl-btn" id="btnRight">RIGHT ▶</button>
@@ -367,6 +366,64 @@
 </div>
 
 <script>
+  // Web Audio Synth Engine
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+
+  function initAudio() {
+    if (!audioCtx) audioCtx = new AudioCtx();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playSound(type) {
+    initAudio();
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+
+    if (type === 'laser') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.15);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } else if (type === 'heavy') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(30, now + 0.35);
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } else if (type === 'shock') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(550, now);
+      osc.frequency.linearRampToValueAtTime(120, now + 0.25);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === 'hit') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(120, now);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.08);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    }
+  }
+
+  function triggerVibe(pattern = 40) {
+    if (navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
+  }
+
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
 
@@ -384,10 +441,12 @@
     { title: "Chapter 10: Golden Sanctuary of the Marrow", maxWaves: 10, bg: "#2b1c03", pillar: "#451a03" }
   ];
 
-  let currentChapterIdx = 7; // Starts on Chapter 8 as per original setup
+  let currentChapterIdx = 7;
   let currentWave = 1;
   let score = 0;
   let selectedHeroIdx = 0;
+  let frameCount = 0;
+  let barrierTimer = 0;
 
   const player = {
     x: 60,
@@ -408,12 +467,11 @@
   let enemies = [];
   let boss = null;
 
-  // Multiple Enemy Archetypes
   const enemyArchetypes = {
-    swordsman: { w: 18, h: 38, hp: 35, speed: 1.1, tunic: "#854d0e", helm: "#ca8a04", type: "melee" },
-    prowler:   { w: 16, h: 32, hp: 25, speed: 2.1, tunic: "#ea580c", helm: "#f97316", type: "rusher" },
-    colossus:  { w: 24, h: 44, hp: 90, speed: 0.6, tunic: "#334155", helm: "#64748b", type: "tank" },
-    spearman:  { w: 18, h: 38, hp: 45, speed: 1.4, tunic: "#7e22ce", helm: "#a855f7", type: "pierce" }
+    swordsman: { w: 18, h: 38, hp: 35, speed: 1.1, tunic: "#854d0e", helm: "#ca8a04" },
+    prowler:   { w: 16, h: 30, hp: 25, speed: 2.1, tunic: "#ea580c", helm: "#f97316" },
+    colossus:  { w: 24, h: 44, hp: 90, speed: 0.6, tunic: "#334155", helm: "#64748b" },
+    spearman:  { w: 18, h: 38, hp: 45, speed: 1.4, tunic: "#7e22ce", helm: "#a855f7" }
   };
 
   function spawnWave() {
@@ -422,16 +480,15 @@
     const isBossWave = (currentWave === chapters[currentChapterIdx].maxWaves);
 
     if (isBossWave) {
-      // Golden Leopard Boss with unbreakable state-machine
       boss = {
         name: "Golden Leopard",
         x: 320,
         y: 132,
         w: 36,
         h: 36,
-        hp: 260,
-        maxHp: 260,
-        state: "patrol",      // "patrol", "charge_anticipation", "charge_leap", "recover"
+        hp: 280,
+        maxHp: 280,
+        state: "patrol",
         timer: 0,
         patrolMin: 220,
         patrolMax: 360,
@@ -453,14 +510,13 @@
           maxHp: spec.hp,
           speed: spec.speed,
           tunic: spec.tunic,
-          helm: spec.helm,
-          type: spec.type
+          helm: spec.helm
         });
       }
     }
   }
 
-  // Boss Loop Fix
+  // Golden Leopard Unstuck AI
   function updateBoss() {
     if (!boss) return;
     boss.timer++;
@@ -474,14 +530,11 @@
         boss.x = boss.patrolMax;
         boss.dir = -1;
       }
-
-      // Hard loop breaker: after 75 frames (~1.2s), lock in a charge leap
       if (boss.timer > 75) {
         boss.state = "charge_anticipation";
         boss.timer = 0;
       }
     } else if (boss.state === "charge_anticipation") {
-      // Crouch and flash before leaping
       if (boss.timer > 25) {
         boss.state = "charge_leap";
         boss.timer = 0;
@@ -489,16 +542,18 @@
       }
     } else if (boss.state === "charge_leap") {
       boss.x += boss.dir * 4.8;
-      // Hit check against player
       if (Math.abs(boss.x - player.x) < 22 && Math.abs(boss.y - player.y) < 26) {
-        player.hp = Math.max(0, player.hp - 0.4);
+        if (barrierTimer <= 0) {
+          player.hp = Math.max(0, player.hp - 0.5);
+          triggerVibe([50, 50, 50]);
+          playSound('hit');
+        }
       }
       if (boss.timer > 35 || boss.x < 15 || boss.x > 365) {
         boss.state = "recover";
         boss.timer = 0;
       }
     } else if (boss.state === "recover") {
-      // 30 frame cooldown before resuming combat
       if (boss.timer > 30) {
         boss.state = "patrol";
         boss.timer = 0;
@@ -507,6 +562,7 @@
 
     if (boss.hp <= 0) {
       score += 2000;
+      triggerVibe(150);
       boss = null;
       advanceWave();
     }
@@ -539,22 +595,18 @@
   }
 
   // Draw Humanoid Characters
-  function drawHumanoid(x, y, w, h, skin, shirt, pants, hair, helm = null, isWeapon = true) {
+  function drawHumanoid(x, y, w, h, skin, shirt, pants, hair, helm = null) {
     const headSize = 8;
-    // Legs / Pants
     ctx.fillStyle = pants;
     ctx.fillRect(x + 2, y + 22, 5, h - 22);
     ctx.fillRect(x + w - 7, y + 22, 5, h - 22);
 
-    // Torso / Tunic
     ctx.fillStyle = shirt;
     ctx.fillRect(x + 1, y + headSize + 2, w - 2, 14);
 
-    // Head / Face
     ctx.fillStyle = skin;
     ctx.fillRect(x + (w / 2) - 4, y, headSize, headSize);
 
-    // Hair or Helmet
     if (helm) {
       ctx.fillStyle = helm;
       ctx.fillRect(x + (w / 2) - 5, y - 2, headSize + 2, 4);
@@ -562,35 +614,124 @@
       ctx.fillStyle = hair;
       ctx.fillRect(x + (w / 2) - 4, y - 2, headSize, 3);
     }
+  }
 
-    // Weapon / Sword
-    if (isWeapon) {
-      ctx.fillStyle = "#e2e8f0";
-      ctx.fillRect(x + w + 1, y + 10, 3, 16);
-      ctx.fillStyle = "#ca8a04";
-      ctx.fillRect(x + w, y + 18, 5, 2);
-    }
+  // Draw Ghostly Aunt Inez & Aunt Tweet Marie Floating Spirits
+  function drawAunties(px, py) {
+    const float1 = Math.sin(frameCount * 0.08) * 5;
+    const float2 = Math.cos(frameCount * 0.08) * 5;
+
+    // Aunt Inez (Cyan Ethereal Spirit)
+    const ax1 = px - 8;
+    const ay1 = py - 22 + float1;
+    ctx.save();
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "#38bdf8";
+    ctx.fillStyle = "rgba(56, 189, 248, 0.85)";
+    ctx.beginPath();
+    ctx.arc(ax1, ay1, 6, 0, Math.PI * 2);
+    ctx.fill();
+    // Ghost dress flare
+    ctx.beginPath();
+    ctx.moveTo(ax1 - 6, ay1);
+    ctx.lineTo(ax1 + 6, ay1);
+    ctx.lineTo(ax1 + 3, ay1 + 10);
+    ctx.lineTo(ax1 - 3, ay1 + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Aunt Tweet Marie (Pink Ethereal Spirit)
+    const ax2 = px + 12;
+    const ay2 = py - 24 + float2;
+    ctx.save();
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "#f472b6";
+    ctx.fillStyle = "rgba(244, 114, 182, 0.85)";
+    ctx.beginPath();
+    ctx.arc(ax2, ay2, 6, 0, Math.PI * 2);
+    ctx.fill();
+    // Ghost dress flare
+    ctx.beginPath();
+    ctx.moveTo(ax2 - 6, ay2);
+    ctx.lineTo(ax2 + 6, ay2);
+    ctx.lineTo(ax2 + 3, ay2 + 10);
+    ctx.lineTo(ax2 - 3, ay2 + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
 
   // Draw Golden Leopard Boss
   function drawLeopard(x, y, w, h, state) {
     ctx.fillStyle = state === "charge_anticipation" ? "#fef08a" : "#eab308";
-    // Body
     ctx.fillRect(x, y + 10, w, 18);
-    // Legs
     ctx.fillRect(x + 2, y + 28, 6, 8);
     ctx.fillRect(x + w - 8, y + 28, 6, 8);
-    // Head & Ears
     ctx.fillRect(x + (boss.dir === -1 ? 0 : w - 12), y + 2, 12, 12);
     ctx.fillRect(x + (boss.dir === -1 ? 2 : w - 6), y - 2, 3, 4);
-    // Leopard Spots
     ctx.fillStyle = "#854d0e";
     ctx.fillRect(x + 8, y + 14, 4, 4);
     ctx.fillRect(x + 18, y + 16, 4, 4);
     ctx.fillRect(x + 24, y + 12, 4, 4);
   }
 
-  // Controls & Inputs
+  // Superpower Implementation Per Champion
+  function triggerSpecialPower(isBurst = false) {
+    triggerVibe(isBurst ? 80 : 35);
+
+    if (selectedHeroIdx === 0) {
+      // Inez & Tweet Marie: Ethereal Orb Beams
+      playSound('laser');
+      projectiles.push(
+        { x: player.x + 4, y: player.y - 18, vx: 7, vy: 0, r: 6, color: "#38bdf8", piercing: true, dmg: isBurst ? 45 : 20, type: "orb_beam" },
+        { x: player.x + 16, y: player.y - 20, vx: 7, vy: 0.2, r: 6, color: "#f472b6", piercing: true, dmg: isBurst ? 45 : 20, type: "orb_beam" }
+      );
+    } 
+    else if (selectedHeroIdx === 1) {
+      // Elroy Rhodes: Delta Heavy Mortar
+      playSound('heavy');
+      projectiles.push({
+        x: player.x + 16, y: player.y + 6, vx: 4.8, vy: -2, r: 8, color: "#38bdf8", heavy: true, dmg: isBurst ? 60 : 32, type: "cannon"
+      });
+    } 
+    else if (selectedHeroIdx === 2) {
+      // Uncle Bear: Maroon Shock (Lightning Shockwave)
+      playSound('shock');
+      for (let angle = -0.6; angle <= 0.6; angle += 0.3) {
+        projectiles.push({
+          x: player.x + 16, y: player.y + 12, vx: 6 * Math.cos(angle), vy: 4 * Math.sin(angle), r: 5, color: "#a855f7", dmg: isBurst ? 35 : 18, type: "shock"
+        });
+      }
+    } 
+    else if (selectedHeroIdx === 3) {
+      // Uncle Aaron: Pioneer Volley
+      playSound('laser');
+      const count = isBurst ? 7 : 4;
+      for (let i = 0; i < count; i++) {
+        projectiles.push({
+          x: player.x + 16, y: player.y + 12, vx: 6.5, vy: (i - count / 2) * 0.8, r: 3.5, color: "#fbbf24", dmg: 16, type: "volley"
+        });
+      }
+    } 
+    else if (selectedHeroIdx === 4) {
+      // Fanny May: Coincoin Barrier
+      playSound('shock');
+      barrierTimer = isBurst ? 180 : 90; // invulnerable duration
+      triggerVibe([30, 40, 50]);
+    } 
+    else if (selectedHeroIdx === 5) {
+      // TP Mitchell: Lineage Beam
+      playSound('laser');
+      for (let i = 0; i < 5; i++) {
+        projectiles.push({
+          x: player.x + 16 + (i * 12), y: player.y + 12, vx: 8, vy: 0, r: 7, color: "#facc15", piercing: true, dmg: isBurst ? 65 : 30, type: "beam"
+        });
+      }
+    }
+  }
+
+  // Inputs
   const keys = {};
   window.addEventListener("keydown", e => keys[e.code] = true);
   window.addEventListener("keyup", e => keys[e.code] = false);
@@ -606,28 +747,25 @@
   attachTouch("btnRight", "ArrowRight");
   attachTouch("btnJump", "ArrowUp");
 
-  document.getElementById("btnAtk").addEventListener("click", () => {
-    projectiles.push({ x: player.x + 18, y: player.y + 14, vx: 5, vy: 0, r: 4, type: "arrow" });
-  });
-
-  document.getElementById("btnBurst").addEventListener("click", () => {
-    for (let i = -1; i <= 1; i += 0.5) {
-      projectiles.push({ x: player.x + 18, y: player.y + 14, vx: 6, vy: i, r: 6, type: "burst" });
-    }
-  });
+  document.getElementById("btnAtk").addEventListener("click", () => triggerSpecialPower(false));
+  document.getElementById("btnBurst").addEventListener("click", () => triggerSpecialPower(true));
 
   window.setHero = function(idx) {
     selectedHeroIdx = idx;
+    initAudio();
+    triggerVibe(25);
     document.querySelectorAll(".hero-btn").forEach((btn, i) => {
       btn.classList.toggle("selected", i === idx);
     });
-    // Visual variant tweaks per champion
-    if (idx === 1) { player.shirtColor = "#0284c7"; }
-    else if (idx === 2) { player.shirtColor = "#7c3aed"; }
-    else { player.shirtColor = "#e11d48"; }
+    if (idx === 1) player.shirtColor = "#0284c7";
+    else if (idx === 2) player.shirtColor = "#7c3aed";
+    else if (idx === 3) player.shirtColor = "#16a34a";
+    else if (idx === 4) player.shirtColor = "#f59e0b";
+    else if (idx === 5) player.shirtColor = "#eab308";
+    else player.shirtColor = "#e11d48";
   };
 
-  // Video Playlist Switcher
+  // Video Playlist
   const videoUrls = [
     "vanguard/ancestral_origins.mp4",
     "vanguard/cousins_of_courage.mp4",
@@ -643,7 +781,6 @@
     el.classList.add("active");
   };
 
-  // Upload Local Video Support
   document.getElementById("videoUploadInput").addEventListener("change", function(e) {
     const file = e.target.files[0];
     if (file) {
@@ -657,6 +794,9 @@
 
   // Game Loop
   function gameLoop() {
+    frameCount++;
+    if (barrierTimer > 0) barrierTimer--;
+
     // Movement
     if (keys["ArrowLeft"]) player.vx = -2.5;
     else if (keys["ArrowRight"]) player.vx = 2.5;
@@ -665,6 +805,7 @@
     if (keys["ArrowUp"] && player.grounded) {
       player.vy = -7.5;
       player.grounded = false;
+      triggerVibe(15);
     }
 
     player.vy += 0.35;
@@ -680,12 +821,18 @@
       player.grounded = true;
     }
 
-    // Enemies
+    // Enemies Collision
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
       e.x -= e.speed;
       if (Math.abs(e.x - player.x) < 16 && Math.abs(e.y - player.y) < 24) {
-        player.hp = Math.max(0, player.hp - 0.2);
+        if (barrierTimer <= 0) {
+          player.hp = Math.max(0, player.hp - 0.25);
+          triggerVibe(30);
+          playSound('hit');
+        } else {
+          e.hp -= 2; // Barrier counter-damage
+        }
       }
       if (e.hp <= 0) {
         score += 120;
@@ -699,32 +846,44 @@
 
     updateBoss();
 
-    // Projectiles
+    // Projectile Physics & Boss Collisions
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const p = projectiles[i];
       p.x += p.vx;
-      if (p.vy) p.y += p.vy;
-
-      if (boss && p.x > boss.x && p.x < boss.x + boss.w && p.y > boss.y && p.y < boss.y + boss.h) {
-        boss.hp -= (p.type === "burst" ? 22 : 10);
-        projectiles.splice(i, 1);
-        continue;
+      if (p.vy) {
+        p.y += p.vy;
+        if (p.heavy) p.vy += 0.15; // Mortar arc
       }
 
-      let hit = false;
-      for (let e of enemies) {
-        if (p.x > e.x && p.x < e.x + e.w && p.y > e.y && p.y < e.y + e.h) {
-          e.hp -= (p.type === "burst" ? 30 : 15);
-          hit = true;
-          break;
+      // Boss Hit
+      if (boss && p.x > boss.x && p.x < boss.x + boss.w && p.y > boss.y && p.y < boss.y + boss.h) {
+        boss.hp -= p.dmg;
+        playSound('hit');
+        triggerVibe(35);
+        if (!p.piercing) {
+          projectiles.splice(i, 1);
+          continue;
         }
       }
-      if (hit || p.x > 410 || p.x < 0) {
+
+      // Regular Enemy Hit
+      let remove = false;
+      for (let e of enemies) {
+        if (p.x > e.x && p.x < e.x + e.w && p.y > e.y && p.y < e.y + e.h) {
+          e.hp -= p.dmg;
+          playSound('hit');
+          triggerVibe(20);
+          if (!p.piercing) {
+            remove = true;
+            break;
+          }
+        }
+      }
+      if (remove || p.x > 410 || p.x < -10 || p.y > 180) {
         projectiles.splice(i, 1);
       }
     }
 
-    // Render Scene
     render();
     updateUI();
     requestAnimationFrame(gameLoop);
@@ -735,7 +894,7 @@
     ctx.fillStyle = ch.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Architectural Pillars
+    // Pillars
     ctx.fillStyle = ch.pillar;
     for (let i = 25; i < 400; i += 60) {
       ctx.fillRect(i, 20, 20, 150);
@@ -747,35 +906,43 @@
     ctx.fillStyle = "#8a5840";
     ctx.fillRect(0, 170, canvas.width, 3);
 
-    // Humanoid Player Character
-    drawHumanoid(player.x, player.y, player.w, player.h, player.skinColor, player.shirtColor, player.pantsColor, "#0f172a", null, false);
+    // Humanoid Player Hero
+    drawHumanoid(player.x, player.y, player.w, player.h, player.skinColor, player.shirtColor, player.pantsColor, "#0f172a");
 
-    // Twin Ancestral Spirits floating above hero (Inez & Tweet)
-    ctx.fillStyle = "#38bdf8";
-    ctx.beginPath();
-    ctx.arc(player.x - 3, player.y - 12, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#f472b6";
-    ctx.beginPath();
-    ctx.arc(player.x + 8, player.y - 14, 4, 0, Math.PI * 2);
-    ctx.fill();
+    // Fanny May Barrier Aura
+    if (barrierTimer > 0) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(251, 191, 36, 0.85)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(player.x + 8, player.y + 18, 24, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
-    // Humanoid Enemies
+    // Floating Ghost Twins: Aunt Inez & Aunt Tweet Marie
+    drawAunties(player.x, player.y);
+
+    // Enemies
     enemies.forEach(e => {
-      drawHumanoid(e.x, e.y, e.w, e.h, "#a16207", e.tunic, "#1e293b", "#000000", e.helm, true);
+      drawHumanoid(e.x, e.y, e.w, e.h, "#a16207", e.tunic, "#1e293b", "#000000", e.helm);
     });
 
-    // Boss Leopard
+    // Leopard Boss
     if (boss) {
       drawLeopard(boss.x, boss.y, boss.w, boss.h, boss.state);
     }
 
-    // Projectiles
+    // Render Unique Projectiles
     projectiles.forEach(p => {
-      ctx.fillStyle = p.type === "burst" ? "#38bdf8" : "#facc15";
+      ctx.save();
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = p.color;
+      ctx.fillStyle = p.color;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
     });
   }
 
