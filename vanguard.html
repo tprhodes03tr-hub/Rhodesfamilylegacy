@@ -22,6 +22,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    position: relative;
   }
   canvas {
     background: #070b16;
@@ -40,6 +41,13 @@
     color: #00e5ff;
   }
   .hud span { color: #fff; }
+  .grid-roster {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    width: 100%;
+    margin-top: 5px;
+  }
   .grid-actions {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -52,7 +60,7 @@
     border: 1px solid #1e293b;
     border-radius: 5px;
     color: #94a3b8;
-    padding: 7px 2px;
+    padding: 6px 2px;
     font-size: 10px;
     font-weight: 700;
     text-align: center;
@@ -61,6 +69,11 @@
   }
   .btn small { font-size: 8px; font-weight: 400; opacity: 0.8; display: block; }
   .btn:active { transform: scale(0.96); }
+  .btn.active {
+    border-color: #f59e0b;
+    background: #451a03;
+    color: #fbbf24;
+  }
   .btn-atk {
     background: #1e293b;
     color: #f8fafc;
@@ -82,28 +95,69 @@
     color: #22d3ee;
     background: #082f49;
   }
+  #game-over-modal {
+    display: none;
+    position: absolute;
+    top: 50px;
+    width: 80%;
+    background: rgba(15, 23, 42, 0.95);
+    border: 2px solid #ef4444;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 0 24px rgba(239, 68, 68, 0.6);
+  }
+  #game-over-modal h2 { margin: 0 0 8px 0; color: #ef4444; font-size: 16px; }
+  #game-over-modal button {
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
 </style>
 </head>
 <body>
 
 <div id="game-container">
   <div class="hud">
-    <div>LEAD: <span id="hud-lead" style="color:#fbbf24;">Marcus</span></div>
-    <div>ZONE: <span id="hud-stage" style="color:#38bdf8;">1. RenCen Rooftop Helipad</span></div>
+    <div>HERO: <span id="hud-lead" style="color:#fbbf24;">Marcus & Mayleen</span></div>
+    <div>ZONE: <span id="hud-stage" style="color:#38bdf8;">1. RenCen Rooftop</span></div>
     <div>HP: <span id="hud-hp">120/120</span> | SCORE: <span id="hud-score">0</span></div>
   </div>
 
   <canvas id="stage" width="460" height="260"></canvas>
 
+  <div id="game-over-modal">
+    <h2>SECTOR COMPROMISED</h2>
+    <p style="font-size:11px; color:#cbd5e1; margin:4px 0;">The Vanguard fell on the Detroit front.</p>
+    <button onclick="resetGame()">RETRY SECTOR</button>
+  </div>
+
+  <!-- Comic Character Roster -->
+  <div class="grid-roster">
+    <div class="btn active" id="btn-roster-marcus" onclick="selectRosterHero('marcus')">Marcus & Mayleen<small>Duo • Earth & Bell</small></div>
+    <div class="btn" id="btn-roster-kensai" onclick="selectRosterHero('kensai')">Shadow Kensai<small>Dual Katana Master</small></div>
+    <div class="btn" id="btn-roster-aura" onclick="selectRosterHero('aura')">Aura Weaver<small>Hydro Net & Tsunami</small></div>
+    <div class="btn" id="btn-roster-sundiata" onclick="selectRosterHero('sundiata')">Sundiata Prime<small>Cosmic Heavy Bruiser</small></div>
+    <div class="btn" id="btn-roster-delta" onclick="selectRosterHero('delta')">Delta Vanguard<small>Twin Dagger Assassin</small></div>
+    <div class="btn" id="btn-roster-prism" onclick="selectRosterHero('prism')">Prism Void<small>Graviton Void Shift</small></div>
+  </div>
+
+  <!-- Tag-Team & Summon Controls -->
   <div class="grid-actions">
-    <button class="btn btn-swap" id="btn-swap" style="grid-column: span 2; padding: 8px;">
-      🔄 TAG / SWAP LEAD HERO<small id="lbl-partner">Partner: Mayleen (Active AI Flank)</small>
+    <button class="btn btn-swap" id="btn-swap" style="grid-column: span 2; padding: 7px;">
+      🔄 TAG / SWAP DUO LEAD<small id="lbl-partner">Partner: Mayleen (Active AI Flank)</small>
     </button>
-    <button class="btn btn-gold" id="btn-luetta" style="padding: 8px;">
+    <button class="btn btn-gold" id="btn-luetta" style="padding: 7px;">
       MOTHER LUETTA<small>Sky / Ground Aid</small>
     </button>
   </div>
 
+  <!-- Combat Action Buttons -->
   <div class="grid-actions">
     <button class="btn btn-atk" id="btn-left">◀ LEFT</button>
     <button class="btn btn-atk" id="btn-skill1" style="border-color:#fbbf24; color:#fbbf24;">
@@ -112,7 +166,7 @@
     <button class="btn btn-atk" id="btn-right">RIGHT ▶</button>
   </div>
   <div class="grid-actions">
-    <button class="btn btn-atk" id="btn-jump">NINJA JUMP<small>Spin & Knockback</small></button>
+    <button class="btn btn-atk" id="btn-jump">NINJA JUMP<small>Aerial Flying Kick</small></button>
     <button class="btn btn-atk" id="btn-skill2" style="border-color:#38bdf8; color:#38bdf8;">
       SIGNATURE SKILL<small id="lbl-skill2">Golden Roots</small>
     </button>
@@ -128,32 +182,41 @@ const FLOOR_Y = 215;
 let currentSector = 1;
 let screenShake = 0;
 let hitstopTimer = 0;
+let isGameOver = false;
 
-let activeHero = 'marcus';
+// Selected character mode: 'marcus', 'kensai', 'aura', 'sundiata', 'delta', 'prism'
+let currentRosterKey = 'marcus';
+let activeDuoLead = 'marcus'; // 'marcus' or 'mayleen' (when in marcus duo mode)
 
-const marcus = {
+const HERO_PROFILES = {
+  marcus:   { name: "Marcus & Mayleen", maxHp: 120, speed: 4.5, color: "#d97706", s1: "Seismic Punch", s2: "Golden Roots", s3: "Rumble Shatter Duo" },
+  kensai:   { name: "Shadow Kensai",   maxHp: 100, speed: 4.8, color: "#00e5ff", s1: "Rising Fang", s2: "Phantom Arc Dash", s3: "Detroit Steel Tempest" },
+  aura:     { name: "Aura Weaver",     maxHp: 85,  speed: 4.2, color: "#38bdf8", s1: "Hydro Needle", s2: "Tidal Weave Net", s3: "Tsunami Surge" },
+  sundiata: { name: "Sundiata Prime", maxHp: 150, speed: 3.5, color: "#fbbf24", s1: "Iron Punch", s2: "Cosmic Quake", s3: "Lion's Horizon" },
+  delta:    { name: "Delta Vanguard",  maxHp: 90,  speed: 5.4, color: "#a855f7", s1: "Dagger Flurry", s2: "Ghost Step", s3: "Apex Execution" },
+  prism:    { name: "Prism Void",      maxHp: 85,  speed: 4.6, color: "#ec4899", s1: "Graviton Pulse", s2: "Singularity Trap", s3: "Void Shatter" }
+};
+
+const player = {
   x: 110, y: FLOOR_Y, yOffset: 0, facing: 1, vy: 0,
   grounded: true, jumpState: 'ground', spinAngle: 0, landingTimer: 0,
   isAttacking: false, attackTimer: 0, attackDuration: 14,
   runCycle: 0, hp: 120, maxHp: 120
 };
 
-const mayleen = {
+const mayleenAI = {
   x: 70, y: FLOOR_Y, yOffset: 0, facing: 1, vy: 0,
-  grounded: true, jumpState: 'ground', spinAngle: 0, landingTimer: 0,
-  isAttacking: false, attackTimer: 0, attackDuration: 14,
-  runCycle: 0, hp: 95, maxHp: 95, bellAngle: 0, aiTimer: 0
+  runCycle: 0, bellAngle: 0, aiTimer: 0
 };
 
 let burst = 100;
 let score = 0;
 let androidsDefeated = 0;
 
-// Continuous Waves: Array of 3 active androids always on field
 let enemies = [
-  { x: 280, y: FLOOR_Y, vx: 0, hp: 50, maxHp: 50, dir: -1, tick: 0, isTrapped: false, trapTimer: 0, flash: 0, speed: 0.7 },
-  { x: 380, y: FLOOR_Y, vx: 0, hp: 60, maxHp: 60, dir: -1, tick: 15, isTrapped: false, trapTimer: 0, flash: 0, speed: 0.9 },
-  { x: 460, y: FLOOR_Y, vx: 0, hp: 70, maxHp: 70, dir: -1, tick: 30, isTrapped: false, trapTimer: 0, flash: 0, speed: 0.6 }
+  { x: 280, y: FLOOR_Y, vx: 0, hp: 50, maxHp: 50, dir: -1, tick: 0, isTrapped: false, trapTimer: 0, flash: 0, speed: 0.8 },
+  { x: 380, y: FLOOR_Y, vx: 0, hp: 60, maxHp: 60, dir: -1, tick: 15, isTrapped: false, trapTimer: 0, flash: 0, speed: 0.95 },
+  { x: 460, y: FLOOR_Y, vx: 0, hp: 70, maxHp: 70, dir: -1, tick: 30, isTrapped: false, trapTimer: 0, flash: 0, speed: 0.65 }
 ];
 
 let boss = {
@@ -162,82 +225,113 @@ let boss = {
 };
 
 let projectiles = [];
-let glassShards = [];
-
 let luettaCounter = 0;
 const luetta = { active: false, mode: 'none', x: 0, y: 0, timer: 0, speed: 0 };
 
-function getLead() { return activeHero === 'marcus' ? marcus : mayleen; }
-function getPartner() { return activeHero === 'marcus' ? mayleen : marcus; }
+function selectRosterHero(key) {
+  currentRosterKey = key;
+  const p = HERO_PROFILES[key];
+  player.maxHp = p.maxHp;
+  player.hp = Math.min(player.hp, p.maxHp);
 
-// Tag Swap Lead
-document.getElementById("btn-swap").addEventListener("click", () => {
-  activeHero = activeHero === 'marcus' ? 'mayleen' : 'marcus';
+  document.querySelectorAll(".grid-roster .btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("btn-roster-" + key).classList.add("active");
 
-  if (activeHero === 'marcus') {
-    document.getElementById("hud-lead").innerText = "Marcus";
+  const swapBtn = document.getElementById("btn-swap");
+  if (key === 'marcus') {
+    swapBtn.style.display = "block";
+    updateDuoLabels();
+  } else {
+    swapBtn.style.display = "none";
+    document.getElementById("hud-lead").innerText = p.name;
+    document.getElementById("hud-lead").style.color = p.color;
+    document.getElementById("lbl-skill1").innerText = p.s1;
+    document.getElementById("lbl-skill2").innerText = p.s2;
+    document.getElementById("lbl-skill3").innerText = p.s3;
+  }
+}
+
+function updateDuoLabels() {
+  if (activeDuoLead === 'marcus') {
+    document.getElementById("hud-lead").innerText = "Marcus (Lead)";
     document.getElementById("hud-lead").style.color = "#fbbf24";
     document.getElementById("lbl-partner").innerText = "Partner: Mayleen (Active AI Flank)";
     document.getElementById("lbl-skill1").innerText = "Seismic Punch";
     document.getElementById("lbl-skill2").innerText = "Golden Roots";
     document.getElementById("lbl-skill3").innerText = "Rumble Shatter Duo";
   } else {
-    document.getElementById("hud-lead").innerText = "Mayleen";
+    document.getElementById("hud-lead").innerText = "Mayleen (Lead)";
     document.getElementById("hud-lead").style.color = "#f472b6";
     document.getElementById("lbl-partner").innerText = "Partner: Marcus (Guardian AI Flank)";
     document.getElementById("lbl-skill1").innerText = "Acoustic Strike";
     document.getElementById("lbl-skill2").innerText = "Resonant Trap Net";
     document.getElementById("lbl-skill3").innerText = "Harmonic Implosion";
   }
+}
+
+document.getElementById("btn-swap").addEventListener("click", () => {
+  if (isGameOver || currentRosterKey !== 'marcus') return;
+  activeDuoLead = activeDuoLead === 'marcus' ? 'mayleen' : 'marcus';
+  updateDuoLabels();
 });
 
-// Movement Controls
+function resetGame() {
+  player.hp = player.maxHp;
+  player.x = 110;
+  player.jumpState = 'ground';
+  boss.active = false;
+  androidsDefeated = 0;
+  isGameOver = false;
+  document.getElementById("game-over-modal").style.display = "none";
+}
+
 document.getElementById("btn-left").addEventListener("click", () => {
-  let lead = getLead();
-  lead.facing = -1;
-  lead.x = Math.max(30, lead.x - 24);
-  lead.runCycle += 0.5;
+  if (isGameOver) return;
+  player.facing = -1;
+  player.x = Math.max(30, player.x - HERO_PROFILES[currentRosterKey].speed * 5);
+  player.runCycle += 0.5;
+  if (player.jumpState === 'heroLanding') player.jumpState = 'ground';
 });
 document.getElementById("btn-right").addEventListener("click", () => {
-  let lead = getLead();
-  lead.facing = 1;
-  lead.x = Math.min(canvas.width - 25, lead.x + 24);
-  lead.runCycle += 0.5;
+  if (isGameOver) return;
+  player.facing = 1;
+  player.x = Math.min(canvas.width - 25, player.x + HERO_PROFILES[currentRosterKey].speed * 5);
+  player.runCycle += 0.5;
+  if (player.jumpState === 'heroLanding') player.jumpState = 'ground';
 });
 
-// Jump with Somersault Spin & Aerial Knockback
+// Ninja Flying Kick Jump
 document.getElementById("btn-jump").addEventListener("click", () => {
-  let lead = getLead();
-  if (!lead.grounded) return;
-  lead.grounded = false;
-  lead.vy = -13;
-  lead.jumpState = 'spinning';
-  lead.spinAngle = 0;
+  if (isGameOver || !player.grounded) return;
+  player.grounded = false;
+  player.vy = -13.5;
+  player.jumpState = 'spinning';
+  player.spinAngle = 0;
 
-  // Knockback shockwave in midair
   let targets = boss.active ? [boss, ...enemies] : enemies;
   targets.forEach(e => {
-    let dx = e.x - lead.x;
-    if (Math.abs(dx) < 75) {
-      e.vx = (dx >= 0 ? 1 : -1) * 9;
-      e.hp -= 15;
-      e.flash = 3;
+    let dx = e.x - player.x;
+    if (Math.abs(dx) < 80) {
+      e.vx = (dx >= 0 ? 1 : -1) * 11;
+      e.hp -= 18;
+      e.flash = 4;
+      screenShake = 4;
     }
   });
 });
 
 // Strike 1
 document.getElementById("btn-skill1").addEventListener("click", () => {
-  let lead = getLead();
-  if (lead.isAttacking) return;
-  lead.isAttacking = true;
-  lead.attackTimer = 0;
+  if (isGameOver) return;
+  player.isAttacking = true;
+  player.attackTimer = 0;
+  if (player.jumpState === 'heroLanding') player.jumpState = 'ground';
 
   let targets = boss.active ? [boss, ...enemies] : enemies;
   targets.forEach(e => {
-    if (Math.abs(e.x - (lead.x + lead.facing * 30)) < 48) {
+    if (Math.abs(e.x - (player.x + player.facing * 30)) < 50) {
       e.hp -= 25;
-      e.vx = lead.facing * 6;
+      e.vx = player.facing * 7;
       e.flash = 4;
       hitstopTimer = 3;
       screenShake = 3;
@@ -245,37 +339,53 @@ document.getElementById("btn-skill1").addEventListener("click", () => {
   });
 });
 
-// Signature Skill
+// Signature Skill 2
 document.getElementById("btn-skill2").addEventListener("click", () => {
-  let lead = getLead();
-  if (activeHero === 'marcus') {
-    projectiles.push({ type: 'roots', x: lead.x + lead.facing * 20, vx: lead.facing * 7.5, timer: 50 });
+  if (isGameOver) return;
+  if (player.jumpState === 'heroLanding') player.jumpState = 'ground';
+
+  if (currentRosterKey === 'marcus') {
+    if (activeDuoLead === 'marcus') {
+      projectiles.push({ type: 'roots', x: player.x + player.facing * 20, vx: player.facing * 8, timer: 50 });
+    } else {
+      projectiles.push({ type: 'bellnet', x: player.x + player.facing * 20, y: player.y - 20, vx: player.facing * 7, radius: 14, maxRadius: 38 });
+    }
+  } else if (currentRosterKey === 'kensai') {
+    player.x += player.facing * 60; // Phantom Arc Dash
+    screenShake = 4;
+  } else if (currentRosterKey === 'aura') {
+    projectiles.push({ type: 'bellnet', x: player.x + player.facing * 20, y: player.y - 20, vx: player.facing * 7, radius: 14, maxRadius: 38 });
+  } else if (currentRosterKey === 'sundiata') {
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+    targets.forEach(e => { e.hp -= 35; e.vx = (e.x > player.x ? 1 : -1) * 11; });
+    projectiles.push({ type: 'shockblast', x: player.x, radius: 10, maxRadius: 90 });
+  } else if (currentRosterKey === 'delta') {
+    let target = boss.active ? boss : enemies[0];
+    if (target) { player.x = target.x + (player.facing * -28); target.hp -= 45; }
   } else {
-    projectiles.push({ type: 'bellnet', x: lead.x + lead.facing * 20, y: lead.y - 20, vx: lead.facing * 6.5, radius: 14, maxRadius: 38 });
+    projectiles.push({ type: 'roots', x: player.x + player.facing * 20, vx: player.facing * 8, timer: 50 });
   }
 });
 
-// Overdrive
+// Overdrive Skill 3
 document.getElementById("btn-skill3").addEventListener("click", () => {
-  if (burst < 100) return;
+  if (isGameOver || burst < 100) return;
   burst = 0;
   screenShake = 14;
-  let lead = getLead();
-  projectiles.push({ type: 'shockblast', x: lead.x, radius: 20, maxRadius: 280 });
+  if (player.jumpState === 'heroLanding') player.jumpState = 'ground';
 
+  projectiles.push({ type: 'shockblast', x: player.x, radius: 20, maxRadius: 280 });
   let targets = boss.active ? [boss, ...enemies] : enemies;
   targets.forEach(e => {
     e.hp -= 80;
-    e.vx = (e.x > lead.x ? 1 : -1) * 14;
+    e.vx = (e.x > player.x ? 1 : -1) * 14;
     e.flash = 6;
   });
 });
 
-// Mother Luetta Summon
 document.getElementById("btn-luetta").addEventListener("click", () => {
-  if (luetta.active) return;
+  if (isGameOver || luetta.active) return;
   luetta.active = true;
-  let lead = getLead();
   if (luettaCounter === 0) {
     luetta.mode = 'sky';
     luetta.x = canvas.width / 2;
@@ -284,67 +394,68 @@ document.getElementById("btn-luetta").addEventListener("click", () => {
     luettaCounter = 1;
   } else {
     luetta.mode = 'ground';
-    luetta.x = lead.facing > 0 ? -30 : canvas.width + 30;
+    luetta.x = player.facing > 0 ? -30 : canvas.width + 30;
     luetta.y = FLOOR_Y;
-    luetta.speed = 17 * lead.facing;
+    luetta.speed = 18 * player.facing;
     luettaCounter = 0;
   }
 });
 
-// -------------------------------------------------------------
-// Engine Loop
-// -------------------------------------------------------------
 function update() {
   if (hitstopTimer > 0) { hitstopTimer--; return; }
   if (screenShake > 0) screenShake *= 0.85;
 
+  if (player.hp <= 0 && !isGameOver) {
+    player.hp = 0;
+    isGameOver = true;
+    document.getElementById("game-over-modal").style.display = "block";
+  }
+  if (isGameOver) return;
+
   burst = Math.min(100, burst + 0.15);
 
-  let lead = getLead();
-  let partner = getPartner();
-
-  if (lead.isAttacking) {
-    lead.attackTimer++;
-    if (lead.attackTimer >= lead.attackDuration) lead.isAttacking = false;
+  if (player.isAttacking) {
+    player.attackTimer++;
+    if (player.attackTimer >= player.attackDuration) player.isAttacking = false;
   }
 
-  // Jump physics with somersault & 3-point landing recovery
-  if (!lead.grounded) {
-    lead.y += lead.vy;
-    lead.vy += 0.72; // Gravity
-    if (lead.jumpState === 'spinning') {
-      lead.spinAngle += lead.facing * 0.38; // Somersault rotation
+  // Jump physics with ninja kick & fast recovery
+  if (!player.grounded) {
+    player.y += player.vy;
+    player.vy += 0.72;
+    if (player.jumpState === 'spinning') player.spinAngle += player.facing * 0.32;
+    if (player.y >= FLOOR_Y) {
+      player.y = FLOOR_Y;
+      player.vy = 0;
+      player.grounded = true;
+      player.jumpState = 'heroLanding';
+      player.landingTimer = 6;
     }
-    if (lead.y >= FLOOR_Y) {
-      lead.y = FLOOR_Y;
-      lead.vy = 0;
-      lead.grounded = true;
-      lead.jumpState = 'heroLanding';
-      lead.landingTimer = 12; // 3-point crouch pause
-    }
-  } else if (lead.jumpState === 'heroLanding') {
-    lead.landingTimer--;
-    if (lead.landingTimer <= 0) lead.jumpState = 'ground';
+  } else if (player.jumpState === 'heroLanding') {
+    player.landingTimer--;
+    if (player.landingTimer <= 0) player.jumpState = 'ground';
   }
 
-  // Partner AI Tracking
-  let targetX = lead.x - (lead.facing * 38);
-  partner.x += (targetX - partner.x) * 0.12;
-  partner.facing = lead.facing;
-  partner.y = FLOOR_Y;
-  mayleen.bellAngle += 0.04;
-  partner.aiTimer = (partner.aiTimer || 0) + 1;
+  // Duo Mode Flank Support
+  if (currentRosterKey === 'marcus') {
+    let targetX = player.x - (player.facing * 38);
+    mayleenAI.x += (targetX - mayleenAI.x) * 0.12;
+    mayleenAI.facing = player.facing;
+    mayleenAI.y = FLOOR_Y;
+    mayleenAI.bellAngle += 0.04;
+    mayleenAI.aiTimer = (mayleenAI.aiTimer || 0) + 1;
 
-  if (partner.aiTimer > 90) {
-    partner.aiTimer = 0;
-    if (activeHero === 'marcus') {
-      projectiles.push({ type: 'bellpulse', x: mayleen.x + mayleen.facing * 18, y: mayleen.y - 24, vx: mayleen.facing * 5.5, radius: 12 });
-    } else {
-      projectiles.push({ type: 'roots', x: marcus.x + marcus.facing * 16, vx: marcus.facing * 6.5, timer: 35 });
+    if (mayleenAI.aiTimer > 90) {
+      mayleenAI.aiTimer = 0;
+      if (activeDuoLead === 'marcus') {
+        projectiles.push({ type: 'bellpulse', x: mayleenAI.x + mayleenAI.facing * 18, y: mayleenAI.y - 24, vx: mayleenAI.facing * 5.5, radius: 12 });
+      } else {
+        projectiles.push({ type: 'roots', x: player.x + player.facing * 16, vx: player.facing * 6.5, timer: 35 });
+      }
     }
   }
 
-  // Projectile Physics
+  // Projectiles
   projectiles.forEach((p, idx) => {
     let targets = boss.active ? [boss, ...enemies] : enemies;
     if (p.type === 'roots') {
@@ -373,7 +484,7 @@ function update() {
     }
   });
 
-  // Endless Grunt Waves
+  // Endless Enemies
   enemies.forEach(e => {
     e.x += e.vx;
     e.vx *= 0.86;
@@ -385,20 +496,21 @@ function update() {
       e.vx = 0;
       if (e.trapTimer <= 0) e.isTrapped = false;
     } else if (Math.abs(e.vx) < 0.2) {
-      e.x += (lead.x > e.x ? e.speed : -e.speed);
-      e.dir = lead.x > e.x ? 1 : -1;
+      e.x += (player.x > e.x ? e.speed : -e.speed);
+      e.dir = player.x > e.x ? 1 : -1;
     }
 
-    // When an android dies, immediately respawn a fresh unit offscreen
+    if (Math.abs(e.x - player.x) < 18 && Math.abs(e.y - player.y) < 15 && !player.isAttacking) {
+      player.hp = Math.max(0, player.hp - 0.2);
+    }
+
     if (e.hp <= 0) {
       score += 100;
       androidsDefeated++;
       e.hp = e.maxHp;
-      // Respawn randomly from left or right edge
       e.x = Math.random() > 0.5 ? canvas.width + 30 : -30;
-      e.speed = 0.5 + Math.random() * 0.7; // Variable robotic speed
+      e.speed = 0.6 + Math.random() * 0.7;
 
-      // Trigger Sector Boss after 6 kills
       if (androidsDefeated >= 6 && !boss.active) {
         boss.active = true;
         boss.x = canvas.width + 45;
@@ -407,7 +519,7 @@ function update() {
     }
   });
 
-  // Sector Boss
+  // Boss Logic
   if (boss.active) {
     boss.x += boss.vx;
     boss.vx *= 0.88;
@@ -415,20 +527,18 @@ function update() {
     boss.attackTimer++;
     if (boss.flash > 0) boss.flash--;
 
-    let dist = lead.x - boss.x;
+    let dist = player.x - boss.x;
     boss.dir = dist > 0 ? 1 : -1;
 
     if (Math.abs(dist) > 50) {
       boss.x += boss.dir * 1.3;
     } else if (boss.attackTimer % 85 === 0) {
-      lead.hp = Math.max(0, lead.hp - 16);
-      lead.x += boss.dir * 25;
-      screenShake = 6;
+      player.hp = Math.max(0, player.hp - 20);
+      player.x += boss.dir * 25;
+      screenShake = 7;
     }
 
-    if (boss.hp <= 0) {
-      advanceStage();
-    }
+    if (boss.hp <= 0) advanceStage();
   }
 
   // Luetta Updates
@@ -449,7 +559,7 @@ function update() {
   }
 
   document.getElementById("hud-score").innerText = score;
-  document.getElementById("hud-hp").innerText = lead.hp + "/" + lead.maxHp;
+  document.getElementById("hud-hp").innerText = Math.round(player.hp) + "/" + player.maxHp;
 }
 
 function advanceStage() {
@@ -467,32 +577,31 @@ function advanceStage() {
     document.getElementById("hud-stage").style.color = "#ef4444";
   } else {
     currentSector = 1;
-    document.getElementById("hud-stage").innerText = "1. RenCen Rooftop Helipad";
+    document.getElementById("hud-stage").innerText = "1. RenCen Rooftop";
     document.getElementById("hud-stage").style.color = "#38bdf8";
   }
 }
 
 // -------------------------------------------------------------
-// Authentic Detroit Rooftop & Zone Renderer
+// Environment Render
 // -------------------------------------------------------------
 function drawEnvironment(ctx) {
   let cx = canvas.width / 2;
 
   if (currentSector === 1) {
-    // STAGE 1: REAL DETROIT ROOFTOP
-    // Night sky over Detroit River
     let sky = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
     sky.addColorStop(0, "#030712");
-    sky.addColorStop(1, "#172554");
+    sky.addColorStop(0.7, "#0f172a");
+    sky.addColorStop(1, "#1e3a8a");
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, canvas.width, FLOOR_Y);
 
-    // Distant Detroit Horizon & Flanking Towers
+    // Flanking towers
     ctx.fillStyle = "#0f172a";
-    ctx.fillRect(cx - 130, 70, 45, 145);
-    ctx.fillRect(cx + 85,  70, 45, 145);
+    ctx.fillRect(cx - 135, 65, 48, 150);
+    ctx.fillRect(cx + 85,  65, 48, 150);
 
-    // Renaissance Center Center Tower
+    // Renaissance Center Tower
     let renGrad = ctx.createLinearGradient(cx - 36, 0, cx + 36, 0);
     renGrad.addColorStop(0.0, "#0b1329");
     renGrad.addColorStop(0.35, "#38bdf8");
@@ -501,54 +610,50 @@ function drawEnvironment(ctx) {
     ctx.fillStyle = renGrad;
     ctx.fillRect(cx - 34, 25, 68, 190);
 
-    // Crown Spire & Antenna Beacon
+    // Lit office window bands
+    ctx.fillStyle = "rgba(254, 240, 138, 0.4)";
+    for (let wy = 45; wy < 190; wy += 14) {
+      ctx.fillRect(cx - 12, wy, 4, 6);
+      ctx.fillRect(cx + 8,  wy, 4, 6);
+    }
+
+    // Spire & beacon
     ctx.fillStyle = "#334155";
     ctx.fillRect(cx - 38, 18, 76, 10);
     ctx.strokeStyle = "#38bdf8"; ctx.strokeRect(cx - 38, 18, 76, 10);
-    ctx.strokeStyle = "#ef4444"; // Flashing red aircraft warning light
-    ctx.fillStyle = Math.sin(Date.now() * 0.006) > 0 ? "#ef4444" : "#450a0a";
-    ctx.beginPath(); ctx.arc(cx, 10, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = Math.sin(Date.now() * 0.007) > 0 ? "#ef4444" : "#450a0a";
+    ctx.beginPath(); ctx.arc(cx, 12, 3.5, 0, Math.PI * 2); ctx.fill();
 
-    // --- DISTINCT ROOFTOP ELEMENTS ---
-    // 1. Metal Perimeter Safety Railing
+    // Railing
     ctx.strokeStyle = "#475569";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.8;
     for (let rx = 0; rx < canvas.width; rx += 25) {
       ctx.beginPath(); ctx.moveTo(rx, FLOOR_Y - 14); ctx.lineTo(rx, FLOOR_Y); ctx.stroke();
     }
     ctx.beginPath(); ctx.moveTo(0, FLOOR_Y - 14); ctx.lineTo(canvas.width, FLOOR_Y - 14); ctx.stroke();
 
-    // 2. Rooftop HVAC Industrial Ventilation Box
+    // HVAC unit
     ctx.fillStyle = "#1e293b";
     ctx.fillRect(35, FLOOR_Y - 26, 45, 26);
     ctx.strokeStyle = "#64748b"; ctx.strokeRect(35, FLOOR_Y - 26, 45, 26);
-    // Exhaust fan grill
     ctx.fillStyle = "#0f172a";
     ctx.beginPath(); ctx.arc(57, FLOOR_Y - 13, 8, 0, Math.PI * 2); ctx.fill();
 
-    // 3. Communications Satellite Dish
-    ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(cx + 120, FLOOR_Y); ctx.lineTo(cx + 130, FLOOR_Y - 24); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx + 130, FLOOR_Y - 24, 12, -Math.PI * 0.7, Math.PI * 0.3); ctx.stroke();
-
-    // 4. Rooftop Gravel Deck & Helipad Target Circle
+    // Rooftop Surface & Helipad
     ctx.fillStyle = "#1e293b";
     ctx.fillRect(0, FLOOR_Y, canvas.width, 45);
 
-    // Yellow Helipad Paint
-    ctx.strokeStyle = "rgba(251, 191, 36, 0.4)";
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(cx, FLOOR_Y + 18, 65, 12, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = "rgba(251, 191, 36, 0.45)";
-    ctx.font = "bold 14px sans-serif";
-    ctx.fillText("H", cx - 6, FLOOR_Y + 23);
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.6)";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(cx, FLOOR_Y + 18, 70, 13, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "rgba(251, 191, 36, 0.65)";
+    ctx.font = "bold 15px sans-serif";
+    ctx.fillText("H", cx - 7, FLOOR_Y + 23);
 
-    // Glowing Neon Edge Ledge
     ctx.fillStyle = "#38bdf8";
     ctx.fillRect(0, FLOOR_Y, canvas.width, 2.5);
 
   } else if (currentSector === 2) {
-    // STAGE 2: Staircase & Corporate Interior
     ctx.fillStyle = "#070b14";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = "#334155"; ctx.lineWidth = 2.5;
@@ -557,13 +662,10 @@ function drawEnvironment(ctx) {
     }
     ctx.fillStyle = Math.sin(Date.now() * 0.008) > 0 ? "#ef4444" : "#1e1b4b";
     ctx.fillRect(cx - 25, 20, 50, 14);
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(0, FLOOR_Y, canvas.width, 45);
-    ctx.fillStyle = "#00e5ff";
-    ctx.fillRect(0, FLOOR_Y, canvas.width, 2);
+    ctx.fillStyle = "#1e293b"; ctx.fillRect(0, FLOOR_Y, canvas.width, 45);
+    ctx.fillStyle = "#00e5ff"; ctx.fillRect(0, FLOOR_Y, canvas.width, 2);
 
   } else {
-    // STAGE 3: Street-Level Detroit Siege
     let fireSky = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
     fireSky.addColorStop(0, "#1c0d06");
     fireSky.addColorStop(1, "#7c2d12");
@@ -576,61 +678,57 @@ function drawEnvironment(ctx) {
     ctx.fillStyle = "#38bdf8"; ctx.font = "bold 9px sans-serif";
     ctx.fillText("THORNE LOGISTICS", cx + 46, 70);
 
-    ctx.fillStyle = "#18181b";
-    ctx.fillRect(0, FLOOR_Y, canvas.width, 45);
-    ctx.fillStyle = "#ef4444";
-    ctx.fillRect(0, FLOOR_Y, canvas.width, 2.5);
+    ctx.fillStyle = "#18181b"; ctx.fillRect(0, FLOOR_Y, canvas.width, 45);
+    ctx.fillStyle = "#ef4444"; ctx.fillRect(0, FLOOR_Y, canvas.width, 2.5);
   }
 }
 
 // -------------------------------------------------------------
-// Character Rendering with Jump Spin & Heroic Landing
+// Character Rendering
 // -------------------------------------------------------------
-function drawMarcus(ctx, p) {
+function drawPlayer(ctx, p) {
   ctx.save();
   ctx.translate(p.x, p.y + p.yOffset);
   ctx.scale(p.facing, 1);
 
+  let profile = HERO_PROFILES[currentRosterKey];
+
   if (p.jumpState === 'spinning') {
-    // Aerial Somersault Ninja Spin
-    ctx.rotate(p.spinAngle);
-    ctx.fillStyle = "#92400e";
-    ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#fbbf24";
-    ctx.fillRect(2, -4, 8, 8); // Golden gauntlet spinning
-
-    // Kinetic Jump Ring
-    ctx.strokeStyle = "rgba(245, 158, 11, 0.8)";
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.stroke();
-
-  } else if (p.jumpState === 'heroLanding') {
-    // 3-Point Heroic Landing Pose
-    ctx.fillStyle = "#78350f";
-    ctx.strokeStyle = "#d97706";
+    // Airborne Flying Kick Pose
+    ctx.rotate(p.facing * 0.2);
+    ctx.strokeStyle = profile.color;
+    ctx.fillStyle = profile.color;
     ctx.lineWidth = 3.5;
 
-    // Crouched Torso
-    ctx.beginPath(); ctx.ellipse(0, -10, 8, 10, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-6, -24); ctx.lineTo(4, -14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-6, -24); ctx.lineTo(-14, -18); ctx.stroke();
+    ctx.strokeStyle = "#fff";
+    ctx.beginPath(); ctx.moveTo(4, -14); ctx.lineTo(24, -10); ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(0, -30, 5.5, 0, Math.PI * 2); ctx.fill();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(-6, -6); ctx.lineTo(-14, 0); // Back bent leg
-    ctx.moveTo(4, -6);  ctx.lineTo(10, 0);  // Forward bent leg
+    ctx.moveTo(-16, -14); ctx.lineTo(-28, -14);
+    ctx.moveTo(-12, -8);  ctx.lineTo(-24, -8);
     ctx.stroke();
 
-    // Golden Fist Slammed Flat on Roof
-    ctx.fillStyle = "#fbbf24";
-    ctx.beginPath(); ctx.arc(12, -2, 5.5, 0, Math.PI * 2); ctx.fill();
-
-    // Shockwave dust ring on impact
-    ctx.strokeStyle = "rgba(251, 191, 36, 0.6)";
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(0, 0, 22, 5, 0, 0, Math.PI * 2); ctx.stroke();
+  } else if (p.jumpState === 'heroLanding') {
+    // Ground Landing Pose
+    ctx.fillStyle = profile.color;
+    ctx.strokeStyle = profile.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(0, -10, 8, 10, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(-14, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(4, -6);  ctx.lineTo(10, 0);  ctx.stroke();
 
   } else {
     // Upright Stance
-    ctx.strokeStyle = "#d97706";
-    ctx.fillStyle = "#78350f";
-    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = profile.color;
+    ctx.fillStyle = profile.color;
+    ctx.lineWidth = 3;
 
     let stride = Math.sin(p.runCycle) * 5;
     ctx.beginPath();
@@ -639,90 +737,68 @@ function drawMarcus(ctx, p) {
     ctx.stroke();
 
     ctx.beginPath(); ctx.moveTo(0, -32); ctx.lineTo(0, -15); ctx.stroke();
-    ctx.fillStyle = "#92400e";
-    ctx.fillRect(-6, -30, 12, 14);
+    ctx.beginPath(); ctx.arc(0, -36, 5.5, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = "#451a03";
-    ctx.beginPath(); ctx.arc(1, -36, 6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#1c1917";
-    ctx.fillRect(-4, -42, 10, 4);
-
-    ctx.fillStyle = "#fbbf24";
-    ctx.beginPath(); ctx.arc(10, -20, 6, 0, Math.PI * 2); ctx.fill();
+    // Weapon/Accessory distinct to chosen hero
+    if (currentRosterKey === 'kensai') {
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-8, -18); ctx.lineTo(6, -22); ctx.stroke();
+    } else if (currentRosterKey === 'marcus') {
+      ctx.fillStyle = "#fbbf24";
+      ctx.beginPath(); ctx.arc(10, -20, 6, 0, Math.PI * 2); ctx.fill();
+    } else if (currentRosterKey === 'delta') {
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(4, -22); ctx.lineTo(12, -18); ctx.stroke();
+    }
 
     if (p.isAttacking) {
-      ctx.strokeStyle = "#fbbf24";
-      ctx.lineWidth = 4.5;
-      ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(22, -14); ctx.stroke();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(24, -16); ctx.stroke();
     }
   }
   ctx.restore();
 }
 
-function drawMayleen(ctx, m) {
+function drawMayleenAI(ctx, m) {
   ctx.save();
   ctx.translate(m.x, m.y + m.yOffset);
   ctx.scale(m.facing, 1);
 
-  if (m.jumpState === 'spinning') {
-    // Mayleen Somersault
-    ctx.rotate(m.spinAngle);
-    ctx.fillStyle = "#ec4899";
-    ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "rgba(244, 114, 182, 0.8)";
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "#ec4899";
+  ctx.fillStyle = "#831843";
+  ctx.lineWidth = 2.4;
 
-  } else if (m.jumpState === 'heroLanding') {
-    // Low agile landing
-    ctx.fillStyle = "#831843";
-    ctx.strokeStyle = "#ec4899";
-    ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.ellipse(0, -10, 6, 8, -0.3, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(-5, -5); ctx.lineTo(-12, 0);
-    ctx.moveTo(4, -5);  ctx.lineTo(8, 0);
-    ctx.stroke();
+  let stride = Math.sin(m.runCycle) * 4.5;
+  ctx.beginPath();
+  ctx.moveTo(-3, -14); ctx.lineTo(-5 - stride, 0);
+  ctx.moveTo(3, -14);  ctx.lineTo(5 + stride, 0);
+  ctx.stroke();
 
-  } else {
-    ctx.strokeStyle = "#ec4899";
-    ctx.fillStyle = "#831843";
-    ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(0, -28); ctx.lineTo(0, -14); ctx.stroke();
 
-    let stride = Math.sin(m.runCycle) * 4.5;
-    ctx.beginPath();
-    ctx.moveTo(-3, -14); ctx.lineTo(-5 - stride, 0);
-    ctx.moveTo(3, -14);  ctx.lineTo(5 + stride, 0);
-    ctx.stroke();
+  ctx.fillStyle = "#18181b";
+  ctx.beginPath(); ctx.arc(1, -32, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#18181b";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-2, -34); ctx.quadraticCurveTo(-12, -38, -14, -26); ctx.stroke();
 
-    ctx.beginPath(); ctx.moveTo(0, -28); ctx.lineTo(0, -14); ctx.stroke();
+  ctx.strokeStyle = "#f472b6";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(12, -28); ctx.stroke();
 
-    ctx.fillStyle = "#18181b";
-    ctx.beginPath(); ctx.arc(1, -32, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "#18181b";
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(-2, -34);
-    ctx.quadraticCurveTo(-12, -38, -14, -26);
-    ctx.stroke();
-
-    ctx.strokeStyle = "#f472b6";
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(12, -28); ctx.stroke();
-
-    // Orbiting Chime Bells
-    ctx.save();
-    ctx.translate(6, -28);
-    ctx.rotate(m.bellAngle);
-    for (let i = 0; i < 4; i++) {
-      let angle = (i * Math.PI) / 2;
-      let bx = Math.cos(angle) * 16;
-      let by = Math.sin(angle) * 16;
-      ctx.fillStyle = "#fbbf24";
-      ctx.fillRect(bx - 3, by - 3, 6, 6);
-    }
-    ctx.restore();
+  // Orbiting Bells
+  ctx.save();
+  ctx.translate(6, -28);
+  ctx.rotate(m.bellAngle);
+  for (let i = 0; i < 4; i++) {
+    let angle = (i * Math.PI) / 2;
+    let bx = Math.cos(angle) * 16;
+    let by = Math.sin(angle) * 16;
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillRect(bx - 3, by - 3, 6, 6);
   }
+  ctx.restore();
   ctx.restore();
 }
 
@@ -845,8 +921,10 @@ function draw() {
   enemies.forEach(e => drawEnemy(ctx, e));
   if (boss.active) drawBoss(ctx, boss);
 
-  drawMarcus(ctx, marcus);
-  drawMayleen(ctx, mayleen);
+  drawPlayer(ctx, player);
+  if (currentRosterKey === 'marcus') {
+    drawMayleenAI(ctx, mayleenAI);
+  }
 
   projectiles.forEach(p => {
     if (p.type === 'roots') {
