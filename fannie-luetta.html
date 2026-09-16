@@ -1,1 +1,330 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>The Adventures of Little Fannie May & Little Luetta</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 12px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #game-container {
+      width: 100%;
+      max-width: 500px;
+      background: #1e293b;
+      border: 2px solid #ca8a04;
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    }
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #fde047;
+      font-weight: 800;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+    canvas {
+      width: 100%;
+      height: 260px;
+      background: #7dd3fc;
+      border-radius: 12px;
+      border: 2px solid #eab308;
+      display: block;
+    }
+    .mode-bar {
+      display: flex;
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .char-select-btn {
+      flex: 1;
+      padding: 9px 4px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.8rem;
+      border: 2px solid #64748b;
+      background: #334155;
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+    .char-select-btn.active {
+      background: #ca8a04;
+      border-color: #fef08a;
+      color: #0f172a;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .ctrl-btn {
+      background: #475569;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 0.95rem;
+      font-weight: 900;
+      touch-action: manipulation;
+      cursor: pointer;
+    }
+    .ctrl-btn:active { transform: scale(0.96); }
+
+    #edu-modal {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      background: #0f172a;
+      border: 2px dashed #facc15;
+      border-radius: 12px;
+      text-align: center;
+    }
+    #edu-modal h3 { font-size: 1rem; color: #fde047; margin-bottom: 6px; }
+    #edu-modal p { font-size: 0.85rem; color: #e2e8f0; margin-bottom: 8px; line-height: 1.4; }
+    .resume-btn {
+      background: #facc15;
+      color: #0f172a;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <div class="hud">
+      <span id="char-name">LITTLE FANNIE MAY</span>
+      <span id="keys-count">KEYS: 0 / 3 🗝️</span>
+      <span id="stars-count">WORDS: 0 📖</span>
+    </div>
+
+    <canvas id="gameCanvas" width="480" height="260"></canvas>
+
+    <div class="mode-bar">
+      <button class="char-select-btn active" id="btn-fannie" onclick="setPlayer('fannie')">Little Fannie May</button>
+      <button class="char-select-btn" id="btn-luetta" onclick="setPlayer('luetta')">Little Luetta</button>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl-btn" id="btn-left">&#9664; WALK</button>
+      <button class="ctrl-btn" id="btn-jump">&#9650; HOP</button>
+      <button class="ctrl-btn" id="btn-right">WALK &#9654;</button>
+    </div>
+
+    <div id="edu-modal">
+      <h3 id="modal-word">HERITAGE [Noun]</h3>
+      <p id="modal-desc">"The traditions, achievements, and beliefs that are part of the history of a family."</p>
+      <button class="resume-btn" onclick="dismissModal()">Continue Adventure &rarr;</button>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      let currentCharacter = 'fannie';
+      let keysFound = 0;
+      let wordsLearned = 0;
+      let isPaused = false;
+
+      let player = {
+        x: 40, y: 175, w: 26, h: 48,
+        vx: 0, vy: 0, speed: 4.5,
+        grounded: true
+      };
+
+      let collectibles = [
+        { x: 130, y: 185, collected: false, word: "KINDNESS", def: "Showing warmth, gentleness, and helping others." },
+        { x: 260, y: 140, collected: false, word: "HERITAGE", def: "The legacy, history, and traditions passed down by family." },
+        { x: 390, y: 185, collected: false, word: "COURAGE", def: "Facing challenges with a brave and hopeful heart." }
+      ];
+
+      window.setPlayer = function(type) {
+        currentCharacter = type;
+        document.getElementById('btn-fannie').classList.toggle('active', type === 'fannie');
+        document.getElementById('btn-luetta').classList.toggle('active', type === 'luetta');
+        document.getElementById('char-name').innerText = type === 'fannie' ? 'LITTLE FANNIE MAY' : 'LITTLE LUETTA';
+      };
+
+      const keys = { left: false, right: false };
+      const leftBtn = document.getElementById('btn-left');
+      const rightBtn = document.getElementById('btn-right');
+
+      leftBtn.addEventListener('mousedown', () => keys.left = true);
+      leftBtn.addEventListener('mouseup', () => keys.left = false);
+      leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; });
+      leftBtn.addEventListener('touchend', () => keys.left = false);
+
+      rightBtn.addEventListener('mousedown', () => keys.right = true);
+      rightBtn.addEventListener('mouseup', () => keys.right = false);
+      rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; });
+      rightBtn.addEventListener('touchend', () => keys.right = false);
+
+      document.getElementById('btn-jump').addEventListener('click', () => {
+        if (player.grounded && !isPaused) {
+          player.vy = -11;
+          player.grounded = false;
+        }
+      });
+
+      function showWordEncounter(c) {
+        isPaused = true;
+        document.getElementById('modal-word').innerText = `✨ NEW WORD: ${c.word}`;
+        document.getElementById('modal-desc').innerText = `"${c.def}"`;
+        document.getElementById('edu-modal').style.display = 'block';
+      }
+
+      window.dismissModal = function() {
+        document.getElementById('edu-modal').style.display = 'none';
+        isPaused = false;
+      };
+
+      function update() {
+        if (isPaused) return;
+
+        if (keys.left) player.vx = -player.speed;
+        else if (keys.right) player.vx = player.speed;
+        else player.vx *= 0.65;
+
+        player.x += player.vx;
+        player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
+
+        player.y += player.vy;
+        if (player.y < 175) {
+          player.vy += 0.78;
+        } else {
+          player.y = 175;
+          player.vy = 0;
+          player.grounded = true;
+        }
+
+        collectibles.forEach(c => {
+          if (!c.collected) {
+            let dist = Math.hypot((player.x + 12) - c.x, (player.y + 24) - c.y);
+            if (dist < 26) {
+              c.collected = true;
+              keysFound++;
+              wordsLearned++;
+              document.getElementById('keys-count').innerText = `KEYS: ${keysFound} / 3 🗝️`;
+              document.getElementById('stars-count').innerText = `WORDS: ${wordsLearned} 📖`;
+              showWordEncounter(c);
+            }
+          }
+        });
+      }
+
+      function drawBackground() {
+        let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        skyGrad.addColorStop(0, '#7dd3fc');
+        skyGrad.addColorStop(0.65, '#fef08a');
+        skyGrad.addColorStop(1, '#fde047');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Golden Lineage Tree
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(340, 85, 22, 140);
+        ctx.fillStyle = '#ca8a04';
+        ctx.beginPath();
+        ctx.arc(351, 80, 46, 0, Math.PI * 2);
+        ctx.arc(320, 90, 34, 0, Math.PI * 2);
+        ctx.arc(380, 90, 34, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hill
+        ctx.fillStyle = '#65a30d';
+        ctx.beginPath();
+        ctx.arc(90, 310, 150, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Meadow Ground
+        ctx.fillStyle = '#84cc16';
+        ctx.fillRect(0, 223, canvas.width, 37);
+        ctx.fillStyle = '#a16207';
+        ctx.fillRect(0, 223, canvas.width, 3);
+      }
+
+      function drawCharacter(x, y, type) {
+        ctx.save();
+        let dressColor = type === 'fannie' ? '#2563eb' : '#991b1b';
+        let apronColor = type === 'fannie' ? '#ffffff' : '#fef08a';
+
+        // Head
+        ctx.fillStyle = '#78350f';
+        ctx.beginPath();
+        ctx.arc(x + 13, y + 10, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hair Ribbons
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(x + 1, y + 4, 5, 5);
+        ctx.fillRect(x + 20, y + 4, 5, 5);
+
+        // Dress Body
+        ctx.fillStyle = dressColor;
+        ctx.beginPath();
+        ctx.moveTo(x + 13, y + 18);
+        ctx.lineTo(x + 2, y + 44);
+        ctx.lineTo(x + 24, y + 44);
+        ctx.closePath();
+        ctx.fill();
+
+        // Apron
+        ctx.fillStyle = apronColor;
+        ctx.fillRect(x + 8, y + 25, 10, 15);
+
+        // Shoes
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(x + 5, y + 44, 6, 4);
+        ctx.fillRect(x + 15, y + 44, 6, 4);
+        ctx.restore();
+      }
+
+      function drawKeys() {
+        collectibles.forEach((c, idx) => {
+          if (!c.collected) {
+            ctx.save();
+            let bob = Math.sin(Date.now() * 0.005 + idx) * 4;
+            ctx.fillStyle = '#facc15';
+            ctx.shadowColor = '#eab308';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(c.x, c.y + bob, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(c.x - 2, c.y + bob, 4, 14);
+            ctx.fillRect(c.x + 2, c.y + bob + 8, 4, 3);
+            ctx.restore();
+          }
+        });
+      }
+
+      function loop() {
+        update();
+        drawBackground();
+        drawKeys();
+        drawCharacter(player.x, player.y, currentCharacter);
+        requestAnimationFrame(loop);
+      }
+
+      loop();
+    });
+  </script>
+</body>
+</html>
