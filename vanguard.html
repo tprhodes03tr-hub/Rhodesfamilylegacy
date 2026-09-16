@@ -1,124 +1,112 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Ancestral Vanguard</title>
-  <style>
-    body {
-      margin: 0;
-      background: #090e17;
-      color: #fff;
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      touch-action: manipulation;
-    }
-    #hud {
-      width: 100%;
-      max-width: 480px;
-      padding: 10px 0;
-      text-align: center;
-      font-weight: bold;
-      font-size: 14px;
-      color: #7ce8ff;
-      background: #040810;
-      border-bottom: 1px solid #1a2a40;
-    }
-    #game-canvas {
-      width: 100%;
-      max-width: 480px;
-      background: #0b121e;
-      border-bottom: 2px solid #1a2a40;
-      display: block;
-    }
-    .controls-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      width: 100%;
-      max-width: 480px;
-      padding: 10px;
-      box-sizing: border-box;
-    }
-    button {
-      background: #121d2d;
-      border: 1px solid #28446b;
-      color: #7ce8ff;
-      padding: 12px 6px;
-      border-radius: 4px;
-      font-weight: bold;
-      font-size: 12px;
-      user-select: none;
-    }
-    button:active {
-      background: #28446b;
-      border-color: #f39c12;
-      color: #f39c12;
-    }
-  </style>
-</head>
-<body>
-
-  <div id="hud">Zone 1: RenCen Rooftop | HP: 76/120 | Score: 6000</div>
-  <canvas id="game-canvas" width="480" height="300"></canvas>
-
-  <div class="controls-grid">
-    <button id="btn-left">◀ LEFT</button>
-    <button id="btn-strike">STRIKE 1</button>
-    <button id="btn-right">RIGHT ▶</button>
-    <button id="btn-jump">NINJA JUMP</button>
-    <button id="btn-sig">SIGNATURE</button>
-    <button id="btn-overdrive">OVERDRIVE</button>
-    <button id="btn-tag">TAG / SWAP DUO</button>
-  </div>
-
   <script>
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
+    const hud = document.getElementById('hud');
+
+    // Characters definition
+    const chars = {
+      marcus: { name: 'Marcus', color: '#2b7fff', maxHp: 120, ability: 'Seismic Beat' },
+      mayleen: { name: 'Mayleen', color: '#2ecc71', maxHp: 100, ability: 'Verdant Root' }
+    };
+    let activeChar = 'marcus';
 
     const hero = {
-      x: 100,
+      x: 80,
       y: 190,
       width: 40,
       height: 80,
+      vx: 0,
+      vy: 0,
       facing: 1,
-      speed: 6,
-      action: 'idle'
+      speed: 5,
+      isGrounded: true,
+      action: 'idle',
+      actionTimer: 0,
+      hp: 120,
+      score: 6000
     };
 
-    // Controls
+    const GROUND_Y = 190;
+    const GRAVITY = 0.8;
+
+    function updateHUD() {
+      hud.textContent = `Zone 1: RenCen Rooftop | Hero: ${chars[activeChar].name} | HP: ${hero.hp}/${chars[activeChar].maxHp} | Score: ${hero.score}`;
+    }
+
+    // Button controls
     document.getElementById('btn-left').addEventListener('pointerdown', () => {
       hero.facing = -1;
-      hero.x = Math.max(20, hero.x - hero.speed * 3);
+      hero.x = Math.max(20, hero.x - 20);
     });
 
     document.getElementById('btn-right').addEventListener('pointerdown', () => {
       hero.facing = 1;
-      hero.x = Math.min(canvas.width - hero.width - 20, hero.x + hero.speed * 3);
+      hero.x = Math.min(canvas.width - hero.width - 20, hero.x + 20);
+    });
+
+    document.getElementById('btn-jump').addEventListener('pointerdown', () => {
+      if (hero.isGrounded) {
+        hero.vy = -14;
+        hero.isGrounded = false;
+      }
     });
 
     document.getElementById('btn-strike').addEventListener('pointerdown', () => {
       hero.action = 'strike';
-      setTimeout(() => hero.action = 'idle', 300);
+      hero.actionTimer = 15;
     });
 
-    function render() {
+    document.getElementById('btn-sig').addEventListener('pointerdown', () => {
+      hero.action = 'signature';
+      hero.actionTimer = 25;
+    });
+
+    document.getElementById('btn-overdrive').addEventListener('pointerdown', () => {
+      hero.action = 'overdrive';
+      hero.actionTimer = 35;
+    });
+
+    document.getElementById('btn-tag').addEventListener('pointerdown', () => {
+      activeChar = (activeChar === 'marcus') ? 'mayleen' : 'marcus';
+      hero.hp = chars[activeChar].maxHp;
+      hero.action = 'tag';
+      hero.actionTimer = 20;
+      updateHUD();
+    });
+
+    // Main Game Loop
+    function loop() {
+      // 1. Gravity & Jump Physics
+      hero.y += hero.vy;
+      if (!hero.isGrounded) {
+        hero.vy += GRAVITY;
+        if (hero.y >= GROUND_Y) {
+          hero.y = GROUND_Y;
+          hero.vy = 0;
+          hero.isGrounded = true;
+        }
+      }
+
+      // Action timer
+      if (hero.actionTimer > 0) {
+        hero.actionTimer--;
+        if (hero.actionTimer <= 0) hero.action = 'idle';
+      }
+
+      // 2. Render Stage
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. Stage Background - Detroit Rooftop Skyline
+      // Detroit Skyline (RenCen Silhouette)
       ctx.fillStyle = '#060a12';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Skyline Silhouette (RenCen Towers)
       ctx.fillStyle = '#111d2e';
-      ctx.fillRect(180, 60, 60, 210);
-      ctx.fillRect(250, 40, 70, 230); // Central tower
-      ctx.fillRect(330, 80, 50, 190);
-      ctx.fillRect(80, 110, 60, 160);
+      ctx.fillRect(60, 110, 60, 160);
+      ctx.fillRect(160, 70, 50, 200);
+      ctx.fillRect(230, 40, 70, 230); // Central tower
+      ctx.fillRect(320, 80, 50, 190);
+      ctx.fillRect(390, 120, 60, 150);
 
-      // Ground / Rooftop deck
+      // Ground Line
       ctx.fillStyle = '#162234';
       ctx.fillRect(0, 270, canvas.width, 30);
       ctx.strokeStyle = '#00d2ff';
@@ -128,14 +116,14 @@
       ctx.lineTo(canvas.width, 270);
       ctx.stroke();
 
-      // 2. Render Marcus (Armored Silhouette + Lightning Drum Aura)
+      // 3. Render Hero
       ctx.save();
       ctx.translate(hero.x + hero.width / 2, hero.y);
       if (hero.facing === -1) ctx.scale(-1, 1);
 
-      // Hero Body (Blue Cybernetic Armor)
-      ctx.fillStyle = '#2b7fff';
-      ctx.fillRect(-15, 10, 30, 45); // Torso
+      // Torso / Armor
+      ctx.fillStyle = chars[activeChar].color;
+      ctx.fillRect(-15, 10, 30, 45);
 
       // Head
       ctx.fillStyle = '#8d5524';
@@ -143,40 +131,57 @@
       ctx.arc(0, 0, 12, 0, Math.PI * 2);
       ctx.fill();
 
-      // Djembe Drums (Mounted at hips)
-      ctx.fillStyle = '#8b4513';
+      // Djembe / Side Gear
+      ctx.fillStyle = (activeChar === 'marcus') ? '#8b4513' : '#1b5e20';
       ctx.beginPath();
-      ctx.moveTo(-22, 35);
-      ctx.lineTo(-32, 55);
-      ctx.lineTo(-18, 55);
+      ctx.moveTo(-20, 32);
+      ctx.lineTo(-28, 52);
+      ctx.lineTo(-15, 52);
       ctx.fill();
 
       ctx.beginPath();
-      ctx.moveTo(12, 35);
-      ctx.lineTo(2, 55);
-      ctx.lineTo(16, 55);
+      ctx.moveTo(10, 32);
+      ctx.lineTo(2, 52);
+      ctx.lineTo(15, 52);
       ctx.fill();
 
       // Legs
-      ctx.fillStyle = '#1e3a6a';
+      ctx.fillStyle = '#0f1f38';
       ctx.fillRect(-12, 55, 10, 25);
       ctx.fillRect(2, 55, 10, 25);
 
-      // Attack FX (Strike / Beats)
+      // 4. Combat Visual FX
       if (hero.action === 'strike') {
         ctx.strokeStyle = '#f39c12';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.arc(30, 40, 18, -Math.PI / 2, Math.PI / 2);
+        ctx.arc(28, 30, 22, -0.6, 0.6);
         ctx.stroke();
+      } else if (hero.action === 'signature') {
+        // Seismic beat ring
+        ctx.strokeStyle = '#00f7ff';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(35, 40, 35 - hero.actionTimer, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (hero.action === 'overdrive') {
+        // Full screen bass burst
+        ctx.strokeStyle = '#ff0055';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(0, 35, 70 - hero.actionTimer * 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (hero.action === 'tag') {
+        // Green/Gold Swap flash
+        ctx.fillStyle = 'rgba(46, 204, 113, 0.35)';
+        ctx.fillRect(-30, -20, 60, 110);
       }
 
       ctx.restore();
 
-      requestAnimationFrame(render);
+      requestAnimationFrame(loop);
     }
 
-    requestAnimationFrame(render);
+    updateHUD();
+    requestAnimationFrame(loop);
   </script>
-</body>
-</html>
