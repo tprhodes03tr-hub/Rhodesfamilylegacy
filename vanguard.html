@@ -1,105 +1,812 @@
-// Inside drawHero(ctx, p), replace the weapon and attack section:
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ancestral Vanguard - Detroit High Rooftops</title>
+<style>
+  * { box-sizing: border-box; user-select: none; }
+  body {
+    margin: 0;
+    padding: 8px;
+    background: #070a12;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #game-container {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  canvas {
+    background: #090e1a;
+    border: 2px solid #1e293b;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+    display: block;
+  }
+  .hud {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 4px;
+    color: #00e5ff;
+  }
+  .hud span { color: #fff; }
+  .grid-roster {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    width: 100%;
+    margin-top: 6px;
+  }
+  .grid-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    width: 100%;
+    margin-top: 6px;
+  }
+  .btn {
+    background: #111827;
+    border: 1px solid #1f293d;
+    border-radius: 5px;
+    color: #94a3b8;
+    padding: 6px 2px;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+  .btn small { font-size: 8px; font-weight: 400; opacity: 0.8; display: block; }
+  .btn:active { transform: scale(0.96); }
+  .btn.active {
+    border-color: #00e5ff;
+    background: #082f49;
+    color: #38bdf8;
+  }
+  .btn-atk {
+    background: #1e293b;
+    color: #f8fafc;
+    border-color: #334155;
+    padding: 8px 4px;
+  }
+  .btn-gold {
+    border-color: #d97706;
+    color: #fbbf24;
+  }
+  .btn-burst {
+    border-color: #ec4899;
+    color: #f472b6;
+  }
+</style>
+</head>
+<body>
 
-// 1. CHARACTER-SPECIFIC IDLE WEAPONS & SILHOUETTES
-if (currentKey === 'kensai') {
-  // Katana on hip (ONLY for Kensai)
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(-8, -18); ctx.lineTo(6, -22); ctx.stroke();
+<div id="game-container">
+  <div class="hud">
+    <div>HERO: <span id="hud-name">Shadow Kensai</span></div>
+    <div>PWR: <span id="hud-pwr">LV.88</span> | HP: <span id="hud-hp">100/100</span></div>
+    <div>BURST: <span id="hud-burst">100%</span> | SCORE: <span id="hud-score">0</span></div>
+  </div>
 
-} else if (currentKey === 'aura') {
-  // Floating hydro orbs beside hands instead of a blade
-  ctx.fillStyle = "rgba(56, 189, 248, 0.85)";
-  ctx.beginPath();
-  ctx.arc(8, -18 + Math.sin(Date.now() * 0.008) * 3, 3.5, 0, Math.PI * 2);
-  ctx.arc(-8, -20 + Math.cos(Date.now() * 0.008) * 3, 2.5, 0, Math.PI * 2);
-  ctx.fill();
+  <canvas id="stage" width="460" height="260"></canvas>
 
-} else if (currentKey === 'sundiata') {
-  // Heavy armor pauldrons on shoulders & giant fists
-  ctx.fillStyle = "#fbbf24";
-  ctx.fillRect(-6, -32, 12, 4); // Pauldron plate
-  ctx.beginPath(); ctx.arc(8, -20, 4.5, 0, Math.PI * 2); ctx.fill(); // Heavy gauntlet
+  <div class="grid-roster">
+    <div class="btn active" onclick="selectHero('kensai')">Shadow Kensai<small>Dual Blade Master</small></div>
+    <div class="btn" onclick="selectHero('aura')">Aura Weaver<small>Hydro Mist & Tsunami</small></div>
+    <div class="btn" onclick="selectHero('sundiata')">Sundiata Prime<small>Cosmic Force Bruiser</small></div>
+    <div class="btn" onclick="selectHero('delta')">Delta Vanguard<small>Stealth Infiltrator</small></div>
+    <div class="btn" onclick="selectHero('pioneer')">Pioneer Volley<small>Solar Core Blaster</small></div>
+    <div class="btn" onclick="selectHero('prism')">Prism Void<small>Graviton Void Shift</small></div>
+  </div>
 
-} else if (currentKey === 'delta') {
-  // Twin stealth daggers angled along forearms
-  ctx.strokeStyle = "#a855f7";
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(4, -22); ctx.lineTo(12, -18); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-4, -22); ctx.lineTo(-10, -18); ctx.stroke();
+  <div class="grid-actions">
+    <button class="btn btn-atk" id="btn-left">◀ LEFT</button>
+    <button class="btn btn-atk" id="btn-skill1">SKILL 1<small id="lbl-skill1">Rising Fang</small></button>
+    <button class="btn btn-atk" id="btn-right">RIGHT ▶</button>
+  </div>
+  <div class="grid-actions">
+    <button class="btn btn-atk" id="btn-jump">NINJA JUMP<small>Aerial Knockback</small></button>
+    <button class="btn btn-atk" id="btn-skill2" style="border-color:#38bdf8; color:#38bdf8;">SKILL 2<small id="lbl-skill2">Phantom Arc Dash</small></button>
+    <button class="btn btn-burst" id="btn-skill3">OVERDRIVE<small id="lbl-skill3">Steel Tempest</small></button>
+  </div>
+  <div class="grid-actions">
+    <button class="btn btn-gold" id="btn-luetta" style="grid-column: span 3; padding: 7px;">MOTHER LUETTA AID<small>Alternates Sky Descent Beam & Cleaving Ground Rush</small></button>
+  </div>
+</div>
 
-} else if (currentKey === 'pioneer') {
-  // Arm-mounted Solar Blaster barrel
-  ctx.fillStyle = "#f97316";
-  ctx.fillRect(4, -24, 10, 5);
+<script>
+const canvas = document.getElementById("stage");
+const ctx = canvas.getContext("2d");
+const FLOOR_Y = 220;
 
-} else if (currentKey === 'prism') {
-  // Rotating graviton void ring around torso
-  ctx.strokeStyle = "#ec4899";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.ellipse(0, -22, 12, 4, Date.now() * 0.005, 0, Math.PI * 2);
-  ctx.stroke();
+const HERO_PROFILES = {
+  kensai: {
+    name: "Shadow Kensai", pwr: 88, maxHp: 100, speed: 4.8, color: "#00e5ff", glow: "rgba(0, 229, 255, 0.6)",
+    s1: "Rising Fang", s2: "Phantom Arc Dash", s3: "Detroit Steel Tempest"
+  },
+  aura: {
+    name: "Aura Weaver", pwr: 92, maxHp: 85, speed: 4.2, color: "#38bdf8", glow: "rgba(56, 189, 248, 0.6)",
+    s1: "Hydro Needle", s2: "Tidal Weave Net", s3: "Tsunami Surge"
+  },
+  sundiata: {
+    name: "Sundiata Prime", pwr: 96, maxHp: 150, speed: 3.5, color: "#fbbf24", glow: "rgba(251, 191, 36, 0.6)",
+    s1: "Iron Punch", s2: "Cosmic Quake", s3: "Lion's Horizon"
+  },
+  delta: {
+    name: "Delta Vanguard", pwr: 85, maxHp: 90, speed: 5.4, color: "#a855f7", glow: "rgba(168, 85, 247, 0.6)",
+    s1: "Dagger Flurry", s2: "Ghost Step", s3: "Apex Execution"
+  },
+  pioneer: {
+    name: "Pioneer Volley", pwr: 87, maxHp: 95, speed: 4.5, color: "#f97316", glow: "rgba(249, 115, 22, 0.6)",
+    s1: "Photon Dart", s2: "Solar Core", s3: "Orbital Heatwave"
+  },
+  prism: {
+    name: "Prism Void", pwr: 94, maxHp: 85, speed: 4.6, color: "#ec4899", glow: "rgba(236, 72, 153, 0.6)",
+    s1: "Graviton Pulse", s2: "Singularity Trap", s3: "Void Shatter"
+  }
+};
+
+let currentKey = 'kensai';
+
+const player = {
+  x: 90, y: FLOOR_Y, yOffset: 0, facing: 1, vy: 0,
+  grounded: true, jumpState: 'ground', spinAngle: 0, landingTimer: 0,
+  isAttacking: false, attackTimer: 0, attackDuration: 16, currentMove: 's1',
+  isDashing: false, dashTimer: 0,
+  runCycle: 0, hp: 100, burst: 100, score: 0
+};
+
+let androidsDefeated = 0;
+let bossMode = false;
+let bossWarningTimer = 0;
+
+let enemies = [
+  { x: 260, y: FLOOR_Y, vx: 0, hp: 50, maxHp: 50, dir: -1, tick: 0, isTrapped: false, trapTimer: 0 },
+  { x: 380, y: FLOOR_Y, vx: 0, hp: 70, maxHp: 70, dir: -1, tick: 20, isTrapped: false, trapTimer: 0 }
+];
+
+let boss = {
+  active: false, name: "Cyber Apex (General)", x: 390, y: FLOOR_Y, vx: 0,
+  hp: 400, maxHp: 400, dir: -1, tick: 0, attackTimer: 0, isTrapped: false, trapTimer: 0
+};
+
+let projectiles = [];
+let luettaCounter = 0;
+const luetta = { active: false, mode: 'none', x: 0, y: 0, timer: 0, speed: 0 };
+
+let rainActive = false;
+let rainTimer = 0;
+let raindrops = [];
+for (let i = 0; i < 45; i++) {
+  raindrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 8 + Math.random() * 4 });
 }
 
-// 2. CHARACTER-SPECIFIC ATTACK ANIMATIONS (No more universal sword swing)
-if (p.isAttacking) {
-  let progress = p.attackTimer / p.attackDuration;
+function selectHero(key) {
+  currentKey = key;
+  const p = HERO_PROFILES[key];
+  document.getElementById("hud-name").innerText = p.name;
+  document.getElementById("hud-pwr").innerText = "LV." + p.pwr;
+  document.getElementById("hud-hp").innerText = p.maxHp + "/" + p.maxHp;
+  document.getElementById("lbl-skill1").innerText = p.s1;
+  document.getElementById("lbl-skill2").innerText = p.s2;
+  document.getElementById("lbl-skill3").innerText = p.s3;
+
+  document.querySelectorAll(".grid-roster .btn").forEach(b => b.classList.remove("active"));
+  event.currentTarget.classList.add("active");
+
+  if (key === 'aura') { rainActive = true; rainTimer = 180; }
+}
+
+document.getElementById("btn-left").addEventListener("click", () => {
+  player.facing = -1;
+  player.x = Math.max(25, player.x - HERO_PROFILES[currentKey].speed * 3.8);
+  player.runCycle += 0.5;
+});
+document.getElementById("btn-right").addEventListener("click", () => {
+  player.facing = 1;
+  player.x = Math.min(canvas.width - 25, player.x + HERO_PROFILES[currentKey].speed * 3.8);
+  player.runCycle += 0.5;
+});
+
+document.getElementById("btn-jump").addEventListener("click", () => {
+  if (!player.grounded) return;
+  player.grounded = false;
+  player.vy = -12.5;
+  player.jumpState = 'spinning';
+  player.spinAngle = 0;
+
+  let targets = boss.active ? [boss, ...enemies] : enemies;
+  targets.forEach(e => {
+    let dx = e.x - player.x;
+    if (Math.abs(dx) < 70) {
+      e.vx = (dx >= 0 ? 1 : -1) * 8;
+      e.hp -= 12;
+    }
+  });
+});
+
+document.getElementById("btn-skill1").addEventListener("click", () => {
+  if (player.isAttacking) return;
+  player.isAttacking = true;
+  player.attackTimer = 0;
+  player.currentMove = 's1';
+
+  let targets = boss.active ? [boss, ...enemies] : enemies;
+  targets.forEach(e => {
+    if (Math.abs(e.x - (player.x + player.facing * 30)) < 45) {
+      e.hp -= 20;
+      e.vx = player.facing * 5;
+    }
+  });
+});
+
+document.getElementById("btn-skill2").addEventListener("click", () => {
+  const hero = HERO_PROFILES[currentKey];
 
   if (currentKey === 'kensai') {
-    // True Katana Slash Arc (Only for Kensai)
-    let startAngle = -Math.PI * 0.55;
-    let endAngle = Math.PI * 0.35;
-    let curAngle = startAngle + (endAngle - startAngle) * progress;
-
-    ctx.beginPath();
-    ctx.arc(8, -18, 36, startAngle, curAngle, false);
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 3.5;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(8, -18, 38, startAngle, curAngle, false);
-    ctx.strokeStyle = profile.glow;
-    ctx.lineWidth = 6;
-    ctx.stroke();
-
+    player.isDashing = true;
+    player.dashTimer = 0;
   } else if (currentKey === 'aura') {
-    // Water Spiral Blast outward from palms
-    ctx.fillStyle = "rgba(56, 189, 248, 0.75)";
-    ctx.beginPath();
-    ctx.arc(16 + progress * 20, -24, 6 + progress * 8, 0, Math.PI * 2);
-    ctx.fill();
-
+    rainActive = true;
+    rainTimer = 140;
+    projectiles.push({
+      type: 'weavenet', x: player.x + player.facing * 18, y: player.y - 18,
+      vx: player.facing * 6.5, radius: 12, maxRadius: 36
+    });
   } else if (currentKey === 'sundiata') {
-    // Massive Golden Haymaker / Heavy Fist Smash
-    ctx.strokeStyle = "#fbbf24";
-    ctx.lineWidth = 4.5;
-    ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(22, -22); ctx.stroke();
-    // Impact spark
-    ctx.fillStyle = "#fff";
-    ctx.beginPath(); ctx.arc(22, -22, 6, 0, Math.PI * 2); ctx.fill();
-
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+    targets.forEach(e => { e.hp -= 35; e.vx = (e.x > player.x ? 1 : -1) * 10; });
+    projectiles.push({ type: 'quake', x: player.x, radius: 10, maxRadius: 100 });
   } else if (currentKey === 'delta') {
-    // Twin Dagger Cross Slash (X-Cut)
-    ctx.strokeStyle = "#c084fc";
-    ctx.lineWidth = 2.5;
+    let target = boss.active ? boss : enemies[0];
+    if (target) {
+      player.x = target.x + (player.facing * -28);
+      target.hp -= 45;
+    }
+  } else {
+    projectiles.push({ type: 'beam', x: player.x, y: player.y - 18, vx: player.facing * 11, color: hero.color });
+  }
+});
+
+document.getElementById("btn-skill3").addEventListener("click", () => {
+  if (player.burst < 100) return;
+  player.burst = 0;
+
+  if (currentKey === 'aura') {
+    rainActive = true;
+    rainTimer = 160;
+    projectiles.push({ type: 'tsunami', x: player.facing > 0 ? 0 : canvas.width, vx: player.facing * 8.5 });
+  } else {
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+    targets.forEach(e => {
+      e.hp -= 70;
+      e.vx = (e.x > player.x ? 1 : -1) * 12;
+    });
+  }
+});
+
+document.getElementById("btn-luetta").addEventListener("click", () => {
+  if (luetta.active) return;
+  luetta.active = true;
+  if (luettaCounter === 0) {
+    luetta.mode = 'sky';
+    luetta.x = canvas.width / 2;
+    luetta.y = -40;
+    luetta.timer = 100;
+    luettaCounter = 1;
+  } else {
+    luetta.mode = 'ground';
+    luetta.x = player.facing > 0 ? -30 : canvas.width + 30;
+    luetta.y = FLOOR_Y;
+    luetta.speed = 17 * player.facing;
+    luettaCounter = 0;
+  }
+});
+
+function update() {
+  if (player.burst < 100) player.burst = Math.min(100, player.burst + 0.15);
+
+  if (player.isAttacking) {
+    player.attackTimer++;
+    if (player.attackTimer >= player.attackDuration) player.isAttacking = false;
+  }
+
+  if (player.isDashing) {
+    player.dashTimer++;
+    player.x += player.facing * 9.5;
+    let progress = player.dashTimer / 14;
+    player.yOffset = Math.sin(progress * Math.PI) * -13;
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+    targets.forEach(e => {
+      if (Math.abs(e.x - player.x) < 26) { e.hp -= 3; e.vx = player.facing * 5; }
+    });
+    if (player.dashTimer >= 14) { player.isDashing = false; player.yOffset = 0; }
+  }
+
+  if (!player.grounded) {
+    player.y += player.vy;
+    player.vy += 0.7;
+    if (player.jumpState === 'spinning') player.spinAngle += player.facing * 0.35;
+    if (player.y >= FLOOR_Y) {
+      player.y = FLOOR_Y;
+      player.vy = 0;
+      player.grounded = true;
+      player.jumpState = 'heroLanding';
+      player.landingTimer = 11;
+    }
+  } else if (player.jumpState === 'heroLanding') {
+    player.landingTimer--;
+    if (player.landingTimer <= 0) player.jumpState = 'ground';
+  }
+
+  player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
+
+  projectiles.forEach((p, idx) => {
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+
+    if (p.type === 'weavenet') {
+      p.x += p.vx;
+      p.radius = Math.min(p.maxRadius, p.radius + 0.8);
+      targets.forEach(e => {
+        if (Math.abs(e.x - p.x) < p.radius) {
+          e.isTrapped = true;
+          e.trapTimer = 160;
+          e.hp -= 0.4;
+        }
+      });
+      if (p.x > canvas.width + 60 || p.x < -60) projectiles.splice(idx, 1);
+    } else if (p.type === 'tsunami') {
+      p.x += p.vx;
+      targets.forEach(e => {
+        if (Math.abs(e.x - p.x) < 40) { e.hp -= 2.2; e.vx = (p.vx > 0 ? 1 : -1) * 7; }
+      });
+      if (p.x > canvas.width + 100 || p.x < -100) projectiles.splice(idx, 1);
+    } else if (p.type === 'quake') {
+      p.radius += 4;
+      if (p.radius >= p.maxRadius) projectiles.splice(idx, 1);
+    } else if (p.type === 'beam') {
+      p.x += p.vx;
+      targets.forEach(e => {
+        if (Math.abs(e.x - p.x) < 20) { e.hp -= 22; }
+      });
+      if (p.x > canvas.width + 40 || p.x < -40) projectiles.splice(idx, 1);
+    }
+  });
+
+  if (rainActive) {
+    raindrops.forEach(r => {
+      r.y += r.speed;
+      if (r.y > canvas.height) { r.y = -10; r.x = Math.random() * canvas.width; }
+    });
+    rainTimer--;
+    if (rainTimer <= 0) rainActive = false;
+  }
+
+  if (!boss.active) {
+    enemies.forEach(e => {
+      e.x += e.vx;
+      e.vx *= 0.86;
+      e.tick += 0.05;
+
+      if (e.isTrapped) {
+        e.trapTimer--;
+        e.vx = 0;
+        if (e.trapTimer <= 0) e.isTrapped = false;
+      } else if (Math.abs(e.vx) < 0.2) {
+        e.x += (player.x > e.x ? 0.5 : -0.5);
+        e.dir = player.x > e.x ? 1 : -1;
+      }
+
+      if (e.hp <= 0) {
+        player.score += 100;
+        androidsDefeated++;
+        e.hp = e.maxHp;
+        e.x = canvas.width + 30;
+
+        if (androidsDefeated >= 6) {
+          bossWarningTimer = 100;
+          boss.active = true;
+          boss.x = canvas.width + 50;
+        }
+      }
+    });
+  } else {
+    boss.x += boss.vx;
+    boss.vx *= 0.88;
+    boss.tick += 0.04;
+    boss.attackTimer++;
+
+    if (boss.isTrapped) {
+      boss.trapTimer--;
+      boss.vx = 0;
+      if (boss.trapTimer <= 0) boss.isTrapped = false;
+    } else {
+      let dist = player.x - boss.x;
+      boss.dir = dist > 0 ? 1 : -1;
+
+      if (Math.abs(dist) > 50) {
+        boss.x += boss.dir * 1.2;
+      } else if (boss.attackTimer % 90 === 0) {
+        player.hp = Math.max(0, player.hp - 18);
+        player.x += boss.dir * 25;
+      }
+    }
+
+    if (boss.hp <= 0) {
+      boss.active = false;
+      androidsDefeated = 0;
+      player.score += 1000;
+      alert("SECTOR BOSS DEFEATED! Advancing closer to Dr. Von Doom's Citadel.");
+    }
+  }
+
+  if (luetta.active) {
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+    if (luetta.mode === 'sky') {
+      if (luetta.y < 82) luetta.y += 3.2;
+      luetta.timer--;
+      targets.forEach(e => { e.hp -= 0.65; e.x += (Math.random() - 0.5) * 3; });
+      if (luetta.timer <= 0) luetta.active = false;
+    } else if (luetta.mode === 'ground') {
+      luetta.x += luetta.speed;
+      targets.forEach(e => {
+        if (Math.abs(e.x - luetta.x) < 32) { e.hp -= 40; e.vx = (luetta.speed > 0 ? 1 : -1) * 12; }
+      });
+      if (luetta.x > canvas.width + 80 || luetta.x < -80) luetta.active = false;
+    }
+  }
+
+  document.getElementById("hud-score").innerText = player.score;
+  document.getElementById("hud-burst").innerText = Math.floor(player.burst) + "%";
+  document.getElementById("hud-hp").innerText = player.hp + "/" + HERO_PROFILES[currentKey].maxHp;
+}
+
+function drawHero(ctx, p) {
+  const profile = HERO_PROFILES[currentKey];
+  ctx.save();
+  ctx.translate(p.x, p.y + p.yOffset);
+  ctx.scale(p.facing, 1);
+
+  if (p.jumpState === 'spinning') {
+    ctx.rotate(p.spinAngle);
+    ctx.fillStyle = profile.color;
+    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke();
+  } else if (p.jumpState === 'heroLanding') {
+    ctx.strokeStyle = profile.color;
+    ctx.fillStyle = profile.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(0, -10, 7, 8, -0.3, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(10, -32); ctx.lineTo(26, -14);
-    ctx.moveTo(10, -14); ctx.lineTo(26, -32);
+    ctx.moveTo(-6, -6); ctx.lineTo(-13, 0);
+    ctx.moveTo(4, -6);  ctx.lineTo(10, 0);
+    ctx.stroke();
+    if (currentKey === 'kensai') {
+      ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(-2, -8); ctx.lineTo(-24, 0); ctx.stroke();
+    }
+  } else {
+    ctx.strokeStyle = profile.color;
+    ctx.fillStyle = profile.color;
+    ctx.lineWidth = 2.8;
+    ctx.lineCap = "round";
+
+    let stride = Math.sin(p.runCycle) * 5;
+    ctx.beginPath();
+    ctx.moveTo(-3, -15); ctx.lineTo(-5 - stride, 0);
+    ctx.moveTo(3, -15);  ctx.lineTo(5 + stride, 0);
     ctx.stroke();
 
-  } else if (currentKey === 'pioneer') {
-    // Blaster Muzzle Flash
-    ctx.fillStyle = "#fdba74";
-    ctx.beginPath(); ctx.arc(16, -22, 7 * (1 - progress), 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(0, -15); ctx.stroke();
 
-  } else if (currentKey === 'prism') {
-    // Dark matter graviton pulse ring expanding forward
-    ctx.strokeStyle = "#f472b6";
-    ctx.lineWidth = 2.5;
+    if (currentKey === 'kensai') {
+      ctx.strokeStyle = profile.glow;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-2, -28);
+      ctx.quadraticCurveTo(-14, -26 + Math.sin(Date.now() * 0.01) * 3, -22, -30);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = "#0f172a";
+    ctx.beginPath(); ctx.arc(1, -34, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = profile.color;
+    ctx.fillRect(2, -36, 4.5, 2.5);
+
+    // Hero weapon & distinct identity
+    if (currentKey === 'kensai') {
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-8, -18); ctx.lineTo(6, -22); ctx.stroke();
+    } else if (currentKey === 'aura') {
+      ctx.fillStyle = "rgba(56, 189, 248, 0.85)";
+      ctx.beginPath();
+      ctx.arc(8, -18 + Math.sin(Date.now() * 0.008) * 3, 3.5, 0, Math.PI * 2);
+      ctx.arc(-8, -20 + Math.cos(Date.now() * 0.008) * 3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (currentKey === 'sundiata') {
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillRect(-6, -32, 12, 4);
+      ctx.beginPath(); ctx.arc(8, -20, 4.5, 0, Math.PI * 2); ctx.fill();
+    } else if (currentKey === 'delta') {
+      ctx.strokeStyle = "#a855f7";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(4, -22); ctx.lineTo(12, -18); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-4, -22); ctx.lineTo(-10, -18); ctx.stroke();
+    } else if (currentKey === 'pioneer') {
+      ctx.fillStyle = "#f97316";
+      ctx.fillRect(4, -24, 10, 5);
+    } else if (currentKey === 'prism') {
+      ctx.strokeStyle = "#ec4899";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(0, -22, 12, 4, Date.now() * 0.005, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Hero-specific attack animations
+    if (p.isAttacking) {
+      let progress = p.attackTimer / p.attackDuration;
+
+      if (currentKey === 'kensai') {
+        let startAngle = -Math.PI * 0.55;
+        let endAngle = Math.PI * 0.35;
+        let curAngle = startAngle + (endAngle - startAngle) * progress;
+
+        ctx.strokeStyle = profile.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(10, -22); ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(8, -18, 36, startAngle, curAngle, false);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(8, -18, 38, startAngle, curAngle, false);
+        ctx.strokeStyle = profile.glow;
+        ctx.lineWidth = 6;
+        ctx.stroke();
+      } else if (currentKey === 'aura') {
+        ctx.fillStyle = "rgba(56, 189, 248, 0.75)";
+        ctx.beginPath();
+        ctx.arc(16 + progress * 20, -24, 6 + progress * 8, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (currentKey === 'sundiata') {
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 4.5;
+        ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(22, -22); ctx.stroke();
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.arc(22, -22, 6, 0, Math.PI * 2); ctx.fill();
+      } else if (currentKey === 'delta') {
+        ctx.strokeStyle = "#c084fc";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(10, -32); ctx.lineTo(26, -14);
+        ctx.moveTo(10, -14); ctx.lineTo(26, -32);
+        ctx.stroke();
+      } else if (currentKey === 'pioneer') {
+        ctx.fillStyle = "#fdba74";
+        ctx.beginPath(); ctx.arc(16, -22, 7 * (1 - progress), 0, Math.PI * 2); ctx.fill();
+      } else if (currentKey === 'prism') {
+        ctx.strokeStyle = "#f472b6";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(18 + progress * 15, -22, 8 + progress * 12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else {
+      ctx.strokeStyle = profile.color;
+      ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(6, -18); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawEnemy(ctx, e) {
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  ctx.scale(e.dir, 1);
+  ctx.strokeStyle = "#dc2626";
+  ctx.fillStyle = "#991b1b";
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = "round";
+
+  let stride = Math.sin(e.tick * 3) * 3.5;
+  ctx.beginPath();
+  ctx.moveTo(-2, -15); ctx.lineTo(-4 - stride, 0);
+  ctx.moveTo(2, -15);  ctx.lineTo(4 + stride, 0);
+  ctx.moveTo(0, -28);  ctx.lineTo(0, -15);
+  ctx.stroke();
+
+  ctx.beginPath(); ctx.arc(0, -32, 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#ef4444"; ctx.fillRect(1, -33, 3, 2);
+
+  if (e.isTrapped) {
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(18 + progress * 15, -22, 8 + progress * 12, 0, Math.PI * 2);
+    ctx.moveTo(-10, -34); ctx.lineTo(10, 0);
+    ctx.moveTo(10, -34);  ctx.lineTo(-10, 0);
     ctx.stroke();
   }
+  ctx.restore();
+
+  ctx.fillStyle = "#1e293b"; ctx.fillRect(e.x - 12, e.y - 42, 24, 3.5);
+  ctx.fillStyle = "#ef4444"; ctx.fillRect(e.x - 12, e.y - 42, (e.hp / e.maxHp) * 24, 3.5);
 }
+
+function drawBoss(ctx, b) {
+  ctx.save();
+  ctx.translate(b.x, b.y);
+  ctx.scale(b.dir * 1.3, 1.3);
+
+  ctx.strokeStyle = "#7c3aed";
+  ctx.fillStyle = "#5b21b6";
+  ctx.lineWidth = 3;
+
+  let stride = Math.sin(b.tick * 3) * 3;
+  ctx.beginPath();
+  ctx.moveTo(-3, -16); ctx.lineTo(-6 - stride, 0);
+  ctx.moveTo(3, -16);  ctx.lineTo(6 + stride, 0);
+  ctx.moveTo(0, -32);  ctx.lineTo(0, -16);
+  ctx.stroke();
+
+  ctx.fillStyle = "#1e1b4b";
+  ctx.beginPath(); ctx.arc(0, -36, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#c084fc"; ctx.fillRect(1, -38, 4, 3);
+
+  ctx.strokeStyle = "#f43f5e";
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-6, -26); ctx.lineTo(14, -18); ctx.stroke();
+
+  ctx.restore();
+
+  ctx.fillStyle = "#1e1b4b"; ctx.fillRect(b.x - 25, b.y - 58, 50, 6);
+  ctx.fillStyle = "#a855f7"; ctx.fillRect(b.x - 25, b.y - 58, (b.hp / b.maxHp) * 50, 6);
+  ctx.fillStyle = "#f472b6"; ctx.font = "9px sans-serif";
+  ctx.fillText("CYBER APEX (SECTOR BOSS)", b.x - 45, b.y - 64);
+}
+
+function drawLuetta(ctx, l) {
+  ctx.save();
+  ctx.translate(l.x, l.y);
+
+  if (l.mode === 'sky') {
+    let beam = ctx.createLinearGradient(0, -80, 0, FLOOR_Y);
+    beam.addColorStop(0, "rgba(251, 191, 36, 0.75)");
+    beam.addColorStop(1, "rgba(251, 191, 36, 0.0)");
+    ctx.fillStyle = beam;
+    ctx.fillRect(-35, -l.y, 70, canvas.height);
+
+    ctx.strokeStyle = "rgba(254, 240, 138, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -15); ctx.quadraticCurveTo(-26, -30, -32, -10);
+    ctx.moveTo(0, -15); ctx.quadraticCurveTo(26, -30, 32, -10);
+    ctx.stroke();
+
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath();
+    ctx.moveTo(0, -18); ctx.lineTo(-14, 18);
+    ctx.quadraticCurveTo(0, 22, 14, 18);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "#fbbf24";
+    ctx.beginPath(); ctx.arc(0, -22, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.ellipse(0, -30, 11, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
+
+    ctx.strokeStyle = "#fef08a";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(-18, -14); ctx.lineTo(18, -14); ctx.stroke();
+  } else if (l.mode === 'ground') {
+    ctx.scale(l.speed > 0 ? 1 : -1, 1);
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.85)";
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-45, -14); ctx.lineTo(0, -14); ctx.stroke();
+
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath(); ctx.arc(0, -24, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(2, -22); ctx.lineTo(-18, 0); ctx.lineTo(10, 0); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#060911";
+  ctx.fillRect(40, 90, 45, 130);
+  ctx.fillRect(120, 70, 60, 150);
+  ctx.fillRect(230, 110, 50, 110);
+  ctx.fillRect(330, 85, 65, 135);
+
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(0, FLOOR_Y, canvas.width, 40);
+  ctx.fillStyle = HERO_PROFILES[currentKey].color;
+  ctx.fillRect(0, FLOOR_Y, canvas.width, 2);
+
+  if (rainActive) {
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.5)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    raindrops.forEach(r => { ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 2, r.y + 10); });
+    ctx.stroke();
+  }
+
+  if (bossWarningTimer > 0) {
+    bossWarningTimer--;
+    ctx.fillStyle = "rgba(220, 38, 38, 0.35)";
+    ctx.fillRect(0, 80, canvas.width, 35);
+    ctx.fillStyle = "#f87171";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText("⚠ WARNING: SECTOR BOSS APEX INBOUND ⚠", 100, 102);
+  }
+
+  if (!boss.active) {
+    enemies.forEach(e => drawEnemy(ctx, e));
+  } else {
+    drawBoss(ctx, boss);
+  }
+
+  drawHero(ctx, player);
+
+  projectiles.forEach(p => {
+    if (p.type === 'weavenet') {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(angle) * p.radius, Math.sin(angle) * p.radius);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    } else if (p.type === 'tsunami') {
+      ctx.fillStyle = "rgba(14, 165, 233, 0.65)";
+      ctx.beginPath();
+      ctx.moveTo(p.x - 40, FLOOR_Y);
+      ctx.quadraticCurveTo(p.x, FLOOR_Y - 70, p.x + 40, FLOOR_Y);
+      ctx.fill();
+    } else if (p.type === 'quake') {
+      ctx.strokeStyle = "rgba(251, 191, 36, 0.7)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(p.x, FLOOR_Y, p.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (p.type === 'beam') {
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 15, p.y - 3, 30, 6);
+    }
+  });
+
+  if (luetta.active) drawLuetta(ctx, luetta);
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
