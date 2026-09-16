@@ -77,11 +77,15 @@
     background: #1e293b;
     color: #f8fafc;
     border-color: #334155;
-    padding: 9px 4px;
+    padding: 8px 4px;
   }
   .btn-gold {
     border-color: #d97706;
     color: #fbbf24;
+  }
+  .btn-burst {
+    border-color: #ec4899;
+    color: #f472b6;
   }
 </style>
 </head>
@@ -91,31 +95,34 @@
   <div class="hud">
     <div>HERO: <span id="hud-name">Shadow Kensai</span></div>
     <div>PWR: <span id="hud-pwr">LV.88</span> | HP: <span id="hud-hp">100/100</span></div>
-    <div>SCORE: <span id="hud-score">0</span></div>
+    <div>BURST: <span id="hud-burst">100%</span> | SCORE: <span id="hud-score">0</span></div>
   </div>
 
   <canvas id="stage" width="460" height="260"></canvas>
 
-  <!-- Comic Roster Grid -->
+  <!-- 6-Hero Comic Roster -->
   <div class="grid-roster">
-    <div class="btn active" onclick="selectHero('kensai')">Shadow Kensai<small>Balanced • Dual Blade</small></div>
-    <div class="btn" onclick="selectHero('aura')">Aura Weaver<small>Hydro Mist • Tsunami</small></div>
-    <div class="btn" onclick="selectHero('sundiata')">Sundiata Prime<small>Cosmic Force • Tank</small></div>
-    <div class="btn" onclick="selectHero('delta')">Delta Vanguard<small>Stealth • Twin Dagger</small></div>
-    <div class="btn" onclick="selectHero('pioneer')">Pioneer Volley<small>Solar Core • Blaster</small></div>
-    <div class="btn" onclick="selectHero('prism')">Prism Void<small>Graviton • Void Shift</small></div>
+    <div class="btn active" onclick="selectHero('kensai')">Shadow Kensai<small>Dual Blade Master</small></div>
+    <div class="btn" onclick="selectHero('aura')">Aura Weaver<small>Hydro Mist & Tsunami</small></div>
+    <div class="btn" onclick="selectHero('sundiata')">Sundiata Prime<small>Cosmic Force Bruiser</small></div>
+    <div class="btn" onclick="selectHero('delta')">Delta Vanguard<small>Stealth Infiltrator</small></div>
+    <div class="btn" onclick="selectHero('pioneer')">Pioneer Volley<small>Solar Core Blaster</small></div>
+    <div class="btn" onclick="selectHero('prism')">Prism Void<small>Graviton Void Shift</small></div>
   </div>
 
-  <!-- Combat Controls -->
+  <!-- Combat Controls (Tier 1, 2, 3 Abilities) -->
   <div class="grid-actions">
     <button class="btn btn-atk" id="btn-left">◀ LEFT</button>
-    <button class="btn btn-atk" id="btn-strike" style="border-color:#38bdf8; color:#38bdf8;">COMBO STRIKE<small>Punch • Kick • Slash</small></button>
+    <button class="btn btn-atk" id="btn-skill1">SKILL 1<small id="lbl-skill1">Rising Fang</small></button>
     <button class="btn btn-atk" id="btn-right">RIGHT ▶</button>
   </div>
   <div class="grid-actions">
     <button class="btn btn-atk" id="btn-jump">NINJA JUMP<small>Aerial Knockback</small></button>
-    <button class="btn btn-atk" id="btn-skill">DISTINCT SKILL<small id="skill-label">Horizontal Cleave</small></button>
-    <button class="btn btn-gold" id="btn-luetta">LUETTA AID<small>Dual Descent/Rush</small></button>
+    <button class="btn btn-atk" id="btn-skill2" style="border-color:#38bdf8; color:#38bdf8;">SKILL 2<small id="lbl-skill2">Arc Dash</small></button>
+    <button class="btn btn-burst" id="btn-skill3">OVERDRIVE<small id="lbl-skill3">Steel Tempest</small></button>
+  </div>
+  <div class="grid-actions">
+    <button class="btn btn-gold" id="btn-luetta" style="grid-column: span 3; padding: 7px;">MOTHER LUETTA AID<small>Alternates Sky Descent Beam & Cleaving Ground Rush</small></button>
   </div>
 </div>
 
@@ -124,14 +131,32 @@ const canvas = document.getElementById("stage");
 const ctx = canvas.getContext("2d");
 const FLOOR_Y = 220;
 
-// Character Profiles with unique power levels & attributes
+// Comic Book Ability Profiles
 const HERO_PROFILES = {
-  kensai:   { name: "Shadow Kensai",   pwr: 88, maxHp: 100, speed: 4.8, color: "#00e5ff", skillName: "Horizontal Cleave" },
-  aura:     { name: "Aura Weaver",     pwr: 92, maxHp: 80,  speed: 4.2, color: "#38bdf8", skillName: "Tsunami Rain" },
-  sundiata: { name: "Sundiata Prime", pwr: 96, maxHp: 150, speed: 3.5, color: "#fbbf24", skillName: "Cosmic Quake" },
-  delta:    { name: "Delta Vanguard",  pwr: 85, maxHp: 90,  speed: 5.5, color: "#a855f7", skillName: "Ghost Dash" },
-  pioneer:  { name: "Pioneer Volley",  pwr: 87, maxHp: 95,  speed: 4.5, color: "#f97316", skillName: "Solar Ray" },
-  prism:    { name: "Prism Void",      pwr: 94, maxHp: 85,  speed: 4.6, color: "#ec4899", skillName: "Singularity" }
+  kensai: {
+    name: "Shadow Kensai", pwr: 88, maxHp: 100, speed: 4.8, color: "#00e5ff", glow: "rgba(0, 229, 255, 0.6)",
+    s1: "Rising Fang", s2: "Phantom Arc Dash", s3: "Detroit Steel Tempest"
+  },
+  aura: {
+    name: "Aura Weaver", pwr: 92, maxHp: 85, speed: 4.2, color: "#38bdf8", glow: "rgba(56, 189, 248, 0.6)",
+    s1: "Hydro Needle", s2: "Tidal Weave Net", s3: "Tsunami Surge"
+  },
+  sundiata: {
+    name: "Sundiata Prime", pwr: 96, maxHp: 150, speed: 3.5, color: "#fbbf24", glow: "rgba(251, 191, 36, 0.6)",
+    s1: "Iron Punch", s2: "Cosmic Quake", s3: "Lion's Horizon"
+  },
+  delta: {
+    name: "Delta Vanguard", pwr: 85, maxHp: 90, speed: 5.4, color: "#a855f7", glow: "rgba(168, 85, 247, 0.6)",
+    s1: "Dagger Flurry", s2: "Ghost Step", s3: "Apex Execution"
+  },
+  pioneer: {
+    name: "Pioneer Volley", pwr: 87, maxHp: 95, speed: 4.5, color: "#f97316", glow: "rgba(249, 115, 22, 0.6)",
+    s1: "Photon Dart", s2: "Solar Core", s3: "Orbital Heatwave"
+  },
+  prism: {
+    name: "Prism Void", pwr: 94, maxHp: 85, speed: 4.6, color: "#ec4899", glow: "rgba(236, 72, 153, 0.6)",
+    s1: "Graviton Pulse", s2: "Singularity Trap", s3: "Void Shatter"
+  }
 };
 
 let currentKey = 'kensai';
@@ -139,22 +164,29 @@ let currentKey = 'kensai';
 const player = {
   x: 90, y: FLOOR_Y, yOffset: 0, facing: 1, vy: 0,
   grounded: true, jumpState: 'ground', spinAngle: 0, landingTimer: 0,
-  comboStage: 0, // 0: Punch, 1: Roundhouse Kick, 2: Katana Horizontal Across
-  isStriking: false, strikeTimer: 0, strikeDuration: 12,
+  isAttacking: false, attackTimer: 0, attackDuration: 16, currentMove: 'slash',
   isDashing: false, dashTimer: 0,
-  score: 0
+  runCycle: 0, hp: 100, burst: 100, score: 0
 };
 
-// Distinct Projectiles / Skill entities
-let projectiles = [];
+// Enemy Progression & Boss Engine
+let androidsDefeated = 0;
+let bossMode = false;
+let bossWarningTimer = 0;
 
-// Enemies
 let enemies = [
-  { x: 260, y: FLOOR_Y, vx: 0, hp: 60, maxHp: 60, dir: -1, tick: 0 },
-  { x: 380, y: FLOOR_Y, vx: 0, hp: 80, maxHp: 80, dir: -1, tick: 20 }
+  { x: 260, y: FLOOR_Y, vx: 0, hp: 50, maxHp: 50, dir: -1, tick: 0, isTrapped: false, trapTimer: 0 },
+  { x: 380, y: FLOOR_Y, vx: 0, hp: 70, maxHp: 70, dir: -1, tick: 20, isTrapped: false, trapTimer: 0 }
 ];
 
-// Luetta Summon State
+let boss = {
+  active: false, name: "Cyber Apex (General)", x: 390, y: FLOOR_Y, vx: 0,
+  hp: 400, maxHp: 400, dir: -1, tick: 0, attackTimer: 0, isCharging: false
+};
+
+let projectiles = [];
+
+// Summon State
 let luettaCounter = 0;
 const luetta = { active: false, mode: 'none', x: 0, y: 0, timer: 0, speed: 0 };
 
@@ -162,7 +194,7 @@ const luetta = { active: false, mode: 'none', x: 0, y: 0, timer: 0, speed: 0 };
 let rainActive = false;
 let rainTimer = 0;
 let raindrops = [];
-for (let i = 0; i < 40; i++) {
+for (let i = 0; i < 45; i++) {
   raindrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 8 + Math.random() * 4 });
 }
 
@@ -172,7 +204,9 @@ function selectHero(key) {
   document.getElementById("hud-name").innerText = p.name;
   document.getElementById("hud-pwr").innerText = "LV." + p.pwr;
   document.getElementById("hud-hp").innerText = p.maxHp + "/" + p.maxHp;
-  document.getElementById("skill-label").innerText = p.skillName;
+  document.getElementById("lbl-skill1").innerText = p.s1;
+  document.getElementById("lbl-skill2").innerText = p.s2;
+  document.getElementById("lbl-skill3").innerText = p.s3;
 
   document.querySelectorAll(".grid-roster .btn").forEach(b => b.classList.remove("active"));
   event.currentTarget.classList.add("active");
@@ -180,44 +214,28 @@ function selectHero(key) {
   if (key === 'aura') { rainActive = true; rainTimer = 180; }
 }
 
-// Controls
+// Navigation
 document.getElementById("btn-left").addEventListener("click", () => {
   player.facing = -1;
-  player.x = Math.max(25, player.x - HERO_PROFILES[currentKey].speed * 4);
+  player.x = Math.max(25, player.x - HERO_PROFILES[currentKey].speed * 3.8);
+  player.runCycle += 0.5;
 });
 document.getElementById("btn-right").addEventListener("click", () => {
   player.facing = 1;
-  player.x = Math.min(canvas.width - 25, player.x + HERO_PROFILES[currentKey].speed * 4);
+  player.x = Math.min(canvas.width - 25, player.x + HERO_PROFILES[currentKey].speed * 3.8);
+  player.runCycle += 0.5;
 });
 
-// Martial Arts Combo: Punch -> Kick -> Horizontal Sword Sweep
-document.getElementById("btn-strike").addEventListener("click", () => {
-  if (player.isStriking) return;
-  player.isStriking = true;
-  player.strikeTimer = 0;
-
-  let reach = player.comboStage === 2 ? 55 : 35;
-  let dmg = player.comboStage === 0 ? 15 : (player.comboStage === 1 ? 25 : 45);
-
-  enemies.forEach(e => {
-    if (Math.abs(e.x - (player.x + player.facing * (reach * 0.6))) < reach) {
-      e.hp -= dmg;
-      e.vx = player.facing * (player.comboStage === 2 ? 8 : 4);
-    }
-  });
-
-  player.comboStage = (player.comboStage + 1) % 3; // cycles punch -> kick -> sweep
-});
-
+// Jump with aerial crowd pushback
 document.getElementById("btn-jump").addEventListener("click", () => {
   if (!player.grounded) return;
   player.grounded = false;
-  player.vy = -12;
+  player.vy = -12.5;
   player.jumpState = 'spinning';
   player.spinAngle = 0;
 
-  // Crowd control shockwave push
-  enemies.forEach(e => {
+  let targets = boss.active ? [boss, ...enemies] : enemies;
+  targets.forEach(e => {
     let dx = e.x - player.x;
     if (Math.abs(dx) < 70) {
       e.vx = (dx >= 0 ? 1 : -1) * 8;
@@ -226,32 +244,72 @@ document.getElementById("btn-jump").addEventListener("click", () => {
   });
 });
 
-// Distinct Skill Execution based on active hero
-document.getElementById("btn-skill").addEventListener("click", () => {
+// Skill 1: Fast Tactical Combo
+document.getElementById("btn-skill1").addEventListener("click", () => {
+  if (player.isAttacking) return;
+  player.isAttacking = true;
+  player.attackTimer = 0;
+  player.currentMove = 's1';
+
+  let targets = boss.active ? [boss, ...enemies] : enemies;
+  targets.forEach(e => {
+    if (Math.abs(e.x - (player.x + player.facing * 30)) < 45) {
+      e.hp -= 20;
+      e.vx = player.facing * 5;
+    }
+  });
+});
+
+// Skill 2: Signature Tactical / Crowd Control
+document.getElementById("btn-skill2").addEventListener("click", () => {
   const hero = HERO_PROFILES[currentKey];
 
   if (currentKey === 'kensai') {
-    // Katana Dash: Arcs across whole line
     player.isDashing = true;
     player.dashTimer = 0;
   } else if (currentKey === 'aura') {
-    // Tsunami Wave + Rain
+    // Hydro Weave Net Traps Enemies
     rainActive = true;
-    rainTimer = 160;
-    projectiles.push({ type: 'tsunami', x: player.facing > 0 ? 0 : canvas.width, vx: player.facing * 8, dmg: 40 });
+    rainTimer = 140;
+    projectiles.push({
+      type: 'weavenet', x: player.x + player.facing * 18, y: player.y - 18,
+      vx: player.facing * 6.5, radius: 12, maxRadius: 36
+    });
   } else if (currentKey === 'sundiata') {
-    // Cosmic Ground Quake: Stuns and pushes all enemies
-    enemies.forEach(e => { e.hp -= 35; e.vx = (e.x > player.x ? 1 : -1) * 11; });
+    // Cosmic Quake
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+    targets.forEach(e => { e.hp -= 35; e.vx = (e.x > player.x ? 1 : -1) * 10; });
     projectiles.push({ type: 'quake', x: player.x, radius: 10, maxRadius: 100 });
   } else if (currentKey === 'delta') {
-    // Teleport Slash behind nearest foe
-    if (enemies[0]) {
-      player.x = enemies[0].x + (player.facing * -30);
-      enemies[0].hp -= 50;
+    // Ghost Step Behind Foes
+    let target = boss.active ? boss : enemies[0];
+    if (target) {
+      player.x = target.x + (player.facing * -28);
+      target.hp -= 45;
     }
   } else {
-    // Solar Ray / Prism Singularity projectile
-    projectiles.push({ type: 'beam', x: player.x, y: player.y - 18, vx: player.facing * 12, color: hero.color });
+    // Projectile core / dart
+    projectiles.push({ type: 'beam', x: player.x, y: player.y - 18, vx: player.facing * 11, color: hero.color });
+  }
+});
+
+// Skill 3: Cosmic Overdrive Ultimate
+document.getElementById("btn-skill3").addEventListener("click", () => {
+  if (player.burst < 100) return;
+  player.burst = 0;
+
+  if (currentKey === 'aura') {
+    // Tsunami Wave
+    rainActive = true;
+    rainTimer = 160;
+    projectiles.push({ type: 'tsunami', x: player.facing > 0 ? 0 : canvas.width, vx: player.facing * 8.5 });
+  } else {
+    // Full Screen Cleave / Burst
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+    targets.forEach(e => {
+      e.hp -= 70;
+      e.vx = (e.x > player.x ? 1 : -1) * 12;
+    });
   }
 });
 
@@ -262,36 +320,41 @@ document.getElementById("btn-luetta").addEventListener("click", () => {
   if (luettaCounter === 0) {
     luetta.mode = 'sky';
     luetta.x = canvas.width / 2;
-    luetta.y = -30;
-    luetta.timer = 90;
+    luetta.y = -40;
+    luetta.timer = 100;
     luettaCounter = 1;
   } else {
     luetta.mode = 'ground';
     luetta.x = player.facing > 0 ? -30 : canvas.width + 30;
     luetta.y = FLOOR_Y;
-    luetta.speed = 16 * player.facing;
+    luetta.speed = 17 * player.facing;
     luettaCounter = 0;
   }
 });
 
+// Update Loop
 function update() {
-  // Attack animation timer
-  if (player.isStriking) {
-    player.strikeTimer++;
-    if (player.strikeTimer >= player.strikeDuration) player.isStriking = false;
+  if (player.burst < 100) player.burst = Math.min(100, player.burst + 0.15);
+
+  if (player.isAttacking) {
+    player.attackTimer++;
+    if (player.attackTimer >= player.attackDuration) player.isAttacking = false;
   }
 
-  // Horizontal Dash
+  // Katana Dash Arc
   if (player.isDashing) {
     player.dashTimer++;
-    player.x += player.facing * 10;
-    enemies.forEach(e => {
-      if (Math.abs(e.x - player.x) < 25) { e.hp -= 3; e.vx = player.facing * 5; }
+    player.x += player.facing * 9.5;
+    let progress = player.dashTimer / 14;
+    player.yOffset = Math.sin(progress * Math.PI) * -13;
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+    targets.forEach(e => {
+      if (Math.abs(e.x - player.x) < 26) { e.hp -= 3; e.vx = player.facing * 5; }
     });
-    if (player.dashTimer >= 14) player.isDashing = false;
+    if (player.dashTimer >= 14) { player.isDashing = false; player.yOffset = 0; }
   }
 
-  // Jump physics & landing
+  // Jump physics
   if (!player.grounded) {
     player.y += player.vy;
     player.vy += 0.7;
@@ -301,7 +364,7 @@ function update() {
       player.vy = 0;
       player.grounded = true;
       player.jumpState = 'heroLanding';
-      player.landingTimer = 10;
+      player.landingTimer = 11;
     }
   } else if (player.jumpState === 'heroLanding') {
     player.landingTimer--;
@@ -312,10 +375,23 @@ function update() {
 
   // Projectiles
   projectiles.forEach((p, idx) => {
-    if (p.type === 'tsunami') {
+    let targets = boss.active ? [boss, ...enemies] : enemies;
+
+    if (p.type === 'weavenet') {
       p.x += p.vx;
-      enemies.forEach(e => {
-        if (Math.abs(e.x - p.x) < 35) { e.hp -= 1.5; e.vx = (p.vx > 0 ? 1 : -1) * 6; }
+      p.radius = Math.min(p.maxRadius, p.radius + 0.8);
+      targets.forEach(e => {
+        if (Math.abs(e.x - p.x) < p.radius) {
+          e.isTrapped = true;
+          e.trapTimer = 160;
+          e.hp -= 0.4;
+        }
+      });
+      if (p.x > canvas.width + 60 || p.x < -60) projectiles.splice(idx, 1);
+    } else if (p.type === 'tsunami') {
+      p.x += p.vx;
+      targets.forEach(e => {
+        if (Math.abs(e.x - p.x) < 40) { e.hp -= 2.2; e.vx = (p.vx > 0 ? 1 : -1) * 7; }
       });
       if (p.x > canvas.width + 100 || p.x < -100) projectiles.splice(idx, 1);
     } else if (p.type === 'quake') {
@@ -323,8 +399,8 @@ function update() {
       if (p.radius >= p.maxRadius) projectiles.splice(idx, 1);
     } else if (p.type === 'beam') {
       p.x += p.vx;
-      enemies.forEach(e => {
-        if (Math.abs(e.x - p.x) < 20) { e.hp -= 20; }
+      targets.forEach(e => {
+        if (Math.abs(e.x - p.x) < 20) { e.hp -= 22; }
       });
       if (p.x > canvas.width + 40 || p.x < -40) projectiles.splice(idx, 1);
     }
@@ -340,41 +416,92 @@ function update() {
     if (rainTimer <= 0) rainActive = false;
   }
 
-  // Enemies
-  enemies.forEach(e => {
-    e.x += e.vx;
-    e.vx *= 0.86;
-    e.tick += 0.05;
-    if (e.hp <= 0) {
-      player.score += 100;
-      e.hp = e.maxHp;
-      e.x = canvas.width + 30;
-    }
-    if (Math.abs(e.vx) < 0.2) {
-      e.x += (player.x > e.x ? 0.5 : -0.5);
-      e.dir = player.x > e.x ? 1 : -1;
-    }
-  });
+  // Grunt Enemies Logic
+  if (!boss.active) {
+    enemies.forEach(e => {
+      e.x += e.vx;
+      e.vx *= 0.86;
+      e.tick += 0.05;
 
-  // Luetta
+      if (e.isTrapped) {
+        e.trapTimer--;
+        e.vx = 0;
+        if (e.trapTimer <= 0) e.isTrapped = false;
+      } else if (Math.abs(e.vx) < 0.2) {
+        e.x += (player.x > e.x ? 0.5 : -0.5);
+        e.dir = player.x > e.x ? 1 : -1;
+      }
+
+      if (e.hp <= 0) {
+        player.score += 100;
+        androidsDefeated++;
+        e.hp = e.maxHp;
+        e.x = canvas.width + 30;
+
+        // Boss trigger after 6 grunts
+        if (androidsDefeated >= 6) {
+          bossWarningTimer = 100;
+          boss.active = true;
+          boss.x = canvas.width + 50;
+        }
+      }
+    });
+  } else {
+    // 1-on-1 Sector Boss Logic
+    boss.x += boss.vx;
+    boss.vx *= 0.88;
+    boss.tick += 0.04;
+    boss.attackTimer++;
+
+    if (boss.isTrapped) {
+      boss.trapTimer--;
+      boss.vx = 0;
+      if (boss.trapTimer <= 0) boss.isTrapped = false;
+    } else {
+      // Approach & Super Attack logic
+      let dist = player.x - boss.x;
+      boss.dir = dist > 0 ? 1 : -1;
+
+      if (Math.abs(dist) > 50) {
+        boss.x += boss.dir * 1.2; // faster than grunts
+      } else if (boss.attackTimer % 90 === 0) {
+        // Boss Shockwave Cleave
+        player.hp = Math.max(0, player.hp - 18);
+        player.x += boss.dir * 25; // Knock hero back
+      }
+    }
+
+    if (boss.hp <= 0) {
+      boss.active = false;
+      androidsDefeated = 0;
+      player.score += 1000;
+      alert("SECTOR BOSS DEFEATED! Advancing closer to Dr. Von Doom's Citadel.");
+    }
+  }
+
+  // Luetta Updates
   if (luetta.active) {
+    let targets = boss.active ? [boss, ...enemies] : enemies;
     if (luetta.mode === 'sky') {
-      if (luetta.y < 80) luetta.y += 3.5;
+      if (luetta.y < 82) luetta.y += 3.2;
       luetta.timer--;
-      enemies.forEach(e => { e.hp -= 0.6; e.x += (Math.random() - 0.5) * 3; });
+      targets.forEach(e => { e.hp -= 0.65; e.x += (Math.random() - 0.5) * 3; });
       if (luetta.timer <= 0) luetta.active = false;
     } else if (luetta.mode === 'ground') {
       luetta.x += luetta.speed;
-      enemies.forEach(e => {
-        if (Math.abs(e.x - luetta.x) < 30) { e.hp -= 35; e.vx = (luetta.speed > 0 ? 1 : -1) * 12; }
+      targets.forEach(e => {
+        if (Math.abs(e.x - luetta.x) < 32) { e.hp -= 40; e.vx = (luetta.speed > 0 ? 1 : -1) * 12; }
       });
       if (luetta.x > canvas.width + 80 || luetta.x < -80) luetta.active = false;
     }
   }
 
   document.getElementById("hud-score").innerText = player.score;
+  document.getElementById("hud-burst").innerText = Math.floor(player.burst) + "%";
+  document.getElementById("hud-hp").innerText = player.hp + "/" + HERO_PROFILES[currentKey].maxHp;
 }
 
+// Render Functions
 function drawHero(ctx, p) {
   const profile = HERO_PROFILES[currentKey];
   ctx.save();
@@ -384,75 +511,74 @@ function drawHero(ctx, p) {
   if (p.jumpState === 'spinning') {
     ctx.rotate(p.spinAngle);
     ctx.fillStyle = profile.color;
-    ctx.beginPath();
-    ctx.arc(0, 0, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke();
   } else if (p.jumpState === 'heroLanding') {
-    // 3-point landing pose
     ctx.strokeStyle = profile.color;
     ctx.fillStyle = profile.color;
     ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(0, -10, 7, 8, -0.3, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(0, -10, 7, 8, -0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(-6, -6); ctx.lineTo(-12, 0);
+    ctx.moveTo(-6, -6); ctx.lineTo(-13, 0);
     ctx.moveTo(4, -6);  ctx.lineTo(10, 0);
     ctx.stroke();
-    // trailing blade
-    ctx.strokeStyle = "#fff";
-    ctx.beginPath(); ctx.moveTo(-2, -8); ctx.lineTo(-24, 0); ctx.stroke();
+    ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(-2, -8); ctx.lineTo(-24, 0); ctx.stroke();
   } else {
-    // Humanoid Body
     ctx.strokeStyle = profile.color;
     ctx.fillStyle = profile.color;
     ctx.lineWidth = 2.8;
     ctx.lineCap = "round";
 
-    // Legs
+    let stride = Math.sin(p.runCycle) * 5;
     ctx.beginPath();
-    ctx.moveTo(-3, -15); ctx.lineTo(-5, 0);
-    ctx.moveTo(3, -15);  ctx.lineTo(5, 0);
+    ctx.moveTo(-3, -15); ctx.lineTo(-5 - stride, 0);
+    ctx.moveTo(3, -15);  ctx.lineTo(5 + stride, 0);
     ctx.stroke();
 
-    // Torso & Head
     ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(0, -15); ctx.stroke();
-    ctx.beginPath(); ctx.arc(1, -34, 5, 0, Math.PI * 2); ctx.fill();
 
-    // Combat combos
-    if (p.isStriking) {
-      if (p.comboStage === 1) {
-        // Punch Pose
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(16, -26); ctx.stroke();
-        ctx.fillStyle = "#fff";
-        ctx.beginPath(); ctx.arc(16, -26, 3.5, 0, Math.PI * 2); ctx.fill();
-      } else if (p.comboStage === 2) {
-        // Roundhouse Kick Pose
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 3.5;
-        ctx.beginPath(); ctx.moveTo(0, -16); ctx.lineTo(20, -20); ctx.stroke();
-      } else {
-        // Horizontal Katana Sweep across
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(-10, -22); ctx.lineTo(34, -22); ctx.stroke();
-        // Glow streak
-        ctx.strokeStyle = profile.color;
-        ctx.lineWidth = 5;
-        ctx.beginPath(); ctx.moveTo(-15, -22); ctx.lineTo(38, -22); ctx.stroke();
-      }
+    // Flowing Scarf
+    ctx.strokeStyle = profile.glow;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-2, -28);
+    ctx.quadraticCurveTo(-14, -26 + Math.sin(Date.now() * 0.01) * 3, -22, -30);
+    ctx.stroke();
+
+    // Helmet & Visor
+    ctx.fillStyle = "#0f172a";
+    ctx.beginPath(); ctx.arc(1, -34, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = profile.color;
+    ctx.fillRect(2, -36, 4.5, 2.5);
+
+    // Dynamic Swings
+    if (p.isAttacking) {
+      let progress = p.attackTimer / p.attackDuration;
+      let startAngle = -Math.PI * 0.55;
+      let endAngle = Math.PI * 0.35;
+      let curAngle = startAngle + (endAngle - startAngle) * progress;
+
+      ctx.strokeStyle = profile.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(10, -22); ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(8, -18, 36, startAngle, curAngle, false);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(8, -18, 38, startAngle, curAngle, false);
+      ctx.strokeStyle = profile.glow;
+      ctx.lineWidth = 6.5;
+      ctx.stroke();
     } else {
-      // Idle arms
+      ctx.strokeStyle = profile.color;
       ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(6, -18); ctx.stroke();
-      // Hip sword/accessory
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(-6, -18); ctx.lineTo(6, -22); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-8, -18); ctx.lineTo(6, -22); ctx.stroke();
     }
   }
   ctx.restore();
@@ -475,12 +601,102 @@ function drawEnemy(ctx, e) {
   ctx.stroke();
 
   ctx.beginPath(); ctx.arc(0, -32, 4.5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#ef4444"; ctx.fillRect(1, -33, 3, 2); // visor
+  ctx.fillStyle = "#ef4444"; ctx.fillRect(1, -33, 3, 2);
+
+  if (e.isTrapped) {
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-10, -34); ctx.lineTo(10, 0);
+    ctx.moveTo(10, -34);  ctx.lineTo(-10, 0);
+    ctx.stroke();
+  }
   ctx.restore();
 
-  // Health bar
   ctx.fillStyle = "#1e293b"; ctx.fillRect(e.x - 12, e.y - 42, 24, 3.5);
   ctx.fillStyle = "#ef4444"; ctx.fillRect(e.x - 12, e.y - 42, (e.hp / e.maxHp) * 24, 3.5);
+}
+
+function drawBoss(ctx, b) {
+  ctx.save();
+  ctx.translate(b.x, b.y);
+  ctx.scale(b.dir * 1.3, 1.3); // Heavy Boss Scale
+
+  ctx.strokeStyle = "#7c3aed"; // Purple Cyber Armor
+  ctx.fillStyle = "#5b21b6";
+  ctx.lineWidth = 3;
+
+  let stride = Math.sin(b.tick * 3) * 3;
+  ctx.beginPath();
+  ctx.moveTo(-3, -16); ctx.lineTo(-6 - stride, 0);
+  ctx.moveTo(3, -16);  ctx.lineTo(6 + stride, 0);
+  ctx.moveTo(0, -32);  ctx.lineTo(0, -16);
+  ctx.stroke();
+
+  // Armored Head & Horned Visor
+  ctx.fillStyle = "#1e1b4b";
+  ctx.beginPath(); ctx.arc(0, -36, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#c084fc"; ctx.fillRect(1, -38, 4, 3);
+
+  // Heavy Buster Blade
+  ctx.strokeStyle = "#f43f5e";
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-6, -26); ctx.lineTo(14, -18); ctx.stroke();
+
+  ctx.restore();
+
+  // Boss Health Bar with Label
+  ctx.fillStyle = "#1e1b4b"; ctx.fillRect(b.x - 25, b.y - 58, 50, 6);
+  ctx.fillStyle = "#a855f7"; ctx.fillRect(b.x - 25, b.y - 58, (b.hp / b.maxHp) * 50, 6);
+  ctx.fillStyle = "#f472b6"; ctx.font = "9px sans-serif";
+  ctx.fillText("CYBER APEX (SECTOR BOSS)", b.x - 45, b.y - 64);
+}
+
+function drawLuetta(ctx, l) {
+  ctx.save();
+  ctx.translate(l.x, l.y);
+
+  if (l.mode === 'sky') {
+    let beam = ctx.createLinearGradient(0, -80, 0, FLOOR_Y);
+    beam.addColorStop(0, "rgba(251, 191, 36, 0.75)");
+    beam.addColorStop(1, "rgba(251, 191, 36, 0.0)");
+    ctx.fillStyle = beam;
+    ctx.fillRect(-35, -l.y, 70, canvas.height);
+
+    ctx.strokeStyle = "rgba(254, 240, 138, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -15); ctx.quadraticCurveTo(-26, -30, -32, -10);
+    ctx.moveTo(0, -15); ctx.quadraticCurveTo(26, -30, 32, -10);
+    ctx.stroke();
+
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath();
+    ctx.moveTo(0, -18); ctx.lineTo(-14, 18);
+    ctx.quadraticCurveTo(0, 22, 14, 18);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "#fbbf24";
+    ctx.beginPath(); ctx.arc(0, -22, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.ellipse(0, -30, 11, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
+
+    ctx.strokeStyle = "#fef08a";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(-18, -14); ctx.lineTo(18, -14); ctx.stroke();
+  } else if (l.mode === 'ground') {
+    ctx.scale(l.speed > 0 ? 1 : -1, 1);
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.85)";
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-45, -14); ctx.lineTo(0, -14); ctx.stroke();
+
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath(); ctx.arc(0, -24, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(2, -22); ctx.lineTo(-18, 0); ctx.lineTo(10, 0); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
 }
 
 function draw() {
@@ -508,14 +724,44 @@ function draw() {
     ctx.stroke();
   }
 
-  // Draw Enemies & Hero
-  enemies.forEach(e => drawEnemy(ctx, e));
+  // Boss Warning Banner
+  if (bossWarningTimer > 0) {
+    bossWarningTimer--;
+    ctx.fillStyle = "rgba(220, 38, 38, 0.35)";
+    ctx.fillRect(0, 80, canvas.width, 35);
+    ctx.fillStyle = "#f87171";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText("⚠ WARNING: SECTOR BOSS APEX INBOUND ⚠", 100, 102);
+  }
+
+  // Draw Enemies / Boss
+  if (!boss.active) {
+    enemies.forEach(e => drawEnemy(ctx, e));
+  } else {
+    drawBoss(ctx, boss);
+  }
+
   drawHero(ctx, player);
 
-  // Projectiles
+  // Projectiles & Skill FX
   projectiles.forEach(p => {
-    if (p.type === 'tsunami') {
-      ctx.fillStyle = "rgba(14, 165, 233, 0.6)";
+    if (p.type === 'weavenet') {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(angle) * p.radius, Math.sin(angle) * p.radius);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    } else if (p.type === 'tsunami') {
+      ctx.fillStyle = "rgba(14, 165, 233, 0.65)";
       ctx.beginPath();
       ctx.moveTo(p.x - 40, FLOOR_Y);
       ctx.quadraticCurveTo(p.x, FLOOR_Y - 70, p.x + 40, FLOOR_Y);
@@ -532,26 +778,7 @@ function draw() {
     }
   });
 
-  // Luetta
-  if (luetta.active) {
-    ctx.save();
-    ctx.translate(luetta.x, luetta.y);
-    if (luetta.mode === 'sky') {
-      let grad = ctx.createLinearGradient(0, -60, 0, FLOOR_Y);
-      grad.addColorStop(0, "rgba(251, 191, 36, 0.6)");
-      grad.addColorStop(1, "rgba(251, 191, 36, 0.0)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(-30, -luetta.y, 60, canvas.height);
-      ctx.fillStyle = "#fbbf24";
-      ctx.beginPath(); ctx.arc(0, -16, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#fff";
-      ctx.beginPath(); ctx.ellipse(0, -24, 10, 3, 0, 0, Math.PI * 2); ctx.stroke();
-    } else {
-      ctx.fillStyle = "#f59e0b";
-      ctx.fillRect(-12, -18, 24, 18);
-    }
-    ctx.restore();
-  }
+  if (luetta.active) drawLuetta(ctx, luetta);
 }
 
 function gameLoop() {
