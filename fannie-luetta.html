@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,23 +7,23 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: #0f172a;
+      background: #090d16;
       color: #f8fafc;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Comic Sans MS", "Segoe UI", Roboto, sans-serif;
       display: flex;
       justify-content: center;
-      padding: 12px;
+      padding: 10px;
       user-select: none;
       -webkit-user-select: none;
     }
     #game-container {
       width: 100%;
-      max-width: 500px;
+      max-width: 520px;
       background: #1e293b;
-      border: 2px solid #ca8a04;
-      border-radius: 16px;
+      border: 3px solid #ca8a04;
+      border-radius: 18px;
       padding: 14px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8);
     }
     .hud {
       display: flex;
@@ -37,8 +36,8 @@
     }
     canvas {
       width: 100%;
-      height: 260px;
-      background: #7dd3fc;
+      height: 280px;
+      background: #bae6fd;
       border-radius: 12px;
       border: 2px solid #eab308;
       display: block;
@@ -50,19 +49,20 @@
     }
     .char-select-btn {
       flex: 1;
-      padding: 9px 4px;
-      border-radius: 8px;
+      padding: 10px 4px;
+      border-radius: 10px;
       font-weight: 800;
-      font-size: 0.8rem;
-      border: 2px solid #64748b;
+      font-size: 0.82rem;
+      border: 2px solid #475569;
       background: #334155;
-      color: #cbd5e1;
+      color: #e2e8f0;
       cursor: pointer;
     }
     .char-select-btn.active {
       background: #ca8a04;
       border-color: #fef08a;
       color: #0f172a;
+      box-shadow: 0 0 10px rgba(250, 204, 21, 0.4);
     }
     .controls {
       display: grid;
@@ -75,7 +75,7 @@
       color: #ffffff;
       border: none;
       border-radius: 10px;
-      padding: 14px;
+      padding: 15px;
       font-size: 0.95rem;
       font-weight: 900;
       touch-action: manipulation;
@@ -83,25 +83,36 @@
     }
     .ctrl-btn:active { transform: scale(0.96); }
 
+    /* Educational Popup Modal */
     #edu-modal {
       display: none;
       margin-top: 12px;
-      padding: 12px;
+      padding: 14px;
       background: #0f172a;
       border: 2px dashed #facc15;
-      border-radius: 12px;
+      border-radius: 14px;
       text-align: center;
     }
-    #edu-modal h3 { font-size: 1rem; color: #fde047; margin-bottom: 6px; }
-    #edu-modal p { font-size: 0.85rem; color: #e2e8f0; margin-bottom: 8px; line-height: 1.4; }
+    #edu-modal h3 {
+      font-size: 1.05rem;
+      color: #fde047;
+      margin-bottom: 6px;
+    }
+    #edu-modal p {
+      font-size: 0.88rem;
+      color: #e2e8f0;
+      margin-bottom: 10px;
+      line-height: 1.45;
+    }
     .resume-btn {
       background: #facc15;
       color: #0f172a;
       border: none;
-      padding: 7px 16px;
-      border-radius: 6px;
+      padding: 8px 18px;
+      border-radius: 8px;
       font-weight: 800;
       cursor: pointer;
+      font-size: 0.88rem;
     }
   </style>
 </head>
@@ -111,10 +122,10 @@
     <div class="hud">
       <span id="char-name">LITTLE FANNIE MAY</span>
       <span id="keys-count">KEYS: 0 / 3 🗝️</span>
-      <span id="stars-count">WORDS: 0 📖</span>
+      <span id="chapter-count">CHAPTER 1 📖</span>
     </div>
 
-    <canvas id="gameCanvas" width="480" height="260"></canvas>
+    <canvas id="gameCanvas" width="500" height="280"></canvas>
 
     <div class="mode-bar">
       <button class="char-select-btn active" id="btn-fannie" onclick="setPlayer('fannie')">Little Fannie May</button>
@@ -127,204 +138,343 @@
       <button class="ctrl-btn" id="btn-right">WALK &#9654;</button>
     </div>
 
+    <!-- Educational Word Encounter Box -->
     <div id="edu-modal">
-      <h3 id="modal-word">HERITAGE [Noun]</h3>
-      <p id="modal-desc">"The traditions, achievements, and beliefs that are part of the history of a family."</p>
+      <h3 id="modal-word">✨ HERITAGE ✨</h3>
+      <p id="modal-desc">"The traditions, achievements, and beliefs that are part of the history of a group or family."</p>
       <button class="resume-btn" onclick="dismissModal()">Continue Adventure &rarr;</button>
     </div>
   </div>
 
   <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      const canvas = document.getElementById('gameCanvas');
-      const ctx = canvas.getContext('2d');
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    function playChime(freq, type = 'sine', duration = 0.25) {
+      if (!audioCtx) initAudio();
+      if (!audioCtx) return;
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
 
-      let currentCharacter = 'fannie';
-      let keysFound = 0;
-      let wordsLearned = 0;
-      let isPaused = false;
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-      let player = {
-        x: 40, y: 175, w: 26, h: 48,
-        vx: 0, vy: 0, speed: 4.5,
-        grounded: true
-      };
+    let currentCharacter = 'fannie';
+    let chapterIndex = 0;
+    let keysFound = 0;
+    let isPaused = false;
+    let walkCycle = 0;
 
-      let collectibles = [
-        { x: 130, y: 185, collected: false, word: "KINDNESS", def: "Showing warmth, gentleness, and helping others." },
-        { x: 260, y: 140, collected: false, word: "HERITAGE", def: "The legacy, history, and traditions passed down by family." },
-        { x: 390, y: 185, collected: false, word: "COURAGE", def: "Facing challenges with a brave and hopeful heart." }
-      ];
+    // Chapters with Educational Content & Progression
+    const chapters = [
+      {
+        name: "CHAPTER 1: THE SUNNY MEADOW",
+        skyTop: "#7dd3fc",
+        skyBottom: "#fef08a",
+        ground: "#84cc16",
+        items: [
+          { x: 130, y: 195, collected: false, word: "KINDNESS", def: "Showing warmth, gentleness, and helping those around you." },
+          { x: 260, y: 150, collected: false, word: "HERITAGE", def: "The traditions, love, and stories passed down through family." },
+          { x: 390, y: 195, collected: false, word: "COURAGE", def: "Stepping forward with a brave and hopeful spirit." }
+        ]
+      },
+      {
+        name: "CHAPTER 2: THE GOLDEN CLOCK ORCHARD",
+        skyTop: "#fda4af",
+        skyBottom: "#fde047",
+        ground: "#65a30d",
+        items: [
+          { x: 130, y: 195, collected: false, word: "HONOR", def: "Standing tall with honesty, respect, and good character." },
+          { x: 260, y: 145, collected: false, word: "WISDOM", def: "Using good judgment and learning from our family elders." },
+          { x: 390, y: 195, collected: false, word: "HARMONY", def: "Working and singing together in peaceful agreement." }
+        ]
+      },
+      {
+        name: "CHAPTER 3: ANCESTRAL STARLIGHT PORCH",
+        skyTop: "#1e1b4b",
+        skyBottom: "#701a75",
+        ground: "#475569",
+        items: [
+          { x: 130, y: 195, collected: false, word: "LEGACY", def: "Something rich in value and heart handed down to future generations." },
+          { x: 260, y: 145, collected: false, word: "RESILIENCE", def: "The ability to recover quickly from difficulties and bloom." },
+          { x: 390, y: 195, collected: false, word: "FOUNDATION", def: "The strong roots built by our ancestors that keep us lifted high." }
+        ]
+      }
+    ];
 
-      window.setPlayer = function(type) {
-        currentCharacter = type;
-        document.getElementById('btn-fannie').classList.toggle('active', type === 'fannie');
-        document.getElementById('btn-luetta').classList.toggle('active', type === 'luetta');
-        document.getElementById('char-name').innerText = type === 'fannie' ? 'LITTLE FANNIE MAY' : 'LITTLE LUETTA';
-      };
+    let player = {
+      x: 50, y: 180, w: 32, h: 54,
+      vx: 0, vy: 0, speed: 4.5,
+      grounded: true, facing: 1
+    };
 
-      const keys = { left: false, right: false };
-      const leftBtn = document.getElementById('btn-left');
-      const rightBtn = document.getElementById('btn-right');
+    window.setPlayer = function(type) {
+      initAudio();
+      currentCharacter = type;
+      document.getElementById('btn-fannie').classList.toggle('active', type === 'fannie');
+      document.getElementById('btn-luetta').classList.toggle('active', type === 'luetta');
+      document.getElementById('char-name').innerText = type === 'fannie' ? 'LITTLE FANNIE MAY' : 'LITTLE LUETTA';
+      playChime(523.25, 'triangle', 0.2);
+    };
 
-      leftBtn.addEventListener('mousedown', () => keys.left = true);
-      leftBtn.addEventListener('mouseup', () => keys.left = false);
-      leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; });
-      leftBtn.addEventListener('touchend', () => keys.left = false);
+    const keys = { left: false, right: false };
+    const leftBtn = document.getElementById('btn-left');
+    const rightBtn = document.getElementById('btn-right');
 
-      rightBtn.addEventListener('mousedown', () => keys.right = true);
-      rightBtn.addEventListener('mouseup', () => keys.right = false);
-      rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; });
-      rightBtn.addEventListener('touchend', () => keys.right = false);
+    const pressL = (v) => { keys.left = v; if(v) initAudio(); };
+    const pressR = (v) => { keys.right = v; if(v) initAudio(); };
 
-      document.getElementById('btn-jump').addEventListener('click', () => {
-        if (player.grounded && !isPaused) {
-          player.vy = -11;
-          player.grounded = false;
+    leftBtn.addEventListener('mousedown', () => pressL(true));
+    leftBtn.addEventListener('mouseup', () => pressL(false));
+    leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); pressL(true); });
+    leftBtn.addEventListener('touchend', () => pressL(false));
+
+    rightBtn.addEventListener('mousedown', () => pressR(true));
+    rightBtn.addEventListener('mouseup', () => pressR(false));
+    rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); pressR(true); });
+    rightBtn.addEventListener('touchend', () => pressR(false));
+
+    document.getElementById('btn-jump').addEventListener('click', () => {
+      initAudio();
+      if (player.grounded && !isPaused) {
+        player.vy = -11.5;
+        player.grounded = false;
+        playChime(659.25, 'sine', 0.15);
+      }
+    });
+
+    function showWordEncounter(item) {
+      isPaused = true;
+      playChime(783.99, 'sine', 0.4);
+      document.getElementById('modal-word').innerText = `✨ NEW WORD: ${item.word} ✨`;
+      document.getElementById('modal-desc').innerText = `"${item.def}" (Found in the companion storybook!)`;
+      document.getElementById('edu-modal').style.display = 'block';
+    }
+
+    window.dismissModal = function() {
+      document.getElementById('edu-modal').style.display = 'none';
+      isPaused = false;
+    };
+
+    function update() {
+      if (isPaused) return;
+
+      if (keys.left) { player.vx = -player.speed; player.facing = -1; walkCycle += 0.25; }
+      else if (keys.right) { player.vx = player.speed; player.facing = 1; walkCycle += 0.25; }
+      else { player.vx *= 0.6; walkCycle = 0; }
+
+      player.x += player.vx;
+      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
+
+      player.y += player.vy;
+      if (player.y < 180) {
+        player.vy += 0.8;
+      } else {
+        player.y = 180;
+        player.vy = 0;
+        player.grounded = true;
+      }
+
+      let currentItems = chapters[chapterIndex].items;
+      currentItems.forEach(item => {
+        if (!item.collected) {
+          let dist = Math.hypot((player.x + 16) - item.x, (player.y + 24) - item.y);
+          if (dist < 28) {
+            item.collected = true;
+            keysFound++;
+            document.getElementById('keys-count').innerText = `KEYS: ${keysFound} / 3 🗝️`;
+            showWordEncounter(item);
+          }
         }
       });
 
-      function showWordEncounter(c) {
-        isPaused = true;
-        document.getElementById('modal-word').innerText = `✨ NEW WORD: ${c.word}`;
-        document.getElementById('modal-desc').innerText = `"${c.def}"`;
-        document.getElementById('edu-modal').style.display = 'block';
+      // Chapter Transition: Walk into the Golden Archway once 3 keys are collected
+      if (keysFound >= 3 && player.x >= canvas.width - 55) {
+        playChime(1046.5, 'triangle', 0.6); // Celebration chime
+        chapterIndex = (chapterIndex + 1) % chapters.length;
+        keysFound = 0;
+        player.x = 40;
+        chapters[chapterIndex].items.forEach(i => i.collected = false);
+        document.getElementById('chapter-count').innerText = `CHAPTER ${chapterIndex + 1} 📖`;
+        document.getElementById('keys-count').innerText = `KEYS: 0 / 3 🗝️`;
       }
+    }
 
-      window.dismissModal = function() {
-        document.getElementById('edu-modal').style.display = 'none';
-        isPaused = false;
-      };
+    function drawStoryBackground() {
+      let ch = chapters[chapterIndex];
+      let sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      sky.addColorStop(0, ch.skyTop);
+      sky.addColorStop(0.7, ch.skyBottom);
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      function update() {
-        if (isPaused) return;
+      // Fluffy Clouds
+      ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+      ctx.beginPath();
+      ctx.arc(90, 50, 22, 0, Math.PI * 2);
+      ctx.arc(115, 45, 28, 0, Math.PI * 2);
+      ctx.arc(140, 50, 22, 0, Math.PI * 2);
+      ctx.fill();
 
-        if (keys.left) player.vx = -player.speed;
-        else if (keys.right) player.vx = player.speed;
-        else player.vx *= 0.65;
+      // Golden Lineage Tree
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(340, 95, 24, 140);
+      ctx.fillStyle = '#ca8a04';
+      ctx.beginPath();
+      ctx.arc(352, 90, 52, 0, Math.PI * 2);
+      ctx.arc(318, 105, 38, 0, Math.PI * 2);
+      ctx.arc(386, 105, 38, 0, Math.PI * 2);
+      ctx.fill();
 
-        player.x += player.vx;
-        player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
+      // Rolling Green Hill
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath();
+      ctx.arc(80, 340, 180, 0, Math.PI * 2);
+      ctx.fill();
 
-        player.y += player.vy;
-        if (player.y < 175) {
-          player.vy += 0.78;
-        } else {
-          player.y = 175;
-          player.vy = 0;
-          player.grounded = true;
-        }
+      // Meadow Ground Floor
+      ctx.fillStyle = ch.ground;
+      ctx.fillRect(0, 234, canvas.width, 46);
+      ctx.fillStyle = '#a16207';
+      ctx.fillRect(0, 234, canvas.width, 3);
 
-        collectibles.forEach(c => {
-          if (!c.collected) {
-            let dist = Math.hypot((player.x + 12) - c.x, (player.y + 24) - c.y);
-            if (dist < 26) {
-              c.collected = true;
-              keysFound++;
-              wordsLearned++;
-              document.getElementById('keys-count').innerText = `KEYS: ${keysFound} / 3 🗝️`;
-              document.getElementById('stars-count').innerText = `WORDS: ${wordsLearned} 📖`;
-              showWordEncounter(c);
-            }
-          }
-        });
-      }
-
-      function drawBackground() {
-        let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        skyGrad.addColorStop(0, '#7dd3fc');
-        skyGrad.addColorStop(0.65, '#fef08a');
-        skyGrad.addColorStop(1, '#fde047');
-        ctx.fillStyle = skyGrad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Golden Lineage Tree
-        ctx.fillStyle = '#78350f';
-        ctx.fillRect(340, 85, 22, 140);
-        ctx.fillStyle = '#ca8a04';
+      // Flowers in the Meadow
+      for (let fx = 30; fx < canvas.width; fx += 50) {
+        ctx.fillStyle = '#fef08a';
         ctx.beginPath();
-        ctx.arc(351, 80, 46, 0, Math.PI * 2);
-        ctx.arc(320, 90, 34, 0, Math.PI * 2);
-        ctx.arc(380, 90, 34, 0, Math.PI * 2);
+        ctx.arc(fx, 246, 3.5, 0, Math.PI * 2);
         ctx.fill();
-
-        // Hill
-        ctx.fillStyle = '#65a30d';
-        ctx.beginPath();
-        ctx.arc(90, 310, 150, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Meadow Ground
-        ctx.fillStyle = '#84cc16';
-        ctx.fillRect(0, 223, canvas.width, 37);
-        ctx.fillStyle = '#a16207';
-        ctx.fillRect(0, 223, canvas.width, 3);
       }
 
-      function drawCharacter(x, y, type) {
+      // Next Chapter Golden Archway
+      if (keysFound >= 3) {
         ctx.save();
-        let dressColor = type === 'fannie' ? '#2563eb' : '#991b1b';
-        let apronColor = type === 'fannie' ? '#ffffff' : '#fef08a';
-
-        // Head
-        ctx.fillStyle = '#78350f';
-        ctx.beginPath();
-        ctx.arc(x + 13, y + 10, 10, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Hair Ribbons
-        ctx.fillStyle = '#facc15';
-        ctx.fillRect(x + 1, y + 4, 5, 5);
-        ctx.fillRect(x + 20, y + 4, 5, 5);
-
-        // Dress Body
-        ctx.fillStyle = dressColor;
-        ctx.beginPath();
-        ctx.moveTo(x + 13, y + 18);
-        ctx.lineTo(x + 2, y + 44);
-        ctx.lineTo(x + 24, y + 44);
-        ctx.closePath();
-        ctx.fill();
-
-        // Apron
-        ctx.fillStyle = apronColor;
-        ctx.fillRect(x + 8, y + 25, 10, 15);
-
-        // Shoes
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(x + 5, y + 44, 6, 4);
-        ctx.fillRect(x + 15, y + 44, 6, 4);
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 5;
+        ctx.shadowColor = '#eab308';
+        ctx.shadowBlur = 15;
+        ctx.strokeRect(canvas.width - 45, 175, 36, 58);
+        ctx.fillStyle = 'rgba(254, 240, 138, 0.45)';
+        ctx.fillRect(canvas.width - 45, 175, 36, 58);
+        ctx.fillStyle = '#ca8a04';
+        ctx.font = '800 11px sans-serif';
+        ctx.fillText('NEXT ➔', canvas.width - 46, 168);
         ctx.restore();
       }
+    }
 
-      function drawKeys() {
-        collectibles.forEach((c, idx) => {
-          if (!c.collected) {
-            ctx.save();
-            let bob = Math.sin(Date.now() * 0.005 + idx) * 4;
-            ctx.fillStyle = '#facc15';
-            ctx.shadowColor = '#eab308';
-            ctx.shadowBlur = 8;
-            ctx.beginPath();
-            ctx.arc(c.x, c.y + bob, 7, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillRect(c.x - 2, c.y + bob, 4, 14);
-            ctx.fillRect(c.x + 2, c.y + bob + 8, 4, 3);
-            ctx.restore();
-          }
-        });
-      }
+    // FRIENDLY ILLUSTRATED LITTLE GIRL SPRITE
+    function drawLittleGirl(x, y, type) {
+      ctx.save();
+      let dressColor = type === 'fannie' ? '#2563eb' : '#b91c1c';
+      let ribbonColor = type === 'fannie' ? '#fbbf24' : '#f43f5e';
+      let apronColor = '#ffffff';
 
-      function loop() {
-        update();
-        drawBackground();
-        drawKeys();
-        drawCharacter(player.x, player.y, currentCharacter);
-        requestAnimationFrame(loop);
-      }
+      let legOffset = Math.sin(walkCycle) * 5;
 
-      loop();
-    });
+      // Shoes & Socks
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(x + 8, y + 46 + legOffset, 5, 5);
+      ctx.fillRect(x + 18, y + 46 - legOffset, 5, 5);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(x + 7, y + 51 + legOffset, 8, 4);
+      ctx.fillRect(x + 17, y + 51 - legOffset, 8, 4);
+
+      // Dress (A-line frock)
+      ctx.fillStyle = dressColor;
+      ctx.beginPath();
+      ctx.moveTo(x + 16, y + 20);
+      ctx.lineTo(x + 4, y + 46);
+      ctx.lineTo(x + 28, y + 46);
+      ctx.closePath();
+      ctx.fill();
+
+      // White Pinafore Apron & Frills
+      ctx.fillStyle = apronColor;
+      ctx.fillRect(x + 10, y + 24, 12, 18);
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.strokeRect(x + 10, y + 24, 12, 18);
+
+      // Puffy Curly Hair Buns
+      ctx.fillStyle = '#3e2723';
+      ctx.beginPath();
+      ctx.arc(x + 5, y + 8, 7, 0, Math.PI * 2);
+      ctx.arc(x + 27, y + 8, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hair Ribbons / Bows
+      ctx.fillStyle = ribbonColor;
+      ctx.fillRect(x + 3, y + 12, 5, 4);
+      ctx.fillRect(x + 24, y + 12, 5, 4);
+
+      // Head & Warm Skin Tone
+      ctx.fillStyle = '#8d5524';
+      ctx.beginPath();
+      ctx.arc(x + 16, y + 12, 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Friendly Big Eyes with Sparkle
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + (player.facing === 1 ? 16 : 10), y + 9, 4, 5);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(x + (player.facing === 1 ? 18 : 11), y + 10, 2.5, 3.5);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + (player.facing === 1 ? 18 : 11), y + 10, 1, 1);
+
+      // Sweet Cheerful Smile
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(x + (player.facing === 1 ? 17 : 13), y + 14, 3, 0.1, Math.PI * 0.9);
+      ctx.stroke();
+
+      // Rosy Cheeks
+      ctx.fillStyle = 'rgba(244, 63, 94, 0.45)';
+      ctx.beginPath();
+      ctx.arc(x + (player.facing === 1 ? 15 : 12), y + 14, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawKeys() {
+      let currentItems = chapters[chapterIndex].items;
+      currentItems.forEach((c, idx) => {
+        if (!c.collected) {
+          ctx.save();
+          let bob = Math.sin(Date.now() * 0.005 + idx) * 4;
+          ctx.fillStyle = '#facc15';
+          ctx.shadowColor = '#eab308';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(c.x, c.y + bob, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(c.x - 2, c.y + bob, 4, 14);
+          ctx.fillRect(c.x + 2, c.y + bob + 8, 4, 3);
+          ctx.restore();
+        }
+      });
+    }
+
+    function loop() {
+      update();
+      drawStoryBackground();
+      drawKeys();
+      drawLittleGirl(player.x, player.y, currentCharacter);
+      requestAnimationFrame(loop);
+    }
+
+    loop();
   </script>
 </body>
 </html>
