@@ -29,7 +29,7 @@
     #game-canvas {
       width: 100%;
       max-width: 480px;
-      background: #0d1522;
+      background: #0b121e;
       border-bottom: 2px solid #1a2a40;
       display: block;
     }
@@ -61,7 +61,7 @@
 </head>
 <body>
 
-  <div id="hud">Zone 1: RenCen Rooftop | HP: 76/120</div>
+  <div id="hud">Zone 1: RenCen Rooftop | HP: 76/120 | Score: 6000</div>
   <canvas id="game-canvas" width="480" height="300"></canvas>
 
   <div class="controls-grid">
@@ -78,68 +78,100 @@
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
 
-    // Load Marcus sprite from repository root
-    const marcusImg = new Image();
-    marcusImg.src = 'marcus.png';
-
-    // Game state
     const hero = {
       x: 100,
-      y: 160,
-      width: 60,
-      height: 110,
-      facing: 1, // 1 for right, -1 for left
-      speed: 6
+      y: 190,
+      width: 40,
+      height: 80,
+      facing: 1,
+      speed: 6,
+      action: 'idle'
     };
 
-    // Touch controls
+    // Controls
     document.getElementById('btn-left').addEventListener('pointerdown', () => {
       hero.facing = -1;
-      hero.x = Math.max(10, hero.x - hero.speed * 3);
+      hero.x = Math.max(20, hero.x - hero.speed * 3);
     });
 
     document.getElementById('btn-right').addEventListener('pointerdown', () => {
       hero.facing = 1;
-      hero.x = Math.min(canvas.width - hero.width - 10, hero.x + hero.speed * 3);
+      hero.x = Math.min(canvas.width - hero.width - 20, hero.x + hero.speed * 3);
     });
 
-    // Keyboard support (Arrow keys)
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft') {
-        hero.facing = -1;
-        hero.x = Math.max(10, hero.x - hero.speed * 2);
-      } else if (e.key === 'ArrowRight') {
-        hero.facing = 1;
-        hero.x = Math.min(canvas.width - hero.width - 10, hero.x + hero.speed * 2);
-      }
+    document.getElementById('btn-strike').addEventListener('pointerdown', () => {
+      hero.action = 'strike';
+      setTimeout(() => hero.action = 'idle', 300);
     });
 
-    // Main render loop
     function render() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Simple ground line
-      ctx.strokeStyle = '#28446b';
+      // 1. Stage Background - Detroit Rooftop Skyline
+      ctx.fillStyle = '#060a12';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Skyline Silhouette (RenCen Towers)
+      ctx.fillStyle = '#111d2e';
+      ctx.fillRect(180, 60, 60, 210);
+      ctx.fillRect(250, 40, 70, 230); // Central tower
+      ctx.fillRect(330, 80, 50, 190);
+      ctx.fillRect(80, 110, 60, 160);
+
+      // Ground / Rooftop deck
+      ctx.fillStyle = '#162234';
+      ctx.fillRect(0, 270, canvas.width, 30);
+      ctx.strokeStyle = '#00d2ff';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, 270);
       ctx.lineTo(canvas.width, 270);
       ctx.stroke();
 
-      // Render Marcus sprite or fallback box
-      if (marcusImg.complete && marcusImg.naturalWidth > 0) {
-        ctx.save();
-        if (hero.facing === -1) {
-          ctx.scale(-1, 1);
-          ctx.drawImage(marcusImg, -(hero.x + hero.width), hero.y, hero.width, hero.height);
-        } else {
-          ctx.drawImage(marcusImg, hero.x, hero.y, hero.width, hero.height);
-        }
-        ctx.restore();
-      } else {
-        ctx.fillStyle = '#3498db';
-        ctx.fillRect(hero.x, hero.y, hero.width, hero.height);
+      // 2. Render Marcus (Armored Silhouette + Lightning Drum Aura)
+      ctx.save();
+      ctx.translate(hero.x + hero.width / 2, hero.y);
+      if (hero.facing === -1) ctx.scale(-1, 1);
+
+      // Hero Body (Blue Cybernetic Armor)
+      ctx.fillStyle = '#2b7fff';
+      ctx.fillRect(-15, 10, 30, 45); // Torso
+
+      // Head
+      ctx.fillStyle = '#8d5524';
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Djembe Drums (Mounted at hips)
+      ctx.fillStyle = '#8b4513';
+      ctx.beginPath();
+      ctx.moveTo(-22, 35);
+      ctx.lineTo(-32, 55);
+      ctx.lineTo(-18, 55);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(12, 35);
+      ctx.lineTo(2, 55);
+      ctx.lineTo(16, 55);
+      ctx.fill();
+
+      // Legs
+      ctx.fillStyle = '#1e3a6a';
+      ctx.fillRect(-12, 55, 10, 25);
+      ctx.fillRect(2, 55, 10, 25);
+
+      // Attack FX (Strike / Beats)
+      if (hero.action === 'strike') {
+        ctx.strokeStyle = '#f39c12';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(30, 40, 18, -Math.PI / 2, Math.PI / 2);
+        ctx.stroke();
       }
+
+      ctx.restore();
 
       requestAnimationFrame(render);
     }
