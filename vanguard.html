@@ -40,7 +40,7 @@
     color: #00e5ff;
   }
   .hud span { color: #fff; }
-  .grid-roster, .grid-actions {
+  .grid-actions {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 4px;
@@ -52,7 +52,7 @@
     border: 1px solid #1e293b;
     border-radius: 5px;
     color: #94a3b8;
-    padding: 6px 2px;
+    padding: 7px 2px;
     font-size: 10px;
     font-weight: 700;
     text-align: center;
@@ -61,16 +61,11 @@
   }
   .btn small { font-size: 8px; font-weight: 400; opacity: 0.8; display: block; }
   .btn:active { transform: scale(0.96); }
-  .btn.active {
-    border-color: #f59e0b;
-    background: #451a03;
-    color: #fbbf24;
-  }
   .btn-atk {
     background: #1e293b;
     color: #f8fafc;
     border-color: #334155;
-    padding: 8px 4px;
+    padding: 9px 4px;
   }
   .btn-gold {
     border-color: #d97706;
@@ -94,23 +89,21 @@
 <div id="game-container">
   <div class="hud">
     <div>LEAD: <span id="hud-lead" style="color:#fbbf24;">Marcus</span></div>
-    <div>ZONE: <span id="hud-stage" style="color:#38bdf8;">1. RenCen Rooftop</span></div>
+    <div>ZONE: <span id="hud-stage" style="color:#38bdf8;">1. RenCen Rooftop Helipad</span></div>
     <div>HP: <span id="hud-hp">120/120</span> | SCORE: <span id="hud-score">0</span></div>
   </div>
 
   <canvas id="stage" width="460" height="260"></canvas>
 
-  <!-- Tag-Team Swap & Special Grid -->
   <div class="grid-actions">
-    <button class="btn btn-swap" id="btn-swap" style="grid-column: span 2; padding: 7px;">
-      🔄 TAG / SWAP LEAD HERO<small id="lbl-partner">Partner: Mayleen (Active AI Support)</small>
+    <button class="btn btn-swap" id="btn-swap" style="grid-column: span 2; padding: 8px;">
+      🔄 TAG / SWAP LEAD HERO<small id="lbl-partner">Partner: Mayleen (Active AI Flank)</small>
     </button>
-    <button class="btn btn-gold" id="btn-luetta" style="padding: 7px;">
+    <button class="btn btn-gold" id="btn-luetta" style="padding: 8px;">
       MOTHER LUETTA<small>Sky / Ground Aid</small>
     </button>
   </div>
 
-  <!-- Combat Action Buttons -->
   <div class="grid-actions">
     <button class="btn btn-atk" id="btn-left">◀ LEFT</button>
     <button class="btn btn-atk" id="btn-skill1" style="border-color:#fbbf24; color:#fbbf24;">
@@ -119,7 +112,7 @@
     <button class="btn btn-atk" id="btn-right">RIGHT ▶</button>
   </div>
   <div class="grid-actions">
-    <button class="btn btn-atk" id="btn-jump">NINJA JUMP<small>Aerial Knockback</small></button>
+    <button class="btn btn-atk" id="btn-jump">NINJA JUMP<small>Spin & Knockback</small></button>
     <button class="btn btn-atk" id="btn-skill2" style="border-color:#38bdf8; color:#38bdf8;">
       SIGNATURE SKILL<small id="lbl-skill2">Golden Roots</small>
     </button>
@@ -130,87 +123,79 @@
 <script>
 const canvas = document.getElementById("stage");
 const ctx = canvas.getContext("2d");
-const FLOOR_Y = 220;
+const FLOOR_Y = 215;
 
-// Game & Stage Architecture
-let currentSector = 1; // 1: RenCen Roof, 2: Interior Stairs/Descent, 3: Street-Level Siege
+let currentSector = 1;
 let screenShake = 0;
 let hitstopTimer = 0;
 
-// Lead Control & Tag-Team State
-let activeHero = 'marcus'; // 'marcus' or 'mayleen'
+let activeHero = 'marcus';
 
 const marcus = {
-  x: 100, y: FLOOR_Y, yOffset: 0, facing: 1, vy: 0,
+  x: 110, y: FLOOR_Y, yOffset: 0, facing: 1, vy: 0,
   grounded: true, jumpState: 'ground', spinAngle: 0, landingTimer: 0,
   isAttacking: false, attackTimer: 0, attackDuration: 14,
-  runCycle: 0, hp: 120, maxHp: 120, color: "#d97706"
+  runCycle: 0, hp: 120, maxHp: 120
 };
 
 const mayleen = {
-  x: 65, y: FLOOR_Y, yOffset: 0, facing: 1, vy: 0,
+  x: 70, y: FLOOR_Y, yOffset: 0, facing: 1, vy: 0,
   grounded: true, jumpState: 'ground', spinAngle: 0, landingTimer: 0,
   isAttacking: false, attackTimer: 0, attackDuration: 14,
-  runCycle: 0, hp: 95, maxHp: 95, color: "#ec4899",
-  bellAngle: 0, aiTimer: 0
+  runCycle: 0, hp: 95, maxHp: 95, bellAngle: 0, aiTimer: 0
 };
 
 let burst = 100;
 let score = 0;
 let androidsDefeated = 0;
 
-// Enemies & Boss
+// Continuous Waves: Array of 3 active androids always on field
 let enemies = [
-  { x: 270, y: FLOOR_Y, vx: 0, hp: 50, maxHp: 50, dir: -1, tick: 0, isTrapped: false, trapTimer: 0, flash: 0 },
-  { x: 390, y: FLOOR_Y, vx: 0, hp: 70, maxHp: 70, dir: -1, tick: 20, isTrapped: false, trapTimer: 0, flash: 0 }
+  { x: 280, y: FLOOR_Y, vx: 0, hp: 50, maxHp: 50, dir: -1, tick: 0, isTrapped: false, trapTimer: 0, flash: 0, speed: 0.7 },
+  { x: 380, y: FLOOR_Y, vx: 0, hp: 60, maxHp: 60, dir: -1, tick: 15, isTrapped: false, trapTimer: 0, flash: 0, speed: 0.9 },
+  { x: 460, y: FLOOR_Y, vx: 0, hp: 70, maxHp: 70, dir: -1, tick: 30, isTrapped: false, trapTimer: 0, flash: 0, speed: 0.6 }
 ];
 
 let boss = {
-  active: false, name: "Cyber Apex (General)", x: 420, y: FLOOR_Y, vx: 0,
-  hp: 420, maxHp: 420, dir: -1, tick: 0, attackTimer: 0, flash: 0
+  active: false, name: "Cyber Apex", x: 440, y: FLOOR_Y, vx: 0,
+  hp: 450, maxHp: 450, dir: -1, tick: 0, attackTimer: 0, flash: 0
 };
 
 let projectiles = [];
 let glassShards = [];
 
-// Mother Luetta Summon
 let luettaCounter = 0;
 const luetta = { active: false, mode: 'none', x: 0, y: 0, timer: 0, speed: 0 };
 
-// -------------------------------------------------------------
-// Tag-Swap Lead Handler
-// -------------------------------------------------------------
-function swapLeadHero() {
+function getLead() { return activeHero === 'marcus' ? marcus : mayleen; }
+function getPartner() { return activeHero === 'marcus' ? mayleen : marcus; }
+
+// Tag Swap Lead
+document.getElementById("btn-swap").addEventListener("click", () => {
   activeHero = activeHero === 'marcus' ? 'mayleen' : 'marcus';
 
   if (activeHero === 'marcus') {
     document.getElementById("hud-lead").innerText = "Marcus";
     document.getElementById("hud-lead").style.color = "#fbbf24";
-    document.getElementById("lbl-partner").innerText = "Partner: Mayleen (Active AI Support)";
+    document.getElementById("lbl-partner").innerText = "Partner: Mayleen (Active AI Flank)";
     document.getElementById("lbl-skill1").innerText = "Seismic Punch";
     document.getElementById("lbl-skill2").innerText = "Golden Roots";
     document.getElementById("lbl-skill3").innerText = "Rumble Shatter Duo";
   } else {
     document.getElementById("hud-lead").innerText = "Mayleen";
     document.getElementById("hud-lead").style.color = "#f472b6";
-    document.getElementById("lbl-partner").innerText = "Partner: Marcus (Guardian AI Support)";
-    document.getElementById("lbl-skill1").innerText = "Acoustic Bell Strike";
+    document.getElementById("lbl-partner").innerText = "Partner: Marcus (Guardian AI Flank)";
+    document.getElementById("lbl-skill1").innerText = "Acoustic Strike";
     document.getElementById("lbl-skill2").innerText = "Resonant Trap Net";
     document.getElementById("lbl-skill3").innerText = "Harmonic Implosion";
   }
-}
-document.getElementById("btn-swap").addEventListener("click", swapLeadHero);
+});
 
-// -------------------------------------------------------------
-// Movement & Combat Inputs
-// -------------------------------------------------------------
-function getLead() { return activeHero === 'marcus' ? marcus : mayleen; }
-function getPartner() { return activeHero === 'marcus' ? mayleen : marcus; }
-
+// Movement Controls
 document.getElementById("btn-left").addEventListener("click", () => {
   let lead = getLead();
   lead.facing = -1;
-  lead.x = Math.max(35, lead.x - 24);
+  lead.x = Math.max(30, lead.x - 24);
   lead.runCycle += 0.5;
 });
 document.getElementById("btn-right").addEventListener("click", () => {
@@ -220,19 +205,20 @@ document.getElementById("btn-right").addEventListener("click", () => {
   lead.runCycle += 0.5;
 });
 
+// Jump with Somersault Spin & Aerial Knockback
 document.getElementById("btn-jump").addEventListener("click", () => {
   let lead = getLead();
   if (!lead.grounded) return;
   lead.grounded = false;
-  lead.vy = -12.5;
+  lead.vy = -13;
   lead.jumpState = 'spinning';
   lead.spinAngle = 0;
 
-  // Radial crowd pushback
+  // Knockback shockwave in midair
   let targets = boss.active ? [boss, ...enemies] : enemies;
   targets.forEach(e => {
     let dx = e.x - lead.x;
-    if (Math.abs(dx) < 70) {
+    if (Math.abs(dx) < 75) {
       e.vx = (dx >= 0 ? 1 : -1) * 9;
       e.hp -= 15;
       e.flash = 3;
@@ -240,7 +226,7 @@ document.getElementById("btn-jump").addEventListener("click", () => {
   });
 });
 
-// Strike 1 (Lead Primary Attack)
+// Strike 1
 document.getElementById("btn-skill1").addEventListener("click", () => {
   let lead = getLead();
   if (lead.isAttacking) return;
@@ -249,43 +235,33 @@ document.getElementById("btn-skill1").addEventListener("click", () => {
 
   let targets = boss.active ? [boss, ...enemies] : enemies;
   targets.forEach(e => {
-    if (Math.abs(e.x - (lead.x + lead.facing * 30)) < 45) {
+    if (Math.abs(e.x - (lead.x + lead.facing * 30)) < 48) {
       e.hp -= 25;
       e.vx = lead.facing * 6;
-      e.flash = 3;
+      e.flash = 4;
       hitstopTimer = 3;
       screenShake = 3;
     }
   });
 });
 
-// Signature Skill (Earth Roots vs Acoustic Net)
+// Signature Skill
 document.getElementById("btn-skill2").addEventListener("click", () => {
   let lead = getLead();
-
   if (activeHero === 'marcus') {
-    // Marcus: Golden Earth-Root Surge
-    projectiles.push({
-      type: 'roots', x: lead.x + lead.facing * 20, vx: lead.facing * 7.5,
-      timer: 45
-    });
+    projectiles.push({ type: 'roots', x: lead.x + lead.facing * 20, vx: lead.facing * 7.5, timer: 50 });
   } else {
-    // Mayleen: Expanding Resonant Acoustic Bell Trap
-    projectiles.push({
-      type: 'bellnet', x: lead.x + lead.facing * 20, y: lead.y - 20,
-      vx: lead.facing * 6.5, radius: 14, maxRadius: 36
-    });
+    projectiles.push({ type: 'bellnet', x: lead.x + lead.facing * 20, y: lead.y - 20, vx: lead.facing * 6.5, radius: 14, maxRadius: 38 });
   }
 });
 
-// Overdrive Skill 3
+// Overdrive
 document.getElementById("btn-skill3").addEventListener("click", () => {
   if (burst < 100) return;
   burst = 0;
-  screenShake = 12;
-
+  screenShake = 14;
   let lead = getLead();
-  projectiles.push({ type: 'shockblast', x: lead.x, radius: 20, maxRadius: 260 });
+  projectiles.push({ type: 'shockblast', x: lead.x, radius: 20, maxRadius: 280 });
 
   let targets = boss.active ? [boss, ...enemies] : enemies;
   targets.forEach(e => {
@@ -295,12 +271,11 @@ document.getElementById("btn-skill3").addEventListener("click", () => {
   });
 });
 
-// Mother Luetta Dual Summon
+// Mother Luetta Summon
 document.getElementById("btn-luetta").addEventListener("click", () => {
   if (luetta.active) return;
   luetta.active = true;
   let lead = getLead();
-
   if (luettaCounter === 0) {
     luetta.mode = 'sky';
     luetta.x = canvas.width / 2;
@@ -317,10 +292,10 @@ document.getElementById("btn-luetta").addEventListener("click", () => {
 });
 
 // -------------------------------------------------------------
-// Engine Update Loop
+// Engine Loop
 // -------------------------------------------------------------
 function update() {
-  if (hitstopTimer > 0) { hitstopTimer--; return; } // Hitstop pause
+  if (hitstopTimer > 0) { hitstopTimer--; return; }
   if (screenShake > 0) screenShake *= 0.85;
 
   burst = Math.min(100, burst + 0.15);
@@ -328,30 +303,31 @@ function update() {
   let lead = getLead();
   let partner = getPartner();
 
-  // Attack timer update
   if (lead.isAttacking) {
     lead.attackTimer++;
     if (lead.attackTimer >= lead.attackDuration) lead.isAttacking = false;
   }
 
-  // Jump physics for lead
+  // Jump physics with somersault & 3-point landing recovery
   if (!lead.grounded) {
     lead.y += lead.vy;
-    lead.vy += 0.7;
-    if (lead.jumpState === 'spinning') lead.spinAngle += lead.facing * 0.35;
+    lead.vy += 0.72; // Gravity
+    if (lead.jumpState === 'spinning') {
+      lead.spinAngle += lead.facing * 0.38; // Somersault rotation
+    }
     if (lead.y >= FLOOR_Y) {
       lead.y = FLOOR_Y;
       lead.vy = 0;
       lead.grounded = true;
       lead.jumpState = 'heroLanding';
-      lead.landingTimer = 11;
+      lead.landingTimer = 12; // 3-point crouch pause
     }
   } else if (lead.jumpState === 'heroLanding') {
     lead.landingTimer--;
     if (lead.landingTimer <= 0) lead.jumpState = 'ground';
   }
 
-  // Partner AI Tracking & Combat Support
+  // Partner AI Tracking
   let targetX = lead.x - (lead.facing * 38);
   partner.x += (targetX - partner.x) * 0.12;
   partner.facing = lead.facing;
@@ -362,50 +338,33 @@ function update() {
   if (partner.aiTimer > 90) {
     partner.aiTimer = 0;
     if (activeHero === 'marcus') {
-      // Mayleen AI casts acoustic chime pulses
-      projectiles.push({
-        type: 'bellpulse', x: mayleen.x + mayleen.facing * 18, y: mayleen.y - 24,
-        vx: mayleen.facing * 5, radius: 12
-      });
+      projectiles.push({ type: 'bellpulse', x: mayleen.x + mayleen.facing * 18, y: mayleen.y - 24, vx: mayleen.facing * 5.5, radius: 12 });
     } else {
-      // Marcus AI slams mini earth roots
-      projectiles.push({
-        type: 'roots', x: marcus.x + marcus.facing * 16, vx: marcus.facing * 6,
-        timer: 30
-      });
+      projectiles.push({ type: 'roots', x: marcus.x + marcus.facing * 16, vx: marcus.facing * 6.5, timer: 35 });
     }
   }
 
-  // Projectile Physics & Collisions
+  // Projectile Physics
   projectiles.forEach((p, idx) => {
     let targets = boss.active ? [boss, ...enemies] : enemies;
-
     if (p.type === 'roots') {
       p.x += p.vx;
       p.timer--;
       targets.forEach(e => {
-        if (Math.abs(e.x - p.x) < 28) {
-          e.hp -= 2;
-          e.isTrapped = true;
-          e.trapTimer = 50;
-        }
+        if (Math.abs(e.x - p.x) < 28) { e.hp -= 2.2; e.isTrapped = true; e.trapTimer = 50; }
       });
       if (p.timer <= 0) projectiles.splice(idx, 1);
     } else if (p.type === 'bellnet') {
       p.x += p.vx;
       p.radius = Math.min(p.maxRadius, p.radius + 0.8);
       targets.forEach(e => {
-        if (Math.abs(e.x - p.x) < p.radius) {
-          e.isTrapped = true;
-          e.trapTimer = 150;
-          e.hp -= 0.35;
-        }
+        if (Math.abs(e.x - p.x) < p.radius) { e.isTrapped = true; e.trapTimer = 150; e.hp -= 0.4; }
       });
       if (p.x > canvas.width + 50 || p.x < -50) projectiles.splice(idx, 1);
     } else if (p.type === 'bellpulse') {
       p.x += p.vx;
       targets.forEach(e => {
-        if (Math.abs(e.x - p.x) < 24) { e.hp -= 16; e.vx = (p.vx > 0 ? 1 : -1) * 5; e.flash = 2; }
+        if (Math.abs(e.x - p.x) < 24) { e.hp -= 18; e.vx = (p.vx > 0 ? 1 : -1) * 5; e.flash = 2; }
       });
       if (p.x > canvas.width + 40 || p.x < -40) projectiles.splice(idx, 1);
     } else if (p.type === 'shockblast') {
@@ -414,46 +373,42 @@ function update() {
     }
   });
 
-  // Glass Shards Physics
-  glassShards.forEach((g, idx) => {
-    g.x += g.vx;
-    g.y += g.vy;
-    g.vy += 0.5;
-    g.rot += 0.1;
-    if (g.y > canvas.height) glassShards.splice(idx, 1);
+  // Endless Grunt Waves
+  enemies.forEach(e => {
+    e.x += e.vx;
+    e.vx *= 0.86;
+    e.tick += 0.05;
+    if (e.flash > 0) e.flash--;
+
+    if (e.isTrapped) {
+      e.trapTimer--;
+      e.vx = 0;
+      if (e.trapTimer <= 0) e.isTrapped = false;
+    } else if (Math.abs(e.vx) < 0.2) {
+      e.x += (lead.x > e.x ? e.speed : -e.speed);
+      e.dir = lead.x > e.x ? 1 : -1;
+    }
+
+    // When an android dies, immediately respawn a fresh unit offscreen
+    if (e.hp <= 0) {
+      score += 100;
+      androidsDefeated++;
+      e.hp = e.maxHp;
+      // Respawn randomly from left or right edge
+      e.x = Math.random() > 0.5 ? canvas.width + 30 : -30;
+      e.speed = 0.5 + Math.random() * 0.7; // Variable robotic speed
+
+      // Trigger Sector Boss after 6 kills
+      if (androidsDefeated >= 6 && !boss.active) {
+        boss.active = true;
+        boss.x = canvas.width + 45;
+        boss.hp = boss.maxHp;
+      }
+    }
   });
 
-  // Android Enemies
-  if (!boss.active) {
-    enemies.forEach(e => {
-      e.x += e.vx;
-      e.vx *= 0.86;
-      e.tick += 0.05;
-      if (e.flash > 0) e.flash--;
-
-      if (e.isTrapped) {
-        e.trapTimer--;
-        e.vx = 0;
-        if (e.trapTimer <= 0) e.isTrapped = false;
-      } else if (Math.abs(e.vx) < 0.2) {
-        e.x += (lead.x > e.x ? 0.5 : -0.5);
-        e.dir = lead.x > e.x ? 1 : -1;
-      }
-
-      if (e.hp <= 0) {
-        score += 100;
-        androidsDefeated++;
-        e.hp = e.maxHp;
-        e.x = canvas.width + 30;
-
-        if (androidsDefeated >= 6) {
-          boss.active = true;
-          boss.x = canvas.width + 50;
-        }
-      }
-    });
-  } else {
-    // Sector Boss Apex
+  // Sector Boss
+  if (boss.active) {
     boss.x += boss.vx;
     boss.vx *= 0.88;
     boss.tick += 0.04;
@@ -464,7 +419,7 @@ function update() {
     boss.dir = dist > 0 ? 1 : -1;
 
     if (Math.abs(dist) > 50) {
-      boss.x += boss.dir * 1.2;
+      boss.x += boss.dir * 1.3;
     } else if (boss.attackTimer % 85 === 0) {
       lead.hp = Math.max(0, lead.hp - 16);
       lead.x += boss.dir * 25;
@@ -476,7 +431,7 @@ function update() {
     }
   }
 
-  // Mother Luetta Updates
+  // Luetta Updates
   if (luetta.active) {
     let targets = boss.active ? [boss, ...enemies] : enemies;
     if (luetta.mode === 'sky') {
@@ -497,188 +452,209 @@ function update() {
   document.getElementById("hud-hp").innerText = lead.hp + "/" + lead.maxHp;
 }
 
-// -------------------------------------------------------------
-// Stage Progression: Rooftop -> Interior Stairs -> Street Siege
-// -------------------------------------------------------------
 function advanceStage() {
   boss.active = false;
   androidsDefeated = 0;
   score += 1000;
   screenShake = 16;
 
-  // Shatter glass skylight particles
-  for (let i = 0; i < 35; i++) {
-    glassShards.push({
-      x: canvas.width / 2 + (Math.random() - 0.5) * 80,
-      y: FLOOR_Y,
-      vx: (Math.random() - 0.5) * 8,
-      vy: -Math.random() * 8,
-      size: 4 + Math.random() * 6,
-      rot: 0
-    });
-  }
-
   currentSector++;
   if (currentSector === 2) {
     document.getElementById("hud-stage").innerText = "2. RenCen Staircase Descent";
     document.getElementById("hud-stage").style.color = "#f59e0b";
-    alert("SKYLIGHT SHATTERED! Crashing down through the RenCen interior corporate floors & stairwells!");
   } else if (currentSector === 3) {
     document.getElementById("hud-stage").innerText = "3. Woodward Ave Street Siege";
     document.getElementById("hud-stage").style.color = "#ef4444";
-    alert("BREAKOUT! You reach Woodward Avenue — Thorne Logistics street siege begins against Dr. Von Doom's armada!");
   } else {
     currentSector = 1;
-    document.getElementById("hud-stage").innerText = "1. RenCen Rooftop";
+    document.getElementById("hud-stage").innerText = "1. RenCen Rooftop Helipad";
     document.getElementById("hud-stage").style.color = "#38bdf8";
   }
 }
 
 // -------------------------------------------------------------
-// Detroit Environment Rendering (3 Dynamic Stages)
+// Authentic Detroit Rooftop & Zone Renderer
 // -------------------------------------------------------------
 function drawEnvironment(ctx) {
   let cx = canvas.width / 2;
 
   if (currentSector === 1) {
-    // STAGE 1: Detroit High Rooftop & Renaissance Center
-    let skyGrad = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
-    skyGrad.addColorStop(0, "#081022");
-    skyGrad.addColorStop(1, "#1e3a8a");
-    ctx.fillStyle = skyGrad;
+    // STAGE 1: REAL DETROIT ROOFTOP
+    // Night sky over Detroit River
+    let sky = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
+    sky.addColorStop(0, "#030712");
+    sky.addColorStop(1, "#172554");
+    ctx.fillStyle = sky;
     ctx.fillRect(0, 0, canvas.width, FLOOR_Y);
 
-    // Flanking Towers
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(cx - 105, 45, 42, 175);
-    ctx.fillRect(cx + 63, 45, 42, 175);
+    // Distant Detroit Horizon & Flanking Towers
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(cx - 130, 70, 45, 145);
+    ctx.fillRect(cx + 85,  70, 45, 145);
 
-    // Cylindrical RenCen
-    let renGrad = ctx.createLinearGradient(cx - 32, 0, cx + 32, 0);
-    renGrad.addColorStop(0.0, "#0f172a");
+    // Renaissance Center Center Tower
+    let renGrad = ctx.createLinearGradient(cx - 36, 0, cx + 36, 0);
+    renGrad.addColorStop(0.0, "#0b1329");
     renGrad.addColorStop(0.35, "#38bdf8");
     renGrad.addColorStop(0.7, "#1e293b");
-    renGrad.addColorStop(1.0, "#090d16");
+    renGrad.addColorStop(1.0, "#070c18");
     ctx.fillStyle = renGrad;
-    ctx.fillRect(cx - 32, 18, 64, 202);
+    ctx.fillRect(cx - 34, 25, 68, 190);
 
-    // Crown & Dome
+    // Crown Spire & Antenna Beacon
     ctx.fillStyle = "#334155";
-    ctx.fillRect(cx - 36, 12, 72, 12);
-    ctx.strokeStyle = "#00e5ff"; ctx.strokeRect(cx - 36, 12, 72, 12);
+    ctx.fillRect(cx - 38, 18, 76, 10);
+    ctx.strokeStyle = "#38bdf8"; ctx.strokeRect(cx - 38, 18, 76, 10);
+    ctx.strokeStyle = "#ef4444"; // Flashing red aircraft warning light
+    ctx.fillStyle = Math.sin(Date.now() * 0.006) > 0 ? "#ef4444" : "#450a0a";
+    ctx.beginPath(); ctx.arc(cx, 10, 3, 0, Math.PI * 2); ctx.fill();
 
+    // --- DISTINCT ROOFTOP ELEMENTS ---
+    // 1. Metal Perimeter Safety Railing
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 2;
+    for (let rx = 0; rx < canvas.width; rx += 25) {
+      ctx.beginPath(); ctx.moveTo(rx, FLOOR_Y - 14); ctx.lineTo(rx, FLOOR_Y); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(0, FLOOR_Y - 14); ctx.lineTo(canvas.width, FLOOR_Y - 14); ctx.stroke();
+
+    // 2. Rooftop HVAC Industrial Ventilation Box
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(35, FLOOR_Y - 26, 45, 26);
+    ctx.strokeStyle = "#64748b"; ctx.strokeRect(35, FLOOR_Y - 26, 45, 26);
+    // Exhaust fan grill
     ctx.fillStyle = "#0f172a";
-    ctx.fillRect(0, FLOOR_Y, canvas.width, 40);
-    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath(); ctx.arc(57, FLOOR_Y - 13, 8, 0, Math.PI * 2); ctx.fill();
+
+    // 3. Communications Satellite Dish
+    ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx + 120, FLOOR_Y); ctx.lineTo(cx + 130, FLOOR_Y - 24); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx + 130, FLOOR_Y - 24, 12, -Math.PI * 0.7, Math.PI * 0.3); ctx.stroke();
+
+    // 4. Rooftop Gravel Deck & Helipad Target Circle
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(0, FLOOR_Y, canvas.width, 45);
+
+    // Yellow Helipad Paint
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.4)";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(cx, FLOOR_Y + 18, 65, 12, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "rgba(251, 191, 36, 0.45)";
+    ctx.font = "bold 14px sans-serif";
+    ctx.fillText("H", cx - 6, FLOOR_Y + 23);
+
+    // Glowing Neon Edge Ledge
+    ctx.fillStyle = "#38bdf8";
     ctx.fillRect(0, FLOOR_Y, canvas.width, 2.5);
 
   } else if (currentSector === 2) {
-    // STAGE 2: RenCen Interior Stairwell & Corporate Server Core
-    ctx.fillStyle = "#0a0e17";
+    // STAGE 2: Staircase & Corporate Interior
+    ctx.fillStyle = "#070b14";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Diagonal staircase railings
-    ctx.strokeStyle = "#334155";
-    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "#334155"; ctx.lineWidth = 2.5;
     for (let i = 0; i < 4; i++) {
-      ctx.beginPath();
-      ctx.moveTo(0, 40 + i * 45);
-      ctx.lineTo(canvas.width, 90 + i * 45);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 35 + i * 45); ctx.lineTo(canvas.width, 85 + i * 45); ctx.stroke();
     }
-
-    // Flashing server racks & warning emergency lights
-    ctx.fillStyle = "#1e1b4b";
-    ctx.fillRect(30, 40, 40, 160);
-    ctx.fillRect(cx + 40, 40, 40, 160);
     ctx.fillStyle = Math.sin(Date.now() * 0.008) > 0 ? "#ef4444" : "#1e1b4b";
-    ctx.fillRect(cx - 20, 20, 40, 12); // Red alarm beacon
-
+    ctx.fillRect(cx - 25, 20, 50, 14);
     ctx.fillStyle = "#1e293b";
-    ctx.fillRect(0, FLOOR_Y, canvas.width, 40);
+    ctx.fillRect(0, FLOOR_Y, canvas.width, 45);
     ctx.fillStyle = "#00e5ff";
     ctx.fillRect(0, FLOOR_Y, canvas.width, 2);
 
   } else {
-    // STAGE 3: Street-Level Detroit Siege (Woodward Ave & Thorne Logistics)
+    // STAGE 3: Street-Level Detroit Siege
     let fireSky = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
-    fireSky.addColorStop(0, "#1f1008");
+    fireSky.addColorStop(0, "#1c0d06");
     fireSky.addColorStop(1, "#7c2d12");
     ctx.fillStyle = fireSky;
     ctx.fillRect(0, 0, canvas.width, FLOOR_Y);
 
-    // Thorne Logistics Billboard in distance
     ctx.fillStyle = "#0f172a";
-    ctx.fillRect(cx + 40, 40, 110, 45);
-    ctx.strokeStyle = "#38bdf8";
-    ctx.strokeRect(cx + 40, 40, 110, 45);
-    ctx.fillStyle = "#38bdf8";
-    ctx.font = "bold 9px sans-serif";
-    ctx.fillText("THORNE LOGISTICS", cx + 46, 65);
+    ctx.fillRect(cx + 40, 45, 120, 45);
+    ctx.strokeStyle = "#38bdf8"; ctx.strokeRect(cx + 40, 45, 120, 45);
+    ctx.fillStyle = "#38bdf8"; ctx.font = "bold 9px sans-serif";
+    ctx.fillText("THORNE LOGISTICS", cx + 46, 70);
 
-    // Street lamps with warm glow
-    ctx.strokeStyle = "#94a3b8";
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(40, FLOOR_Y); ctx.lineTo(40, 120); ctx.stroke();
-    ctx.fillStyle = "#fef08a";
-    ctx.beginPath(); ctx.arc(40, 120, 5, 0, Math.PI * 2); ctx.fill();
-
-    // Broken asphalt street
     ctx.fillStyle = "#18181b";
-    ctx.fillRect(0, FLOOR_Y, canvas.width, 40);
+    ctx.fillRect(0, FLOOR_Y, canvas.width, 45);
     ctx.fillStyle = "#ef4444";
     ctx.fillRect(0, FLOOR_Y, canvas.width, 2.5);
   }
-
-  // Draw Glass Shards if active
-  glassShards.forEach(g => {
-    ctx.save();
-    ctx.translate(g.x, g.y);
-    ctx.rotate(g.rot);
-    ctx.fillStyle = "rgba(186, 230, 253, 0.75)";
-    ctx.strokeStyle = "#fff";
-    ctx.fillRect(-g.size/2, -g.size/2, g.size, g.size);
-    ctx.strokeRect(-g.size/2, -g.size/2, g.size, g.size);
-    ctx.restore();
-  });
 }
 
 // -------------------------------------------------------------
-// Character Rendering
+// Character Rendering with Jump Spin & Heroic Landing
 // -------------------------------------------------------------
 function drawMarcus(ctx, p) {
   ctx.save();
   ctx.translate(p.x, p.y + p.yOffset);
   ctx.scale(p.facing, 1);
 
-  ctx.strokeStyle = "#d97706";
-  ctx.fillStyle = "#78350f";
-  ctx.lineWidth = 3.2;
+  if (p.jumpState === 'spinning') {
+    // Aerial Somersault Ninja Spin
+    ctx.rotate(p.spinAngle);
+    ctx.fillStyle = "#92400e";
+    ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillRect(2, -4, 8, 8); // Golden gauntlet spinning
 
-  let stride = Math.sin(p.runCycle) * 5;
-  ctx.beginPath();
-  ctx.moveTo(-4, -15); ctx.lineTo(-6 - stride, 0);
-  ctx.moveTo(4, -15);  ctx.lineTo(6 + stride, 0);
-  ctx.stroke();
+    // Kinetic Jump Ring
+    ctx.strokeStyle = "rgba(245, 158, 11, 0.8)";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.stroke();
 
-  ctx.beginPath(); ctx.moveTo(0, -32); ctx.lineTo(0, -15); ctx.stroke();
-  ctx.fillStyle = "#92400e";
-  ctx.fillRect(-6, -30, 12, 14);
+  } else if (p.jumpState === 'heroLanding') {
+    // 3-Point Heroic Landing Pose
+    ctx.fillStyle = "#78350f";
+    ctx.strokeStyle = "#d97706";
+    ctx.lineWidth = 3.5;
 
-  // Head & dreadlocks
-  ctx.fillStyle = "#451a03";
-  ctx.beginPath(); ctx.arc(1, -36, 6, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "#1c1917";
-  ctx.fillRect(-4, -42, 10, 4);
+    // Crouched Torso
+    ctx.beginPath(); ctx.ellipse(0, -10, 8, 10, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-6, -6); ctx.lineTo(-14, 0); // Back bent leg
+    ctx.moveTo(4, -6);  ctx.lineTo(10, 0);  // Forward bent leg
+    ctx.stroke();
 
-  // Earth-Root Gauntlet
-  ctx.fillStyle = "#fbbf24";
-  ctx.beginPath(); ctx.arc(10, -20, 6, 0, Math.PI * 2); ctx.fill();
+    // Golden Fist Slammed Flat on Roof
+    ctx.fillStyle = "#fbbf24";
+    ctx.beginPath(); ctx.arc(12, -2, 5.5, 0, Math.PI * 2); ctx.fill();
 
-  if (p.isAttacking) {
-    ctx.strokeStyle = "#fbbf24";
-    ctx.lineWidth = 4.5;
-    ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(22, -14); ctx.stroke();
+    // Shockwave dust ring on impact
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.6)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(0, 0, 22, 5, 0, 0, Math.PI * 2); ctx.stroke();
+
+  } else {
+    // Upright Stance
+    ctx.strokeStyle = "#d97706";
+    ctx.fillStyle = "#78350f";
+    ctx.lineWidth = 3.2;
+
+    let stride = Math.sin(p.runCycle) * 5;
+    ctx.beginPath();
+    ctx.moveTo(-4, -15); ctx.lineTo(-6 - stride, 0);
+    ctx.moveTo(4, -15);  ctx.lineTo(6 + stride, 0);
+    ctx.stroke();
+
+    ctx.beginPath(); ctx.moveTo(0, -32); ctx.lineTo(0, -15); ctx.stroke();
+    ctx.fillStyle = "#92400e";
+    ctx.fillRect(-6, -30, 12, 14);
+
+    ctx.fillStyle = "#451a03";
+    ctx.beginPath(); ctx.arc(1, -36, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1c1917";
+    ctx.fillRect(-4, -42, 10, 4);
+
+    ctx.fillStyle = "#fbbf24";
+    ctx.beginPath(); ctx.arc(10, -20, 6, 0, Math.PI * 2); ctx.fill();
+
+    if (p.isAttacking) {
+      ctx.strokeStyle = "#fbbf24";
+      ctx.lineWidth = 4.5;
+      ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(22, -14); ctx.stroke();
+    }
   }
   ctx.restore();
 }
@@ -688,44 +664,65 @@ function drawMayleen(ctx, m) {
   ctx.translate(m.x, m.y + m.yOffset);
   ctx.scale(m.facing, 1);
 
-  ctx.strokeStyle = "#ec4899";
-  ctx.fillStyle = "#831843";
-  ctx.lineWidth = 2.4;
+  if (m.jumpState === 'spinning') {
+    // Mayleen Somersault
+    ctx.rotate(m.spinAngle);
+    ctx.fillStyle = "#ec4899";
+    ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(244, 114, 182, 0.8)";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.stroke();
 
-  let stride = Math.sin(m.runCycle) * 4.5;
-  ctx.beginPath();
-  ctx.moveTo(-3, -14); ctx.lineTo(-5 - stride, 0);
-  ctx.moveTo(3, -14);  ctx.lineTo(5 + stride, 0);
-  ctx.stroke();
+  } else if (m.jumpState === 'heroLanding') {
+    // Low agile landing
+    ctx.fillStyle = "#831843";
+    ctx.strokeStyle = "#ec4899";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(0, -10, 6, 8, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-5, -5); ctx.lineTo(-12, 0);
+    ctx.moveTo(4, -5);  ctx.lineTo(8, 0);
+    ctx.stroke();
 
-  ctx.beginPath(); ctx.moveTo(0, -28); ctx.lineTo(0, -14); ctx.stroke();
+  } else {
+    ctx.strokeStyle = "#ec4899";
+    ctx.fillStyle = "#831843";
+    ctx.lineWidth = 2.4;
 
-  // High ponytail
-  ctx.fillStyle = "#18181b";
-  ctx.beginPath(); ctx.arc(1, -32, 5, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = "#18181b";
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(-2, -34);
-  ctx.quadraticCurveTo(-12, -38, -14, -26);
-  ctx.stroke();
+    let stride = Math.sin(m.runCycle) * 4.5;
+    ctx.beginPath();
+    ctx.moveTo(-3, -14); ctx.lineTo(-5 - stride, 0);
+    ctx.moveTo(3, -14);  ctx.lineTo(5 + stride, 0);
+    ctx.stroke();
 
-  ctx.strokeStyle = "#f472b6";
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(12, -28); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -28); ctx.lineTo(0, -14); ctx.stroke();
 
-  // Orbiting Acoustic Chime Bells
-  ctx.save();
-  ctx.translate(6, -28);
-  ctx.rotate(m.bellAngle);
-  for (let i = 0; i < 4; i++) {
-    let angle = (i * Math.PI) / 2;
-    let bx = Math.cos(angle) * 16;
-    let by = Math.sin(angle) * 16;
-    ctx.fillStyle = "#fbbf24";
-    ctx.fillRect(bx - 3, by - 3, 6, 6);
+    ctx.fillStyle = "#18181b";
+    ctx.beginPath(); ctx.arc(1, -32, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#18181b";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-2, -34);
+    ctx.quadraticCurveTo(-12, -38, -14, -26);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#f472b6";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(12, -28); ctx.stroke();
+
+    // Orbiting Chime Bells
+    ctx.save();
+    ctx.translate(6, -28);
+    ctx.rotate(m.bellAngle);
+    for (let i = 0; i < 4; i++) {
+      let angle = (i * Math.PI) / 2;
+      let bx = Math.cos(angle) * 16;
+      let by = Math.sin(angle) * 16;
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillRect(bx - 3, by - 3, 6, 6);
+    }
+    ctx.restore();
   }
-  ctx.restore();
   ctx.restore();
 }
 
@@ -820,6 +817,7 @@ function drawLuetta(ctx, l) {
     ctx.fillStyle = "#fbbf24";
     ctx.beginPath(); ctx.arc(0, -22, 5.5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.8;
     ctx.beginPath(); ctx.ellipse(0, -30, 11, 3.5, 0, 0, Math.PI * 2); ctx.stroke();
   } else {
     ctx.scale(l.speed > 0 ? 1 : -1, 1);
@@ -834,9 +832,6 @@ function drawLuetta(ctx, l) {
   ctx.restore();
 }
 
-// -------------------------------------------------------------
-// Main Render Loop
-// -------------------------------------------------------------
 function draw() {
   ctx.save();
   if (screenShake > 0) {
@@ -845,21 +840,14 @@ function draw() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw 3-Stage Dynamic Background
   drawEnvironment(ctx);
 
-  // Enemies & Boss
-  if (!boss.active) {
-    enemies.forEach(e => drawEnemy(ctx, e));
-  } else {
-    drawBoss(ctx, boss);
-  }
+  enemies.forEach(e => drawEnemy(ctx, e));
+  if (boss.active) drawBoss(ctx, boss);
 
-  // Draw Duo
   drawMarcus(ctx, marcus);
   drawMayleen(ctx, mayleen);
 
-  // Projectiles
   projectiles.forEach(p => {
     if (p.type === 'roots') {
       ctx.strokeStyle = "#fbbf24";
@@ -871,9 +859,7 @@ function draw() {
     } else if (p.type === 'bellnet') {
       ctx.strokeStyle = "#f472b6";
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.stroke();
     } else if (p.type === 'bellpulse') {
       ctx.strokeStyle = "#fbbf24";
       ctx.lineWidth = 2.5;
