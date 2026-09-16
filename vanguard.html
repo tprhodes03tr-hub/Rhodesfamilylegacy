@@ -1,120 +1,248 @@
-<!-- ======================================================= -->
-<!-- THE ANCESTRAL VANGUARD: ALL-IN-ONE COMIC FX & SPRITE CARD -->
-<!-- ======================================================= -->
-<script>
-(() => {
-  // 1. ASSET PRELOADER (Hero Sprite & Cinematic Portrait)
-  const vAssets = {
-    hero: new Image(),
-    portrait: new Image(),
-    loaded: false
-  };
-  vAssets.hero.src = '11513.png';      // Sundiata Prime Sprite
-  vAssets.portrait.src = '11512.png';  // Mother Luta / Living Codex Cut-In
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ancestral Vanguard: Chapter 8</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #070b14;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 12px;
+    }
+    #game-box {
+      width: 100%;
+      max-width: 480px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      color: #38bdf8;
+      font-weight: 800;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+    canvas {
+      width: 100%;
+      height: 250px;
+      background: #020617;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      display: block;
+    }
+    .title-tag {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #f59e0b;
+      margin: 10px 0;
+    }
+    .roster-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .hero-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 8px 4px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .hero-btn.active {
+      border-color: #38bdf8;
+      color: #fff;
+      background: #0369a1;
+    }
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+    .ctrl-btn {
+      background: #334155;
+      border: none;
+      color: #fff;
+      padding: 12px 2px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .ctrl-btn.atk { background: #0284c7; }
+    .ctrl-btn.burst { background: #ef4444; }
+  </style>
+</head>
+<body>
 
-  let loadedCount = 0;
-  const onAssetLoad = () => { if (++loadedCount >= 2) vAssets.loaded = true; };
-  vAssets.hero.onload = onAssetLoad;
-  vAssets.portrait.onload = onAssetLoad;
+  <div id="game-box">
+    <div class="hud">
+      <span>SCORE: 771000</span>
+      <span>HERO: [||||||||||]</span>
+      <span>WAVE [1/8]</span>
+    </div>
 
-  // 2. COMIC FX STATE ENGINE
-  window.vfx = {
-    shake: 0,
-    texts: [],
-    cutIn: { active: false, timer: 0, text: '' },
+    <canvas id="gameCanvas" width="480" height="250"></canvas>
 
-    // Trigger hit impacts or full bursts
-    trigger(type, x, y) {
+    <div class="title-tag">✦ Chapter 8: The Great Dismal Swamp & Levant Portals ✦</div>
+
+    <div class="roster-grid">
+      <button class="hero-btn">Inez & Tweet<br><small>Twin Sister</small></button>
+      <button class="hero-btn">Elroy Rhodes<br><small>Delta Heavy</small></button>
+      <button class="hero-btn active">Uncle Bear<br><small>Maroon Shock</small></button>
+      <button class="hero-btn">Uncle Aaron<br><small>Pioneer Volley</small></button>
+      <button class="hero-btn">Fanny May<br><small>Coincoin Barrier</small></button>
+      <button class="hero-btn">TP Mitchell<br><small>Lineage Beam</small></button>
+    </div>
+
+    <div class="controls-grid">
+      <button class="ctrl-btn" id="btn-left">&#9664; LEFT</button>
+      <button class="ctrl-btn" id="btn-right">RIGHT &#9654;</button>
+      <button class="ctrl-btn" id="btn-jump">&#9650; JUMP</button>
+      <button class="ctrl-btn atk" id="btn-atk">ATK/BOW</button>
+      <button class="ctrl-btn burst" id="btn-burst">BURST</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let player = { x: 70, y: 180, w: 24, h: 42, vy: 0, grounded: true };
+    let enemies = [
+      { x: 250, y: 180, w: 22, h: 42, dir: -1 },
+      { x: 380, y: 180, w: 22, h: 42, dir: -1 }
+    ];
+
+    let shake = 0;
+    let comicFX = [];
+    let cutIn = { active: false, timer: 0, text: '' };
+
+    function triggerImpact(type) {
       if (type === 'hit') {
-        this.shake = 12;
-        this.texts.push({ text: 'CHOONK!', x: x || 200, y: (y || 200) - 20, life: 25, color: '#FFD700' });
+        shake = 10;
+        comicFX.push({ text: 'CHOONK!', x: player.x + 30, y: player.y - 15, life: 25, col: '#FFD700' });
       } else if (type === 'burst') {
-        this.shake = 26;
-        this.cutIn = { active: true, timer: 30, text: 'ANCESTRAL RESONANCE!' };
-        this.texts.push({ text: 'RUMBLE! SHATTER!', x: 250, y: 180, life: 40, color: '#FF3B30' });
+        shake = 22;
+        cutIn = { active: true, timer: 28, text: 'MAROON SHOCK!' };
+        comicFX.push({ text: 'RUMBLE! SHATTER!', x: canvas.width / 2, y: canvas.height / 2, life: 35, col: '#EF4444' });
       }
-    },
+    }
 
-    // Render screen shake before drawing world elements
-    applyShake(ctx) {
-      if (this.shake > 0) {
-        ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
-        this.shake *= 0.88;
-        if (this.shake < 0.5) this.shake = 0;
+    document.getElementById('btn-atk').addEventListener('click', () => triggerImpact('hit'));
+    document.getElementById('btn-burst').addEventListener('click', () => triggerImpact('burst'));
+    document.getElementById('btn-left').addEventListener('click', () => { player.x = Math.max(15, player.x - 18); });
+    document.getElementById('btn-right').addEventListener('click', () => { player.x = Math.min(canvas.width - 35, player.x + 18); });
+    document.getElementById('btn-jump').addEventListener('click', () => {
+      if (player.grounded) { player.vy = -11; player.grounded = false; }
+    });
+
+    function render() {
+      ctx.save();
+
+      if (shake > 0) {
+        ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+        shake *= 0.85;
+        if (shake < 0.5) shake = 0;
       }
-    },
 
-    // Draw comic onomatopoeia and full-screen super cut-ins
-    render(ctx, canvas, player) {
-      // Draw Hero Sprite
-      if (player && vAssets.loaded) {
-        ctx.drawImage(vAssets.hero, player.x, player.y, player.width || 64, player.height || 64);
+      // Background
+      ctx.fillStyle = '#080e1a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Pillars
+      ctx.fillStyle = '#1e293b';
+      for (let x = 40; x < canvas.width; x += 75) {
+        ctx.fillRect(x, 30, 20, 192);
       }
 
-      // Draw Action Onomatopoeia
-      for (let i = this.texts.length - 1; i >= 0; i--) {
-        let t = this.texts[i];
+      // Ground
+      ctx.fillStyle = '#451a03';
+      ctx.fillRect(0, 222, canvas.width, 28);
+
+      // Player Physics
+      player.y += player.vy;
+      if (player.y < 180) {
+        player.vy += 0.8;
+      } else {
+        player.y = 180;
+        player.vy = 0;
+        player.grounded = true;
+      }
+
+      // Draw Hero
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(player.x, player.y, player.w, player.h);
+
+      // Draw Enemies
+      ctx.fillStyle = '#dc2626';
+      enemies.forEach(e => {
+        e.x += e.dir * 0.5;
+        if (e.x < 180 || e.x > 420) e.dir *= -1;
+        ctx.fillRect(e.x, e.y, e.w, e.h);
+      });
+
+      // Comic Text FX
+      for (let i = comicFX.length - 1; i >= 0; i--) {
+        let fx = comicFX[i];
         ctx.save();
-        ctx.font = '900 26px "Impact", sans-serif';
+        ctx.font = '900 24px "Impact", sans-serif';
         ctx.textAlign = 'center';
         ctx.lineWidth = 5;
-        ctx.strokeStyle = '#000000';
-        ctx.fillStyle = t.color;
-        ctx.strokeText(t.text, t.x, t.y);
-        ctx.fillText(t.text, t.x, t.y);
+        ctx.strokeStyle = '#000';
+        ctx.fillStyle = fx.col;
+        ctx.strokeText(fx.text, fx.x, fx.y);
+        ctx.fillText(fx.text, fx.x, fx.y);
         ctx.restore();
-        t.y -= 1;
-        if (--t.life <= 0) this.texts.splice(i, 1);
+        fx.y -= 0.8;
+        if (--fx.life <= 0) comicFX.splice(i, 1);
       }
 
-      // Draw Cinematic Super Cut-In
-      if (this.cutIn.active) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(10, 15, 30, 0.75)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
 
-        // Angled Comic Splash Bar
+      // Super Cut-In
+      if (cutIn.active) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#0f172a';
-        ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(0, canvas.height * 0.22);
-        ctx.lineTo(canvas.width, canvas.height * 0.12);
-        ctx.lineTo(canvas.width, canvas.height * 0.78);
-        ctx.lineTo(0, canvas.height * 0.88);
+        ctx.moveTo(0, 50); ctx.lineTo(canvas.width, 20);
+        ctx.lineTo(canvas.width, 200); ctx.lineTo(0, 230);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
-        // Codex Portrait
-        if (vAssets.loaded) {
-          ctx.drawImage(vAssets.portrait, 24, canvas.height * 0.22, 130, 130);
-        }
-
-        // Action Text
         ctx.font = '900 30px "Impact", sans-serif';
-        ctx.fillStyle = '#FFD700';
-        ctx.strokeStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f59e0b';
+        ctx.strokeStyle = '#000';
         ctx.lineWidth = 6;
-        ctx.strokeText(this.cutIn.text, 175, canvas.height * 0.52);
-        ctx.fillText(this.cutIn.text, 175, canvas.height * 0.52);
+        ctx.strokeText(cutIn.text, canvas.width / 2, 135);
+        ctx.fillText(cutIn.text, canvas.width / 2, 135);
         ctx.restore();
 
-        if (--this.cutIn.timer <= 0) this.cutIn.active = false;
+        if (--cutIn.timer <= 0) cutIn.active = false;
       }
-    }
-  };
 
-  // 3. AUTO-ATTACH TO TOUCH BUTTONS
-  window.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('button').forEach(btn => {
-      const label = btn.innerText.trim().toUpperCase();
-      if (label.includes('BURST')) {
-        btn.addEventListener('click', () => window.vfx.trigger('burst'));
-      } else if (label.includes('ATK') || label.includes('BOW')) {
-        btn.addEventListener('click', () => window.vfx.trigger('hit'));
-      }
-    });
-  });
-})();
-</script>
+      requestAnimationFrame(render);
+    }
+
+    render();
+  </script>
+</body>
+</html>
