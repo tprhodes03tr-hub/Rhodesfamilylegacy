@@ -11,6 +11,7 @@
       padding: 0;
       user-select: none;
       -webkit-user-select: none;
+      touch-action: none;
     }
     body {
       background: #040711;
@@ -21,13 +22,14 @@
       align-items: center;
       min-height: 100vh;
       padding: 6px;
+      overflow-x: hidden;
     }
     .hud-bar {
       width: 100%;
       max-width: 450px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
       padding: 8px 12px;
       background: #0b1222;
       border: 1px solid #1e293b;
@@ -66,13 +68,13 @@
       width: 100%;
       height: 100%;
       background: #22c55e;
-      transition: width 0.2s;
+      transition: width 0.15s;
     }
     .bar-fill-energy {
       width: 100%;
       height: 100%;
       background: #0284c7;
-      transition: width 0.2s;
+      transition: width 0.15s;
     }
 
     canvas {
@@ -156,7 +158,6 @@
       font-weight: 800;
       font-size: 11px;
       cursor: pointer;
-      touch-action: manipulation;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -210,27 +211,27 @@
   </div>
 
   <div class="control-pad">
-    <button class="btn-ctrl" onpointerdown="keys.left=true" onpointerup="keys.left=false">◀ LEFT<span>[A]</span></button>
-    <button class="btn-ctrl" onpointerdown="keys.right=true" onpointerup="keys.right=false">RIGHT ▶<span>[D]</span></button>
-    <button class="btn-ctrl" onpointerdown="jump()">▲ JUMP<span>[W]</span></button>
-    <button class="btn-ctrl btn-evade" onpointerdown="evade()">EVADE<span>DASH</span></button>
-    <button class="btn-ctrl btn-attack" onpointerdown="triggerAttack()" id="btnAttack">ATTACK<span>PUNCH/SLASH</span></button>
-    <button class="btn-ctrl btn-special" onpointerdown="triggerSpecial()" id="btnSpecial">SPECIAL<span>SKILL</span></button>
-    <button class="btn-ctrl btn-combo" onpointerdown="triggerCombo()" id="btnCombo">COMBO<span>BURST</span></button>
-    <button class="btn-ctrl btn-luetta" onpointerdown="triggerLuettaAid()" id="btnLuetta">LUETTA AID<span>SAVE DAY</span></button>
+    <button class="btn-ctrl" id="btnLeft">◀ LEFT<span>[A]</span></button>
+    <button class="btn-ctrl" id="btnRight">RIGHT ▶<span>[D]</span></button>
+    <button class="btn-ctrl" onclick="jump()">▲ JUMP<span>[W]</span></button>
+    <button class="btn-ctrl btn-evade" onclick="evade()">EVADE<span>DASH</span></button>
+    <button class="btn-ctrl btn-attack" onclick="triggerAttack()" id="btnAttack">ATTACK<span>PUNCH/SLASH</span></button>
+    <button class="btn-ctrl btn-special" onclick="triggerSpecial()" id="btnSpecial">SPECIAL<span>SKILL</span></button>
+    <button class="btn-ctrl btn-combo" onclick="triggerCombo()" id="btnCombo">COMBO<span>BURST</span></button>
+    <button class="btn-ctrl btn-luetta" onclick="triggerLuettaAid()" id="btnLuetta">LUETTA AID<span>SAVE DAY</span></button>
   </div>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const GROUND_Y = 220;
-const GRAVITY = 0.55;
+const GROUND_Y = 222;
+const GRAVITY = 0.62;
 
 const heroes = [
-  { name: "Shadow Kensei", gear: "katana", armor: "#1e293b", cape: "#64748b", skin: "#5c3826", primary: "Katana Slash", special: "Iaido Dash", combo: "Blade Tempest" },
-  { name: "Aura Weaver", gear: "orbs", armor: "#0369a1", cape: "#06b6d4", skin: "#4a2d1a", primary: "Azure Stream", special: "Tsunami Wave", combo: "Spirit Weave" },
-  { name: "Sundiata Prime", gear: "batons", armor: "#166534", cape: "#22c55e", skin: "#5c3826", primary: "Sonic Strike", special: "Djembe Blast", combo: "Shock Cascade" },
+  { name: "Shadow Kensei", gear: "katana", armor: "#1e293b", cape: "#475569", skin: "#5c3826", primary: "Katana Slash", special: "Iaido Dash", combo: "Blade Tempest" },
+  { name: "Aura Weaver", gear: "orbs", armor: "#0284c7", cape: "#06b6d4", skin: "#4a2d1a", primary: "Azure Stream", special: "Tsunami Wave", combo: "Spirit Weave" },
+  { name: "Sundiata Prime", gear: "batons", armor: "#15803d", cape: "#22c55e", skin: "#5c3826", primary: "Sonic Strike", special: "Djembe Blast", combo: "Shock Cascade" },
   { name: "Delta Vanguard", gear: "shield", armor: "#b45309", cape: "#fbbf24", skin: "#6d4327", primary: "Shield Bash", special: "Solar Cleave", combo: "Aegis Wall" },
   { name: "Pioneer Volley", gear: "bow", armor: "#92400e", cape: "#f59e0b", skin: "#5c3826", primary: "Solar Arrow", special: "Twin Volley", combo: "Sunflare Rain" },
   { name: "Prism Void", gear: "halo", armor: "#6b21a8", cape: "#c084fc", skin: "#4a2d1a", primary: "Void Beam", special: "Prism Warp", combo: "Event Horizon" }
@@ -247,10 +248,33 @@ let curStage = 0;
 let wave = 1;
 let score = 0;
 let luettaReady = true;
-let luettaActive = false;
-let luettaHeroine = null;
+let luettaRunner = null;
+
+let screenShake = 0;
+let hitStop = 0;
 
 const keys = { left: false, right: false };
+
+const bLeft = document.getElementById("btnLeft");
+const bRight = document.getElementById("btnRight");
+
+function releaseAllMovement() {
+  keys.left = false;
+  keys.right = false;
+}
+
+bLeft.addEventListener("pointerdown", (e) => { e.preventDefault(); keys.left = true; keys.right = false; });
+bLeft.addEventListener("pointerup", releaseAllMovement);
+bLeft.addEventListener("pointercancel", releaseAllMovement);
+bLeft.addEventListener("pointerleave", releaseAllMovement);
+
+bRight.addEventListener("pointerdown", (e) => { e.preventDefault(); keys.right = true; keys.left = false; });
+bRight.addEventListener("pointerup", releaseAllMovement);
+bRight.addEventListener("pointercancel", releaseAllMovement);
+bRight.addEventListener("pointerleave", releaseAllMovement);
+
+window.addEventListener("pointerup", releaseAllMovement);
+window.addEventListener("blur", releaseAllMovement);
 
 const player = {
   x: 80,
@@ -263,8 +287,8 @@ const player = {
   hp: 100,
   maxHp: 100,
   energy: 100,
-  action: "idle",
   actionTimer: 0,
+  actionPose: "idle",
   invincible: 0,
   hitFlash: 0
 };
@@ -285,19 +309,17 @@ selectHero(0);
 
 function jump() {
   if (player.grounded) {
-    player.vy = -12; // Snappy jump impulse
+    player.vy = -12.5;
     player.grounded = false;
   }
 }
 
 function evade() {
-  if (player.action === "idle") {
-    player.action = "evade";
-    player.actionTimer = 16;
-    player.invincible = 22;
-    player.vx = -6 * player.facing;
-    spawnSparks(player.x, player.y - 18, "#38bdf8", 8);
-  }
+  player.actionTimer = 14;
+  player.actionPose = "evade";
+  player.invincible = 22;
+  player.vx = -6.5 * player.facing;
+  spawnSparks(player.x, player.y - 18, "#38bdf8", 10);
 }
 
 function spawnWave() {
@@ -306,16 +328,7 @@ function spawnWave() {
   const current = stages[curStage];
 
   if (current.isBoss && wave === 3) {
-    // Boss: Dreadnought Prime Overlord
-    enemies.push({
-      boss: true,
-      x: 340, y: GROUND_Y,
-      hp: 350, maxHp: 350,
-      shootTimer: 60,
-      snared: 0,
-      walkFrame: 0
-    });
-    // Support Drones
+    enemies.push({ boss: true, x: 340, y: GROUND_Y, hp: 380, maxHp: 380, shootTimer: 60, snared: 0, walkFrame: 0 });
     enemies.push({ drone: true, x: 280, y: 140, hp: 45, maxHp: 45, shootTimer: 80, snared: 0, walkFrame: 0 });
     enemies.push({ drone: true, x: 390, y: 140, hp: 45, maxHp: 45, shootTimer: 100, snared: 0, walkFrame: 0 });
   } else {
@@ -334,60 +347,55 @@ function spawnWave() {
 }
 spawnWave();
 
-// HERO MOVES
 function triggerAttack() {
-  player.action = "slash";
-  player.actionTimer = 14;
+  player.actionTimer = 10;
+  player.actionPose = "punch";
   const h = heroes[curHero];
 
   if (h.name === "Shadow Kensei") {
-    attacks.push({ type: "slashArc", x: player.x + 24 * player.facing, y: player.y - 24, facing: player.facing, life: 10, color: "#f8fafc" });
-    checkMeleeHit(65, 32);
+    attacks.push({ type: "slashArc", x: player.x + 26 * player.facing, y: player.y - 25, facing: player.facing, life: 8, color: "#f8fafc" });
+    checkMeleeHit(65, 34);
   } else if (h.name === "Aura Weaver") {
-    // Azure Stream lightning
     let target = enemies[0] || { x: player.x + 220, y: player.y - 25 };
     attacks.push({ type: "lightning", x1: player.x + 14 * player.facing, y1: player.y - 25, x2: target.x, y2: target.y - 22, life: 8, color: "#00f0ff" });
     if (enemies[0]) hitEnemy(enemies[0], 28);
   } else {
-    attacks.push({ type: "energyBolt", x: player.x + 18 * player.facing, y: player.y - 24, vx: 7.5 * player.facing, color: h.cape, radius: 7, life: 45 });
+    attacks.push({ type: "energyBolt", x: player.x + 18 * player.facing, y: player.y - 24, vx: 7.8 * player.facing, color: h.cape, radius: 7, life: 45 });
   }
 }
 
 function triggerSpecial() {
-  player.action = "special";
-  player.actionTimer = 16;
+  player.actionTimer = 14;
+  player.actionPose = "slash";
   const h = heroes[curHero];
 
   if (h.name === "Aura Weaver") {
-    // Hydro Tsunami Surge
-    attacks.push({ type: "tsunami", x: player.x + 20 * player.facing, y: player.y - 15, vx: 6 * player.facing, facing: player.facing, life: 48 });
+    attacks.push({ type: "tsunami", x: player.x + 20 * player.facing, y: player.y - 15, vx: 6.5 * player.facing, facing: player.facing, life: 48 });
   } else if (h.name === "Shadow Kensei") {
-    // Iaido Flash Dash
     player.x += 80 * player.facing;
     player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
-    attacks.push({ type: "slashArc", x: player.x, y: player.y - 24, facing: player.facing, life: 12, color: "#38bdf8" });
-    enemies.forEach(e => { if (Math.abs(e.x - player.x) < 80) hitEnemy(e, 40); });
+    attacks.push({ type: "slashArc", x: player.x, y: player.y - 24, facing: player.facing, life: 10, color: "#38bdf8" });
+    enemies.forEach(e => { if (Math.abs(e.x - player.x) < 80) hitEnemy(e, 42); });
+    triggerImpactCrunch(6);
   } else {
-    // Shockwave burst
-    attacks.push({ type: "cleaveRing", x: player.x + 30 * player.facing, y: player.y - 24, radius: 24, color: h.cape, life: 12 });
+    attacks.push({ type: "cleaveRing", x: player.x + 30 * player.facing, y: player.y - 24, radius: 26, color: h.cape, life: 10 });
     checkMeleeHit(90, 45);
   }
 }
 
 function triggerCombo() {
   const h = heroes[curHero];
-  player.action = "combo";
-  player.actionTimer = 22;
+  player.actionTimer = 18;
+  player.actionPose = "slash";
 
   if (h.name === "Aura Weaver") {
-    // Spirit Weave Net (Snare Crowd Control)
-    attacks.push({ type: "weaveNet", x: player.x + 22 * player.facing, y: player.y - 22, vx: 6.5 * player.facing, life: 45 });
+    attacks.push({ type: "weaveNet", x: player.x + 22 * player.facing, y: player.y - 22, vx: 7 * player.facing, life: 45 });
   } else {
-    // Blade/Solar Tempest
     for (let i = 0; i < 4; i++) {
       attacks.push({ type: "lightning", x1: player.x, y1: player.y - 30, x2: player.x + (Math.random() - 0.5) * 380, y2: GROUND_Y, life: 10, color: h.cape });
     }
     enemies.forEach(e => hitEnemy(e, 45));
+    triggerImpactCrunch(8);
   }
 }
 
@@ -399,31 +407,30 @@ function checkMeleeHit(range, damage) {
   });
 }
 
-// MOTHER LUETTA ANCESTRAL GUARDIAN RESCUE
-function triggerLuettaAid() {
-  if (!luettaReady || luettaActive) return;
-  executeLuettaIntervention();
+function triggerImpactCrunch(intensity) {
+  screenShake = intensity;
+  hitStop = 3;
 }
 
-function executeLuettaIntervention() {
+function triggerLuettaAid() {
+  if (!luettaReady || luettaRunner) return;
+  executeLuettaCharge();
+}
+
+function executeLuettaCharge() {
   luettaReady = false;
-  luettaActive = true;
-  document.getElementById("luettaDisp").innerText = "LUETTA: DESCENDING ✨";
+  document.getElementById("luettaDisp").innerText = "LUETTA: SWEEPING ✨";
   document.getElementById("luettaDisp").style.color = "#fbbf24";
 
-  // Heal player
   player.hp = 100;
   player.energy = 100;
   updateHUD();
+  triggerImpactCrunch(10);
 
-  // Create descending superhero figurine
-  luettaHeroine = {
-    x: canvas.width / 2,
-    y: -30,
-    targetY: 85,
-    state: "descending",
-    timer: 140,
-    vortexRadius: 10
+  luettaRunner = {
+    x: -40,
+    y: GROUND_Y,
+    speed: 9.5
   };
 }
 
@@ -431,10 +438,12 @@ function hitEnemy(enemy, dmg) {
   enemy.hp -= dmg;
   score += 150;
   spawnSparks(enemy.x, enemy.y - 25, "#fbbf24", 6);
+  triggerImpactCrunch(4);
 
   if (enemy.hp <= 0) {
     enemies = enemies.filter(e => e !== enemy);
     score += enemy.boss ? 2500 : 450;
+    triggerImpactCrunch(10);
     if (enemies.length === 0) {
       wave++;
       if (wave > 3) {
@@ -452,13 +461,13 @@ function takePlayerDamage(dmg) {
   if (player.invincible > 0) return;
   player.hp = Math.max(0, player.hp - dmg);
   player.hitFlash = 12;
-  player.invincible = 25;
+  player.invincible = 22;
   spawnSparks(player.x, player.y - 25, "#ef4444", 8);
+  triggerImpactCrunch(6);
   updateHUD();
 
-  // Low HP Auto-Rescue feature (<20%)
-  if (player.hp <= 20 && luettaReady && !luettaActive) {
-    executeLuettaIntervention();
+  if (player.hp <= 20 && luettaReady && !luettaRunner) {
+    executeLuettaCharge();
   }
 }
 
@@ -466,8 +475,8 @@ function spawnSparks(x, y, color, count) {
   for (let i = 0; i < count; i++) {
     particles.push({
       x, y,
-      vx: (Math.random() - 0.5) * 6,
-      vy: (Math.random() - 0.5) * 6,
+      vx: (Math.random() - 0.5) * 6.5,
+      vy: (Math.random() - 0.5) * 6.5,
       color,
       life: 18
     });
@@ -482,17 +491,21 @@ function updateHUD() {
   document.getElementById("energyBar").style.width = `${player.energy}%`;
 }
 
-// UPDATE LOOP
 function update() {
-  // Movement
+  if (hitStop > 0) {
+    hitStop--;
+    return;
+  }
+  if (screenShake > 0) screenShake--;
+
   if (keys.left) {
     player.vx = -3.2;
     player.facing = -1;
-    player.walkFrame += 0.22;
+    player.walkFrame += 0.24;
   } else if (keys.right) {
     player.vx = 3.2;
     player.facing = 1;
-    player.walkFrame += 0.22;
+    player.walkFrame += 0.24;
   } else {
     player.vx = 0;
   }
@@ -500,7 +513,6 @@ function update() {
   player.x += player.vx;
   player.y += player.vy;
 
-  // JUMP & GRAVITY PHYSICS
   if (!player.grounded) {
     player.vy += GRAVITY;
     if (player.y >= GROUND_Y) {
@@ -514,16 +526,15 @@ function update() {
 
   if (player.actionTimer > 0) {
     player.actionTimer--;
-    if (player.actionTimer === 0) player.action = "idle";
+    if (player.actionTimer === 0) player.actionPose = "idle";
   }
   if (player.invincible > 0) player.invincible--;
   if (player.hitFlash > 0) player.hitFlash--;
 
-  // Enemy Actions & Firing
   enemies.forEach(e => {
     if (e.snared > 0) {
       e.snared--;
-      return; // Rooted
+      return;
     }
 
     if (e.boss) {
@@ -542,7 +553,7 @@ function update() {
       }
     } else {
       if (e.x > player.x + 70) e.x -= 0.65;
-      e.walkFrame += 0.14;
+      e.walkFrame += 0.16;
       e.shootTimer--;
       if (e.shootTimer <= 0) {
         e.shootTimer = 110;
@@ -551,7 +562,6 @@ function update() {
     }
   });
 
-  // Update Attacks
   for (let i = attacks.length - 1; i >= 0; i--) {
     let a = attacks[i];
     a.life--;
@@ -561,29 +571,26 @@ function update() {
     } else {
       a.x += a.vx || 0;
 
-      // Hero Projectile Hits Enemies
       if (["energyBolt", "tsunami"].includes(a.type)) {
         enemies.forEach(e => {
           if (Math.abs(a.x - e.x) < 26 && Math.abs(a.y - (e.y - 20)) < 30) {
             hitEnemy(e, 35);
-            if (a.type === "tsunami") e.x += 20 * a.facing; // Wave Pushback
+            if (a.type === "tsunami") e.x += 24 * a.facing;
             a.life = 0;
           }
         });
       }
 
-      // Weave Net Trap Hit
       if (a.type === "weaveNet") {
         enemies.forEach(e => {
           if (Math.abs(a.x - e.x) < 24 && Math.abs(a.y - (e.y - 20)) < 28) {
-            e.snared = 190; // Root for ~3.5 seconds
+            e.snared = 190;
             hitEnemy(e, 25);
             a.life = 0;
           }
         });
       }
 
-      // Enemy Laser Hits Player
       if (a.type === "enemyLaser") {
         if (Math.abs(a.x - player.x) < 16 && Math.abs(a.y - (player.y - 22)) < 24) {
           takePlayerDamage(12);
@@ -595,7 +602,6 @@ function update() {
     }
   }
 
-  // Update Sparks
   for (let i = particles.length - 1; i >= 0; i--) {
     let p = particles[i];
     p.x += p.vx;
@@ -604,59 +610,47 @@ function update() {
     if (p.life <= 0) particles.splice(i, 1);
   }
 
-  // Update Mother Luetta Superhero Guardian Sequence
-  if (luettaHeroine) {
-    if (luettaHeroine.state === "descending") {
-      luettaHeroine.y += 2.4;
-      if (luettaHeroine.y >= luettaHeroine.targetY) {
-        luettaHeroine.state = "hovering";
+  if (luettaRunner) {
+    luettaRunner.x += luettaRunner.speed;
+    enemies.forEach(e => {
+      if (Math.abs(e.x - luettaRunner.x) < 45) {
+        hitEnemy(e, 120);
+        spawnSparks(e.x, e.y - 20, "#fbbf24", 8);
       }
-    } else if (luettaHeroine.state === "hovering") {
-      luettaHeroine.vortexRadius += 5.5;
-      luettaHeroine.timer--;
+    });
 
-      // Screen-wipe shockwave hits all enemies
-      if (luettaHeroine.timer % 15 === 0) {
-        enemies.forEach(e => {
-          hitEnemy(e, 60);
-          spawnSparks(e.x, e.y - 20, "#fbbf24", 6);
-        });
-      }
-
-      if (luettaHeroine.timer <= 0) {
-        luettaHeroine = null;
-        luettaActive = false;
-        setTimeout(() => {
-          luettaReady = true;
-          document.getElementById("luettaDisp").innerText = "LUETTA: READY ✨";
-          document.getElementById("luettaDisp").style.color = "#fbbf24";
-        }, 10000);
-      }
+    if (luettaRunner.x > canvas.width + 60) {
+      luettaRunner = null;
+      setTimeout(() => {
+        luettaReady = true;
+        document.getElementById("luettaDisp").innerText = "LUETTA: READY ✨";
+        document.getElementById("luettaDisp").style.color = "#fbbf24";
+      }, 10000);
     }
   }
 }
 
-// RENDER LOOP
 function render() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  if (screenShake > 0) {
+    let sx = (Math.random() - 0.5) * screenShake * 1.5;
+    let sy = (Math.random() - 0.5) * screenShake * 1.5;
+    ctx.translate(sx, sy);
+  }
 
-  // 1. Background
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  // 2. Enemies
   enemies.forEach(e => {
     if (e.boss) drawBoss(e);
     else if (e.drone) drawDrone(e);
-    else drawDroid(e);
+    else drawHumanoidDroid(e);
 
-    // Render Weave Net Snare if trapped
     if (e.snared > 0) drawSnareMesh(e);
   });
 
-  // 3. Player Hero
-  drawHero(player.x, player.y, heroes[curHero], player.action, player.walkFrame, player.facing, player.hitFlash > 0);
+  drawHumanoidHero(player.x, player.y, heroes[curHero], player.actionPose, player.walkFrame, player.facing, player.hitFlash > 0);
 
-  // 4. Attack Effects
   attacks.forEach(a => {
     if (a.type === "lightning") {
       drawLightningFX(a.x1, a.y1, a.x2, a.y2, a.color);
@@ -664,10 +658,10 @@ function render() {
       ctx.save();
       ctx.strokeStyle = a.color;
       ctx.shadowColor = "#38bdf8";
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 14;
       ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.arc(a.x, a.y, 22, -Math.PI / 3, Math.PI / 3, a.facing === -1);
+      ctx.arc(a.x, a.y, 24, -Math.PI / 3, Math.PI / 3, a.facing === -1);
       ctx.stroke();
       ctx.restore();
     } else if (a.type === "tsunami") {
@@ -686,19 +680,18 @@ function render() {
     }
   });
 
-  // 5. Sparks
   particles.forEach(p => {
     ctx.fillStyle = p.color;
     ctx.fillRect(p.x, p.y, 2.5, 2.5);
   });
 
-  // 6. Mother Luetta Guardian Figurine
-  if (luettaHeroine) {
-    drawLuettaGuardian(luettaHeroine);
+  if (luettaRunner) {
+    drawLuettaRunner(luettaRunner);
   }
+
+  ctx.restore();
 }
 
-// DRAWING HELPERS
 function drawBackground() {
   const theme = stages[curStage];
 
@@ -708,29 +701,31 @@ function drawBackground() {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, canvas.width, GROUND_Y);
 
-  // Cityscape Towers
-  ctx.fillStyle = "#111827";
-  for (let i = 0; i < 7; i++) {
-    let bx = i * 75;
-    ctx.fillRect(bx, 100, 58, 120);
+  ctx.fillStyle = "#0e1424";
+  for (let i = 0; i < 9; i++) {
+    ctx.fillRect(i * 55, 95, 42, 130);
+  }
+
+  ctx.fillStyle = "#161f36";
+  for (let i = 0; i < 6; i++) {
+    let bx = i * 85;
+    ctx.fillRect(bx, 115, 68, 110);
 
     ctx.fillStyle = theme.win;
-    for (let wy = 115; wy < 210; wy += 22) {
-      for (let wx = bx + 8; wx < bx + 50; wx += 14) {
+    for (let wy = 125; wy < 215; wy += 20) {
+      for (let wx = bx + 8; wx < bx + 55; wx += 14) {
         if ((i + wy + wx) % 2 === 0) ctx.fillRect(wx, wy, 5, 8);
       }
     }
-    ctx.fillStyle = "#111827";
+    ctx.fillStyle = "#161f36";
   }
 
-  // Floor
   ctx.fillStyle = theme.floor;
   ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
 
-  // Neon Edge
   ctx.strokeStyle = theme.neon;
   ctx.shadowColor = theme.neon;
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = 12;
   ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.moveTo(0, GROUND_Y);
@@ -739,112 +734,202 @@ function drawBackground() {
   ctx.shadowBlur = 0;
 }
 
-function drawHero(x, y, hero, act, frame, facing, isFlashing) {
+/* PROCEDURAL HUMANOID HERO (MULTI-JOINT SKELETON) */
+function drawHumanoidHero(x, y, hero, pose, frame, facing, isFlashing) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(facing, 1);
 
   if (isFlashing) ctx.filter = "brightness(2) drop-shadow(0 0 8px #ef4444)";
 
-  // Cape
-  let wave = Math.sin(Date.now() * 0.008) * 6;
+  // Flowing Dynamic Cape
+  let capeWave = Math.sin(Date.now() * 0.009) * 7;
   ctx.fillStyle = hero.cape;
   ctx.beginPath();
-  ctx.moveTo(-5, -30);
-  ctx.quadraticCurveTo(-15 + wave, -15, -17 + wave * 1.4, 0);
-  ctx.lineTo(-2, -22);
+  ctx.moveTo(-6, -34);
+  ctx.quadraticCurveTo(-18 + capeWave, -16, -22 + capeWave * 1.5, 0);
+  ctx.lineTo(-4, -24);
   ctx.fill();
 
-  // Back Leg
+  let legCycle = Math.sin(frame);
+  let backHipX = -3, backHipY = -16;
+  let frontHipX = 3, frontHipY = -16;
+
+  // Back Leg: Hip -> Knee -> Foot
+  let backKneeX = backHipX - 2 + legCycle * 6;
+  let backKneeY = backHipY + 8;
+  let backFootX = backKneeX - legCycle * 4;
+  let backFootY = 0;
+
   ctx.strokeStyle = "#0f172a";
   ctx.lineWidth = 4;
   ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(-2, -14);
-  ctx.lineTo(-3 + Math.sin(frame) * 5, 0);
+  ctx.moveTo(backHipX, backHipY);
+  ctx.lineTo(backKneeX, backKneeY);
+  ctx.lineTo(backFootX, backFootY);
   ctx.stroke();
 
-  // Torso Armor
+  // Torso / Chest Taper
   ctx.fillStyle = hero.armor;
   ctx.beginPath();
-  ctx.moveTo(-7, -32);
-  ctx.lineTo(7, -32);
-  ctx.lineTo(4, -14);
-  ctx.lineTo(-4, -14);
+  ctx.moveTo(-8, -36);
+  ctx.lineTo(8, -36);
+  ctx.lineTo(5, -16);
+  ctx.lineTo(-5, -16);
   ctx.closePath();
   ctx.fill();
 
-  // Front Leg
+  // Belt Buckle / Abdomen
+  ctx.fillStyle = "#334155";
+  ctx.fillRect(-5, -18, 10, 3.5);
+
+  // Front Leg: Hip -> Knee -> Foot
+  let frontKneeX = frontHipX + 2 - legCycle * 6;
+  let frontKneeY = frontHipY + 8;
+  let frontFootX = frontKneeX + legCycle * 4;
+  let frontFootY = 0;
+
   ctx.strokeStyle = "#1e293b";
   ctx.beginPath();
-  ctx.moveTo(2, -14);
-  ctx.lineTo(3 - Math.sin(frame) * 5, 0);
+  ctx.moveTo(frontHipX, frontHipY);
+  ctx.lineTo(frontKneeX, frontKneeY);
+  ctx.lineTo(frontFootX, frontFootY);
   ctx.stroke();
 
-  // Head
+  // Neck & Head
   ctx.fillStyle = hero.skin;
+  ctx.fillRect(-2, -40, 4, 4); // Neck
+
   ctx.beginPath();
-  ctx.arc(0, -38, 6, 0, Math.PI * 2);
+  ctx.ellipse(0, -43, 6, 7, 0, 0, Math.PI * 2); // Rounded Humanoid Head
   ctx.fill();
 
-  // Visor
+  // Jaw & Visor / Mask
   ctx.fillStyle = hero.cape;
-  ctx.fillRect(1, -40, 5, 2.5);
+  ctx.shadowColor = hero.cape;
+  ctx.shadowBlur = 6;
+  ctx.fillRect(2, -45, 5, 2.5);
+  ctx.shadowBlur = 0;
 
-  // Weapons & Silhouettes
-  ctx.strokeStyle = hero.cape;
-  ctx.lineWidth = 3;
+  // Arms & Weapons
+  ctx.strokeStyle = hero.armor;
+  ctx.lineWidth = 3.8;
+  ctx.beginPath();
+
+  if (pose === "punch") {
+    // Shoulder -> Elbow -> Extended Fist
+    ctx.moveTo(0, -32);
+    ctx.lineTo(12, -31);
+    ctx.lineTo(25, -31);
+    ctx.stroke();
+
+    ctx.fillStyle = hero.cape;
+    ctx.beginPath();
+    ctx.arc(26, -31, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (pose === "slash") {
+    // Arced Strike Arm
+    ctx.moveTo(0, -32);
+    ctx.lineTo(14, -38);
+    ctx.lineTo(26, -26);
+    ctx.stroke();
+  } else {
+    // Resting Guard
+    ctx.moveTo(0, -32);
+    ctx.lineTo(6, -24);
+    ctx.lineTo(12, -18);
+    ctx.stroke();
+  }
+
+  // Signature Gear
   if (hero.gear === "katana") {
     ctx.strokeStyle = "#f8fafc";
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(2, -24);
-    ctx.lineTo(24, act === "slash" ? -25 : -14);
+    ctx.moveTo(6, -24);
+    ctx.lineTo(26, pose === "slash" ? -24 : -12);
     ctx.stroke();
   } else if (hero.gear === "shield") {
     ctx.fillStyle = "#fbbf24";
     ctx.beginPath();
     ctx.arc(10, -25, 12, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
     ctx.stroke();
   } else if (hero.gear === "orbs") {
     let t = Date.now() * 0.005;
     ctx.fillStyle = "#38bdf8";
+    ctx.shadowColor = "#38bdf8";
+    ctx.shadowBlur = 8;
     ctx.beginPath();
-    ctx.arc(Math.cos(t) * 15, -28 + Math.sin(t) * 7, 3.5, 0, Math.PI * 2);
-    ctx.arc(Math.cos(t + Math.PI) * 15, -28 + Math.sin(t + Math.PI) * 7, 3.5, 0, Math.PI * 2);
+    ctx.arc(Math.cos(t) * 16, -30 + Math.sin(t) * 8, 3.5, 0, Math.PI * 2);
+    ctx.arc(Math.cos(t + Math.PI) * 16, -30 + Math.sin(t + Math.PI) * 8, 3.5, 0, Math.PI * 2);
     ctx.fill();
-  } else if (hero.gear === "bow") {
-    ctx.strokeStyle = "#f59e0b";
-    ctx.beginPath();
-    ctx.arc(10, -25, 13, -Math.PI / 2, Math.PI / 2);
-    ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 
   ctx.restore();
 }
 
-function drawDroid(e) {
+/* PROCEDURAL HUMANOID DROIDS */
+function drawHumanoidDroid(e) {
   ctx.save();
   ctx.translate(e.x, e.y);
   ctx.scale(-1, 1);
 
-  // Health bar
+  // Health Bar
   ctx.fillStyle = "#1e293b";
-  ctx.fillRect(-10, -44, 20, 3);
+  ctx.fillRect(-12, -50, 24, 3.5);
   ctx.fillStyle = "#ef4444";
-  ctx.fillRect(-10, -44, (e.hp / e.maxHp) * 20, 3);
+  ctx.fillRect(-12, -50, (e.hp / e.maxHp) * 24, 3.5);
 
-  // Droid body
-  ctx.fillStyle = "#334155";
-  ctx.fillRect(-6, -30, 12, 18);
-  ctx.fillStyle = "#ef4444";
-  ctx.fillRect(1, -34, 4, 2);
+  let legCycle = Math.sin(e.walkFrame);
 
+  // Droid Legs
   ctx.strokeStyle = "#1e293b";
   ctx.lineWidth = 3.5;
+  ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(-2, -12); ctx.lineTo(-3 + Math.sin(e.walkFrame) * 4, 0);
-  ctx.moveTo(2, -12); ctx.lineTo(3 - Math.sin(e.walkFrame) * 4, 0);
+  ctx.moveTo(-3, -15);
+  ctx.lineTo(-4 + legCycle * 5, -6);
+  ctx.lineTo(-4 + legCycle * 5, 0);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#334155";
+  ctx.beginPath();
+  ctx.moveTo(3, -15);
+  ctx.lineTo(4 - legCycle * 5, -6);
+  ctx.lineTo(4 - legCycle * 5, 0);
+  ctx.stroke();
+
+  // Cyber Chassis Torso
+  ctx.fillStyle = "#334155";
+  ctx.beginPath();
+  ctx.moveTo(-7, -34);
+  ctx.lineTo(7, -34);
+  ctx.lineTo(5, -15);
+  ctx.lineTo(-5, -15);
+  ctx.closePath();
+  ctx.fill();
+
+  // Angular Head & Red Visor
+  ctx.fillStyle = "#1e293b";
+  ctx.fillRect(-5, -44, 10, 8);
+  ctx.fillStyle = "#ef4444";
+  ctx.shadowColor = "#ef4444";
+  ctx.shadowBlur = 6;
+  ctx.fillRect(1, -42, 5, 2.5);
+  ctx.shadowBlur = 0;
+
+  // Droid Arm
+  ctx.strokeStyle = "#475569";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, -30);
+  ctx.lineTo(8, -24);
+  ctx.lineTo(14, -18);
   ctx.stroke();
 
   ctx.restore();
@@ -854,33 +939,30 @@ function drawBoss(b) {
   ctx.save();
   ctx.translate(b.x, b.y);
 
-  // Boss Chassis
   ctx.fillStyle = "#1e1b4b";
-  ctx.fillRect(-24, -68, 48, 50);
+  ctx.fillRect(-26, -72, 52, 54);
   ctx.fillStyle = "#dc2626";
-  ctx.fillRect(-28, -64, 10, 24);
-  ctx.fillRect(18, -64, 10, 24);
+  ctx.fillRect(-30, -68, 12, 26);
+  ctx.fillRect(18, -68, 12, 26);
 
-  // Visor
   ctx.fillStyle = "#fef08a";
   ctx.shadowColor = "#ef4444";
   ctx.shadowBlur = 12;
-  ctx.fillRect(-12, -58, 24, 6);
+  ctx.fillRect(-14, -62, 28, 7);
   ctx.shadowBlur = 0;
 
-  // Legs
   ctx.strokeStyle = "#334155";
-  ctx.lineWidth = 6;
+  ctx.lineWidth = 7;
+  ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(-12, -18); ctx.lineTo(-14, 0);
-  ctx.moveTo(12, -18); ctx.lineTo(14, 0);
+  ctx.moveTo(-14, -18); ctx.lineTo(-16, 0);
+  ctx.moveTo(14, -18); ctx.lineTo(16, 0);
   ctx.stroke();
 
-  // Boss Bar
   ctx.fillStyle = "#1e293b";
-  ctx.fillRect(-32, -80, 64, 6);
+  ctx.fillRect(-35, -84, 70, 6.5);
   ctx.fillStyle = "#ef4444";
-  ctx.fillRect(-32, -80, (b.hp / b.maxHp) * 64, 6);
+  ctx.fillRect(-35, -84, (b.hp / b.maxHp) * 70, 6.5);
 
   ctx.restore();
 }
@@ -930,7 +1012,7 @@ function drawTsunamiWave(a) {
   ctx.translate(a.x, a.y);
   ctx.scale(a.facing, 1);
 
-  ctx.fillStyle = "rgba(14, 165, 233, 0.75)";
+  ctx.fillStyle = "rgba(14, 165, 233, 0.78)";
   ctx.shadowColor = "#00f0ff";
   ctx.shadowBlur = 16;
   ctx.beginPath();
@@ -967,75 +1049,47 @@ function drawWeaveNetProjectile(a) {
   ctx.restore();
 }
 
-// MOTHER LUETTA SUPERHERO FIGURINE (DESCENDING ANCESTRAL PROTECTOR)
-function drawLuettaGuardian(l) {
+/* MOTHER LUETTA ANCESTRAL FLOOR-SWEEPER CHARGE */
+function drawLuettaRunner(r) {
   ctx.save();
-  ctx.translate(l.x, l.y);
+  ctx.fillStyle = "rgba(251, 191, 36, 0.25)";
+  ctx.fillRect(0, GROUND_Y - 40, r.x, 40);
 
-  // 1. Golden Celestial Halo (Sun Ring)
+  ctx.translate(r.x, r.y);
+
   ctx.shadowColor = "#fbbf24";
-  ctx.shadowBlur = 25;
-  ctx.strokeStyle = "#fbbf24";
+  ctx.shadowBlur = 24;
+  ctx.strokeStyle = "#fef08a";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(0, -10, 22, 0, Math.PI * 2);
+  ctx.arc(0, -20, 18, 0, Math.PI * 2);
   ctx.stroke();
 
-  // 2. Flowing Golden Cape
-  let wave = Math.sin(Date.now() * 0.01) * 8;
-  ctx.fillStyle = "#f59e0b";
-  ctx.beginPath();
-  ctx.moveTo(-10, 0);
-  ctx.quadraticCurveTo(-22 + wave, 25, -28 + wave * 1.5, 55);
-  ctx.lineTo(28 - wave * 1.5, 55);
-  ctx.quadraticCurveTo(22 - wave, 25, 10, 0);
-  ctx.closePath();
-  ctx.fill();
-
-  // 3. Athletic Superhero Figurine & Tapered Armor
   ctx.fillStyle = "#fbbf24";
   ctx.beginPath();
-  ctx.moveTo(-8, -2);
-  ctx.lineTo(8, -2);
-  ctx.lineTo(5, 26);
-  ctx.lineTo(-5, 26);
+  ctx.moveTo(-8, -34);
+  ctx.lineTo(8, -34);
+  ctx.lineTo(4, -14);
+  ctx.lineTo(-4, -14);
   ctx.closePath();
   ctx.fill();
 
-  // Belt & Crest
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(-5, 14, 10, 3);
-
-  // Outstretched Protective Arms
-  ctx.strokeStyle = "#fbbf24";
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(-8, 5); ctx.lineTo(-24, 12);
-  ctx.moveTo(8, 5); ctx.lineTo(24, 12);
-  ctx.stroke();
-
-  // Figurine Head & Golden Tiara
   ctx.fillStyle = "#5c3826";
   ctx.beginPath();
-  ctx.arc(0, -12, 7.5, 0, Math.PI * 2);
+  ctx.arc(0, -40, 6.5, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = "#fef08a";
-  ctx.beginPath();
-  ctx.arc(0, -15, 8, -Math.PI / 3, Math.PI / 3);
-  ctx.fill();
+  ctx.fillRect(-4, -46, 8, 4);
 
-  // 4. Expanding Screen-Clearing Floor Vortex
-  ctx.restore();
-  ctx.save();
-  ctx.strokeStyle = "rgba(251, 191, 36, 0.7)";
+  ctx.strokeStyle = "#f59e0b";
   ctx.lineWidth = 4;
-  ctx.shadowColor = "#fbbf24";
-  ctx.shadowBlur = 20;
+  ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.ellipse(canvas.width / 2, GROUND_Y, l.vortexRadius, 14, 0, 0, Math.PI * 2);
+  ctx.moveTo(-2, -14); ctx.lineTo(-14, 0);
+  ctx.moveTo(2, -14); ctx.lineTo(16, -6);
   ctx.stroke();
+
   ctx.restore();
 }
 
