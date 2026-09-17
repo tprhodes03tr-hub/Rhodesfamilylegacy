@@ -25,13 +25,13 @@
     }
     #hud {
       width: 100%;
-      max-width: 480px;
-      padding: 10px 14px;
+      max-width: 520px;
+      padding: 8px 14px;
       background: #091322;
       border-bottom: 2px solid #142847;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
     }
     .hud-row {
       display: flex;
@@ -52,19 +52,20 @@
     }
     .bar-fill {
       height: 100%;
-      width: 80%;
+      width: 100%;
       background: linear-gradient(90deg, #10b981, #34d399);
+      transition: width 0.2s ease;
     }
     #game-canvas {
       width: 100%;
-      max-width: 480px;
-      height: 38vh;
+      max-width: 520px;
+      height: 42vh;
       background: #000;
       display: block;
     }
     #controls-container {
       width: 100%;
-      max-width: 480px;
+      max-width: 520px;
       flex: 1;
       background: #060d1a;
       border-top: 1px solid #1e293b;
@@ -99,7 +100,7 @@
     }
     .btn-active {
       border-color: #f59e0b;
-      background: #241a05;
+      background: #2b1f06;
       color: #fbbf24;
     }
     .btn-active span { color: #fcd34d; }
@@ -108,8 +109,15 @@
       border-color: #334155;
     }
     .btn-special {
-      border-color: #7c3aed;
-      color: #c084fc;
+      border-color: #0284c7;
+      color: #38bdf8;
+    }
+    .btn-luetta {
+      grid-column: span 3;
+      background: #422006;
+      border-color: #d97706;
+      color: #fde68a;
+      padding: 8px;
     }
     .btn-full {
       grid-column: span 3;
@@ -117,9 +125,6 @@
       border-color: #dc2626;
       color: #fca5a5;
       padding: 8px;
-    }
-    .btn-double {
-      grid-column: span 2;
     }
   </style>
 </head>
@@ -139,32 +144,41 @@
   <canvas id="game-canvas"></canvas>
 
   <div id="controls-container">
+    <!-- Hero Selection Row -->
     <button class="btn-active" id="btn-marcus" onclick="selectHero('MARCUS')">
       MARCUS<span>Earth & Rhythm</span>
+    </button>
+    <button id="btn-amina" onclick="selectHero('AMINA')">
+      AMINA<span>Water Katana</span>
     </button>
     <button id="btn-sky" onclick="selectHero('SKY_RANGER')">
       SKY RANGER<span>Arrow Barrage</span>
     </button>
-    <button id="btn-aura" onclick="selectHero('AURA_WEAVER')">
-      AURA WEAVER<span>Hydro Katana</span>
-    </button>
 
+    <!-- Movement & Strike 1 -->
     <button onclick="movePlayer(-1)">◀ LEFT</button>
     <button class="btn-action" onclick="castStrike1()">
-      <strong id="label-str1">STRIKE 1</strong><span id="sub-str1">Seismic Punch</span>
+      <strong id="lbl-str1">STRIKE 1</strong><span id="sub-str1">Golden Power Fist</span>
     </button>
     <button onclick="movePlayer(1)">RIGHT ▶</button>
 
-    <button class="btn-action" onclick="jumpPlayer()">NINJA JUMP<span>Evasive Hop</span></button>
+    <!-- Mobility, Strike 2 & Special Power -->
+    <button class="btn-action" onclick="jumpPlayer()">NINJA JUMP<span>Aerial Flip</span></button>
     <button class="btn-action" onclick="castStrike2()">
-      <strong id="label-str2">STRIKE 2</strong><span id="sub-str2">Ground Lightning</span>
+      <strong id="lbl-str2">STRIKE 2</strong><span id="sub-str2">Djembe Shockwave</span>
     </button>
     <button class="btn-special" onclick="castSpecialPower()">
-      SPECIAL POWER<span>Tsunami Surge</span>
+      <strong id="lbl-spec">SPECIAL POWER</strong><span id="sub-spec">Seismic Tremor</span>
     </button>
 
+    <!-- Mother Luetta Divine Sky & Ground Aid -->
+    <button class="btn-luetta" onclick="summonMotherLuetta()">
+      ✦ MOTHER LUETTA ✦<span>Divine Sky & Ground Aid (Heal & Sky Beams)</span>
+    </button>
+
+    <!-- Overdrive Clash -->
     <button class="btn-full" onclick="castOverdrive()">
-      ★ OVERDRIVE BATTLE CLASH ★<span>Full Elemental Shockwave</span>
+      ★ OVERDRIVE BATTLE CLASH ★<span>Full Duo Synergy Attack</span>
     </button>
   </div>
 
@@ -179,10 +193,31 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // GAME STATE & HERO PROFILES
+    // GAME STATE & HERO DATA
     let activeHero = 'MARCUS';
-    const SPRITE_SCALE = 0.72; // Scaled down ~28%
-    const groundOffset = 28;
+    const HERO_SCALE = 1.15; // Scaled up to ~85px heroic height
+    const groundOffset = 30;
+
+    const heroKits = {
+      MARCUS: {
+        title: 'HERO: MARCUS',
+        str1Lbl: 'STRIKE 1', str1Sub: 'Golden Power Fist',
+        str2Lbl: 'STRIKE 2', str2Sub: 'Djembe Shockwave',
+        specLbl: 'SPECIAL POWER', specSub: 'Gaia Root Snare'
+      },
+      AMINA: {
+        title: 'HERO: AMINA',
+        str1Lbl: 'STRIKE 1', str1Sub: 'Hydro Katana Slash',
+        str2Lbl: 'STRIKE 2', str2Sub: 'Floor Water Net',
+        specLbl: 'SPECIAL POWER', specSub: 'Tsunami Wave & Rain'
+      },
+      SKY_RANGER: {
+        title: 'HERO: SKY RANGER',
+        str1Lbl: 'STRIKE 1', str1Sub: 'Arrow Barrage',
+        str2Lbl: 'STRIKE 2', str2Sub: 'Floor Lightning Bolt',
+        specLbl: 'SPECIAL POWER', specSub: 'Orbital Sky Volley'
+      }
+    };
 
     const player = {
       x: 120,
@@ -196,60 +231,88 @@
     };
 
     const partner = {
-      x: 80,
+      x: 75,
       y: 0,
-      type: 'SKY_RANGER'
+      type: 'AMINA'
     };
 
-    // Responsive Enemies
+    // Responsive Patrol Enemies
     const enemies = [
-      { x: 300, y: 0, hp: 60, maxHp: 60, isStunned: false, stunTimer: 0 },
-      { x: 380, y: 0, hp: 80, maxHp: 80, isStunned: false, stunTimer: 0 }
+      { x: 320, y: 0, hp: 80, maxHp: 80, isStunned: false, stunTimer: 0, dir: -1 },
+      { x: 420, y: 0, hp: 100, maxHp: 100, isStunned: false, stunTimer: 0, dir: 1 }
     ];
 
-    // VFX ENGINE (Lightning, Tsunami, Storm Rain, Screen Shake)
+    // VFX ENGINE (Lightning, Water Net, Tsunami Wave, Timed Rain, Mother Luetta)
     const VFX = {
       shake: 0,
       rainDrops: [],
+      rainTimer: 0,
       lightnings: [],
       tsunamis: [],
+      waterNets: [],
+      luettaAid: null,
 
-      initRain(count = 50) {
+      startRain(durationFrames = 130) {
+        this.rainTimer = durationFrames;
         this.rainDrops = [];
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i < 45; i++) {
           this.rainDrops.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            speed: 12 + Math.random() * 8,
+            speed: 13 + Math.random() * 8,
             len: 12 + Math.random() * 10
           });
         }
       },
 
-      castGroundLightning(originX, groundY, direction = 1) {
-        this.shake = 7;
+      castFloorLightning(originX, groundY, direction = 1) {
+        this.shake = 6;
         this.lightnings.push({
           x: originX,
           groundY: groundY,
           dir: direction,
           reach: 0,
-          maxReach: 280,
-          life: 20
+          maxReach: 320,
+          life: 24
+        });
+      },
+
+      castWaterNet(originX, groundY, direction = 1) {
+        this.waterNets.push({
+          x: originX,
+          groundY: groundY,
+          dir: direction,
+          dist: 0,
+          maxDist: 280,
+          life: 50
         });
       },
 
       castTsunami(originX, groundY, direction = 1) {
         this.shake = 12;
-        if (this.rainDrops.length === 0) this.initRain(55);
+        this.startRain(130); // Rain starts only when tsunami is unleashed
         this.tsunamis.push({
           x: originX,
           groundY: groundY,
           dir: direction,
-          width: 44,
-          height: 65,
-          speed: 8,
-          life: 42
+          width: 50,
+          height: 75,
+          speed: 8.5,
+          life: 45
         });
+      },
+
+      summonLuetta(targetX, groundY) {
+        this.luettaAid = {
+          x: targetX,
+          y: groundY - 140,
+          targetY: groundY - 70,
+          timer: 100,
+          beams: [
+            { x: targetX + 110, h: 0 },
+            { x: targetX + 180, h: 0 }
+          ]
+        };
       },
 
       updateAndDraw(ctx, w, h) {
@@ -262,11 +325,12 @@
           if (this.shake < 0.5) this.shake = 0;
         }
 
-        // Tsunami Weather / Rain
-        if (this.rainDrops.length > 0) {
+        // Timed Rain: Active only during and right after Amina's Tsunami
+        if (this.rainTimer > 0) {
+          this.rainTimer--;
           ctx.save();
-          ctx.strokeStyle = 'rgba(160, 225, 255, 0.4)';
-          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = 'rgba(170, 230, 255, 0.45)';
+          ctx.lineWidth = 1.3;
           ctx.beginPath();
           for (let r of this.rainDrops) {
             ctx.moveTo(r.x, r.y);
@@ -282,10 +346,10 @@
           ctx.restore();
         }
 
-        // Floor-Crawling Lightning Surge
+        // Sky Ranger: Floor Lightning Bolt
         for (let i = this.lightnings.length - 1; i >= 0; i--) {
           const bolt = this.lightnings[i];
-          bolt.reach = Math.min(bolt.maxReach, bolt.reach + 24);
+          bolt.reach = Math.min(bolt.maxReach, bolt.reach + 26);
           bolt.life--;
 
           ctx.save();
@@ -308,7 +372,7 @@
           }
           ctx.stroke();
 
-          // Electrocution & Spark Stun
+          // Shock & Stun
           enemies.forEach(e => {
             const inPath = bolt.dir > 0 
               ? (e.x >= bolt.x && e.x <= bolt.x + bolt.reach)
@@ -318,7 +382,7 @@
               e.stunTimer = 25;
               e.hp -= 0.6;
               ctx.fillStyle = '#fef08a';
-              ctx.fillRect(e.x + (Math.random() * 14 - 7), e.y - 30 + (Math.random() * 25), 3, 3);
+              ctx.fillRect(e.x + (Math.random() * 16 - 8), e.y - 35 + (Math.random() * 25), 3, 3);
             }
           });
           ctx.restore();
@@ -326,7 +390,44 @@
           if (bolt.life <= 0) this.lightnings.splice(i, 1);
         }
 
-        // Tsunami Wave Surge
+        // Amina: Floor Water Net (Crawls and Stuns)
+        for (let i = this.waterNets.length - 1; i >= 0; i--) {
+          const net = this.waterNets[i];
+          net.dist = Math.min(net.maxDist, net.dist + 12);
+          net.life--;
+          const netX = net.x + (net.dist * net.dir);
+
+          ctx.save();
+          ctx.shadowColor = '#00e5ff';
+          ctx.shadowBlur = 10;
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 2;
+
+          // Expanding diamond net grid along the floor
+          ctx.beginPath();
+          for (let offset = -18; offset <= 18; offset += 9) {
+            ctx.moveTo(netX + offset, net.groundY);
+            ctx.lineTo(netX, net.groundY - 24);
+            ctx.lineTo(netX + offset, net.groundY - 4);
+          }
+          ctx.stroke();
+
+          // Net Stun on Enemy
+          enemies.forEach(e => {
+            if (Math.abs(e.x - netX) < 28) {
+              e.isStunned = true;
+              e.stunTimer = 35; // Locked in water net
+              e.hp -= 0.4;
+              ctx.strokeStyle = '#67e8f9';
+              ctx.strokeRect(e.x - 12, e.y - 40, 24, 40);
+            }
+          });
+          ctx.restore();
+
+          if (net.life <= 0) this.waterNets.splice(i, 1);
+        }
+
+        // Amina: Tsunami Wave Surge
         for (let i = this.tsunamis.length - 1; i >= 0; i--) {
           const wave = this.tsunamis[i];
           wave.x += wave.speed * wave.dir;
@@ -334,33 +435,33 @@
 
           ctx.save();
           ctx.shadowColor = '#00e5ff';
-          ctx.shadowBlur = 16;
+          ctx.shadowBlur = 18;
 
           const grad = ctx.createLinearGradient(wave.x, wave.groundY - wave.height, wave.x, wave.groundY);
           grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
           grad.addColorStop(0.3, 'rgba(0, 229, 255, 0.7)');
-          grad.addColorStop(1, 'rgba(3, 105, 161, 0.2)');
+          grad.addColorStop(1, 'rgba(3, 105, 161, 0.25)');
 
           ctx.fillStyle = grad;
           ctx.beginPath();
-          ctx.moveTo(wave.x - 20 * wave.dir, wave.groundY);
+          ctx.moveTo(wave.x - 25 * wave.dir, wave.groundY);
           ctx.quadraticCurveTo(
             wave.x, wave.groundY - wave.height * 1.25, 
             wave.x + (wave.width * wave.dir), wave.groundY
           );
           ctx.fill();
 
-          // Crest Foam
+          // White Crest Line
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2.5;
+          ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.arc(wave.x + (wave.width * 0.5 * wave.dir), wave.groundY - wave.height * 0.7, 12, Math.PI, 0, wave.dir < 0);
+          ctx.arc(wave.x + (wave.width * 0.5 * wave.dir), wave.groundY - wave.height * 0.75, 14, Math.PI, 0, wave.dir < 0);
           ctx.stroke();
 
           // Wave Push & Knockback
           enemies.forEach(e => {
-            if (Math.abs(e.x - wave.x) < 40) {
-              e.x += 5.5 * wave.dir;
+            if (Math.abs(e.x - wave.x) < 45) {
+              e.x += 6 * wave.dir;
               e.hp -= 0.8;
             }
           });
@@ -368,10 +469,64 @@
 
           if (wave.life <= 0) this.tsunamis.splice(i, 1);
         }
+
+        // Mother Luetta: Divine Aid Descent & Celestial Beams
+        if (this.luettaAid) {
+          const l = this.luettaAid;
+          l.timer--;
+          if (l.y < l.targetY) l.y += 2.5;
+
+          ctx.save();
+          // Halo & Golden Aura
+          ctx.shadowColor = '#f59e0b';
+          ctx.shadowBlur = 18;
+          ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
+          ctx.beginPath();
+          ctx.arc(l.x, l.y, 35, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Divine Robes
+          ctx.fillStyle = '#fef3c7';
+          ctx.beginPath();
+          ctx.moveTo(l.x, l.y - 20);
+          ctx.lineTo(l.x - 14, l.y + 24);
+          ctx.lineTo(l.x + 14, l.y + 24);
+          ctx.closePath();
+          ctx.fill();
+
+          // Head & Golden Crown
+          ctx.fillStyle = '#5c3826';
+          ctx.beginPath();
+          ctx.arc(l.x, l.y - 22, 9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fbbf24';
+          ctx.fillRect(l.x - 11, l.y - 32, 22, 5);
+
+          // Sky Beams on Enemies
+          l.beams.forEach(b => {
+            ctx.shadowColor = '#fbbf24';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = 'rgba(254, 240, 138, 0.55)';
+            ctx.fillRect(b.x - 14, 0, 28, h - groundOffset);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(b.x - 4, 0, 8, h - groundOffset);
+
+            enemies.forEach(e => {
+              if (Math.abs(e.x - b.x) < 30) {
+                e.hp -= 0.7;
+                e.isStunned = true;
+                e.stunTimer = 15;
+              }
+            });
+          });
+          ctx.restore();
+
+          if (l.timer <= 0) this.luettaAid = null;
+        }
       }
     };
 
-    // SPRITE RENDERING
+    // DETAILED HERO DRAW ROUTINES (~85px scale)
     function drawDetailedHero(ctx, x, y, type, scale, facing = 1) {
       ctx.save();
       ctx.translate(x, y);
@@ -381,157 +536,157 @@
       const gold = '#eab308';
 
       if (type === 'MARCUS') {
-        // Djembe Drum slung on back
+        // Djembe Drum on Back
         ctx.fillStyle = '#78350f';
         ctx.beginPath();
-        ctx.moveTo(-16, -34);
-        ctx.lineTo(-6, -34);
-        ctx.lineTo(-9, -16);
-        ctx.lineTo(-13, -16);
+        ctx.moveTo(-18, -36);
+        ctx.lineTo(-7, -36);
+        ctx.lineTo(-10, -16);
+        ctx.lineTo(-15, -16);
         ctx.closePath();
         ctx.fill();
         ctx.fillStyle = '#fef3c7';
-        ctx.fillRect(-16, -36, 10, 3); // Drum head
+        ctx.fillRect(-18, -38, 11, 3);
 
-        // Torso / Cuirass
+        // Cuirass & Collar
         ctx.fillStyle = skin;
-        ctx.fillRect(-8, -44, 16, 20);
+        ctx.fillRect(-9, -46, 18, 22);
         ctx.fillStyle = gold;
-        ctx.fillRect(-9, -46, 18, 4); // Collar
+        ctx.fillRect(-10, -48, 20, 5);
 
         // Crimson Warrior Kilt
         ctx.fillStyle = '#831843';
-        ctx.fillRect(-8, -24, 16, 10);
+        ctx.fillRect(-9, -24, 18, 11);
         ctx.fillStyle = gold;
-        ctx.fillRect(-4, -24, 8, 4); // Buckle
+        ctx.fillRect(-5, -24, 10, 4);
 
         // Greaves
         ctx.fillStyle = '#1e293b';
-        ctx.fillRect(-7, -14, 5, 14);
-        ctx.fillRect(2, -14, 5, 14);
+        ctx.fillRect(-8, -13, 6, 13);
+        ctx.fillRect(2, -13, 6, 13);
 
         // Head & Beard
         ctx.fillStyle = skin;
         ctx.beginPath();
-        ctx.arc(0, -52, 7, 0, Math.PI * 2);
+        ctx.arc(0, -54, 8, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#0f172a';
-        ctx.fillRect(-7, -59, 14, 6); // Short crop
-        ctx.fillRect(-4, -48, 8, 3);  // Trimmed beard
+        ctx.fillRect(-8, -62, 16, 7);
+        ctx.fillRect(-5, -50, 10, 3);
 
-        // Glowing Golden Power Fist
+        // Glowing Golden Fist
         ctx.save();
         ctx.shadowColor = '#eab308';
         ctx.shadowBlur = 12;
         ctx.fillStyle = '#fef08a';
-        ctx.fillRect(7, -36, 8, 10);
+        ctx.fillRect(8, -38, 9, 11);
+        ctx.restore();
+
+      } else if (type === 'AMINA') {
+        // Hydro Robe & Cuirass
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(-8, -44, 16, 22);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(-9, -32, 18, 4); // Sash
+
+        // Greaves
+        ctx.fillStyle = '#0c4a6e';
+        ctx.fillRect(-7, -22, 6, 22);
+        ctx.fillRect(1, -22, 6, 22);
+
+        // Long Braided Hair & Head
+        ctx.fillStyle = skin;
+        ctx.beginPath();
+        ctx.arc(0, -52, 7.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(-9, -60, 18, 8);
+        ctx.fillRect(-10, -55, 5, 16); // Flowing braid
+
+        // Hydro Katana
+        ctx.save();
+        ctx.shadowColor = '#00e5ff';
+        ctx.shadowBlur = 12;
+        ctx.strokeStyle = '#e0f2fe';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(8, -26);
+        ctx.lineTo(26, -42);
+        ctx.stroke();
         ctx.restore();
 
       } else if (type === 'SKY_RANGER') {
-        // Blue Infiltrator Suit
+        // Infiltrator Armor
         ctx.fillStyle = '#1e3a8a';
-        ctx.fillRect(-7, -44, 14, 22);
+        ctx.fillRect(-8, -46, 16, 24);
         ctx.fillStyle = gold;
-        ctx.fillRect(-7, -34, 14, 3); // Belt
+        ctx.fillRect(-8, -34, 16, 3);
 
         // Greaves
         ctx.fillStyle = '#0f172a';
-        ctx.fillRect(-6, -22, 5, 22);
-        ctx.fillRect(1, -22, 5, 22);
+        ctx.fillRect(-7, -22, 6, 22);
+        ctx.fillRect(1, -22, 6, 22);
 
         // Head
         ctx.fillStyle = skin;
         ctx.beginPath();
-        ctx.arc(0, -51, 6.5, 0, Math.PI * 2);
+        ctx.arc(0, -53, 7.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#020617';
-        ctx.fillRect(-6, -58, 12, 6);
+        ctx.fillRect(-7, -61, 14, 7);
 
-        // Arc Recurve Bow on Back
+        // Arc Recurve Bow
         ctx.strokeStyle = '#c084fc';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(-8, -32, 14, -Math.PI / 2, Math.PI / 2);
+        ctx.arc(-9, -34, 16, -Math.PI / 2, Math.PI / 2);
         ctx.stroke();
-
-      } else if (type === 'AURA_WEAVER') {
-        // Hydro Robe & Katana Armor
-        ctx.fillStyle = '#0284c7';
-        ctx.fillRect(-7, -42, 14, 20);
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(-8, -30, 16, 4);
-
-        // Legs
-        ctx.fillStyle = '#0c4a6e';
-        ctx.fillRect(-6, -22, 5, 22);
-        ctx.fillRect(1, -22, 5, 22);
-
-        // Long Hair & Head
-        ctx.fillStyle = skin;
-        ctx.beginPath();
-        ctx.arc(0, -50, 6.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#020617';
-        ctx.fillRect(-8, -57, 16, 7);
-        ctx.fillRect(-9, -52, 4, 14); // Flowing lock
-
-        // Hydro Katana Blade
-        ctx.save();
-        ctx.shadowColor = '#00e5ff';
-        ctx.shadowBlur = 10;
-        ctx.strokeStyle = '#e0f2fe';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(8, -25);
-        ctx.lineTo(24, -40);
-        ctx.stroke();
-        ctx.restore();
       }
 
       ctx.restore();
     }
 
-    // ENEMY DRAWING
+    // DRAW ENEMIES
     function drawEnemies(groundY) {
       enemies.forEach(e => {
         e.y = groundY;
         ctx.save();
         ctx.translate(e.x, e.y);
 
-        // Electric Stun Effect
+        // Electric Stun Box
         if (e.isStunned) {
           ctx.strokeStyle = '#fef08a';
           ctx.lineWidth = 1.5;
-          ctx.strokeRect(-10, -50, 20, 50);
+          ctx.strokeRect(-12, -56, 24, 56);
           e.stunTimer--;
           if (e.stunTimer <= 0) e.isStunned = false;
         }
 
-        // Stick/Cyber Silhouette
+        // Silhouette / Patrol
         ctx.strokeStyle = e.isStunned ? '#fef08a' : '#ef4444';
         ctx.lineWidth = 3;
         // Head
         ctx.beginPath();
-        ctx.arc(0, -42, 6, 0, Math.PI * 2);
+        ctx.arc(0, -46, 7, 0, Math.PI * 2);
         ctx.stroke();
-        // Body
+        // Spine
         ctx.beginPath();
-        ctx.moveTo(0, -36);
+        ctx.moveTo(0, -39);
         ctx.lineTo(0, -18);
         // Legs
-        ctx.lineTo(-7, 0);
+        ctx.lineTo(-8, 0);
         ctx.moveTo(0, -18);
-        ctx.lineTo(7, 0);
+        ctx.lineTo(8, 0);
         // Arms
-        ctx.moveTo(-10, -28);
-        ctx.lineTo(10, -28);
+        ctx.moveTo(-12, -30);
+        ctx.lineTo(12, -30);
         ctx.stroke();
 
         // Mini HP Bar
         ctx.fillStyle = '#334155';
-        ctx.fillRect(-12, -54, 24, 4);
+        ctx.fillRect(-14, -60, 28, 4);
         ctx.fillStyle = '#ef4444';
-        ctx.fillRect(-12, -54, (Math.max(0, e.hp) / e.maxHp) * 24, 4);
+        ctx.fillRect(-14, -60, (Math.max(0, e.hp) / e.maxHp) * 28, 4);
 
         ctx.restore();
       });
@@ -539,13 +694,13 @@
 
     // BACKGROUND SKYLINE & ROOFTOP
     function drawBackground(w, h, groundY) {
-      // RenCen Skyline Columns
+      // RenCen Towers
       const buildings = [
-        { x: w * 0.05, w: 42, h: h * 0.58 },
-        { x: w * 0.20, w: 46, h: h * 0.72 },
-        { x: w * 0.40, w: 60, h: h * 0.88 }, // Center tower
-        { x: w * 0.62, w: 48, h: h * 0.74 },
-        { x: w * 0.82, w: 40, h: h * 0.52 }
+        { x: w * 0.05, w: 45, h: h * 0.60 },
+        { x: w * 0.22, w: 50, h: h * 0.75 },
+        { x: w * 0.42, w: 65, h: h * 0.90 }, // RenCen Center
+        { x: w * 0.64, w: 52, h: h * 0.77 },
+        { x: w * 0.82, w: 44, h: h * 0.54 }
       ];
 
       buildings.forEach(b => {
@@ -572,11 +727,11 @@
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Yellow Helipad Target
-      ctx.strokeStyle = 'rgba(234, 179, 8, 0.4)';
+      // Helipad Target Marker
+      ctx.strokeStyle = 'rgba(234, 179, 8, 0.35)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.ellipse(w * 0.5, groundY + 12, 50, 8, 0, 0, Math.PI * 2);
+      ctx.ellipse(w * 0.5, groundY + 12, 54, 9, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -587,10 +742,10 @@
       const groundY = h - groundOffset;
       player.baseY = groundY;
 
-      // Handle Jump Arc
+      // Jump Arc
       if (player.isJumping) {
         player.y += player.vy;
-        player.vy += 0.98; // Gravity
+        player.vy += 0.95;
         if (player.y >= groundY) {
           player.y = groundY;
           player.vy = 0;
@@ -604,15 +759,15 @@
       ctx.save();
       ctx.clearRect(0, 0, w, h);
 
-      // 1. Draw World
+      // 1. World
       drawBackground(w, h, groundY);
 
-      // 2. VFX (Lightning, Wave, Rain, Shake)
+      // 2. VFX (Lightning, Water Net, Tsunami, Timed Rain, Luetta)
       VFX.updateAndDraw(ctx, w, h);
 
-      // 3. Draw Active Duo & Enemies
-      drawDetailedHero(ctx, partner.x, partner.y, partner.type, SPRITE_SCALE, 1);
-      drawDetailedHero(ctx, player.x, player.y, activeHero, SPRITE_SCALE, player.facing);
+      // 3. Characters & Enemies
+      drawDetailedHero(ctx, partner.x, partner.y, partner.type, HERO_SCALE, 1);
+      drawDetailedHero(ctx, player.x, player.y, activeHero, HERO_SCALE, player.facing);
       drawEnemies(groundY);
 
       ctx.restore();
@@ -620,60 +775,116 @@
     }
     requestAnimationFrame(loop);
 
-    // CONTROLS & POWER TRIGGERS
+    // CONTROLS & HERO LOGIC
+    function updateHUD() {
+      const kit = heroKits[activeHero];
+      document.getElementById('hud-hero').innerText = kit.title;
+      document.getElementById('lbl-str1').innerText = kit.str1Lbl;
+      document.getElementById('sub-str1').innerText = kit.str1Sub;
+      document.getElementById('lbl-str2').innerText = kit.str2Lbl;
+      document.getElementById('sub-str2').innerText = kit.str2Sub;
+      document.getElementById('lbl-spec').innerText = kit.specLbl;
+      document.getElementById('sub-spec').innerText = kit.specSub;
+
+      document.querySelectorAll('#controls-container button').forEach(b => b.classList.remove('btn-active'));
+      if (activeHero === 'MARCUS') document.getElementById('btn-marcus').classList.add('btn-active');
+      if (activeHero === 'AMINA') document.getElementById('btn-amina').classList.add('btn-active');
+      if (activeHero === 'SKY_RANGER') document.getElementById('btn-sky').classList.add('btn-active');
+    }
+
     function selectHero(hero) {
       activeHero = hero;
-      partner.type = (hero === 'MARCUS') ? 'SKY_RANGER' : 'MARCUS';
-      
-      document.querySelectorAll('#controls-container button').forEach(b => b.classList.remove('btn-active'));
-      if (hero === 'MARCUS') document.getElementById('btn-marcus').classList.add('btn-active');
-      if (hero === 'SKY_RANGER') document.getElementById('btn-sky').classList.add('btn-active');
-      if (hero === 'AURA_WEAVER') document.getElementById('btn-aura').classList.add('btn-active');
-
-      document.getElementById('hud-hero').innerText = `HERO: ${hero}`;
+      partner.type = (hero === 'MARCUS') ? 'AMINA' : 'MARCUS';
+      updateHUD();
     }
 
     function movePlayer(dir) {
       player.facing = dir;
-      player.x = Math.max(40, Math.min(canvas.width - 40, player.x + dir * 16));
-      partner.x = player.x - (dir * 36);
+      player.x = Math.max(45, Math.min(canvas.width - 45, player.x + dir * 18));
+      partner.x = player.x - (dir * 42);
     }
 
     function jumpPlayer() {
       if (!player.isJumping) {
-        player.vy = -12;
+        player.vy = -12.5;
         player.isJumping = true;
       }
     }
 
+    // Strike 1 Actions
     function castStrike1() {
-      // Golden Seismic Pulse
       VFX.shake = 4;
       enemies.forEach(e => {
-        if (Math.abs(e.x - player.x) < 70) {
-          e.hp -= 15;
-          e.x += player.facing * 18;
+        if (Math.abs(e.x - player.x) < 75) {
+          e.hp -= 18;
+          e.x += player.facing * 20;
         }
       });
     }
 
+    // Strike 2 Actions (Hero Distinct)
     function castStrike2() {
-      // Floor-Crawling Lightning Surge
-      VFX.castGroundLightning(player.x, player.baseY, player.facing);
+      if (activeHero === 'AMINA') {
+        // Floor Water Net
+        VFX.castWaterNet(player.x, player.baseY, player.facing);
+      } else if (activeHero === 'SKY_RANGER') {
+        // Floor Lightning Bolt
+        VFX.castFloorLightning(player.x, player.baseY, player.facing);
+      } else {
+        // Marcus Djembe Ground Shockwave
+        VFX.shake = 8;
+        enemies.forEach(e => {
+          if (Math.abs(e.x - player.x) < 110) {
+            e.hp -= 20;
+            e.x += player.facing * 25;
+          }
+        });
+      }
     }
 
+    // Special Power Actions (Hero Distinct)
     function castSpecialPower() {
-      // Aura Weaver Tsunami & Rain
-      VFX.castTsunami(player.x, player.baseY, player.facing);
+      if (activeHero === 'AMINA') {
+        // Tsunami Wave + Timed Rain
+        VFX.castTsunami(player.x, player.baseY, player.facing);
+      } else if (activeHero === 'SKY_RANGER') {
+        // Orbital Light Volley
+        VFX.shake = 7;
+        enemies.forEach(e => {
+          e.hp -= 22;
+          e.isStunned = true;
+          e.stunTimer = 20;
+        });
+      } else {
+        // Marcus Gaia Roots Snare
+        VFX.shake = 9;
+        enemies.forEach(e => {
+          e.hp -= 25;
+          e.isStunned = true;
+          e.stunTimer = 30;
+        });
+      }
     }
 
-    function castOverdrive() {
-      // Full Clash: Wave + Dual Lightning + Heavy Shake
-      VFX.castTsunami(player.x, player.baseY, player.facing);
-      VFX.castGroundLightning(player.x, player.baseY, 1);
-      VFX.castGroundLightning(player.x, player.baseY, -1);
-      VFX.shake = 18;
+    // Mother Luetta Divine Sky & Ground Aid
+    function summonMotherLuetta() {
+      player.hp = Math.min(player.maxHp, player.hp + 40);
+      document.getElementById('hud-hp').innerText = `HP: ${Math.round(player.hp)}/${player.maxHp}`;
+      document.getElementById('hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
+      VFX.summonLuetta(player.x, player.baseY);
     }
+
+    // Overdrive Battle Clash
+    function castOverdrive() {
+      VFX.castTsunami(player.x, player.baseY, player.facing);
+      VFX.castFloorLightning(player.x, player.baseY, 1);
+      VFX.castFloorLightning(player.x, player.baseY, -1);
+      VFX.summonLuetta(player.x, player.baseY);
+      VFX.shake = 20;
+    }
+
+    // Initial setup
+    updateHUD();
   </script>
 </body>
 </html>
