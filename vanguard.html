@@ -1,1455 +1,1030 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Vanguard: Detroit Legends</title>
-<style>
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    user-select: none;
-    -webkit-user-select: none;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
-  body {
-    background: #020611;
-    color: #e2e8f0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100vh;
-    overflow-x: hidden;
-    touch-action: manipulation;
-  }
-  #game-wrapper {
-    width: 100%;
-    max-width: 480px;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    background: #050b18;
-    border: 1px solid #1e293b;
-  }
-  #top-hud {
-    background: rgba(3, 7, 18, 0.95);
-    padding: 6px 12px;
-    border-bottom: 2px solid #0284c7;
-    font-size: 11px;
-    font-weight: 700;
-  }
-  .hud-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 3px;
-  }
-  .hud-tag { color: #38bdf8; }
-  .hud-zone { color: #f59e0b; text-transform: uppercase; font-size: 10px; }
-  .hud-val { color: #e2e8f0; font-family: monospace; }
-  .hp-bar-bg {
-    width: 100%;
-    height: 8px;
-    background: #1e293b;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 4px;
-    border: 1px solid #334155;
-  }
-  #hero-hp-fill {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #10b981, #34d399);
-    transition: width 0.15s ease;
-  }
-  #boss-meter-container {
-    display: none;
-    margin-top: 4px;
-    background: #450a0a;
-    border: 1px solid #ef4444;
-    border-radius: 4px;
-    padding: 2px 6px;
-  }
-  .boss-header {
-    display: flex;
-    justify-content: space-between;
-    font-size: 9px;
-    color: #fca5a5;
-    font-weight: 900;
-  }
-  .boss-bar-bg {
-    width: 100%;
-    height: 6px;
-    background: #1f1f1f;
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 2px;
-  }
-  #boss-hp-fill {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #ef4444, #f87171);
-    transition: width 0.1s ease;
-  }
-  #canvas-container {
-    position: relative;
-    width: 100%;
-    background: #000;
-  }
-  canvas {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-  }
-  #controls-panel {
-    padding: 8px;
-    background: #040914;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .btn-grid {
-    display: grid;
-    gap: 5px;
-  }
-  .grid-3 { grid-template-columns: repeat(3, 1fr); }
-  .grid-custom-mid { grid-template-columns: 1.1fr 0.9fr; }
-  .grid-nav { grid-template-columns: 0.9fr 1.2fr 0.9fr; }
-  
-  button {
-    background: #0f172a;
-    color: #94a3b8;
-    border: 1px solid #1e293b;
-    border-radius: 6px;
-    padding: 8px 4px;
-    text-align: center;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    outline: none;
-    transition: all 0.1s ease;
-    min-height: 48px;
-  }
-  button:active {
-    transform: scale(0.96);
-    filter: brightness(1.3);
-  }
-  .btn-title {
-    font-size: 11px;
-    font-weight: 800;
-    line-height: 1.1;
-    text-transform: uppercase;
-  }
-  .btn-sub {
-    font-size: 8.5px;
-    opacity: 0.8;
-    margin-top: 2px;
-  }
-  
-  /* Hero Roster Styling */
-  .hero-btn.active {
-    border-color: #f59e0b;
-    background: #1e1b14;
-    color: #fbbf24;
-    box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.3);
-  }
-  .hero-btn[data-hero="aura"].active {
-    border-color: #38bdf8;
-    background: #082f49;
-    color: #7dd3fc;
-    box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.3);
-  }
-  .hero-btn[data-hero="sundiata"].active {
-    border-color: #a855f7;
-    background: #2e1065;
-    color: #d8b4fe;
-    box-shadow: inset 0 0 8px rgba(168, 85, 247, 0.3);
-  }
-
-  /* Core Action Buttons */
-  #btn-tag {
-    background: #032b43;
-    border-color: #0284c7;
-    color: #38bdf8;
-  }
-  #btn-luetta {
-    background: #3b2005;
-    border-color: #d97706;
-    color: #fbbf24;
-  }
-  #btn-strike {
-    background: #172554;
-    border-color: #3b82f6;
-    color: #93c5fd;
-  }
-  #btn-skill {
-    background: #064e3b;
-    border-color: #059669;
-    color: #6ee7b7;
-  }
-  #btn-overdrive {
-    background: #4c0519;
-    border-color: #e11d48;
-    color: #fda4af;
-  }
-  .nav-btn {
-    background: #0b1329;
-    border-color: #1e293b;
-    color: #cbd5e1;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RenCen Rooftop: Guardian Powers</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      background-color: #040914;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    #game-container {
+      width: 100%;
+      max-width: 480px;
+      height: 100vh;
+      max-height: 960px;
+      display: flex;
+      flex-direction: column;
+      background: #060d1d;
+      border: 1px solid #1e293b;
+      box-shadow: 0 0 25px rgba(0,0,0,0.8);
+      position: relative;
+    }
+    /* HUD Header */
+    #hud-top {
+      background: #020617;
+      border-bottom: 2px solid #0ea5e9;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 10;
+    }
+    .hud-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .hud-hero { color: #38bdf8; text-transform: uppercase; }
+    .hud-zone { color: #f59e0b; text-align: center; }
+    .hud-stats { color: #e2e8f0; font-family: monospace; font-size: 12px; }
+    .bar-container {
+      width: 100%;
+      height: 7px;
+      background: #1e293b;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+    }
+    #hp-bar {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #10b981, #34d399);
+      transition: width 0.15s ease;
+    }
+    #od-bar-wrap {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #94a3b8;
+      font-family: monospace;
+      margin-top: 2px;
+    }
+    /* Canvas Area */
+    #canvas-wrap {
+      width: 100%;
+      height: 38vh;
+      min-height: 250px;
+      position: relative;
+      background: #000;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    /* Controls Console */
+    #controls-console {
+      flex: 1;
+      background: #070e1e;
+      border-top: 2px solid #1e3a8a;
+      display: flex;
+      flex-direction: column;
+      padding: 6px;
+      gap: 5px;
+      overflow-y: auto;
+    }
+    .btn-grid {
+      display: grid;
+      gap: 5px;
+    }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .btn-action {
+      background: #0f1e36;
+      border: 1px solid #1e3a8a;
+      border-radius: 5px;
+      color: #cbd5e1;
+      padding: 6px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      transition: all 0.08s ease;
+    }
+    .btn-action:active, .btn-action.active-press {
+      transform: scale(0.96);
+      background: #1e3a8a;
+      border-color: #38bdf8;
+    }
+    .btn-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .btn-sub {
+      font-size: 8.5px;
+      color: #94a3b8;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    /* Custom button accents matching the UI */
+    .btn-hero.selected {
+      border-color: #f59e0b !important;
+      background: #3b2204 !important;
+      color: #fbbf24 !important;
+    }
+    .btn-strike1 { border-color: #854d0e; background: #261e09; color: #fde047; }
+    .btn-strike2 { border-color: #0369a1; background: #082f49; color: #38bdf8; }
+    .btn-skill { border-color: #4f46e5; background: #1e1b4b; color: #a5b4fc; }
+    .btn-overdrive { border-color: #991b1b; background: #450a0a; color: #fca5a5; }
+    .btn-mother { border-color: #d97706; background: #451a03; color: #fef08a; }
+  </style>
 </head>
 <body>
 
-<div id="game-wrapper">
-  <div id="top-hud">
+<div id="game-container">
+  <!-- HUD -->
+  <div id="hud-top">
     <div class="hud-row">
-      <span class="hud-tag" id="hud-hero-name">HERO: Marcus & Mayleen</span>
-      <span class="hud-zone" id="hud-zone-name">ZONE: 1. RenCen Rooftop</span>
-      <span class="hud-val" id="hud-stats">HP: 120/120 | PTS: 0</span>
+      <span class="hud-hero" id="hud-hero-name">HERO: Marcus & Mayleen</span>
+      <span class="hud-zone">ZONE: RenCen Rooftop</span>
+      <span class="hud-stats">HP: <span id="val-hp">120</span>/120</span>
     </div>
-    <div class="hp-bar-bg">
-      <div id="hero-hp-fill"></div>
+    <div class="bar-container">
+      <div id="hp-bar"></div>
     </div>
-    <div id="boss-meter-container">
-      <div class="boss-header">
-        <span id="boss-title">APEX-TITAN D-01 (DETROIT WAR MACHINE)</span>
-        <span id="boss-hp-val">100%</span>
-      </div>
-      <div class="boss-bar-bg">
-        <div id="boss-hp-fill"></div>
-      </div>
+    <div id="od-bar-wrap">
+      <span>SCORE: <span id="val-score">0</span></span>
+      <span style="color:#38bdf8;">OVERDRIVE: <span id="val-od">0</span>%</span>
     </div>
   </div>
 
-  <div id="canvas-container">
-    <canvas id="gameCanvas" width="800" height="450"></canvas>
+  <!-- BATTLE CANVAS -->
+  <div id="canvas-wrap">
+    <canvas id="gameCanvas" width="480" height="260"></canvas>
   </div>
 
-  <div id="controls-panel">
-    <!-- Hero Selection Grid -->
+  <!-- TOUCH CONSOLE CONTROLS -->
+  <div id="controls-console">
+    <!-- Character Selectors -->
     <div class="btn-grid grid-3">
-      <button class="hero-btn active" data-hero="marcus">
-        <span class="btn-title">Marcus & Mayleen</span>
-        <span class="btn-sub">Duo · Earth & Bell</span>
+      <button class="btn-action btn-hero selected" data-hero="0">
+        <span class="btn-title">Marcus</span>
+        <span class="btn-sub">Earth & Rhythm</span>
       </button>
-      <button class="hero-btn" data-hero="aura">
-        <span class="btn-title">Aura Weaver</span>
-        <span class="btn-sub">Rain & Hydro Tsunami</span>
+      <button class="btn-action btn-hero" data-hero="1">
+        <span class="btn-title">Shard Weaver</span>
+        <span class="btn-sub">Crystal Aegis</span>
       </button>
-      <button class="hero-btn" data-hero="sundiata">
-        <span class="btn-title">Sundiata Prime</span>
-        <span class="btn-sub">Thunder Drums & Volt</span>
+      <button class="btn-action btn-hero" data-hero="2">
+        <span class="btn-title">Sky Ranger</span>
+        <span class="btn-sub">Arrow Barrage</span>
       </button>
     </div>
 
-    <!-- Partner & Luetta Aid -->
-    <div class="btn-grid grid-custom-mid">
-      <button id="btn-tag">
-        <span class="btn-title">🔄 TAG / SWAP DUO</span>
-        <span class="btn-sub" id="tag-sub">Partner: Active Flank</span>
+    <div class="btn-grid grid-3">
+      <button class="btn-action btn-hero" data-hero="3">
+        <span class="btn-title">Sundiata</span>
+        <span class="btn-sub">Cosmic Bruiser</span>
       </button>
-      <button id="btn-luetta">
+      <button class="btn-action btn-hero" data-hero="4">
+        <span class="btn-title">Aura Blade</span>
+        <span class="btn-sub">Hydro Katana</span>
+      </button>
+      <button class="btn-action btn-hero" data-hero="5">
+        <span class="btn-title">Prism Void</span>
+        <span class="btn-sub">Graviton Shift</span>
+      </button>
+    </div>
+
+    <!-- Partner & Mother Luetta Aid -->
+    <div class="btn-grid grid-2">
+      <button class="btn-action" id="btn-tag">
+        <span class="btn-title" style="color:#38bdf8;">🔄 TAG / SWAP DUO</span>
+        <span class="btn-sub" id="lbl-partner">Partner: Mayleen (Active AI)</span>
+      </button>
+      <button class="btn-action btn-mother" id="btn-luetta">
         <span class="btn-title">MOTHER LUETTA</span>
-        <span class="btn-sub" id="luetta-sub">Alt: Sky Beam / Rush</span>
+        <span class="btn-sub">Divine Sky & Ground Aid</span>
       </button>
     </div>
 
-    <!-- Movement & Strike Row -->
-    <div class="btn-grid grid-nav">
-      <button class="nav-btn" id="btn-left">
+    <!-- Movement & Primary Attacks -->
+    <div class="btn-grid grid-3">
+      <button class="btn-action" id="btn-left">
         <span class="btn-title">◀ LEFT</span>
       </button>
-      <button id="btn-strike">
-        <span class="btn-title" id="strike-title">STRIKE 1</span>
-        <span class="btn-sub" id="strike-sub">Seismic Punch</span>
+      <button class="btn-action btn-strike1" id="btn-strike1">
+        <span class="btn-title">STRIKE 1</span>
+        <span class="btn-sub">Golden Power Fist</span>
       </button>
-      <button class="nav-btn" id="btn-right">
+      <button class="btn-action" id="btn-right">
         <span class="btn-title">RIGHT ▶</span>
       </button>
     </div>
 
-    <!-- Jump, Skill & Ultimate Row -->
+    <!-- Secondary & Specials -->
     <div class="btn-grid grid-3">
-      <button class="nav-btn" id="btn-jump">
-        <span class="btn-title">AERIAL JUMP</span>
-        <span class="btn-sub">Spin Evasion</span>
+      <button class="btn-action" id="btn-jump">
+        <span class="btn-title" style="color:#38bdf8;">NINJA JUMP</span>
+        <span class="btn-sub">Aerial Acrobatics</span>
       </button>
-      <button id="btn-skill">
-        <span class="btn-title" id="skill-title">SIGNATURE SKILL</span>
-        <span class="btn-sub" id="skill-sub">Golden Roots</span>
+      <button class="btn-action btn-strike2" id="btn-strike2">
+        <span class="btn-title">STRIKE 2</span>
+        <span class="btn-sub">Hydro Crest Wave</span>
       </button>
-      <button id="btn-overdrive">
-        <span class="btn-title" id="od-title">OVERDRIVE</span>
-        <span class="btn-sub" id="od-sub">Rumble Shatter</span>
+      <button class="btn-action btn-skill" id="btn-skill">
+        <span class="btn-title">SPECIAL POWER</span>
+        <span class="btn-sub" id="lbl-skill-name">Crystal / Arrows</span>
       </button>
     </div>
+
+    <!-- Full Screen Overdrive -->
+    <button class="btn-action btn-overdrive" id="btn-overdrive" style="padding: 7px 0;">
+      <span class="btn-title">★ OVERDRIVE BATTLE CLASH ★</span>
+      <span class="btn-sub">Twin Djembe Seismic Earthquake</span>
+    </button>
   </div>
 </div>
 
 <script>
-/* ==========================================================
-   VANGUARD: DETROIT RENCEN LEGENDS - ENGINE
-   ========================================================== */
-
-// --- Audio Synthesizer (Zero external dependencies) ---
-class SfxAudio {
+// --- AUDIO SYNTHESIZER ---
+class SFXSystem {
   constructor() {
     this.ctx = null;
   }
   init() {
     if (!this.ctx) {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AudioContext();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
     }
-    if (this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
   }
-  playTone(freq, type, duration, vol = 0.15) {
-    if (!this.ctx) return;
-    try {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + duration);
-    } catch (e) {}
-  }
-  punch() { this.init(); this.playTone(130, 'triangle', 0.15, 0.25); }
-  slash() { this.init(); this.playTone(420, 'sawtooth', 0.12, 0.2); }
-  lightning() {
+  play(type) {
     this.init();
     if (!this.ctx) return;
+    const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(580, this.ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.25);
-    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
-    osc.start();
-    osc.stop(this.ctx.currentTime + 0.25);
-  }
-  water() { this.init(); this.playTone(280, 'sine', 0.4, 0.25); }
-  divine() {
-    this.init();
-    this.playTone(523.25, 'sine', 0.6, 0.3); // C5
-    setTimeout(() => this.playTone(659.25, 'sine', 0.6, 0.3), 100); // E5
-    setTimeout(() => this.playTone(783.99, 'sine', 0.8, 0.35), 200); // G5
-  }
-  boom() { this.init(); this.playTone(60, 'square', 0.5, 0.3); }
-}
-const sfx = new SfxAudio();
 
-// --- Game Engine Setup ---
+    if (type === 'hit') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(160, t);
+      osc.frequency.exponentialRampToValueAtTime(30, t + 0.12);
+      gain.gain.setValueAtTime(0.4, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+      osc.start(t);
+      osc.stop(t + 0.12);
+    } else if (type === 'drum') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(110, t);
+      osc.frequency.exponentialRampToValueAtTime(40, t + 0.25);
+      gain.gain.setValueAtTime(0.6, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+      osc.start(t);
+      osc.stop(t + 0.25);
+    } else if (type === 'energy') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(480, t);
+      osc.frequency.linearRampToValueAtTime(880, t + 0.2);
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    } else if (type === 'heal') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, t);
+      osc.frequency.exponentialRampToValueAtTime(880, t + 0.4);
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    }
+  }
+}
+const sfx = new SFXSystem();
+
+// --- GAME SETUP & ROSTER ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const HERO_DATA = {
-  marcus: {
-    name: "Marcus & Mayleen",
-    type: "Duo Earth & Bell",
-    maxHp: 120,
-    strikeTitle: "SEISMIC PUNCH",
-    strikeSub: "Heavy Breaker",
-    skillTitle: "GOLDEN ROOTS",
-    skillSub: "Spike Eruption",
-    odTitle: "DUO OVERDRIVE",
-    odSub: "Rumble Shatter"
-  },
-  aura: {
-    name: "Aura Weaver",
-    type: "Hydro Mist & Tsunami",
-    maxHp: 95,
-    strikeTitle: "HYDRO NEEDLE",
-    strikeSub: "Piercing Aqua Bolt",
-    skillTitle: "TIDAL WEAVE NET",
-    skillSub: "Restraint Capture",
-    odTitle: "TSUNAMI SURGE",
-    odSub: "Detroit River Crest"
-  },
-  sundiata: {
-    name: "Sundiata Prime",
-    type: "Thunder Drums & Armor",
-    maxHp: 130,
-    strikeTitle: "DJEMBE STRIKE",
-    strikeSub: "Acoustic Hammer",
-    skillTitle: "CHAIN LIGHTNING",
-    skillSub: "Volt Conduit Throw",
-    odTitle: "STATIC DOME",
-    odSub: "Surge Barrier"
-  }
-};
+const HERO_ROSTER = [
+  { id: 0, name: "Marcus", role: "Earth & Rhythm", color: "#38bdf8", powerName: "Seismic Quake", skin: "marcus" },
+  { id: 1, name: "Shard Weaver", role: "Crystal Barrier", color: "#60a5fa", powerName: "Obsidian Aegis", skin: "crystal" },
+  { id: 2, name: "Sky Ranger", role: "Purple Arrow Spread", color: "#c084fc", powerName: "Volley of Light", skin: "archer" },
+  { id: 3, name: "Sundiata Prime", role: "Cosmic Sun Aegis", color: "#f59e0b", powerName: "Solar Stomp", skin: "sundiata" },
+  { id: 4, name: "Aura Blade", role: "Hydro Wave Master", color: "#06b6d4", powerName: "Tsunami Arc", skin: "katana" },
+  { id: 5, name: "Prism Void", role: "Graviton Void", color: "#a855f7", powerName: "Graviton Burst", skin: "void" }
+];
 
-let currentHeroKey = 'marcus';
-let currentLead = 'Marcus'; // for Marcus & Mayleen tag
-let currentZone = 1;
+let currentHeroIdx = 0;
 let score = 0;
-let androidsDefeated = 0;
-const BOSS_THRESHOLD = 8;
+let overdriveEnergy = 0;
+let screenShake = 0;
 
-const FLOOR_Y = 380;
-const STAGE_WIDTH = 800;
+// GROUND ALIGNMENT: 45px above canvas bottom ensures characters stand squarely on neon floor line
+const FLOOR_Y = canvas.height - 45;
 
-let hero = {
-  x: 200,
+const player = {
+  x: 80,
   y: FLOOR_Y,
   vx: 0,
   vy: 0,
-  width: 32,
-  height: 64,
-  facing: 1,
+  width: 38,
+  height: 98,
   hp: 120,
   maxHp: 120,
   isGrounded: true,
-  action: 'idle',
-  actionTimer: 0,
-  staticDomeTimer: 0
-};
-
-let partner = {
-  x: 160,
-  y: FLOOR_Y,
-  width: 28,
-  height: 58,
   facing: 1,
-  action: 'idle',
-  actionTimer: 0
+  attackTimer: 0,
+  activeAttack: null
 };
 
-// Projectiles, Effects, and Entities
-let projectiles = [];
+const partner = {
+  x: 40,
+  y: FLOOR_Y,
+  vx: 0,
+  vy: 0,
+  width: 34,
+  height: 94,
+  facing: 1,
+  attackTimer: 0
+};
+
+// Dynamic entities
 let enemies = [];
-let effects = [];
-let rainDrops = [];
-let boss = null;
-let luettaSummonState = 1; // 1 = Sky Descent Beam, 2 = Ground Cleaving Rush
-let luettaAction = null; // Active summon animation state
+let projectiles = [];
+let particles = [];
+let crystalShields = [];
+let skyAidTimer = 0;
 
-// Initialize Raindrops
-for (let i = 0; i < 60; i++) {
-  rainDrops.push({
-    x: Math.random() * STAGE_WIDTH,
-    y: Math.random() * 450,
-    len: 8 + Math.random() * 12,
-    speed: 9 + Math.random() * 6
-  });
-}
-
-// --- Spawner Logic ---
-let enemySpawnTimer = 0;
-
-function spawnAndroid(type = null) {
-  if (boss) return; // No regular minions while boss is active
-  const side = Math.random() > 0.5 ? STAGE_WIDTH + 30 : -30;
-  const kind = type || (Math.random() > 0.35 ? 'grunt' : 'ninja');
+// --- SPAWN ENEMY MECHANICS ---
+function spawnEnemy() {
+  if (enemies.length >= 5) return;
+  const isDrone = Math.random() > 0.6;
   enemies.push({
-    kind: kind,
-    x: side,
-    y: FLOOR_Y,
-    width: kind === 'ninja' ? 30 : 36,
-    height: kind === 'ninja' ? 60 : 64,
-    hp: kind === 'ninja' ? 35 : 55,
-    maxHp: kind === 'ninja' ? 35 : 55,
-    speed: kind === 'ninja' ? 2.2 : 1.4,
-    facing: side > 400 ? -1 : 1,
-    tiedTimer: 0,
-    shockTimer: 0,
-    attackCooldown: Math.random() * 60,
-    isAttacking: false,
-    animTick: Math.random() * 100
+    x: canvas.width + 20,
+    y: isDrone ? FLOOR_Y - 70 - Math.random() * 40 : FLOOR_Y,
+    vx: -(isDrone ? 1.8 : 1.2),
+    vy: 0,
+    width: isDrone ? 36 : 30,
+    height: isDrone ? 24 : 85,
+    hp: isDrone ? 30 : 60,
+    maxHp: isDrone ? 30 : 60,
+    type: isDrone ? 'drone' : 'mech',
+    shootCooldown: Math.floor(Math.random() * 80) + 40
+  });
+}
+setInterval(spawnEnemy, 2400);
+
+// --- INPUT HANDLERS ---
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (e.code === 'KeyJ') triggerStrike1();
+  if (e.code === 'KeyK') triggerStrike2();
+  if (e.code === 'KeyL') triggerSkill();
+  if (e.code === 'KeyU') triggerOverdrive();
+  if (e.code === 'KeyI') triggerMotherLuetta();
+  if (e.code === 'Space') triggerJump();
+});
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+// Bind Touch/Click Controls
+function bindTouch(id, onStart, onEnd) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const press = (e) => { e.preventDefault(); el.classList.add('active-press'); if (onStart) onStart(); };
+  const release = (e) => { e.preventDefault(); el.classList.remove('active-press'); if (onEnd) onEnd(); };
+  el.addEventListener('mousedown', press);
+  el.addEventListener('mouseup', release);
+  el.addEventListener('mouseleave', release);
+  el.addEventListener('touchstart', press, { passive: false });
+  el.addEventListener('touchend', release, { passive: false });
+  el.addEventListener('touchcancel', release, { passive: false });
+}
+
+let moveLeft = false;
+let moveRight = false;
+
+bindTouch('btn-left', () => { moveLeft = true; }, () => { moveLeft = false; });
+bindTouch('btn-right', () => { moveRight = true; }, () => { moveRight = false; });
+bindTouch('btn-jump', () => triggerJump());
+bindTouch('btn-strike1', () => triggerStrike1());
+bindTouch('btn-strike2', () => triggerStrike2());
+bindTouch('btn-skill', () => triggerSkill());
+bindTouch('btn-overdrive', () => triggerOverdrive());
+bindTouch('btn-luetta', () => triggerMotherLuetta());
+bindTouch('btn-tag', () => tagPartner());
+
+// Hero selection buttons
+document.querySelectorAll('.btn-hero').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.btn-hero').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    currentHeroIdx = parseInt(btn.dataset.hero, 10);
+    const hero = HERO_ROSTER[currentHeroIdx];
+    document.getElementById('hud-hero-name').innerText = `HERO: ${hero.name}`;
+    document.getElementById('lbl-skill-name').innerText = hero.powerName;
+    createShockwave(player.x, player.y - 40, hero.color, 40);
+    sfx.play('energy');
+  });
+});
+
+// --- COMBAT ABILITIES ---
+function triggerJump() {
+  if (player.isGrounded) {
+    player.vy = -12;
+    player.isGrounded = false;
+    createDust(player.x, player.y);
+  }
+}
+
+function triggerStrike1() {
+  // POWER 1: Golden Fist Impact Slam
+  player.attackTimer = 16;
+  player.activeAttack = 'golden_fist';
+  screenShake = 6;
+  sfx.play('hit');
+
+  // Check hit
+  const reach = 85;
+  enemies.forEach(en => {
+    if (Math.abs(en.x - (player.x + (player.facing * 35))) < reach && Math.abs(en.y - player.y) < 60) {
+      en.hp -= 40;
+      en.vx = player.facing * 6;
+      createHitSparks(en.x, en.y - en.height / 2, '#fbbf24');
+      addScore(150);
+    }
   });
 }
 
-function triggerBossEncounter() {
-  sfx.boom();
-  boss = {
-    name: "APEX-TITAN D-01",
-    x: STAGE_WIDTH + 60,
-    targetX: 580,
-    y: FLOOR_Y,
-    width: 70,
-    height: 110,
-    hp: 400,
-    maxHp: 400,
-    speed: 0.9,
-    facing: -1,
-    state: 'enter', // enter, combat, slam, cannon
-    stateTimer: 120,
-    attackCooldown: 120,
-    animTick: 0
-  };
-  document.getElementById('boss-meter-container').style.display = 'block';
-  document.getElementById('boss-title').innerText = `ZONE ${currentZone} BOSS: APEX-TITAN D-01`;
-  updateHud();
+function triggerStrike2() {
+  // POWER 2: Elemental Water Crest Wave
+  player.attackTimer = 14;
+  player.activeAttack = 'water_wave';
+  sfx.play('energy');
+
+  projectiles.push({
+    x: player.x + player.facing * 30,
+    y: player.y - 30,
+    vx: player.facing * 7,
+    vy: 0,
+    radius: 22,
+    type: 'water_wave',
+    life: 55,
+    damage: 35
+  });
 }
 
-// --- Visual Background: Renaissance Center Detroit ---
-function drawDetroitRenCenBackdrop() {
-  // Atmospheric Horizon Gradient
-  let skyGrad = ctx.createLinearGradient(0, 0, 0, 450);
-  if (currentHeroKey === 'aura') {
-    skyGrad.addColorStop(0, '#040d1a');
-    skyGrad.addColorStop(0.7, '#0f2038');
-    skyGrad.addColorStop(1, '#1b3a5c');
-  } else {
-    skyGrad.addColorStop(0, '#070b19');
-    skyGrad.addColorStop(0.5, '#131b34');
-    skyGrad.addColorStop(0.85, '#2e263d');
-    skyGrad.addColorStop(1, '#51323b');
-  }
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, 800, 450);
+function triggerSkill() {
+  const hero = HERO_ROSTER[currentHeroIdx];
+  player.attackTimer = 20;
+  player.activeAttack = 'special';
+  sfx.play('energy');
 
-  // Distant City Silhouettes
-  ctx.fillStyle = '#0a1020';
-  for (let i = 0; i < 18; i++) {
-    let bx = i * 48;
-    let bh = 80 + (Math.sin(i * 1.5) * 50) + (i % 3 * 30);
-    ctx.fillRect(bx, 340 - bh, 42, bh);
-  }
-
-  // Detroit Renaissance Center Complex
-  const rCenter = 400;
-  
-  // Outer flanking towers (Tower 100, 200, 300, 400)
-  ctx.fillStyle = '#111d33';
-  ctx.fillRect(rCenter - 140, 110, 52, 230);
-  ctx.fillRect(rCenter + 88, 110, 52, 230);
-  ctx.fillStyle = '#162542';
-  ctx.fillRect(rCenter - 80, 80, 56, 260);
-  ctx.fillRect(rCenter + 24, 80, 56, 260);
-
-  // Center Main Marriott Tower (Tall Cylindrical Landmark)
-  let renCenGrad = ctx.createLinearGradient(rCenter - 45, 0, rCenter + 45, 0);
-  renCenGrad.addColorStop(0, '#1a2e50');
-  renCenGrad.addColorStop(0.5, '#2d4b7c');
-  renCenGrad.addColorStop(1, '#172744');
-  ctx.fillStyle = renCenGrad;
-  ctx.fillRect(rCenter - 45, 45, 90, 295);
-
-  // Curved Crown & Antenna
-  ctx.beginPath();
-  ctx.arc(rCenter, 46, 45, Math.PI, 0, false);
-  ctx.fillStyle = '#2d4b7c';
-  ctx.fill();
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillRect(rCenter - 2, 10, 4, 35);
-  ctx.beginPath();
-  ctx.arc(rCenter, 8, 3, 0, Math.PI * 2);
-  ctx.fillStyle = (Date.now() % 1000 > 500) ? '#ef4444' : '#7f1d1d';
-  ctx.fill();
-
-  // Vertical Glass Ribs / Reflective Lines
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
-  ctx.lineWidth = 1.5;
-  for (let x = rCenter - 35; x <= rCenter + 35; x += 14) {
-    ctx.beginPath();
-    ctx.moveTo(x, 50);
-    ctx.lineTo(x, 340);
-    ctx.stroke();
-  }
-
-  // Rooftop Parapet, Helipad & Safety Railings
-  ctx.fillStyle = '#0f172a';
-  ctx.fillRect(0, 340, 800, 110);
-  ctx.strokeStyle = '#0284c7';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(0, 340);
-  ctx.lineTo(800, 340);
-  ctx.stroke();
-
-  // Safety Railing Posts
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(0, 318);
-  ctx.lineTo(800, 318);
-  ctx.stroke();
-  for (let rx = 20; rx < 800; rx += 45) {
-    ctx.beginPath();
-    ctx.moveTo(rx, 318);
-    ctx.lineTo(rx, 340);
-    ctx.stroke();
-  }
-
-  // RenCen Helipad "H"
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(400, 375, 140, 30, 0, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  ctx.font = "900 24px monospace";
-  ctx.fillStyle = 'rgba(245, 158, 11, 0.5)';
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("H", 400, 375);
-  ctx.restore();
-
-  // Weather: Rain system for Aura Weaver
-  if (currentHeroKey === 'aura') {
-    ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)';
-    ctx.lineWidth = 1.2;
-    for (let p of rainDrops) {
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x - 3, p.y + p.len);
-      ctx.stroke();
-      p.y += p.speed;
-      p.x -= 1.2;
-      if (p.y > FLOOR_Y) {
-        // Splash Ripple
-        ctx.beginPath();
-        ctx.ellipse(p.x, FLOOR_Y + 2, 4, 1.5, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(125, 211, 252, 0.3)';
-        ctx.stroke();
-        p.y = -10;
-        p.x = Math.random() * STAGE_WIDTH;
-      }
+  if (hero.skin === 'crystal') {
+    // POWER 3: Obsidian Crystal Shield
+    crystalShields.push({
+      x: player.x + player.facing * 50,
+      y: player.y,
+      life: 240,
+      width: 22,
+      height: 90
+    });
+    screenShake = 4;
+  } else if (hero.skin === 'archer') {
+    // POWER 4: Multi-Arrow Aerial Scatter (Purple Energy Barrage)
+    player.vy = -7;
+    player.isGrounded = false;
+    for (let a = -0.4; a <= 0.4; a += 0.13) {
+      projectiles.push({
+        x: player.x + player.facing * 10,
+        y: player.y - 45,
+        vx: Math.cos(a) * (player.facing * 9),
+        vy: Math.sin(a) * 9,
+        radius: 4,
+        type: 'purple_arrow',
+        life: 50,
+        damage: 25
+      });
     }
+  } else {
+    // POWER 5: Seismic Drum Tremor
+    screenShake = 10;
+    sfx.play('drum');
+    createShockwave(player.x, player.y, '#f59e0b', 140);
+    enemies.forEach(en => {
+      en.hp -= 35;
+      en.vx = (en.x > player.x ? 1 : -1) * 8;
+      createHitSparks(en.x, en.y - 30, '#fde047');
+    });
   }
 }
 
-// --- Human-proportioned Hero Rendering ---
-function drawHeroSprite(h, heroId) {
-  ctx.save();
-  ctx.translate(h.x, h.y);
-  if (h.facing === -1) ctx.scale(-1, 1);
+function triggerOverdrive() {
+  if (overdriveEnergy < 100) return;
+  overdriveEnergy = 0;
+  updateHUD();
+  screenShake = 18;
+  sfx.play('drum');
+  createShockwave(canvas.width / 2, FLOOR_Y - 40, '#38bdf8', 260);
 
-  if (heroId === 'sundiata') {
-    // --- SUNDIATA PRIME: Tactical Armored Drum Warrior ---
-    // Dual Djembe Drums on Back
-    ctx.save();
-    ctx.fillStyle = '#78350f'; // carved hardwood
-    ctx.beginPath();
-    ctx.ellipse(-14, -30, 10, 16, 0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    // Drum cords
-    ctx.strokeStyle = '#fef08a';
+  enemies.forEach(en => {
+    en.hp -= 90;
+    en.vx = (en.x > canvas.width / 2 ? 1 : -1) * 12;
+    createHitSparks(en.x, en.y - 30, '#38bdf8');
+  });
+  addScore(1000);
+}
+
+function triggerMotherLuetta() {
+  skyAidTimer = 70;
+  player.hp = Math.min(player.maxHp, player.hp + 45);
+  updateHUD();
+  sfx.play('heal');
+  screenShake = 8;
+  // Smite all hostiles on screen with descending golden column
+  enemies.forEach(en => {
+    en.hp -= 50;
+    createHitSparks(en.x, en.y - 30, '#fef08a');
+  });
+}
+
+function tagPartner() {
+  const tempX = player.x;
+  player.x = partner.x;
+  partner.x = tempX;
+  createShockwave(player.x, player.y - 40, '#38bdf8', 50);
+  createShockwave(partner.x, partner.y - 40, '#22c55e', 50);
+  sfx.play('energy');
+}
+
+function addScore(pts) {
+  score += pts;
+  overdriveEnergy = Math.min(100, overdriveEnergy + Math.floor(pts / 15));
+  updateHUD();
+}
+
+function updateHUD() {
+  document.getElementById('val-hp').innerText = Math.max(0, Math.floor(player.hp));
+  document.getElementById('hp-bar').style.width = `${(Math.max(0, player.hp) / player.maxHp) * 100}%`;
+  document.getElementById('val-score').innerText = score;
+  document.getElementById('val-od').innerText = overdriveEnergy;
+}
+
+// --- PARTICLE / FX SYSTEMS ---
+function createDust(x, y) {
+  for (let i = 0; i < 6; i++) {
+    particles.push({
+      x: x + (Math.random() * 20 - 10),
+      y: y - 2,
+      vx: (Math.random() - 0.5) * 2,
+      vy: -Math.random() * 1.5,
+      life: 20,
+      color: 'rgba(148, 163, 184, 0.6)',
+      size: 3
+    });
+  }
+}
+
+function createHitSparks(x, y, color) {
+  for (let i = 0; i < 10; i++) {
+    particles.push({
+      x: x,
+      y: y,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.5) * 8,
+      life: 22,
+      color: color,
+      size: 3
+    });
+  }
+}
+
+function createShockwave(x, y, color, maxRadius) {
+  particles.push({
+    x: x,
+    y: y,
+    radius: 5,
+    maxRadius: maxRadius,
+    color: color,
+    type: 'wave',
+    life: 25
+  });
+}
+
+// --- RENDERING ROUTINES ---
+function drawSkyline() {
+  // Sunset Twilight RenCen Gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
+  grad.addColorStop(0, '#030712');
+  grad.addColorStop(0.65, '#0b1b36');
+  grad.addColorStop(1, '#b45309');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Distant RenCen Cylindrical Tower Columns
+  const towers = [
+    { x: 50, w: 40, h: 140 },
+    { x: 105, w: 48, h: 175 },
+    { x: 170, w: 60, h: 215, isCenter: true },
+    { x: 250, w: 48, h: 175 },
+    { x: 315, w: 40, h: 140 },
+    { x: 375, w: 35, h: 120 }
+  ];
+
+  towers.forEach(t => {
+    ctx.fillStyle = t.isCenter ? '#0f294a' : '#0a1d36';
+    ctx.fillRect(t.x, FLOOR_Y - t.h, t.w, t.h);
+    ctx.strokeStyle = '#1e4976';
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(-20, -40); ctx.lineTo(-10, -20);
-    ctx.moveTo(-10, -40); ctx.lineTo(-20, -20);
-    ctx.stroke();
-    ctx.restore();
+    ctx.strokeRect(t.x, FLOOR_Y - t.h, t.w, t.h);
 
-    // Body & Cybernetic Armor
-    ctx.fillStyle = '#1e293b'; // Base suit
-    ctx.fillRect(-8, -48, 16, 26);
-    // Chest plate & cyan tech glowing accents
-    ctx.fillStyle = '#0284c7';
-    ctx.fillRect(-7, -46, 14, 12);
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(-2, -43, 4, 6);
-
-    // Legs & Armored Greaves
-    ctx.fillStyle = '#334155';
-    ctx.fillRect(-7, -22, 6, 22);
-    ctx.fillRect(1, -22, 6, 22);
-    ctx.fillStyle = '#0284c7';
-    ctx.fillRect(-7, -12, 6, 8);
-    ctx.fillRect(1, -12, 6, 8);
-
-    // Arms & Drumsticks
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(6, -42, 6, 18);
-    ctx.fillStyle = '#f59e0b'; // Drumsticks
-    ctx.fillRect(10, -32, 14, 3);
-
-    // Head, Fade Hair & Beard profile
-    ctx.fillStyle = '#8d5b4c'; // Skin tone
-    ctx.beginPath();
-    ctx.arc(0, -56, 8, 0, Math.PI * 2);
-    ctx.fill();
-    // Black Hair & Beard
-    ctx.fillStyle = '#09090b';
-    ctx.beginPath();
-    ctx.arc(0, -58, 8.5, Math.PI, 0); // Crop fade
-    ctx.fill();
-    ctx.fillRect(1, -54, 7, 5); // Beard jawline
-
-  } else if (heroId === 'aura') {
-    // --- AURA WEAVER: Water & Weave Master ---
-    // Fluid Cloak
-    ctx.fillStyle = 'rgba(14, 165, 233, 0.4)';
-    ctx.beginPath();
-    ctx.moveTo(-8, -48);
-    ctx.lineTo(-18, -6);
-    ctx.lineTo(0, -18);
-    ctx.fill();
-
-    // Sleek Body & Kinetic Weave Suit
-    ctx.fillStyle = '#0369a1';
-    ctx.fillRect(-6, -46, 12, 24);
-    ctx.fillStyle = '#7dd3fc';
-    ctx.fillRect(-4, -42, 8, 8);
-
-    // Agile Legs
-    ctx.fillStyle = '#0c4a6e';
-    ctx.fillRect(-6, -22, 5, 22);
-    ctx.fillRect(1, -22, 5, 22);
-
-    // Hydro Arm Bracers
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(4, -40, 6, 16);
-
-    // Head & Cyan Visor
-    ctx.fillStyle = '#78350f';
-    ctx.beginPath();
-    ctx.arc(0, -54, 7.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(0, -55, 8, 3); // Luminous visor
-
-  } else {
-    // --- MARCUS & MAYLEEN ---
-    ctx.fillStyle = (h === partner) ? '#db2777' : '#d97706'; // Duo identity color
-    ctx.fillRect(-8, -48, 16, 26);
-    ctx.fillStyle = '#fef08a';
-    ctx.fillRect(-6, -44, 12, 10);
-
-    // Legs
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(-7, -22, 6, 22);
-    ctx.fillRect(1, -22, 6, 22);
-
-    // Head
-    ctx.fillStyle = '#78350f';
-    ctx.beginPath();
-    ctx.arc(0, -56, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(-2, -56, 10, 4);
-  }
-
-  // Attack Pose Accents
-  if (h.action === 'strike') {
-    ctx.fillStyle = '#f59e0b';
-    ctx.beginPath();
-    ctx.arc(18, -36, 10, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-
-  // Static Electric Dome Effect (Sundiata Overdrive)
-  if (heroId === 'sundiata' && h.staticDomeTimer > 0) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(h.x, h.y - 30, 56 + Math.sin(Date.now() * 0.02) * 6, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(168, 85, 247, 0.7)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(192, 132, 252, 0.15)';
-    ctx.fill();
-
-    // Arc Lightning Spikes
-    for (let a = 0; a < 6; a++) {
-      let ang = Math.random() * Math.PI * 2;
-      let rad = 46 + Math.random() * 20;
-      ctx.strokeStyle = '#fef08a';
-      ctx.lineWidth = 2;
+    // Glowing window slits
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+    for (let wy = FLOOR_Y - t.h + 12; wy < FLOOR_Y - 10; wy += 14) {
       ctx.beginPath();
-      ctx.moveTo(h.x, h.y - 30);
-      ctx.lineTo(h.x + Math.cos(ang) * rad, (h.y - 30) + Math.sin(ang) * rad);
+      ctx.moveTo(t.x + 6, wy);
+      ctx.lineTo(t.x + t.w - 6, wy);
       ctx.stroke();
     }
-    ctx.restore();
-  }
-}
+  });
 
-// --- Human-proportioned Android & Cyborg Minions ---
-function drawAndroidEnemy(en) {
-  ctx.save();
-  ctx.translate(en.x, en.y);
-  if (en.facing === -1) ctx.scale(-1, 1);
-
-  if (en.kind === 'ninja') {
-    // Cyber-Ninja Android
-    ctx.fillStyle = '#18181b'; // Carbon weave
-    ctx.fillRect(-6, -46, 12, 24);
-    ctx.fillStyle = '#a855f7'; // Neon power conduit
-    ctx.fillRect(-2, -42, 4, 16);
-
-    // Articulate legs
-    ctx.fillStyle = '#27272a';
-    ctx.fillRect(-5, -22, 4, 22);
-    ctx.fillRect(1, -22, 4, 22);
-
-    // Head & Purple Visor
-    ctx.fillStyle = '#3f3f46';
-    ctx.beginPath();
-    ctx.arc(0, -54, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#c084fc';
-    ctx.fillRect(1, -55, 7, 3);
-
-    // Energy Dagger Blade
-    ctx.strokeStyle = '#e879f9';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(8, -30);
-    ctx.lineTo(24, -20);
-    ctx.stroke();
-
-  } else {
-    // Rogue Android Grunt (Heavy Armor)
-    ctx.fillStyle = '#334155';
-    ctx.fillRect(-8, -48, 16, 26);
-    ctx.fillStyle = '#64748b'; // Chest plating
-    ctx.fillRect(-6, -46, 12, 10);
-    ctx.fillStyle = '#ef4444'; // Power core
-    ctx.fillRect(-2, -43, 4, 4);
-
-    // Metallic Jointed Legs
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(-7, -22, 6, 22);
-    ctx.fillRect(1, -22, 6, 22);
-
-    // Chrome Head & Red Scanner Line
-    ctx.fillStyle = '#475569';
-    ctx.beginPath();
-    ctx.arc(0, -56, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ef4444';
-    ctx.fillRect(0, -58, 8, 3); // Cylon/Terminator style eye optic
-
-    // Arm-mounted Plasma Cannon
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(4, -38, 14, 6);
-    ctx.fillStyle = '#f87171';
-    ctx.fillRect(16, -37, 3, 4);
-  }
-
-  ctx.restore();
-
-  // Net Restraint Effect (from Aura Weaver)
-  if (en.tiedTimer > 0) {
-    ctx.save();
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2;
-    // Criss-cross woven energy ropes
-    ctx.beginPath();
-    ctx.moveTo(en.x - 16, en.y - 50); ctx.lineTo(en.x + 16, en.y);
-    ctx.moveTo(en.x + 16, en.y - 50); ctx.lineTo(en.x - 16, en.y);
-    ctx.moveTo(en.x - 16, en.y - 25); ctx.lineTo(en.x + 16, en.y - 25);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // Shocking Lightning Arc Effect
-  if (en.shockTimer > 0) {
-    ctx.strokeStyle = '#facc15';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(en.x - 8, en.y - 40);
-    ctx.lineTo(en.x + 8, en.y - 30);
-    ctx.lineTo(en.x - 6, en.y - 20);
-    ctx.lineTo(en.x + 6, en.y - 10);
-    ctx.stroke();
-  }
-}
-
-// --- BOSS: APEX-TITAN D-01 ---
-function drawBossApexTitan(b) {
-  ctx.save();
-  ctx.translate(b.x, b.y);
-  if (b.facing === -1) ctx.scale(-1, 1);
-
-  // Massive Android Torso & Plating
-  ctx.fillStyle = '#1e1b4b';
-  ctx.fillRect(-26, -95, 52, 54);
-  ctx.fillStyle = '#312e81';
-  ctx.fillRect(-22, -90, 44, 20);
-
-  // Twin Nuclear Core Sockets
-  ctx.fillStyle = '#ef4444';
+  // Glowing Neon Cyan Rooftop Floor Rail
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 3;
+  ctx.shadowColor = '#0284c7';
+  ctx.shadowBlur = 10;
   ctx.beginPath();
-  ctx.arc(-10, -78, 6, 0, Math.PI * 2);
-  ctx.arc(10, -78, 6, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.moveTo(0, FLOOR_Y);
+  ctx.lineTo(canvas.width, FLOOR_Y);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
 
-  // Armored Quad-Plated Legs
-  ctx.fillStyle = '#0f172a';
-  ctx.fillRect(-22, -41, 18, 41);
-  ctx.fillRect(4, -41, 18, 41);
-  ctx.fillStyle = '#4338ca';
-  ctx.fillRect(-20, -24, 14, 12);
-  ctx.fillRect(6, -24, 14, 12);
+  // Floor foundation block
+  ctx.fillStyle = '#050b17';
+  ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
+}
 
-  // Heavy Shoulder Pods & Arm Cannon
-  ctx.fillStyle = '#4338ca';
-  ctx.fillRect(-36, -98, 14, 18);
-  ctx.fillRect(22, -98, 14, 18);
+function drawHero(x, y, facing, hero, attackTimer, activeAttack) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(facing, 1);
 
-  // Giant Siege Hammer Arm
-  ctx.fillStyle = '#18181b';
-  ctx.fillRect(18, -80, 16, 44);
-  ctx.fillStyle = '#dc2626';
-  ctx.fillRect(24, -40, 20, 22);
+  // Character boots anchor directly at y=0
+  // Body silhouette
+  ctx.fillStyle = hero.color;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1.5;
 
-  // Heavy Helmet with Triple Sensor Array
+  // Legs & Boots
   ctx.fillStyle = '#1e293b';
+  ctx.fillRect(-10, -32, 8, 32);
+  ctx.fillRect(2, -32, 8, 32);
+  // Armor greaves
+  ctx.fillStyle = hero.color;
+  ctx.fillRect(-11, -26, 9, 18);
+  ctx.fillRect(1, -26, 9, 18);
+
+  // Torso / Power Suit
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(-12, -72, 24, 40);
+  ctx.fillStyle = hero.color;
+  ctx.fillRect(-10, -68, 20, 20); // Chest Plate
+
+  // Head & Fade Haircut
+  ctx.fillStyle = '#7c2d12'; // skin
   ctx.beginPath();
-  ctx.arc(0, -106, 16, 0, Math.PI * 2);
+  ctx.arc(0, -82, 10, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#f87171';
-  ctx.fillRect(2, -110, 14, 4);
-  ctx.fillRect(4, -104, 12, 3);
+  // Hair & Fade
+  ctx.fillStyle = '#09090b';
+  ctx.beginPath();
+  ctx.arc(0, -86, 10, Math.PI, 0);
+  ctx.fill();
+  ctx.fillRect(-3, -80, 5, 4); // Beard silhouette
+
+  // Twin Djembe Drums strapped if Marcus
+  if (hero.skin === 'marcus') {
+    ctx.fillStyle = '#78350f';
+    // Back drum
+    ctx.beginPath();
+    ctx.moveTo(-22, -65);
+    ctx.lineTo(-6, -65);
+    ctx.lineTo(-10, -42);
+    ctx.lineTo(-18, -42);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Front drum
+    ctx.beginPath();
+    ctx.moveTo(4, -65);
+    ctx.lineTo(20, -65);
+    ctx.lineTo(16, -42);
+    ctx.lineTo(8, -42);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Active Power Visuals Overlay
+  if (attackTimer > 0 && activeAttack === 'golden_fist') {
+    // Giant Golden Power Gauntlet
+    ctx.save();
+    ctx.fillStyle = '#fbbf24';
+    ctx.shadowColor = '#f59e0b';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.arc(28, -50, 19, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(20, -56, 16, 12);
+    ctx.restore();
+  }
 
   ctx.restore();
 }
 
-// --- Projectiles & Abilities ---
-function drawProjectilesAndEffects() {
-  // Projectiles
-  for (let p of projectiles) {
-    if (p.type === 'hydro-needle') {
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(p.x, p.y - 2, 22, 4);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(p.x + 10, p.y - 1, 10, 2);
-    } else if (p.type === 'tidal-net') {
-      // Iconic radial spoked weave net (from previous build)
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.angle);
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
-      ctx.stroke();
-      // Spokes
-      for (let s = 0; s < 4; s++) {
-        ctx.beginPath();
-        ctx.moveTo(-p.radius, 0); ctx.lineTo(p.radius, 0);
-        ctx.rotate(Math.PI / 4);
-        ctx.stroke();
-      }
-      ctx.restore();
-      p.angle += 0.15;
-    } else if (p.type === 'chain-lightning') {
-      // Jagged Bolt Segment
-      ctx.strokeStyle = '#fef08a';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x + p.vx * 2, p.y + (Math.random() * 20 - 10));
-      ctx.stroke();
-    } else if (p.type === 'tsunami-wave') {
-      // Towering Rolling Ocean Wave
-      let waveGrad = ctx.createLinearGradient(p.x, 0, p.x + p.width, 0);
-      waveGrad.addColorStop(0, 'rgba(14, 165, 233, 0.85)');
-      waveGrad.addColorStop(0.8, 'rgba(56, 189, 248, 0.95)');
-      waveGrad.addColorStop(1, '#ffffff'); // crest foam
-      ctx.fillStyle = waveGrad;
-      ctx.beginPath();
-      ctx.moveTo(p.x, FLOOR_Y);
-      ctx.quadraticCurveTo(p.x + p.width * 0.5, FLOOR_Y - p.height, p.x + p.width, FLOOR_Y);
-      ctx.fill();
-    } else if (p.type === 'seismic-spike') {
-      // Golden earth spike
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath();
-      ctx.moveTo(p.x - 12, FLOOR_Y);
-      ctx.lineTo(p.x, FLOOR_Y - p.height);
-      ctx.lineTo(p.x + 12, FLOOR_Y);
-      ctx.fill();
-    }
-  }
+function drawPartner(x, y, facing) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(facing, 1);
 
-  // Mother Luetta Summons
-  if (luettaAction) {
-    if (luettaAction.type === 'beam') {
-      // SUMMON 1: Sky Descent Radiant Column onto Helipad
-      let beamAlpha = luettaAction.life / 60;
-      let beamGrad = ctx.createLinearGradient(300, 0, 500, 0);
-      beamGrad.addColorStop(0, 'rgba(251, 191, 36, 0)');
-      beamGrad.addColorStop(0.5, `rgba(254, 240, 138, ${beamAlpha})`);
-      beamGrad.addColorStop(1, 'rgba(251, 191, 36, 0)');
-      ctx.fillStyle = beamGrad;
-      ctx.fillRect(320, 0, 160, FLOOR_Y);
+  // Mayleen - Botanical Vine Armor
+  ctx.fillStyle = '#15803d';
+  ctx.fillRect(-8, -30, 6, 30);
+  ctx.fillRect(2, -30, 6, 30);
 
-      // Sacred Sigil Ring descending
-      ctx.save();
-      ctx.beginPath();
-      ctx.ellipse(400, FLOOR_Y - (60 - luettaAction.life) * 4, 70, 20, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(245, 158, 11, ${beamAlpha})`;
-      ctx.lineWidth = 5;
-      ctx.stroke();
-      ctx.restore();
+  // Vine cuirass
+  ctx.fillStyle = '#166534';
+  ctx.fillRect(-10, -68, 20, 38);
+  ctx.fillStyle = '#22c55e';
+  ctx.fillRect(-8, -64, 16, 18);
 
-      // Board Wipe Damage
-      for (let en of enemies) {
-        en.hp -= 2;
-        en.shockTimer = 10;
-      }
-      if (boss) boss.hp -= 1.5;
+  // Head & Afro Puff
+  ctx.fillStyle = '#7c2d12';
+  ctx.beginPath();
+  ctx.arc(0, -78, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#09090b';
+  ctx.beginPath();
+  ctx.arc(0, -86, 12, 0, Math.PI * 2);
+  ctx.fill();
 
-    } else if (luettaAction.type === 'rush') {
-      // SUMMON 2: Cleaving Ground Rush across Rooftop
-      ctx.save();
-      ctx.translate(luettaAction.x, FLOOR_Y - 34);
-      // Golden Avatar
-      ctx.fillStyle = '#fbbf24';
-      ctx.beginPath();
-      ctx.arc(0, -20, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fef08a';
-      ctx.fillRect(-10, -6, 20, 40);
-
-      // Cleaving Light Blade
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.moveTo(-40, 0);
-      ctx.lineTo(40, 0);
-      ctx.stroke();
-      ctx.restore();
-
-      // Screen Slice Trail
-      ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
-      ctx.lineWidth = 14;
-      ctx.beginPath();
-      ctx.moveTo(0, FLOOR_Y - 20);
-      ctx.lineTo(luettaAction.x, FLOOR_Y - 20);
-      ctx.stroke();
-
-      // Hit Check
-      for (let en of enemies) {
-        if (Math.abs(en.x - luettaAction.x) < 40) {
-          en.hp -= 35;
-          en.x += 40;
-        }
-      }
-      if (boss && Math.abs(boss.x - luettaAction.x) < 50) {
-        boss.hp -= 40;
-      }
-    }
-  }
+  ctx.restore();
 }
 
-// --- Game Logic Update Loop ---
+// --- MAIN LOOP ---
 function update() {
-  // Hero Movement & Gravity
-  hero.x += hero.vx;
-  hero.y += hero.vy;
-
-  if (hero.y < FLOOR_Y) {
-    hero.vy += 0.8; // Gravity
-    hero.isGrounded = false;
+  // Input Handling
+  if (keys['ArrowLeft'] || keys['KeyA'] || moveLeft) {
+    player.vx = -3.8;
+    player.facing = -1;
+  } else if (keys['ArrowRight'] || keys['KeyD'] || moveRight) {
+    player.vx = 3.8;
+    player.facing = 1;
   } else {
-    hero.y = FLOOR_Y;
-    hero.vy = 0;
-    hero.isGrounded = true;
+    player.vx *= 0.7;
+  }
+
+  // Player Physics
+  player.x += player.vx;
+  player.y += player.vy;
+
+  if (!player.isGrounded) {
+    player.vy += 0.65; // gravity
+    if (player.y >= FLOOR_Y) {
+      player.y = FLOOR_Y;
+      player.vy = 0;
+      player.isGrounded = true;
+      createDust(player.x, player.y);
+    }
   }
 
   // Bounds
-  if (hero.x < 30) hero.x = 30;
-  if (hero.x > 770) hero.x = 770;
+  player.x = Math.max(25, Math.min(canvas.width - 25, player.x));
 
-  // Static Dome Timer
-  if (hero.staticDomeTimer > 0) hero.staticDomeTimer--;
+  if (player.attackTimer > 0) player.attackTimer--;
 
-  // Partner AI Following (Marcus & Mayleen)
-  if (currentHeroKey === 'marcus') {
-    let targetX = hero.x - (hero.facing * 44);
-    partner.x += (targetX - partner.x) * 0.1;
-    partner.facing = hero.facing;
+  // AI Partner Follow Behavior
+  const targetX = player.x - player.facing * 45;
+  partner.vx = (targetX - partner.x) * 0.08;
+  partner.x += partner.vx;
+  partner.facing = player.facing;
+  partner.y = FLOOR_Y;
+
+  // Crystal Shields
+  for (let i = crystalShields.length - 1; i >= 0; i--) {
+    const cs = crystalShields[i];
+    cs.life--;
+    if (cs.life <= 0) crystalShields.splice(i, 1);
   }
 
-  // Projectiles Update
+  // Projectiles
   for (let i = projectiles.length - 1; i >= 0; i--) {
-    let p = projectiles[i];
+    const p = projectiles[i];
     p.x += p.vx;
+    p.y += p.vy;
     p.life--;
 
-    // Collision against enemies
-    for (let en of enemies) {
-      if (Math.abs(p.x - en.x) < (p.radius || 20) + en.width * 0.5) {
-        if (p.type === 'hydro-needle') {
-          en.hp -= 18;
-          p.life = 0;
-          sfx.slash();
-        } else if (p.type === 'tidal-net') {
-          en.hp -= 25;
-          en.tiedTimer = 180; // 3 seconds immobilized
-          p.life = 0;
-          sfx.water();
-        } else if (p.type === 'chain-lightning') {
-          en.hp -= 30;
-          en.shockTimer = 40;
-          p.life = 0;
-          sfx.lightning();
-        } else if (p.type === 'tsunami-wave') {
-          en.hp -= 2;
-          en.x += 6; // Swept away
-        }
+    // Collision with enemies
+    enemies.forEach(en => {
+      if (Math.abs(en.x - p.x) < p.radius + 15 && Math.abs((en.y - en.height / 2) - p.y) < 30) {
+        en.hp -= p.damage;
+        p.life = 0;
+        createHitSparks(p.x, p.y, p.type === 'purple_arrow' ? '#c084fc' : '#38bdf8');
+        addScore(75);
       }
-    }
+    });
 
-    // Boss Collision
-    if (boss && Math.abs(p.x - boss.x) < 45) {
-      if (p.type === 'hydro-needle') boss.hp -= 12;
-      if (p.type === 'tidal-net') boss.hp -= 20;
-      if (p.type === 'chain-lightning') boss.hp -= 22;
-      if (p.type === 'tsunami-wave') boss.hp -= 1.5;
-      if (p.type !== 'tsunami-wave') p.life = 0;
-    }
-
-    if (p.life <= 0 || p.x > STAGE_WIDTH + 80 || p.x < -80) {
+    if (p.life <= 0 || p.x < -40 || p.x > canvas.width + 40) {
       projectiles.splice(i, 1);
     }
   }
 
-  // Mother Luetta Update
-  if (luettaAction) {
-    luettaAction.life--;
-    if (luettaAction.type === 'rush') {
-      luettaAction.x += 18;
-    }
-    if (luettaAction.life <= 0 || (luettaAction.type === 'rush' && luettaAction.x > STAGE_WIDTH + 60)) {
-      luettaAction = null;
-    }
-  }
-
-  // Enemy Spawn & AI
-  if (!boss) {
-    enemySpawnTimer++;
-    if (enemySpawnTimer > 110 && enemies.length < 5) {
-      spawnAndroid();
-      enemySpawnTimer = 0;
-    }
-  }
-
+  // Enemies update
   for (let i = enemies.length - 1; i >= 0; i--) {
-    let en = enemies[i];
+    const en = enemies[i];
+    en.x += en.vx;
 
-    if (en.tiedTimer > 0) {
-      en.tiedTimer--;
-    } else {
-      // Walk towards Hero
-      let dir = en.x < hero.x ? 1 : -1;
-      en.facing = dir;
-      en.x += dir * en.speed;
-
-      // Melee attack
-      if (Math.abs(en.x - hero.x) < 36) {
-        en.attackCooldown++;
-        if (en.attackCooldown > 60) {
-          hero.hp -= en.kind === 'ninja' ? 12 : 8;
-          en.attackCooldown = 0;
-          sfx.punch();
-          if (hero.hp < 0) hero.hp = 0;
-          updateHud();
-        }
+    // Check collision with crystal barrier
+    crystalShields.forEach(cs => {
+      if (Math.abs(en.x - cs.x) < 25) {
+        en.vx = Math.abs(en.vx) * 1.5; // bounce back
       }
+    });
+
+    // Enemy attacks player
+    if (Math.abs(en.x - player.x) < 35 && Math.abs(en.y - player.y) < 40) {
+      player.hp -= 0.25;
+      screenShake = 3;
+      updateHUD();
     }
 
-    if (en.shockTimer > 0) en.shockTimer--;
-
-    // Defeated Enemy
     if (en.hp <= 0) {
+      createShockwave(en.x, en.y - en.height / 2, '#f43f5e', 40);
+      addScore(en.maxHp * 5);
       enemies.splice(i, 1);
-      score += 350;
-      androidsDefeated++;
-      updateHud();
-
-      // Check Boss Spawn
-      if (androidsDefeated >= BOSS_THRESHOLD && !boss) {
-        triggerBossEncounter();
-      }
     }
   }
 
-  // Boss Logic
-  if (boss) {
-    if (boss.state === 'enter') {
-      boss.x += (boss.targetX - boss.x) * 0.04;
-      if (Math.abs(boss.x - boss.targetX) < 10) {
-        boss.state = 'combat';
-      }
-    } else if (boss.state === 'combat') {
-      boss.facing = boss.x < hero.x ? 1 : -1;
-      boss.x += boss.facing * boss.speed;
-
-      boss.attackCooldown--;
-      if (boss.attackCooldown <= 0) {
-        // Shockwave Slam
-        sfx.boom();
-        projectiles.push({
-          type: 'seismic-spike',
-          x: boss.x + (boss.facing * 40),
-          y: FLOOR_Y,
-          vx: boss.facing * 4,
-          height: 38,
-          life: 90
-        });
-        boss.attackCooldown = 130;
-      }
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const pt = particles[i];
+    if (pt.type === 'wave') {
+      pt.radius += (pt.maxRadius - pt.radius) * 0.15;
+      pt.life--;
+    } else {
+      pt.x += pt.vx;
+      pt.y += pt.vy;
+      pt.life--;
     }
-
-    // Boss Defeated
-    if (boss.hp <= 0) {
-      sfx.divine();
-      score += 5000;
-      boss = null;
-      document.getElementById('boss-meter-container').style.display = 'none';
-      currentZone++;
-      androidsDefeated = 0;
-      hero.hp = hero.maxHp;
-      alert(`ZONE CLEARED! Advancing to Zone ${currentZone}: RenCen Lower Concourse.`);
-      updateHud();
-    }
+    if (pt.life <= 0) particles.splice(i, 1);
   }
+
+  if (screenShake > 0) screenShake *= 0.85;
 }
 
-// --- Render Loop ---
 function render() {
-  ctx.clearRect(0, 0, 800, 450);
-  drawDetroitRenCenBackdrop();
-
-  // Draw Partner if Marcus & Mayleen
-  if (currentHeroKey === 'marcus') {
-    drawHeroSprite(partner, 'mayleen');
+  ctx.save();
+  if (screenShake > 0.5) {
+    ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
   }
 
-  // Draw Active Hero
-  drawHeroSprite(hero, currentHeroKey);
+  // 1. Detroit Skyline & Neon Rooftop
+  drawSkyline();
 
-  // Draw Enemies
-  for (let en of enemies) {
-    drawAndroidEnemy(en);
+  // 2. Mother Luetta Divine Sky Beam
+  if (skyAidTimer > 0) {
+    skyAidTimer--;
+    ctx.save();
+    const beamGrad = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
+    beamGrad.addColorStop(0, 'rgba(254, 240, 138, 0.85)');
+    beamGrad.addColorStop(1, 'rgba(234, 179, 8, 0.1)');
+    ctx.fillStyle = beamGrad;
+    ctx.fillRect(player.x - 40, 0, 80, FLOOR_Y);
+    ctx.restore();
   }
 
-  // Draw Boss
-  if (boss) {
-    drawBossApexTitan(boss);
-  }
-
-  // Draw Projectiles & Summons
-  drawProjectilesAndEffects();
-
-  update();
-  requestAnimationFrame(render);
-}
-
-// --- HUD Synchronization ---
-function updateHud() {
-  const data = HERO_DATA[currentHeroKey];
-  document.getElementById('hud-hero-name').innerText = `HERO: ${data.name}`;
-  document.getElementById('hud-zone-name').innerText = `ZONE: ${currentZone}. RenCen Rooftop`;
-  document.getElementById('hud-stats').innerText = `HP: ${hero.hp}/${hero.maxHp} | PTS: ${score}`;
-  document.getElementById('hero-hp-fill').style.width = `${(hero.hp / hero.maxHp) * 100}%`;
-
-  if (boss) {
-    const bPercent = Math.max(0, (boss.hp / boss.maxHp) * 100);
-    document.getElementById('boss-hp-fill').style.width = `${bPercent}%`;
-    document.getElementById('boss-hp-val').innerText = `${Math.round(bPercent)}%`;
-  }
-}
-
-function syncButtonsToHero() {
-  const data = HERO_DATA[currentHeroKey];
-  document.getElementById('strike-title').innerText = data.strikeTitle;
-  document.getElementById('strike-sub').innerText = data.strikeSub;
-  document.getElementById('skill-title').innerText = data.skillTitle;
-  document.getElementById('skill-sub').innerText = data.skillSub;
-  document.getElementById('od-title').innerText = data.odTitle;
-  document.getElementById('od-sub').innerText = data.odSub;
-
-  hero.maxHp = data.maxHp;
-  hero.hp = Math.min(hero.hp, hero.maxHp);
-  updateHud();
-}
-
-// --- Controller Actions & Listeners ---
-function bindTouchAndClick(btnId, onDown, onUp = null) {
-  const el = document.getElementById(btnId);
-  if (!el) return;
-  const start = (e) => { e.preventDefault(); sfx.init(); onDown(); };
-  const end = (e) => { e.preventDefault(); if (onUp) onUp(); };
-  el.addEventListener('mousedown', start);
-  el.addEventListener('mouseup', end);
-  el.addEventListener('touchstart', start, { passive: false });
-  el.addEventListener('touchend', end, { passive: false });
-}
-
-// Left / Right Movement
-bindTouchAndClick('btn-left', () => { hero.vx = -4; hero.facing = -1; }, () => { hero.vx = 0; });
-bindTouchAndClick('btn-right', () => { hero.vx = 4; hero.facing = 1; }, () => { hero.vx = 0; });
-
-// Jump
-bindTouchAndClick('btn-jump', () => {
-  if (hero.isGrounded) {
-    hero.vy = -14;
-    sfx.punch();
-  }
-});
-
-// Strike Action
-bindTouchAndClick('btn-strike', () => {
-  hero.action = 'strike';
-  setTimeout(() => { hero.action = 'idle'; }, 160);
-
-  if (currentHeroKey === 'aura') {
-    // Water needle projectile
-    sfx.water();
-    projectiles.push({
-      type: 'hydro-needle',
-      x: hero.x + (hero.facing * 20),
-      y: hero.y - 32,
-      vx: hero.facing * 11,
-      life: 80
-    });
-  } else if (currentHeroKey === 'sundiata') {
-    // Heavy Drum Slam Melee
-    sfx.punch();
-    for (let en of enemies) {
-      if (Math.abs(en.x - hero.x) < 60) {
-        en.hp -= 28;
-        en.x += hero.facing * 25;
-      }
-    }
-    if (boss && Math.abs(boss.x - hero.x) < 80) boss.hp -= 20;
-  } else {
-    // Marcus Seismic Punch
-    sfx.punch();
-    for (let en of enemies) {
-      if (Math.abs(en.x - hero.x) < 50) {
-        en.hp -= 22;
-        en.x += hero.facing * 18;
-      }
-    }
-    if (boss && Math.abs(boss.x - hero.x) < 70) boss.hp -= 15;
-  }
-});
-
-// Signature Skill Action
-bindTouchAndClick('btn-skill', () => {
-  if (currentHeroKey === 'aura') {
-    // TIDAL WEAVE NET: Radial Spoked Net Projectile
-    sfx.water();
-    projectiles.push({
-      type: 'tidal-net',
-      x: hero.x + (hero.facing * 24),
-      y: hero.y - 32,
-      vx: hero.facing * 7,
-      radius: 22,
-      angle: 0,
-      life: 90
-    });
-  } else if (currentHeroKey === 'sundiata') {
-    // CHAIN LIGHTNING: High voltage volt throw
-    sfx.lightning();
-    projectiles.push({
-      type: 'chain-lightning',
-      x: hero.x + (hero.facing * 24),
-      y: hero.y - 34,
-      vx: hero.facing * 14,
-      life: 70
-    });
-  } else {
-    // MARCUS: Golden Spike Eruption
-    sfx.boom();
-    for (let i = 1; i <= 4; i++) {
-      projectiles.push({
-        type: 'seismic-spike',
-        x: hero.x + (hero.facing * i * 35),
-        y: FLOOR_Y,
-        vx: 0,
-        height: 24 + i * 8,
-        life: 45
-      });
-    }
-  }
-});
-
-// Overdrive Action
-bindTouchAndClick('btn-overdrive', () => {
-  if (currentHeroKey === 'aura') {
-    // TSUNAMI SURGE: Grand Cresting Wave
-    sfx.water();
-    projectiles.push({
-      type: 'tsunami-wave',
-      x: hero.x - (hero.facing * 100),
-      y: FLOOR_Y,
-      vx: hero.facing * 8,
-      width: 90,
-      height: 110,
-      life: 140
-    });
-  } else if (currentHeroKey === 'sundiata') {
-    // STATIC FIELD DOME: 5-Second Deflection Aura
-    sfx.lightning();
-    hero.staticDomeTimer = 300;
-  } else {
-    // MARCUS & MAYLEEN: Rumble Shatter Duo
-    sfx.boom();
-    for (let en of enemies) {
-      en.hp -= 40;
-      en.x += hero.facing * 60;
-    }
-    if (boss) boss.hp -= 45;
-  }
-});
-
-// Mother Luetta Dual Alternating Summon
-bindTouchAndClick('btn-luetta', () => {
-  sfx.divine();
-  if (luettaSummonState === 1) {
-    // Summon 1: Sky Descent Radiant Beam on Helipad
-    luettaAction = { type: 'beam', life: 65 };
-    luettaSummonState = 2;
-    document.getElementById('luetta-sub').innerText = "Next: Cleaving Ground Rush";
-  } else {
-    // Summon 2: Cleaving Ground Rush
-    luettaAction = { type: 'rush', x: -40, life: 120 };
-    luettaSummonState = 1;
-    document.getElementById('luetta-sub').innerText = "Next: Sky Descent Beam";
-  }
-});
-
-// Duo Partner Swap
-bindTouchAndClick('btn-tag', () => {
-  if (currentHeroKey === 'marcus') {
-    currentLead = currentLead === 'Marcus' ? 'Mayleen' : 'Marcus';
-    document.getElementById('tag-sub').innerText = `Lead: ${currentLead} (Active)`;
-    sfx.slash();
-  }
-});
-
-// Roster Selection Buttons
-document.querySelectorAll('.hero-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    document.querySelectorAll('.hero-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentHeroKey = btn.getAttribute('data-hero');
-    syncButtonsToHero();
+  // 3. Crystal Shields
+  crystalShields.forEach(cs => {
+    ctx.save();
+    ctx.fillStyle = 'rgba(96, 165, 250, 0.7)';
+    ctx.strokeStyle = '#bfdbfe';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#60a5fa';
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.moveTo(cs.x, cs.y - cs.height);
+    ctx.lineTo(cs.x + 12, cs.y - cs.height / 2);
+    ctx.lineTo(cs.x, cs.y);
+    ctx.lineTo(cs.x - 12, cs.y - cs.height / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   });
-});
 
-// Start initial frame
-syncButtonsToHero();
-requestAnimationFrame(render);
+  // 4. Partner & Hero
+  drawPartner(partner.x, partner.y, partner.facing);
+  drawHero(player.x, player.y, player.facing, HERO_ROSTER[currentHeroIdx], player.attackTimer, player.activeAttack);
+
+  // 5. Hostile Mechs and Aerial Drones
+  enemies.forEach(en => {
+    ctx.save();
+    ctx.translate(en.x, en.y);
+    if (en.type === 'drone') {
+      // Quad-rotor drone
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(-18, -12, 36, 12);
+      ctx.fillStyle = '#ef4444'; // glowing red eye
+      ctx.beginPath();
+      ctx.arc(0, -6, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Ground Combat Android
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(-10, -en.height, 20, en.height);
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(-6, -en.height + 6, 12, 12);
+    }
+    // Health bar above enemy
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(-15, -en.height - 12, 30, 4);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(-15, -en.height - 12, (en.hp / en.maxHp) * 30, 4);
+    ctx.restore();
+  });
+
+  // 6. Projectiles
+  projectiles.forEach(p => {
+    ctx.save();
+    if (p.type === 'purple_arrow') {
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#a855f7';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(p.x - p.vx * 2, p.y - p.vy * 2);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    } else if (p.type === 'water_wave') {
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.65)';
+      ctx.shadowColor = '#0284c7';
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  // 7. Particles & Shockwaves
+  particles.forEach(pt => {
+    ctx.save();
+    if (pt.type === 'wave') {
+      ctx.strokeStyle = pt.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = pt.color;
+      ctx.fillRect(pt.x, pt.y, pt.size || 3, pt.size || 3);
+    }
+    ctx.restore();
+  });
+
+  ctx.restore();
+}
+
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+loop();
 </script>
 </body>
 </html>
