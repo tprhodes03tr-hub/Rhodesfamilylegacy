@@ -1,984 +1,878 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ancestral Vanguard: Tabletop Clash</title>
-<style>
-  :root {
-    --bg-dark: #080c14;
-    --panel-bg: rgba(15, 23, 42, 0.9);
-    --gold: #f59e0b;
-    --gold-glow: rgba(245, 158, 11, 0.45);
-    --cyan: #06b6d4;
-    --cyan-glow: rgba(6, 182, 212, 0.45);
-    --crimson: #ef4444;
-    --crimson-glow: rgba(239, 68, 68, 0.45);
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-  body {
-    background: radial-gradient(circle at center, #111827 0%, #030712 100%);
-    color: var(--text-main);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 12px;
-  }
-  header {
-    text-align: center;
-    margin-bottom: 12px;
-  }
-  header h1 {
-    font-size: 1.8rem;
-    color: var(--gold);
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    text-shadow: 0 0 15px var(--gold-glow);
-  }
-  header p {
-    color: var(--cyan);
-    font-size: 0.85rem;
-    letter-spacing: 1px;
-  }
-  .battlefield {
-    width: 100%;
-    max-width: 1080px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .side-panel {
-    background: var(--panel-bg);
-    border-radius: 12px;
-    padding: 12px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    border: 1px solid rgba(255,255,255,0.08);
-  }
-  .syndicate-side { border-top: 3px solid var(--crimson); }
-  .vanguard-side { border-bottom: 3px solid var(--gold); }
-  .side-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-weight: 700;
-  }
-  .resource-meter {
-    font-size: 0.9rem;
-    padding: 4px 12px;
-    border-radius: 20px;
-    background: rgba(0,0,0,0.4);
-  }
-  .marrow-badge { color: var(--gold); border: 1px solid var(--gold); }
-  .tech-badge { color: var(--crimson); border: 1px solid var(--crimson); }
-  .slots-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-  }
-  .card-slot {
-    background: rgba(0,0,0,0.3);
-    border: 1px dashed rgba(255,255,255,0.15);
-    border-radius: 8px;
-    min-height: 240px;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    padding: 8px;
-    transition: all 0.2s ease;
-  }
-  .card-slot.active-target {
-    border-color: var(--crimson);
-    box-shadow: 0 0 14px var(--crimson-glow);
-    cursor: pointer;
-  }
-  .slot-label {
-    position: absolute;
-    top: 4px;
-    right: 8px;
-    font-size: 0.65rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    z-index: 2;
-  }
-  .card {
-    background: linear-gradient(145deg, #1e293b, #0f172a);
-    border-radius: 8px;
-    padding: 8px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    border: 1px solid rgba(255,255,255,0.15);
-    position: relative;
-    overflow: hidden;
-  }
-  .card.vanguard-card { border-color: var(--gold); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15); }
-  .card.syndicate-card { border-color: var(--crimson); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15); }
-  .card.defeated {
-    filter: grayscale(100%) brightness(40%);
-    opacity: 0.5;
-  }
-  .card-art-box {
-    width: 100%;
-    height: 105px;
-    border-radius: 6px;
-    overflow: hidden;
-    margin: 4px 0 6px 0;
-    border: 1px solid rgba(255,255,255,0.15);
-    background: #020617;
-    position: relative;
-  }
-  .card-art-box img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top center;
-  }
-  .card-art-fallback {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: bold;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-  .syn-art { background: linear-gradient(135deg, #450a0a, #1e1b4b); color: #fca5a5; }
-
-  .card-title {
-    font-size: 0.88rem;
-    font-weight: bold;
-    color: var(--text-main);
-  }
-  .card-lineage {
-    font-size: 0.65rem;
-    color: var(--text-muted);
-  }
-  .hp-bar-bg {
-    background: #334155;
-    height: 6px;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 4px 0;
-  }
-  .hp-bar-fill {
-    height: 100%;
-    background: #10b981;
-    transition: width 0.3s ease;
-  }
-  .hp-bar-fill.danger { background: var(--crimson); }
-  .hp-stats {
-    font-size: 0.7rem;
-    display: flex;
-    justify-content: space-between;
-    color: var(--text-muted);
-  }
-  .card-stats {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.7rem;
-    margin: 4px 0;
-    padding: 3px 6px;
-    background: rgba(0,0,0,0.35);
-    border-radius: 4px;
-  }
-  .stat-val { font-weight: bold; }
-  .stat-pwr { color: #f87171; }
-  .stat-def { color: #60a5fa; }
-  .stat-wis { color: #c084fc; }
-  .card-ability {
-    font-size: 0.65rem;
-    color: #cbd5e1;
-    line-height: 1.2;
-    background: rgba(0,0,0,0.25);
-    padding: 4px 6px;
-    border-radius: 4px;
-    margin-top: 2px;
-  }
-  .card-actions {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
-  .btn {
-    flex: 1;
-    padding: 6px 4px;
-    font-size: 0.7rem;
-    font-weight: bold;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.2s ease;
-  }
-  .btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.2); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-atk { background: #3b82f6; color: #fff; }
-  .btn-skill { background: var(--gold); color: #000; }
-  .console-panel {
-    background: #020617;
-    border: 1px solid #1e293b;
-    border-radius: 8px;
-    padding: 8px 12px;
-    height: 95px;
-    overflow-y: auto;
-    font-family: monospace;
-    font-size: 0.78rem;
-    color: #38bdf8;
-  }
-  .log-entry { margin-bottom: 3px; }
-  .log-vanguard { color: var(--gold); }
-  .log-syndicate { color: var(--crimson); }
-  .log-system { color: #a855f7; }
-
-  /* HAND TRAY: 5 SLOTS + STORE PACK */
-  .hand-container {
-    background: rgba(10, 15, 29, 0.95);
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    border-radius: 12px;
-    padding: 10px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .hand-title-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .hand-label {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--gold);
-    font-weight: bold;
-  }
-  .hand-cards-row {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 8px;
-  }
-  @media (max-width: 768px) {
-    .hand-cards-row {
-      grid-template-columns: repeat(3, 1fr);
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ancestral Vanguard: Living Codex Tabletop Arena</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold-primary: #d4af37;
+      --gold-glow: rgba(212, 175, 55, 0.4);
+      --crimson-glow: rgba(239, 68, 68, 0.4);
+      --syndicate-cyan: #00e5ff;
     }
-  }
-  .tray-card {
-    background: linear-gradient(145deg, #1e293b, #090e17);
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    border-radius: 6px;
-    padding: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 125px;
-  }
-  .tray-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--gold);
-    box-shadow: 0 6px 16px var(--gold-glow);
-  }
-  .tray-card-name {
-    font-size: 0.72rem;
-    font-weight: bold;
-    color: var(--text-main);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .tray-card-tag {
-    font-size: 0.6rem;
-    color: var(--cyan);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .tray-card-art {
-    width: 100%;
-    height: 52px;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 4px 0;
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-  .tray-card-art img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top center;
-  }
-  .tray-card-hint {
-    font-size: 0.6rem;
-    color: var(--text-muted);
-    text-align: right;
-  }
-  .booster-promo-card {
-    background: linear-gradient(135deg, #78350f, #b45309);
-    border: 1px solid var(--gold);
-    border-radius: 6px;
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
-    min-height: 125px;
-  }
-  .booster-promo-card:hover {
-    transform: scale(1.03);
-    box-shadow: 0 0 20px var(--gold-glow);
-  }
-  .booster-title {
-    font-size: 0.75rem;
-    font-weight: 900;
-    color: #fff;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .booster-sub {
-    font-size: 0.62rem;
-    color: #fef3c7;
-    margin-top: 4px;
-  }
-  .booster-btn {
-    margin-top: 6px;
-    background: #000;
-    color: var(--gold);
-    font-size: 0.62rem;
-    font-weight: bold;
-    padding: 3px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-  }
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0%, #030712 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      user-select: none;
+    }
+    h1, h2, h3, .font-title {
+      font-family: 'Cinzel', serif;
+    }
 
-  /* MODAL */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.85);
-    backdrop-filter: blur(5px);
-    z-index: 100;
-    justify-content: center;
-    align-items: center;
-    padding: 16px;
-  }
-  .modal-card {
-    background: linear-gradient(145deg, #1e293b, #0b1120);
-    border: 2px solid var(--gold);
-    box-shadow: 0 0 30px var(--gold-glow);
-    border-radius: 12px;
-    max-width: 360px;
-    width: 100%;
-    padding: 14px;
-    position: relative;
-  }
-  .modal-close {
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    color: var(--text-muted);
-    font-size: 1.4rem;
-    cursor: pointer;
-  }
-  .modal-img-frame {
-    width: 100%;
-    height: 140px;
-    border-radius: 8px;
-    overflow: hidden;
-    margin: 8px 0;
-    border: 1px solid var(--gold);
-  }
-  .modal-img-frame img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top center;
-  }
-  .modal-title { font-size: 1.15rem; font-weight: bold; color: var(--gold); }
-  .modal-lineage { font-size: 0.75rem; color: var(--cyan); margin-bottom: 6px; }
-  .modal-desc { font-size: 0.78rem; line-height: 1.35; color: #e2e8f0; margin: 6px 0; }
-  .modal-stats {
-    display: flex;
-    justify-content: space-between;
-    background: rgba(0,0,0,0.4);
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    margin-bottom: 8px;
-  }
-</style>
+    /* 3D Perspective Container */
+    .deck-perspective {
+      perspective: 1200px;
+    }
+
+    /* Holographic Card Shell */
+    .holo-card {
+      position: relative;
+      border-radius: 12px;
+      transition: transform 0.15s ease-out, box-shadow 0.25s ease;
+      transform-style: preserve-3d;
+      will-change: transform;
+      background: linear-gradient(145deg, #111827 0%, #030712 100%);
+    }
+
+    .holo-card:hover {
+      z-index: 30;
+    }
+
+    /* Vanguard Prismatic Foil */
+    .vanguard-foil {
+      border: 1.5px solid #d4af37;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.25);
+    }
+    .vanguard-foil::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      background: linear-gradient(115deg, 
+        transparent 0%, 
+        rgba(212, 175, 55, 0.15) 25%, 
+        rgba(255, 255, 255, 0.25) 45%, 
+        rgba(59, 130, 246, 0.2) 65%, 
+        transparent 100%);
+      opacity: 0.35;
+      pointer-events: none;
+      mix-blend-mode: color-dodge;
+      transition: opacity 0.3s ease;
+    }
+    .holo-card:hover .vanguard-foil::before {
+      opacity: 0.85;
+    }
+
+    /* Syndicate Dark Cyber Foil */
+    .syndicate-foil {
+      border: 1.5px solid #ef4444;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
+    }
+    .syndicate-foil::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      background: linear-gradient(115deg, 
+        transparent 0%, 
+        rgba(239, 68, 68, 0.2) 20%, 
+        rgba(168, 85, 247, 0.25) 50%, 
+        rgba(0, 229, 255, 0.25) 80%, 
+        transparent 100%);
+      opacity: 0.35;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      transition: opacity 0.3s ease;
+    }
+    .holo-card:hover .syndicate-foil::before {
+      opacity: 0.85;
+    }
+
+    /* Card Glow Rarity Ribbon */
+    .rarity-ribbon {
+      font-size: 8px;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      z-index: 10;
+    }
+
+    /* HP progress bar animation */
+    .hp-bar {
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Custom Scrollbar for Hand */
+    ::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #273549;
+      border-radius: 4px;
+    }
+  </style>
 </head>
-<body>
+<body class="p-2 sm:p-4 pb-20 flex flex-col items-center">
 
-<header>
-  <h1>Ancestral Vanguard</h1>
-  <p>Living Codex Tabletop Arena</p>
-</header>
-
-<div class="battlefield">
-  <!-- THE IRON SYNDICATE -->
-  <div class="side-panel syndicate-side">
-    <div class="side-header">
-      <span style="color: var(--crimson)">The Iron Syndicate</span>
-      <span class="resource-meter tech-badge" id="syn-tech-display">Tech Overcharge: 4</span>
+  <!-- Header & Storefront Showcase Banner -->
+  <header class="w-full max-w-6xl text-center my-3">
+    <div class="inline-block px-3 py-1 mb-2 bg-amber-500/10 border border-amber-500/30 rounded-full">
+      <span class="text-amber-400 text-xs tracking-widest font-semibold uppercase">Official Tabletop Battle Simulator & Collectible Card Edition</span>
     </div>
-    <div class="slots-row">
-      <div class="card-slot" id="syn-slot-nexus">
-        <span class="slot-label">Nexus</span>
-        <div class="card syndicate-card" id="card-chrono">
-          <div>
-            <div class="card-title">Chrono-Lock</div>
-            <div class="card-lineage">Temporal Inhibitor</div>
-            <div class="card-art-box">
-              <div class="card-art-fallback syn-art">CHRONO UNIT</div>
-            </div>
-            <div class="hp-bar-bg"><div class="hp-bar-fill" id="hp-chrono-fill" style="width: 100%;"></div></div>
-            <div class="hp-stats"><span>HP</span><span id="hp-chrono-text">95/95</span></div>
-            <div class="card-stats">
-              <span>PWR: <span class="stat-val stat-pwr">72</span></span>
-              <span>DEF: <span class="stat-val stat-def">84</span></span>
-              <span>WIS: <span class="stat-val stat-wis">99</span></span>
-            </div>
-            <div class="card-ability"><b>Temporal Static:</b> Vanguard Skills cost +1 Marrow.</div>
-          </div>
-        </div>
-      </div>
+    <h1 class="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 tracking-wider">
+      ANCESTRAL VANGUARD
+    </h1>
+    <p class="text-slate-400 text-xs sm:text-sm font-semibold tracking-widest uppercase mt-1">
+      Living Codex Tabletop Arena &bull; High-Foil Card Collection
+    </p>
 
-      <div class="card-slot" id="syn-slot-backline">
-        <span class="slot-label">Backline</span>
-        <div class="card syndicate-card" id="card-nullbyte">
-          <div>
-            <div class="card-title">Null-Byte</div>
-            <div class="card-lineage">Cyber Infiltrator</div>
-            <div class="card-art-box">
-              <img src="Screenshot_20260918_130641_Photos.jpg" alt="Null-Byte" onerror="this.style.display='none'">
-            </div>
-            <div class="hp-bar-bg"><div class="hp-bar-fill" id="hp-nullbyte-fill" style="width: 100%;"></div></div>
-            <div class="hp-stats"><span>HP</span><span id="hp-nullbyte-text">90/90</span></div>
-            <div class="card-stats">
-              <span>PWR: <span class="stat-val stat-pwr">85</span></span>
-              <span>DEF: <span class="stat-val stat-def">74</span></span>
-              <span>WIS: <span class="stat-val stat-wis">94</span></span>
-            </div>
-            <div class="card-ability"><b>Signal Intercept:</b> Gains shields on skill activations.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card-slot active-target" id="syn-slot-frontline" onclick="handleTargetSelect('frontline')">
-        <span class="slot-label">Frontline [Taunt]</span>
-        <div class="card syndicate-card" id="card-apex">
-          <div>
-            <div class="card-title">Apex Volt</div>
-            <div class="card-lineage">Kinetic Arc Overlord</div>
-            <div class="card-art-box">
-              <img src="Screenshot_20260918_130602_Photos.jpg" alt="Apex Volt" onerror="this.style.display='none'">
-            </div>
-            <div class="hp-bar-bg"><div class="hp-bar-fill" id="hp-apex-fill" style="width: 100%;"></div></div>
-            <div class="hp-stats"><span>HP</span><span id="hp-apex-text">115/115</span></div>
-            <div class="card-stats">
-              <span>PWR: <span class="stat-val stat-pwr">94</span></span>
-              <span>DEF: <span class="stat-val stat-def">82</span></span>
-              <span>WIS: <span class="stat-val stat-wis">75</span></span>
-            </div>
-            <div class="card-ability"><b>Overclock Conduit:</b> Chains shock damage to adjacent slots.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- COMBAT LOG -->
-  <div class="console-panel" id="combat-log">
-    <div class="log-entry log-system">SYSTEM: Ancestral Vanguard match initialized. Formula: PWR - (DEF/2).</div>
-    <div class="log-entry log-system">RULE: Opposing Frontline taunt active. Defeat Apex Volt to reach Backline.</div>
-  </div>
-
-  <!-- ANCESTRAL VANGUARD BOARD -->
-  <div class="side-panel vanguard-side">
-    <div class="side-header">
-      <span style="color: var(--gold)">Ancestral Vanguard Alliance</span>
-      <div style="display: flex; gap: 10px; align-items: center;">
-        <span class="resource-meter marrow-badge" id="vg-marrow-display">Marrow Orbs: 5</span>
-        <button class="btn btn-skill" style="padding: 4px 12px;" onclick="endTurn()">End Turn</button>
-      </div>
-    </div>
-    <div class="slots-row">
-      <!-- FRONTLINE: SUNDIATA PRIME -->
-      <div class="card-slot" id="vg-slot-frontline">
-        <span class="slot-label">Frontline</span>
-        <div class="card vanguard-card" id="card-sundiata">
-          <div>
-            <div class="card-title">Sundiata Prime</div>
-            <div class="card-lineage">Mandinka / Mali Empire</div>
-            <div class="card-art-box">
-              <img src="sundiata.jpg" alt="Sundiata Prime" onerror="this.style.display='none'">
-            </div>
-            <div class="hp-bar-bg"><div class="hp-bar-fill" id="hp-sundiata-fill" style="width: 100%;"></div></div>
-            <div class="hp-stats"><span>HP</span><span id="hp-sundiata-text">120/120</span></div>
-            <div class="card-stats">
-              <span>PWR: <span class="stat-val stat-pwr">84</span></span>
-              <span>DEF: <span class="stat-val stat-def">96</span></span>
-              <span>WIS: <span class="stat-val stat-wis">90</span></span>
-            </div>
-            <div class="card-ability"><b>Solar Dundun Roar:</b> 50% team defense buff + 15 damage.</div>
-          </div>
-          <div class="card-actions">
-            <button class="btn btn-atk" id="btn-sundiata-atk" onclick="vanguardAttack('sundiata')">Strike</button>
-            <button class="btn btn-skill" id="btn-sundiata-skill" onclick="vanguardSkill('sundiata')">Skill (3)</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- BACKLINE: MARCUS -->
-      <div class="card-slot" id="vg-slot-backline">
-        <span class="slot-label">Backline</span>
-        <div class="card vanguard-card" id="card-marcus">
-          <div>
-            <div class="card-title">Marcus</div>
-            <div class="card-lineage">Urban Diaspora Americas</div>
-            <div class="card-art-box">
-              <img src="marcus.jpg" alt="Marcus" onerror="this.style.display='none'">
-            </div>
-            <div class="hp-bar-bg"><div class="hp-bar-fill" id="hp-marcus-fill" style="width: 100%;"></div></div>
-            <div class="hp-stats"><span>HP</span><span id="hp-marcus-text">100/100</span></div>
-            <div class="card-stats">
-              <span>PWR: <span class="stat-val stat-pwr">91</span></span>
-              <span>DEF: <span class="stat-val stat-def">78</span></span>
-              <span>WIS: <span class="stat-val stat-wis">82</span></span>
-            </div>
-            <div class="card-ability"><b>Seismic Arc Burst:</b> Shocks enemy line & disables skills.</div>
-          </div>
-          <div class="card-actions">
-            <button class="btn btn-atk" id="btn-marcus-atk" onclick="vanguardAttack('marcus')">Strike</button>
-            <button class="btn btn-skill" id="btn-marcus-skill" onclick="vanguardSkill('marcus')">Skill (3)</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- NEXUS: MOTHER LUTA -->
-      <div class="card-slot" id="vg-slot-nexus">
-        <span class="slot-label">Nexus</span>
-        <div class="card vanguard-card" id="card-motherluta">
-          <div>
-            <div class="card-title">Mother Luta</div>
-            <div class="card-lineage">Living Codex Hearth</div>
-            <div class="card-art-box">
-              <img src="mother-luta.jpg" alt="Mother Luta" onerror="this.style.display='none'">
-            </div>
-            <div class="hp-bar-bg"><div class="hp-bar-fill" id="hp-luta-fill" style="width: 100%;"></div></div>
-            <div class="hp-stats"><span>HP</span><span id="hp-luta-text">90/90</span></div>
-            <div class="card-stats">
-              <span>PWR: <span class="stat-val stat-pwr">60</span></span>
-              <span>DEF: <span class="stat-val stat-def">80</span></span>
-              <span>WIS: <span class="stat-val stat-wis">100</span></span>
-            </div>
-            <div class="card-ability"><b>Ledger of Resonance:</b> Generates +2 Marrow/turn.</div>
-          </div>
-          <div class="card-actions">
-            <button class="btn btn-skill" id="btn-luta-skill" onclick="vanguardSkill('motherluta')" style="width:100%;">Sovereign Hearth (4)</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- EXPANDED RESERVE HAND TRAY: 5 DETAILED OPERATIVES + BOOSTER -->
-  <div class="hand-container">
-    <div class="hand-title-bar">
-      <span class="hand-label">Reserve Operatives in Hand (Tap to Inspect)</span>
-      <span style="font-size:0.7rem; color:var(--text-muted);">Living Codex Expansion</span>
-    </div>
-    <div class="hand-cards-row">
-      <!-- 1. Elena -->
-      <div class="tray-card" onclick="openInspect('elena')">
-        <div>
-          <div class="tray-card-name">Elena</div>
-          <div class="tray-card-tag">Taino Tide-Caller</div>
-          <div class="tray-card-art">
-            <img src="Screenshot_20260918_131036_Photos.jpg" alt="Elena">
-          </div>
-        </div>
-        <div>
-          <div class="card-stats">
-            <span class="stat-pwr">P:82</span>
-            <span class="stat-def">D:80</span>
-          </div>
-          <div class="tray-card-hint">[Inspect]</div>
-        </div>
-      </div>
-
-      <!-- 2. Kenjiro -->
-      <div class="tray-card" onclick="openInspect('kenjiro')">
-        <div>
-          <div class="tray-card-name">Kenjiro</div>
-          <div class="tray-card-tag">Spatial Duelist</div>
-          <div class="tray-card-art">
-            <img src="Screenshot_20260918_131053_Photos.jpg" alt="Kenjiro">
-          </div>
-        </div>
-        <div>
-          <div class="card-stats">
-            <span class="stat-pwr">P:94</span>
-            <span class="stat-def">D:76</span>
-          </div>
-          <div class="tray-card-hint">[Inspect]</div>
-        </div>
-      </div>
-
-      <!-- 3. Canopy Archer -->
-      <div class="tray-card" onclick="openInspect('canopy')">
-        <div>
-          <div class="tray-card-name">Canopy Archer</div>
-          <div class="tray-card-tag">Forest Precision</div>
-          <div class="tray-card-art">
-            <img src="Screenshot_20260918_131115_Photos.jpg" alt="Canopy Archer">
-          </div>
-        </div>
-        <div>
-          <div class="card-stats">
-            <span class="stat-pwr">P:89</span>
-            <span class="stat-def">D:75</span>
-          </div>
-          <div class="tray-card-hint">[Inspect]</div>
-        </div>
-      </div>
-
-      <!-- 4. Xochitl -->
-      <div class="tray-card" onclick="openInspect('xochitl')">
-        <div>
-          <div class="tray-card-name">Xochitl</div>
-          <div class="tray-card-tag">Obsidian Sun</div>
-          <div class="tray-card-art">
-            <img src="Screenshot_20260918_112806_Photos.jpg" alt="Xochitl">
-          </div>
-        </div>
-        <div>
-          <div class="card-stats">
-            <span class="stat-pwr">P:93</span>
-            <span class="stat-def">D:74</span>
-          </div>
-          <div class="tray-card-hint">[Inspect]</div>
-        </div>
-      </div>
-
-      <!-- 5. Mateo -->
-      <div class="tray-card" onclick="openInspect('mateo')">
-        <div>
-          <div class="tray-card-name">Mateo</div>
-          <div class="tray-card-tag">Stone Bulwark</div>
-          <div class="tray-card-art">
-            <img src="Screenshot_20260918_112817_Photos.jpg" alt="Mateo">
-          </div>
-        </div>
-        <div>
-          <div class="card-stats">
-            <span class="stat-pwr">P:88</span>
-            <span class="stat-def">D:98</span>
-          </div>
-          <div class="tray-card-hint">[Inspect]</div>
-        </div>
-      </div>
-
-      <!-- 6. Payhip Booster Callout -->
-      <a href="https://payhip.com" target="_blank" class="booster-promo-card">
-        <div class="booster-title">Expand Deck</div>
-        <div class="booster-sub">Unlock Full 16-Hero Vanguard Box</div>
-        <div class="booster-btn">Shop Payhip</div>
+    <!-- Buy Roster / Payhip Conversion CTA -->
+    <div class="mt-4 flex flex-wrap justify-center items-center gap-3">
+      <a href="https://payhip.com" target="_blank" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-bold text-sm tracking-wide rounded-lg shadow-lg shadow-amber-500/20 transform hover:-translate-y-0.5 transition flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+        BUY FULL 16-HERO PHYSICAL BOX DECK
       </a>
+      <button onclick="openCollectorModal()" class="px-4 py-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-600 text-slate-200 font-semibold text-xs tracking-wider rounded-lg transition flex items-center gap-2">
+        <span>✨ INSPECT ALL 16 CARDS & RARITIES</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Tabletop Arena Container -->
+  <main class="w-full max-w-6xl space-y-4 deck-perspective">
+
+    <!-- OPPONENT: THE IRON SYNDICATE -->
+    <section class="bg-slate-950/70 border border-red-900/40 rounded-xl p-3 sm:p-4 backdrop-blur-md shadow-2xl relative">
+      <div class="flex justify-between items-center mb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
+          <h2 class="text-red-400 font-title font-bold text-base sm:text-lg tracking-wider">THE IRON SYNDICATE</h2>
+        </div>
+        <div class="flex items-center gap-2 bg-red-950/60 border border-red-800/60 px-3 py-1 rounded-md">
+          <span class="text-xs text-red-300 uppercase tracking-widest font-semibold">Tech Overcharge:</span>
+          <span id="syndicate-charge" class="text-red-400 font-bold text-sm">4</span>
+        </div>
+      </div>
+
+      <!-- Enemy Active Battle Slots -->
+      <div id="syndicate-arena" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- Chrono-Lock Card (Fixed with your Photo asset & stats) -->
+        <div id="card-chrono" class="holo-card syndicate-foil p-2.5 flex flex-col justify-between h-[340px]">
+          <span class="rarity-ribbon bg-purple-900/80 border border-purple-400 text-purple-200">Mythic Chrono</span>
+          <div>
+            <div class="flex justify-between items-baseline mb-1">
+              <h3 class="text-slate-100 font-bold text-sm tracking-wide">Chrono-Lock</h3>
+              <span class="text-[10px] text-red-400 font-semibold">NEXUS</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mb-1.5">Temporal Inhibitor</p>
+            
+            <!-- Chrono-Lock Image Container -->
+            <div class="relative w-full h-36 bg-slate-900 rounded-md overflow-hidden border border-red-500/30 mb-2">
+              <img 
+                src="Screenshot_20260918_175152_Photos.jpg" 
+                alt="Chrono-Lock - Master of Dampening"
+                class="w-full h-full object-cover"
+                onerror="this.onerror=null; this.src='https://placehold.co/400x300/181423/ef4444?text=Chrono-Lock+Clockwork+Titan';"
+              />
+              <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-1 flex justify-between text-[9px]">
+                <span class="text-purple-300 font-semibold">Temporal Static</span>
+                <span class="text-red-300 font-bold">COST: +1 Marrow</span>
+              </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="flex justify-between items-center text-[10px] bg-slate-900/90 px-2 py-1 rounded border border-slate-800 mb-1.5">
+              <span class="text-red-400 font-bold">PWR: 72</span>
+              <span class="text-blue-400 font-bold">DEF: 84</span>
+              <span class="text-amber-400 font-bold">WIS: 99</span>
+            </div>
+
+            <div class="text-[10px] text-slate-300 bg-slate-900/50 p-1.5 rounded border border-slate-800">
+              <span class="text-red-400 font-semibold">Temporal Static:</span> Dampens ancestral line. Vanguard card skills cost +1 Marrow to activate.
+            </div>
+          </div>
+
+          <!-- HP & Selection -->
+          <div class="mt-2">
+            <div class="flex justify-between text-[10px] font-bold mb-0.5">
+              <span class="text-slate-400">STATUS</span>
+              <span id="hp-chrono-text" class="text-emerald-400">95 / 95 HP</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="hp-chrono-bar" class="hp-bar h-full bg-emerald-500" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Null-Byte Card -->
+        <div id="card-nullbyte" class="holo-card syndicate-foil p-2.5 flex flex-col justify-between h-[340px]">
+          <span class="rarity-ribbon bg-cyan-900/80 border border-cyan-400 text-cyan-200">Rare Infiltrator</span>
+          <div>
+            <div class="flex justify-between items-baseline mb-1">
+              <h3 class="text-slate-100 font-bold text-sm tracking-wide">Null-Byte</h3>
+              <span class="text-[10px] text-red-400 font-semibold">BACKLINE</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mb-1.5">Cyber Infiltrator</p>
+
+            <div class="relative w-full h-36 bg-slate-900 rounded-md overflow-hidden border border-red-500/30 mb-2">
+              <img 
+                src="1787664315213~2.jpg" 
+                alt="Null-Byte"
+                class="w-full h-full object-cover"
+                onerror="this.onerror=null; this.src='https://placehold.co/400x300/0b1727/00e5ff?text=Null-Byte+Spectre';"
+              />
+              <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-1 flex justify-between text-[9px]">
+                <span class="text-cyan-300 font-semibold">Signal Intercept</span>
+                <span class="text-red-300 font-bold">REACTION</span>
+              </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="flex justify-between items-center text-[10px] bg-slate-900/90 px-2 py-1 rounded border border-slate-800 mb-1.5">
+              <span class="text-red-400 font-bold">PWR: 85</span>
+              <span class="text-blue-400 font-bold">DEF: 74</span>
+              <span class="text-amber-400 font-bold">WIS: 94</span>
+            </div>
+
+            <div class="text-[10px] text-slate-300 bg-slate-900/50 p-1.5 rounded border border-slate-800">
+              <span class="text-cyan-400 font-semibold">Signal Intercept:</span> Generates kinetic nanite shield whenever a hero casts an ability.
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <div class="flex justify-between text-[10px] font-bold mb-0.5">
+              <span class="text-slate-400">STATUS</span>
+              <span id="hp-nullbyte-text" class="text-emerald-400">90 / 90 HP</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="hp-nullbyte-bar" class="hp-bar h-full bg-emerald-500" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Apex Volt Card -->
+        <div id="card-apex" class="holo-card syndicate-foil p-2.5 flex flex-col justify-between h-[340px] ring-2 ring-red-500/50">
+          <span class="rarity-ribbon bg-red-900/80 border border-red-400 text-red-200">Boss Overlord</span>
+          <div>
+            <div class="flex justify-between items-baseline mb-1">
+              <h3 class="text-slate-100 font-bold text-sm tracking-wide">Apex Volt</h3>
+              <span class="text-[10px] text-red-400 font-semibold">FRONTLINE [TAUNT]</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mb-1.5">Kinetic Arc Overlord</p>
+
+            <div class="relative w-full h-36 bg-slate-900 rounded-md overflow-hidden border border-red-500/30 mb-2">
+              <img 
+                src="1787774899672.png" 
+                alt="Apex Volt"
+                class="w-full h-full object-cover"
+                onerror="this.onerror=null; this.src='https://placehold.co/400x300/29080c/ef4444?text=Apex+Volt+Kinetic+Titan';"
+              />
+              <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-1 flex justify-between text-[9px]">
+                <span class="text-red-300 font-semibold">Overclock Conduit</span>
+                <span class="text-red-300 font-bold">PASSIVE</span>
+              </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="flex justify-between items-center text-[10px] bg-slate-900/90 px-2 py-1 rounded border border-slate-800 mb-1.5">
+              <span class="text-red-400 font-bold">PWR: 94</span>
+              <span class="text-blue-400 font-bold">DEF: 82</span>
+              <span class="text-amber-400 font-bold">WIS: 75</span>
+            </div>
+
+            <div class="text-[10px] text-slate-300 bg-slate-900/50 p-1.5 rounded border border-slate-800">
+              <span class="text-red-400 font-semibold">Overclock Conduit:</span> High-tension arc chains counter-damage into adjacent hero slots.
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <div class="flex justify-between text-[10px] font-bold mb-0.5">
+              <span class="text-slate-400">STATUS</span>
+              <span id="hp-apex-text" class="text-emerald-400">115 / 115 HP</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="hp-apex-bar" class="hp-bar h-full bg-emerald-500" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BATTLEFIELD COMBAT LOG -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
+      <div class="flex items-center gap-2 overflow-hidden text-xs">
+        <span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded font-bold uppercase text-[10px]">COMBAT LOG</span>
+        <span id="log-text" class="text-slate-300 truncate">Battle ready. Select Sundiata, Marcus, or Mother Luta to execute actions.</span>
+      </div>
+      <div class="text-[11px] text-slate-400 font-mono flex gap-3 whitespace-nowrap">
+        <span>RULE: Opposing Frontline [Apex Volt] holds taunt.</span>
+      </div>
+    </section>
+
+    <!-- PLAYER: ANCESTRAL VANGUARD ALLIANCE -->
+    <section class="bg-slate-950/70 border border-amber-500/40 rounded-xl p-3 sm:p-4 backdrop-blur-md shadow-2xl relative">
+      <div class="flex justify-between items-center mb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-amber-400 animate-pulse"></span>
+          <h2 class="text-amber-400 font-title font-bold text-base sm:text-lg tracking-wider">ANCESTRAL VANGUARD</h2>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 bg-amber-950/60 border border-amber-800/60 px-3 py-1 rounded-md">
+            <span class="text-xs text-amber-300 uppercase tracking-widest font-semibold">Marrow Orbs:</span>
+            <span id="vanguard-marrow" class="text-amber-400 font-bold text-sm">5</span>
+          </div>
+          <button onclick="endTurn()" class="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-bold text-xs tracking-wider rounded transition uppercase shadow-md shadow-amber-500/10">
+            End Turn
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Hero Battlers -->
+      <div id="vanguard-arena" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- Sundiata Prime -->
+        <div id="card-sundiata" class="holo-card vanguard-foil p-2.5 flex flex-col justify-between h-[380px]">
+          <span class="rarity-ribbon bg-amber-900/80 border border-amber-400 text-amber-200">1st Edition • Ultra</span>
+          <div>
+            <div class="flex justify-between items-baseline mb-1">
+              <h3 class="text-amber-200 font-bold text-sm tracking-wide">Sundiata Prime</h3>
+              <span class="text-[10px] text-amber-400 font-semibold">FRONTLINE</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mb-1.5">Mandinka / Mali Empire Lineage</p>
+
+            <div class="relative w-full h-36 bg-slate-900 rounded-md overflow-hidden border border-amber-500/30 mb-2">
+              <img 
+                src="sundiata.jpg" 
+                alt="Sundiata Prime"
+                class="w-full h-full object-cover"
+                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1a1305/d4af37?text=Sundiata+Prime';"
+              />
+              <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-1 flex justify-between text-[9px]">
+                <span class="text-amber-300 font-semibold">Solar Dundun Roar</span>
+                <span class="text-amber-300 font-bold">BURST</span>
+              </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="flex justify-between items-center text-[10px] bg-slate-900/90 px-2 py-1 rounded border border-slate-800 mb-1.5">
+              <span class="text-red-400 font-bold">PWR: 84</span>
+              <span class="text-blue-400 font-bold">DEF: 96</span>
+              <span class="text-amber-400 font-bold">WIS: 90</span>
+            </div>
+
+            <div class="text-[10px] text-slate-300 bg-slate-900/50 p-1.5 rounded border border-slate-800">
+              <span class="text-amber-400 font-semibold">Solar Dundun Roar:</span> Grants +50% party defense and deals 20 piercing solar damage.
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="mt-2 space-y-1.5">
+            <div class="flex justify-between text-[10px] font-bold">
+              <span class="text-slate-400">HEALTH</span>
+              <span id="hp-sundiata-text" class="text-emerald-400">120 / 120 HP</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="hp-sundiata-bar" class="hp-bar h-full bg-emerald-500" style="width: 100%;"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5 pt-1">
+              <button onclick="executeAction('sundiata', 'strike')" class="py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] rounded tracking-wide transition">STRIKE</button>
+              <button onclick="executeAction('sundiata', 'skill')" class="py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] rounded tracking-wide transition">SKILL (3)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Marcus Prime -->
+        <div id="card-marcus" class="holo-card vanguard-foil p-2.5 flex flex-col justify-between h-[380px]">
+          <span class="rarity-ribbon bg-amber-900/80 border border-amber-400 text-amber-200">Holo Secret Rare</span>
+          <div>
+            <div class="flex justify-between items-baseline mb-1">
+              <h3 class="text-amber-200 font-bold text-sm tracking-wide">Marcus</h3>
+              <span class="text-[10px] text-amber-400 font-semibold">MIDLINE</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mb-1.5">Urban Diaspora Acoustic Conduit</p>
+
+            <div class="relative w-full h-36 bg-slate-900 rounded-md overflow-hidden border border-amber-500/30 mb-2">
+              <img 
+                src="marcus.jpg" 
+                alt="Marcus Prime"
+                class="w-full h-full object-cover"
+                onerror="this.onerror=null; this.src='https://placehold.co/400x300/0a1a2f/38bdf8?text=Marcus+Conduit';"
+              />
+              <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-1 flex justify-between text-[9px]">
+                <span class="text-blue-300 font-semibold">Seismic Arc Burst</span>
+                <span class="text-amber-300 font-bold">SONIC</span>
+              </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="flex justify-between items-center text-[10px] bg-slate-900/90 px-2 py-1 rounded border border-slate-800 mb-1.5">
+              <span class="text-red-400 font-bold">PWR: 91</span>
+              <span class="text-blue-400 font-bold">DEF: 78</span>
+              <span class="text-amber-400 font-bold">WIS: 82</span>
+            </div>
+
+            <div class="text-[10px] text-slate-300 bg-slate-900/50 p-1.5 rounded border border-slate-800">
+              <span class="text-blue-400 font-semibold">Seismic Arc Burst:</span> Shocks the enemy line with deep sub-bass vibrations and halts enemy reactions.
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="mt-2 space-y-1.5">
+            <div class="flex justify-between text-[10px] font-bold">
+              <span class="text-slate-400">HEALTH</span>
+              <span id="hp-marcus-text" class="text-emerald-400">100 / 100 HP</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="hp-marcus-bar" class="hp-bar h-full bg-emerald-500" style="width: 100%;"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5 pt-1">
+              <button onclick="executeAction('marcus', 'strike')" class="py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] rounded tracking-wide transition">STRIKE</button>
+              <button onclick="executeAction('marcus', 'skill')" class="py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] rounded tracking-wide transition">SKILL (3)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mother Luta -->
+        <div id="card-luta" class="holo-card vanguard-foil p-2.5 flex flex-col justify-between h-[380px]">
+          <span class="rarity-ribbon bg-amber-900/80 border border-amber-400 text-amber-200">Living Codex</span>
+          <div>
+            <div class="flex justify-between items-baseline mb-1">
+              <h3 class="text-amber-200 font-bold text-sm tracking-wide">Mother Luta</h3>
+              <span class="text-[10px] text-amber-400 font-semibold">BACKLINE</span>
+            </div>
+            <p class="text-[10px] text-slate-400 mb-1.5">Keeper of Historical Memory</p>
+
+            <div class="relative w-full h-36 bg-slate-900 rounded-md overflow-hidden border border-amber-500/30 mb-2">
+              <img 
+                src="mother-luta.jpg" 
+                alt="Mother Luta"
+                class="w-full h-full object-cover"
+                onerror="this.onerror=null; this.src='https://placehold.co/400x300/2d1804/d4af37?text=Mother+Luta';"
+              />
+              <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-1 flex justify-between text-[9px]">
+                <span class="text-yellow-300 font-semibold">Ledger of Resonance</span>
+                <span class="text-amber-300 font-bold">RECOVERY</span>
+              </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="flex justify-between items-center text-[10px] bg-slate-900/90 px-2 py-1 rounded border border-slate-800 mb-1.5">
+              <span class="text-red-400 font-bold">PWR: 60</span>
+              <span class="text-blue-400 font-bold">DEF: 80</span>
+              <span class="text-amber-400 font-bold">WIS: 100</span>
+            </div>
+
+            <div class="text-[10px] text-slate-300 bg-slate-900/50 p-1.5 rounded border border-slate-800">
+              <span class="text-amber-400 font-semibold">Sovereign Hearth:</span> Generates +2 extra Marrow per turn and restores 25 HP to all active allies.
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="mt-2 space-y-1.5">
+            <div class="flex justify-between text-[10px] font-bold">
+              <span class="text-slate-400">HEALTH</span>
+              <span id="hp-luta-text" class="text-emerald-400">90 / 90 HP</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="hp-luta-bar" class="hp-bar h-full bg-emerald-500" style="width: 100%;"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5 pt-1">
+              <button onclick="executeAction('luta', 'strike')" class="py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] rounded tracking-wide transition">STRIKE</button>
+              <button onclick="executeAction('luta', 'skill')" class="py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] rounded tracking-wide transition">HEARTH (4)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESERVE OPERATIVES HAND (Interactive Swapping & Inspection) -->
+    <section class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 sm:p-4">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-sm font-bold tracking-wider text-slate-300 uppercase flex items-center gap-2">
+          <span>RESERVE OPERATIVES IN HAND</span>
+          <span class="text-[11px] text-amber-400 font-normal">(Tap Card to Inspect or Deploy)</span>
+        </h3>
+        <span class="text-xs text-slate-500">Living Codex Expansion</span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+        <!-- Elena -->
+        <div onclick="inspectCard('elena')" class="holo-card vanguard-foil p-2 cursor-pointer hover:border-amber-400 text-left">
+          <p class="text-xs font-bold text-slate-100 truncate">Elena</p>
+          <p class="text-[9px] text-cyan-400 truncate mb-1">Taino Tide-Caller</p>
+          <div class="h-20 w-full bg-slate-900 rounded overflow-hidden mb-1">
+            <img src="Screenshot_20260918_131115_.png" alt="Elena" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x200/0e1e2d/38bdf8?text=Elena';"/>
+          </div>
+          <div class="flex justify-between text-[9px] text-slate-300"><span>P: 82</span><span>D: 80</span></div>
+        </div>
+
+        <!-- Kenjiro -->
+        <div onclick="inspectCard('kenjiro')" class="holo-card vanguard-foil p-2 cursor-pointer hover:border-amber-400 text-left">
+          <p class="text-xs font-bold text-slate-100 truncate">Kenjiro</p>
+          <p class="text-[9px] text-amber-400 truncate mb-1">Spatial Duelist</p>
+          <div class="h-20 w-full bg-slate-900 rounded overflow-hidden mb-1">
+            <img src="Screenshot_20260918_131053_.png" alt="Kenjiro" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x200/2a1d0d/d4af37?text=Kenjiro';"/>
+          </div>
+          <div class="flex justify-between text-[9px] text-slate-300"><span>P: 94</span><span>D: 76</span></div>
+        </div>
+
+        <!-- Canopy Archer -->
+        <div onclick="inspectCard('canopy')" class="holo-card vanguard-foil p-2 cursor-pointer hover:border-amber-400 text-left">
+          <p class="text-xs font-bold text-slate-100 truncate">Canopy Archer</p>
+          <p class="text-[9px] text-emerald-400 truncate mb-1">Forest Precision</p>
+          <div class="h-20 w-full bg-slate-900 rounded overflow-hidden mb-1">
+            <img src="Screenshot_20260918_131036_.png" alt="Canopy Archer" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x200/0d2417/34d399?text=Canopy+Archer';"/>
+          </div>
+          <div class="flex justify-between text-[9px] text-slate-300"><span>P: 89</span><span>D: 75</span></div>
+        </div>
+
+        <!-- Amina of Zazzau -->
+        <div onclick="inspectCard('amina')" class="holo-card vanguard-foil p-2 cursor-pointer hover:border-amber-400 text-left">
+          <p class="text-xs font-bold text-slate-100 truncate">Amina Zazzau</p>
+          <p class="text-[9px] text-purple-400 truncate mb-1">Spear of Realm</p>
+          <div class="h-20 w-full bg-slate-900 rounded overflow-hidden mb-1">
+            <img src="Screenshot_20260918_130641_.png" alt="Amina Zazzau" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x200/230b2c/a855f7?text=Amina+Zazzau';"/>
+          </div>
+          <div class="flex justify-between text-[9px] text-slate-300"><span>P: 91</span><span>D: 83</span></div>
+        </div>
+
+        <!-- Xochitl -->
+        <div onclick="inspectCard('xochitl')" class="holo-card vanguard-foil p-2 cursor-pointer hover:border-amber-400 text-left">
+          <p class="text-xs font-bold text-slate-100 truncate">Xochitl</p>
+          <p class="text-[9px] text-orange-400 truncate mb-1">Obsidian Sun</p>
+          <div class="h-20 w-full bg-slate-900 rounded overflow-hidden mb-1">
+            <img src="Screenshot_20260918_130602_.png" alt="Xochitl" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x200/2b1104/fb923c?text=Xochitl';"/>
+          </div>
+          <div class="flex justify-between text-[9px] text-slate-300"><span>P: 93</span><span>D: 74</span></div>
+        </div>
+
+        <!-- Mateo -->
+        <div onclick="inspectCard('mateo')" class="holo-card vanguard-foil p-2 cursor-pointer hover:border-amber-400 text-left">
+          <p class="text-xs font-bold text-slate-100 truncate">Mateo</p>
+          <p class="text-[9px] text-stone-400 truncate mb-1">Stone Bulwark</p>
+          <div class="h-20 w-full bg-slate-900 rounded overflow-hidden mb-1">
+            <img src="Screenshot_20260918_112817_.png" alt="Mateo" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x200/22201d/a8a29e?text=Mateo';"/>
+          </div>
+          <div class="flex justify-between text-[9px] text-slate-300"><span>P: 88</span><span>D: 98</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- DELUXE 3D CARD INSPECTION & PURCHASE MODAL -->
+  <div id="card-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-lg w-full p-5 relative shadow-2xl">
+      <button onclick="closeModal()" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center font-bold">✕</button>
+      
+      <div id="modal-content" class="text-center space-y-3">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div class="mt-5 pt-3 border-t border-slate-800 flex items-center justify-between">
+        <span class="text-xs text-slate-400">Official Tabletop Card Pack Release</span>
+        <a href="https://payhip.com" target="_blank" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-bold text-xs rounded-lg uppercase tracking-wider transition shadow-md shadow-amber-500/20">
+          Order Card on Payhip
+        </a>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- INSPECT MODAL -->
-<div class="modal-overlay" id="inspect-modal" onclick="closeInspect(event)">
-  <div class="modal-card" onclick="event.stopPropagation()">
-    <span class="modal-close" onclick="closeInspect(event)">&times;</span>
-    <div class="modal-title" id="m-title">Operative Title</div>
-    <div class="modal-lineage" id="m-lineage">Ancestral Lineage Root</div>
-    <div class="modal-img-frame">
-      <img id="m-img" src="" alt="Hero Preview">
-    </div>
-    <div class="modal-stats">
-      <span>PWR: <b class="stat-pwr" id="m-pwr">0</b></span>
-      <span>DEF: <b class="stat-def" id="m-def">0</b></span>
-      <span>WIS: <b class="stat-wis" id="m-wis">0</b></span>
-      <span>HP: <b style="color:#10b981;" id="m-hp">0</b></span>
-    </div>
-    <div class="modal-desc" id="m-passive"><b>Passive:</b> ...</div>
-    <div class="modal-desc" id="m-skill"><b>Signature Skill:</b> ...</div>
-    <div class="modal-desc" id="m-flavor" style="font-style: italic; color: var(--gold); border-top: 1px solid rgba(255,255,255,0.1); padding-top:6px;"></div>
-  </div>
-</div>
+  <!-- JAVASCRIPT GAME MECHANICS, SOUND EFFECTS & 3D TILT -->
+  <script>
+    // Game State
+    let vanguardMarrow = 5;
+    let syndicateCharge = 4;
+    
+    let hp = {
+      sundiata: 120,
+      marcus: 100,
+      luta: 90,
+      apex: 115,
+      nullbyte: 90,
+      chrono: 95
+    };
 
-<script>
-  const reserveData = {
-    elena: {
-      title: "Elena (Tide-Caller)",
-      lineage: "Eastern European / Caribbean Maritime Taino",
-      img: "Screenshot_20260918_131036_Photos.jpg",
-      pwr: 82, def: 80, wis: 92, hp: 105,
-      passive: "<b>Mycorrhizal Wave:</b> Restores 20% mitigated damage as health across all active frontline units.",
-      skill: "<b>Petrified Oak Barrier (2 Marrow):</b> Summons deep-root aquatic barriers granting 25 damage absorption.",
-      flavor: '"The deep waters remember every shoreline and shield every root."'
-    },
-    kenjiro: {
-      title: "Kenjiro (Spatial Duelist)",
-      lineage: "Afro-Chinese / Silk Route Bushido Root",
-      img: "Screenshot_20260918_131053_Photos.jpg",
-      pwr: 94, def: 76, wis: 87, hp: 110,
-      passive: "<b>Holographic Screen:</b> Negates the first attack each round and counters for 50% power.",
-      skill: "<b>Spatial Rift Slash (2 Marrow):</b> Slices through dimensional barriers to strike directly at the enemy backline.",
-      flavor: '"Between two heartbeats, space opens and the edge finds its mark."'
-    },
-    canopy: {
-      title: "Canopy Archer",
-      lineage: "Verdant Forest / Indigenous Scout Order",
-      img: "Screenshot_20260918_131115_Photos.jpg",
-      pwr: 89, def: 75, wis: 91, hp: 100,
-      passive: "<b>Eagle Eye Precision:</b> Bypasses 30% of opposing target armor on standard strikes.",
-      skill: "<b>Sun-Charged Volley (2 Marrow):</b> Fires a radiant arrow that illuminates the target and pins their offensive action.",
-      flavor: '"Drawn with patience, released with the certainty of dawn."'
-    },
-    xochitl: {
-      title: "Xochitl (Obsidian Sun)",
-      lineage: "Mesoamerica • Aztec / Nahua Solar Root",
-      img: "Screenshot_20260918_112806_Photos.jpg",
-      pwr: 93, def: 74, wis: 89, hp: 100,
-      passive: "<b>Obsidian Claws:</b> Attacks inflict searing burn damage over two consecutive combat turns.",
-      skill: "<b>Solar Falcon Descent (2 Marrow):</b> Strikes like volcanic thunder, shredding high-defense armor plating.",
-      flavor: '"Forged in sacred fire and bound by ancient solar oaths."'
-    },
-    mateo: {
-      title: "Mateo (Stone Bulwark)",
-      lineage: "Mountain Bastion / Unbreakable Earth Line",
-      img: "Screenshot_20260918_112817_Photos.jpg",
-      pwr: 88, def: 98, wis: 70, hp: 130,
-      passive: "<b>Granite Fortress:</b> Reduces incoming kinetic shock damage by an additional 15 flat points.",
-      skill: "<b>Tectonic Ground Slam (2 Marrow):</b> Slams the battlefield floor, stunning enemy frontline taunts.",
-      flavor: '"The mountain does not yield to the storm; it shatters the gale."'
-    }
-  };
+    const maxHp = { ...hp };
 
-  function openInspect(key) {
-    const data = reserveData[key];
-    if (!data) return;
-    document.getElementById('m-title').innerText = data.title;
-    document.getElementById('m-lineage').innerText = data.lineage;
-    document.getElementById('m-img').src = data.img;
-    document.getElementById('m-pwr').innerText = data.pwr;
-    document.getElementById('m-def').innerText = data.def;
-    document.getElementById('m-wis').innerText = data.wis;
-    document.getElementById('m-hp').innerText = data.hp;
-    document.getElementById('m-passive').innerHTML = data.passive;
-    document.getElementById('m-skill').innerHTML = data.skill;
-    document.getElementById('m-flavor').innerText = data.flavor;
-    document.getElementById('inspect-modal').style.display = 'flex';
-  }
+    // Procedural Sound Generator (Web Audio API)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
 
-  function closeInspect(e) {
-    document.getElementById('inspect-modal').style.display = 'none';
-  }
-
-  const state = {
-    marrow: 5,
-    tech: 4,
-    round: 1,
-    squadDefBuff: false,
-    selectedTarget: 'frontline',
-    heroes: {
-      sundiata: { name: 'Sundiata Prime', hp: 120, maxHp: 120, pwr: 84, def: 96, acted: false, alive: true },
-      marcus: { name: 'Marcus', hp: 100, maxHp: 100, pwr: 91, def: 78, acted: false, alive: true, silenced: false },
-      motherluta: { name: 'Mother Luta', hp: 90, maxHp: 90, pwr: 60, def: 80, acted: false, alive: true }
-    },
-    syndicate: {
-      apex: { name: 'Apex Volt', slot: 'frontline', hp: 115, maxHp: 115, pwr: 94, def: 82, alive: true },
-      nullbyte: { name: 'Null-Byte', slot: 'backline', hp: 90, maxHp: 90, pwr: 85, def: 74, alive: true, stunned: false },
-      chrono: { name: 'Chrono-Lock', slot: 'nexus', hp: 95, maxHp: 95, pwr: 72, def: 84, alive: true }
-    }
-  };
-
-  function log(msg, type='log-system') {
-    const box = document.getElementById('combat-log');
-    const el = document.createElement('div');
-    el.className = 'log-entry ' + type;
-    el.innerText = msg;
-    box.appendChild(el);
-    box.scrollTop = box.scrollHeight;
-  }
-
-  function calcDamage(pwr, def) {
-    return Math.max(1, Math.floor(pwr - (def / 2)));
-  }
-
-  function updateUI() {
-    document.getElementById('vg-marrow-display').innerText = 'Marrow Orbs: ' + state.marrow;
-    document.getElementById('syn-tech-display').innerText = 'Tech Overcharge: ' + state.tech;
-
-    for (let h in state.heroes) {
-      let hero = state.heroes[h];
-      let prefix = h === 'motherluta' ? 'luta' : h;
-      let textEl = document.getElementById('hp-' + prefix + '-text');
-      let fillEl = document.getElementById('hp-' + prefix + '-fill');
-      if (textEl) textEl.innerText = Math.max(0, hero.hp) + '/' + hero.maxHp;
-      if (fillEl) fillEl.style.width = Math.max(0, (hero.hp / hero.maxHp * 100)) + '%';
+      const now = audioCtx.currentTime;
+      if (type === 'strike') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } else if (type === 'skill') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(640, now + 0.25);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'turn') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(440, now + 0.3);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      }
     }
 
-    for (let s in state.syndicate) {
-      let syn = state.syndicate[s];
-      let prefix = s === 'nullbyte' ? 'nullbyte' : s;
-      let textEl = document.getElementById('hp-' + prefix + '-text');
-      let fillEl = document.getElementById('hp-' + prefix + '-fill');
-      if (textEl) textEl.innerText = Math.max(0, syn.hp) + '/' + syn.maxHp;
-      if (fillEl) fillEl.style.width = Math.max(0, (syn.hp / syn.maxHp * 100)) + '%';
-      let cardEl = document.getElementById('card-' + prefix);
-      if (!syn.alive && cardEl) cardEl.classList.add('defeated');
+    // Interactive Tabletop Mechanics
+    function logMessage(msg) {
+      document.getElementById('log-text').innerText = msg;
     }
 
-    document.getElementById('btn-sundiata-atk').disabled = state.heroes.sundiata.acted || !state.heroes.sundiata.alive;
-    document.getElementById('btn-sundiata-skill').disabled = state.heroes.sundiata.acted || !state.heroes.sundiata.alive || state.marrow < 3;
-    document.getElementById('btn-marcus-atk').disabled = state.heroes.marcus.acted || !state.heroes.marcus.alive;
-    document.getElementById('btn-marcus-skill').disabled = state.heroes.marcus.acted || !state.heroes.marcus.alive || state.marrow < 3 || state.heroes.marcus.silenced;
-    document.getElementById('btn-luta-skill').disabled = state.heroes.motherluta.acted || state.marrow < 4;
+    function updateBars() {
+      // Vanguard
+      ['sundiata', 'marcus', 'luta'].forEach(k => {
+        const pct = Math.max(0, (hp[k] / maxHp[k]) * 100);
+        document.getElementById(`hp-${k}-bar`).style.width = pct + '%';
+        document.getElementById(`hp-${k}-text`).innerText = `${Math.max(0, hp[k])} / ${maxHp[k]} HP`;
+      });
+      // Syndicate
+      ['apex', 'nullbyte', 'chrono'].forEach(k => {
+        const pct = Math.max(0, (hp[k] / maxHp[k]) * 100);
+        document.getElementById(`hp-${k}-bar`).style.width = pct + '%';
+        document.getElementById(`hp-${k}-text`).innerText = `${Math.max(0, hp[k])} / ${maxHp[k]} HP`;
+      });
 
-    updateTargetHighlight();
-  }
-
-  function updateTargetHighlight() {
-    ['frontline', 'backline', 'nexus'].forEach(slot => {
-      let el = document.getElementById('syn-slot-' + slot);
-      if (!el) return;
-      el.classList.remove('active-target');
-      el.onclick = null;
-    });
-
-    if (state.syndicate.apex.alive) {
-      let el = document.getElementById('syn-slot-frontline');
-      el.classList.add('active-target');
-      state.selectedTarget = 'apex';
-    } else if (state.syndicate.nullbyte.alive) {
-      let el = document.getElementById('syn-slot-backline');
-      el.classList.add('active-target');
-      state.selectedTarget = 'nullbyte';
-    } else if (state.syndicate.chrono.alive) {
-      let el = document.getElementById('syn-slot-nexus');
-      el.classList.add('active-target');
-      state.selectedTarget = 'chrono';
-    } else {
-      log('VICTORY! All Syndicate operatives neutralized!', 'log-vanguard');
+      document.getElementById('vanguard-marrow').innerText = vanguardMarrow;
+      document.getElementById('syndicate-charge').innerText = syndicateCharge;
     }
-  }
 
-  function vanguardAttack(heroKey) {
-    let hero = state.heroes[heroKey];
-    let target = state.syndicate[state.selectedTarget];
-    if (!hero || !target || hero.acted) return;
+    function executeAction(hero, type) {
+      if (hp[hero] <= 0) {
+        logMessage(`${hero.toUpperCase()} has been knocked out and cannot act!`);
+        return;
+      }
 
-    let dmg = calcDamage(hero.pwr, target.def);
-    target.hp -= dmg;
-    hero.acted = true;
-    log(hero.name + ' strikes ' + target.name + ' for ' + dmg + ' damage!', 'log-vanguard');
+      let cost = (type === 'strike') ? 0 : 3;
+      if (type === 'skill' && hero === 'luta') cost = 4;
+      
+      // Chrono-Lock Temporal Static passive check
+      if (hp.chrono > 0 && type === 'skill') {
+        cost += 1;
+      }
 
-    if (target.hp <= 0) {
-      target.hp = 0;
-      target.alive = false;
-      log('CRITICAL: ' + target.name + ' chassis destroyed!', 'log-vanguard');
-    }
-    updateUI();
-  }
+      if (vanguardMarrow < cost) {
+        logMessage(`Not enough Marrow! ${hero.toUpperCase()} needs ${cost} Marrow.`);
+        return;
+      }
 
-  function vanguardSkill(heroKey) {
-    let hero = state.heroes[heroKey];
-    if (hero.acted) return;
+      vanguardMarrow -= cost;
 
-    if (heroKey === 'sundiata') {
-      if (state.marrow < 3) return;
-      state.marrow -= 3;
-      hero.acted = true;
-      state.squadDefBuff = true;
-      let target = state.syndicate[state.selectedTarget];
-      target.hp -= 15;
-      log('Sundiata strikes the sacred bronze drum! Emits Solar Roar (50% DEF buff) and deals 15 damage to ' + target.name + '!', 'log-vanguard');
-      if (target.hp <= 0) { target.hp = 0; target.alive = false; }
-    } else if (heroKey === 'marcus') {
-      if (state.marrow < 3 || hero.silenced) return;
-      state.marrow -= 3;
-      hero.acted = true;
-      for (let s in state.syndicate) {
-        if (state.syndicate[s].alive) {
-          state.syndicate[s].hp -= 25;
-          if (state.syndicate[s].hp <= 0) { state.syndicate[s].hp = 0; state.syndicate[s].alive = false; }
+      // Target selection: Apex Volt has taunt while alive
+      let target = hp.apex > 0 ? 'apex' : (hp.nullbyte > 0 ? 'nullbyte' : 'chrono');
+
+      if (type === 'strike') {
+        playSound('strike');
+        let dmg = hero === 'sundiata' ? 24 : (hero === 'marcus' ? 28 : 16);
+        hp[target] = Math.max(0, hp[target] - dmg);
+        logMessage(`${hero.toUpperCase()} strikes ${target.toUpperCase()} for ${dmg} damage!`);
+      } else {
+        playSound('skill');
+        if (hero === 'sundiata') {
+          hp[target] = Math.max(0, hp[target] - 32);
+          logMessage(`Sundiata unleashes Solar Dundun Roar! 32 piercing damage to ${target.toUpperCase()}!`);
+        } else if (hero === 'marcus') {
+          hp[target] = Math.max(0, hp[target] - 38);
+          logMessage(`Marcus discharges Seismic Arc Burst! Heavy shockwave hits ${target.toUpperCase()}!`);
+        } else if (hero === 'luta') {
+          hp.sundiata = Math.min(maxHp.sundiata, hp.sundiata + 25);
+          hp.marcus = Math.min(maxHp.marcus, hp.marcus + 25);
+          hp.luta = Math.min(maxHp.luta, hp.luta + 25);
+          vanguardMarrow += 2;
+          logMessage(`Mother Luta opens the Sovereign Hearth! +25 HP to allies and +2 Marrow recovered!`);
         }
       }
-      state.syndicate.nullbyte.stunned = true;
-      log('Marcus unleashes Seismic Arc Burst! Deals 25 shock damage across Syndicate line and stuns Null-Byte!', 'log-vanguard');
-    } else if (heroKey === 'motherluta') {
-      if (state.marrow < 4) return;
-      state.marrow -= 4;
-      hero.acted = true;
-      state.heroes.sundiata.hp = Math.min(state.heroes.sundiata.maxHp, state.heroes.sundiata.hp + 50);
-      state.heroes.marcus.silenced = false;
-      log('Mother Luta reads the Ledger of Resonance! Restores 50 HP to Sundiata Prime and cleanses Marcus!', 'log-vanguard');
+
+      updateBars();
+      checkWinCondition();
     }
-    updateUI();
-  }
 
-  function endTurn() {
-    log('--- Syndicate Counter Phase ---', 'log-syndicate');
+    function endTurn() {
+      playSound('turn');
+      logMessage(`Turn ended. The Iron Syndicate retaliates!`);
+      
+      // Syndicate Enemy AI Turn
+      setTimeout(() => {
+        if (hp.apex > 0) {
+          // Apex attacks Frontline
+          let target = hp.sundiata > 0 ? 'sundiata' : (hp.marcus > 0 ? 'marcus' : 'luta');
+          let dmg = 22;
+          hp[target] = Math.max(0, hp[target] - dmg);
+          logMessage(`Apex Volt shocks ${target.toUpperCase()} with Kinetic Discharge (-${dmg} HP)!`);
+        } else if (hp.chrono > 0) {
+          // Chrono attacks
+          let target = hp.sundiata > 0 ? 'sundiata' : 'marcus';
+          let dmg = 18;
+          hp[target] = Math.max(0, hp[target] - dmg);
+          logMessage(`Chrono-Lock bends time to strike ${target.toUpperCase()} (-${dmg} HP)!`);
+        }
 
-    if (state.syndicate.apex.alive) {
-      if (state.tech >= 2) {
-        state.tech -= 2;
-        let baseDmg = calcDamage(state.syndicate.apex.pwr + 15, state.heroes.sundiata.def);
-        if (state.squadDefBuff) baseDmg = Math.floor(baseDmg * 0.5);
-        state.heroes.sundiata.hp -= baseDmg;
-        state.marrow = Math.max(0, state.marrow - 2);
-        log('Apex Volt unleashes Damping Arc Slam! Drains 2 Marrow and deals ' + baseDmg + ' to Sundiata Prime!', 'log-syndicate');
-      } else {
-        let dmg = calcDamage(state.syndicate.apex.pwr, state.heroes.sundiata.def);
-        if (state.squadDefBuff) dmg = Math.floor(dmg * 0.5);
-        state.heroes.sundiata.hp -= dmg;
-        log('Apex Volt strikes Sundiata Prime for ' + dmg + ' damage.', 'log-syndicate');
+        // Marrow refresh
+        vanguardMarrow = Math.min(8, vanguardMarrow + 3);
+        updateBars();
+        checkWinCondition();
+      }, 700);
+    }
+
+    function checkWinCondition() {
+      if (hp.apex <= 0 && hp.nullbyte <= 0 && hp.chrono <= 0) {
+        logMessage(`VICTORY! The Iron Syndicate frontline has been routed!`);
+      } else if (hp.sundiata <= 0 && hp.marcus <= 0 && hp.luta <= 0) {
+        logMessage(`DEFEAT! All Vanguard defenders have fallen.`);
       }
     }
 
-    if (state.syndicate.nullbyte.alive) {
-      if (state.syndicate.nullbyte.stunned) {
-        log('Null-Byte is stunned and rebooting! Turn skipped.', 'log-system');
-        state.syndicate.nullbyte.stunned = false;
-      } else if (state.tech >= 2) {
-        state.tech -= 2;
-        state.heroes.marcus.silenced = true;
-        log('Null-Byte triggers Logic Override! Marcus skills are locked down.', 'log-syndicate');
+    // Modal Card Lore & Payhip Direct Buy Data
+    const cardData = {
+      elena: {
+        title: "Elena — Taino Tide-Caller",
+        role: "Aquatic Conduit / Backline Shaper",
+        stats: "PWR: 82 | DEF: 80 | WIS: 95",
+        ability: "Surge Vortex: Summons oceanic barriers that absorb damage and cleanse burning debuffs.",
+        img: "Screenshot_20260918_131115_.png",
+        rarity: "Super Rare Prismatic"
+      },
+      kenjiro: {
+        title: "Kenjiro — Spatial Duelist",
+        role: "Dimensional Blademaster",
+        stats: "PWR: 94 | DEF: 76 | WIS: 88",
+        ability: "Tachyon Sever: Teleports behind the enemy backline to strike high-value targets directly.",
+        img: "Screenshot_20260918_131053_.png",
+        rarity: "Ultra Rare Foil"
+      },
+      canopy: {
+        title: "Canopy Archer — Verdant Sentinel",
+        role: "Long-Range Sniper / Forest Precision",
+        stats: "PWR: 89 | DEF: 75 | WIS: 89",
+        ability: "Bramble Volley: Shoots roots that pin frontline mechanized titans in place.",
+        img: "Screenshot_20260918_131036_.png",
+        rarity: "Secret Rare"
+      },
+      amina: {
+        title: "Amina of Zazzau — Spear of the Realm",
+        role: "Warrior Queen / Piercing Duelist",
+        stats: "PWR: 91 | DEF: 83 | WIS: 88",
+        ability: "Zazzau Thrust: Pierces through energy shields, ignoring mechanical resistances.",
+        img: "Screenshot_20260918_130641_.png",
+        rarity: "1st Edition Sovereign"
+      },
+      xochitl: {
+        title: "Xochitl — Obsidian Sun",
+        role: "Solar Berserker / Relic Smasher",
+        stats: "PWR: 93 | DEF: 74 | WIS: 86",
+        ability: "Obsidian Flare: Ignites enemy armor in solar heat, reducing defense by -30%.",
+        img: "Screenshot_20260918_130602_.png",
+        rarity: "Ultra Rare"
+      },
+      mateo: {
+        title: "Mateo — Stone Bulwark",
+        role: "Unbreakable Mountain / Frontline Tank",
+        stats: "PWR: 88 | DEF: 98 | WIS: 70",
+        ability: "Granite Stance: Redirects 50% of incoming physical damage away from allies.",
+        img: "Screenshot_20260918_112817_.png",
+        rarity: "Super Rare"
       }
+    };
+
+    function inspectCard(key) {
+      const data = cardData[key];
+      const container = document.getElementById('modal-content');
+      container.innerHTML = `
+        <div class="inline-block px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
+          ${data.rarity}
+        </div>
+        <h3 class="text-2xl font-bold text-amber-200">${data.title}</h3>
+        <p class="text-xs text-slate-400">${data.role}</p>
+        <div class="h-64 w-48 mx-auto rounded-xl overflow-hidden border-2 border-amber-400/60 shadow-2xl shadow-amber-500/20 my-3">
+          <img src="${data.img}" alt="${data.title}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/300x400/111827/d4af37?text=Tabletop+Collector+Foil';"/>
+        </div>
+        <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800 text-xs text-slate-200">
+          <div class="font-bold text-amber-400 mb-1">${data.stats}</div>
+          <p>${data.ability}</p>
+        </div>
+      `;
+      document.getElementById('card-modal').classList.remove('hidden');
     }
 
-    state.round++;
-    state.squadDefBuff = false;
-    state.marrow += 2;
-    state.tech = Math.min(6, state.tech + 2);
-    for (let h in state.heroes) {
-      state.heroes[h].acted = false;
+    function openCollectorModal() {
+      const container = document.getElementById('modal-content');
+      container.innerHTML = `
+        <h3 class="text-2xl font-bold text-amber-300">Living Codex: Tabletop Master Set</h3>
+        <p class="text-xs text-slate-400 mt-1">Full 16-Hero Physical Booster Box & Digital Card Arena</p>
+        <div class="grid grid-cols-3 gap-2 my-4 max-h-60 overflow-y-auto p-2 bg-slate-950 rounded-lg border border-slate-800">
+          <div class="text-[10px] text-slate-300 bg-slate-900 p-2 rounded">
+            <b class="text-amber-400">Sundiata Prime</b><br>Mandinka Core
+          </div>
+          <div class="text-[10px] text-slate-300 bg-slate-900 p-2 rounded">
+            <b class="text-amber-400">Chrono-Lock</b><br>Clockwork Syndicate
+          </div>
+          <div class="text-[10px] text-slate-300 bg-slate-900 p-2 rounded">
+            <b class="text-amber-400">Mother Luta</b><br>The Living Codex
+          </div>
+          <div class="text-[10px] text-slate-300 bg-slate-900 p-2 rounded">
+            <b class="text-amber-400">Apex Volt</b><br>Kinetic Arc Boss
+          </div>
+          <div class="text-[10px] text-slate-300 bg-slate-900 p-2 rounded">
+            <b class="text-amber-400">Amina Zazzau</b><br>Warrior Spear
+          </div>
+          <div class="text-[10px] text-slate-300 bg-slate-900 p-2 rounded">
+            <b class="text-amber-400">Null-Byte</b><br>Cyber Infiltrator
+          </div>
+        </div>
+        <p class="text-xs text-amber-200 font-semibold">Available now for order on your official Payhip digital storefront.</p>
+      `;
+      document.getElementById('card-modal').classList.remove('hidden');
     }
 
-    log('=== Round ' + state.round + ' Begins: +2 Marrow from Mother Luta ===', 'log-system');
-    updateUI();
-  }
+    function closeModal() {
+      document.getElementById('card-modal').classList.add('hidden');
+    }
 
-  updateUI();
-</script>
+    // Dynamic 3D Card Hover Tilt Effect
+    document.querySelectorAll('.holo-card').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        card.style.transform = `rotateY(${x / 14}deg) rotateX(${-y / 14}deg) translateZ(8px)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'rotateY(0deg) rotateX(0deg) translateZ(0px)';
+      });
+    });
+  </script>
 </body>
 </html>
