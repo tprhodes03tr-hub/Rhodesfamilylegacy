@@ -1,291 +1,460 @@
-<!-- ========================================== -->
-<!-- VANGUARD UNIVERSE: CINEMATIC CARD INSPECT  -->
-<!-- ========================================== -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vanguard Universe - Tactical Arena</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
 
-<!-- 1. MODAL OVERLAY HTML -->
-<div id="cardInspectModal" class="inspect-modal hidden" onclick="closeInspect()">
-  <div class="card-frame" onclick="event.stopPropagation()">
-    <div class="card-header">
-      <div class="header-titles">
-        <h3 id="inspectName">HERO NAME</h3>
-        <span id="inspectSub">LINEAGE / CLASS</span>
+    body {
+      background-color: #0b0f19;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Game Container */
+    #game-stage {
+      position: relative;
+      width: 100vw;
+      max-width: 1080px;
+      height: 600px;
+      background: radial-gradient(circle at center, #1b263b 0%, #080d1a 100%);
+      border: 2px solid #2a3a5e;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Top HUD */
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: rgba(10, 15, 25, 0.85);
+      border-bottom: 1px solid rgba(0, 195, 255, 0.3);
+      z-index: 10;
+    }
+
+    .hud-title {
+      font-size: 14px;
+      letter-spacing: 1px;
+      color: #79a6d2;
+      font-weight: bold;
+    }
+
+    .hud-title span {
+      color: #00d2ff;
+    }
+
+    .meter-container {
+      width: 250px;
+    }
+
+    .meter-label {
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+      color: #8fa0b5;
+    }
+
+    .bar-bg {
+      width: 100%;
+      height: 10px;
+      background: #1e2638;
+      border-radius: 5px;
+      overflow: hidden;
+      border: 1px solid #334466;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #00d2ff, #00ffaa);
+      transition: width 0.3s ease-out;
+    }
+
+    .bar-fill.enemy {
+      background: linear-gradient(90deg, #ff3366, #ff9900);
+    }
+
+    /* Combat Battlefield */
+    .arena {
+      position: relative;
+      flex: 1;
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+      padding-bottom: 40px;
+    }
+
+    /* Floor line */
+    .arena::after {
+      content: '';
+      position: absolute;
+      bottom: 20px;
+      left: 5%;
+      width: 90%;
+      height: 2px;
+      background: radial-gradient(ellipse at center, rgba(0, 210, 255, 0.5) 0%, transparent 80%);
+    }
+
+    /* Entity Stance */
+    .combatant {
+      position: relative;
+      width: 200px;
+      height: 280px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      z-index: 5;
+      transition: transform 0.15s ease-in-out;
+    }
+
+    /* Idle subtle breathing */
+    .idle-breath {
+      animation: breath 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes breath {
+      0% { transform: scale(1) translateY(0); }
+      100% { transform: scale(1.02) translateY(-4px); }
+    }
+
+    /* Character Artwork Slot */
+    .char-graphic {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.7));
+    }
+
+    /* Fallback placeholder if no image source */
+    .char-placeholder {
+      width: 140px;
+      height: 240px;
+      border: 2px dashed #00d2ff;
+      border-radius: 12px;
+      background: rgba(0, 210, 255, 0.05);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      font-size: 13px;
+      color: #79a6d2;
+      padding: 10px;
+    }
+
+    /* Combat Animations */
+    .lunge-right {
+      animation: lungeRight 0.35s ease-out;
+    }
+
+    .hit-react {
+      animation: hitShake 0.4s ease-in-out;
+      filter: brightness(2) contrast(1.5);
+    }
+
+    @keyframes lungeRight {
+      0% { transform: translateX(0); }
+      50% { transform: translateX(120px) scale(1.05); }
+      100% { transform: translateX(0); }
+    }
+
+    @keyframes hitShake {
+      0% { transform: translateX(0); }
+      20% { transform: translateX(-15px); }
+      40% { transform: translateX(12px); }
+      60% { transform: translateX(-8px); }
+      80% { transform: translateX(4px); }
+      100% { transform: translateX(0); }
+    }
+
+    /* Damage popup */
+    .damage-popup {
+      position: absolute;
+      top: 40px;
+      font-size: 28px;
+      font-weight: 900;
+      color: #ffeb3b;
+      text-shadow: 0 0 10px #ff3300, 2px 2px 0 #000;
+      animation: floatUp 0.8s ease-out forwards;
+      pointer-events: none;
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translateY(20px) scale(0.6); }
+      30% { opacity: 1; transform: translateY(-10px) scale(1.2); }
+      100% { opacity: 0; transform: translateY(-40px) scale(1); }
+    }
+
+    /* Action Control Panel */
+    .control-deck {
+      background: rgba(8, 12, 20, 0.95);
+      border-top: 2px solid #1a2744;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .action-btn {
+      background: linear-gradient(180deg, #16243d 0%, #0d1627 100%);
+      border: 1px solid #2a436e;
+      border-radius: 6px;
+      padding: 12px 8px;
+      color: #e0e8f5;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .action-btn:hover {
+      border-color: #00d2ff;
+      box-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .action-btn:active {
+      transform: translateY(1px);
+    }
+
+    .action-btn span.subtext {
+      font-size: 10px;
+      color: #79a6d2;
+      font-weight: normal;
+    }
+
+    .action-btn.burst {
+      border-color: #ff3366;
+      background: linear-gradient(180deg, #441223 0%, #200810 100%);
+    }
+
+    .action-btn.burst:hover {
+      border-color: #ff6699;
+      box-shadow: 0 0 12px rgba(255, 51, 102, 0.4);
+    }
+
+    /* Combat Log */
+    #log {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: #7a8fa8;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 12px;
+      border-radius: 20px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-stage">
+    <!-- Top HUD -->
+    <header class="hud-header">
+      <div class="meter-container">
+        <div class="meter-label">
+          <span>SUNDIATA / ANCESTRAL VANGUARD</span>
+          <span id="player-hp-num">120/120</span>
+        </div>
+        <div class="bar-bg">
+          <div id="player-hp-bar" class="bar-fill" style="width: 100%;"></div>
+        </div>
       </div>
-      <span id="inspectRole" class="role-tag frontline">FRONTLINE</span>
-    </div>
 
-    <!-- Cinematic Art Window -->
-    <div class="card-art-container">
-      <img id="inspectImg" src="" alt="Card Art" />
-    </div>
+      <div class="hud-title">ZONE: <span>RENCEN PLAZA</span></div>
 
-    <!-- Stat Bar -->
-    <div class="card-stats">
-      <span class="stat hp"><b id="inspectHp">0</b> HP</span>
-      <span class="stat pwr"><b id="inspectPwr">0</b> PWR</span>
-      <span class="stat def"><b id="inspectDef">0</b> DEF</span>
-      <span class="stat wis"><b id="inspectWis">0</b> WIS</span>
-    </div>
-
-    <!-- Ability & Lore Box -->
-    <div class="card-body">
-      <div class="skill-entry">
-        <span id="inspectSkillCost" class="skill-cost">MARROW (3)</span>
-        <strong id="inspectSkillName">Skill Name</strong>
-        <p id="inspectSkillDesc">Skill effect description goes here.</p>
+      <div class="meter-container">
+        <div class="meter-label">
+          <span>CHRONO-INHIBITOR</span>
+          <span id="enemy-hp-num">150/150</span>
+        </div>
+        <div class="bar-bg">
+          <div id="enemy-hp-bar" class="bar-fill enemy" style="width: 100%;"></div>
+        </div>
       </div>
-      <p id="inspectLore" class="card-lore">
-        <em id="inspectLoreText">"Ancestral lore quote goes here."</em>
-      </p>
-      <button class="close-card-btn" onclick="closeInspect()">CLOSE</button>
-    </div>
+    </header>
+
+    <div id="log">Battle Ready</div>
+
+    <!-- Battlefield -->
+    <main class="arena">
+      <!-- Player Entity -->
+      <div id="player" class="combatant idle-breath">
+        <!-- Replace src with your isolated hero transparent cutout -->
+        <div class="char-placeholder">
+          <b>SUNDIATA</b><br>Solar Dundun Warrior
+        </div>
+      </div>
+
+      <!-- Enemy Entity -->
+      <div id="enemy" class="combatant idle-breath">
+        <!-- Replace src with your isolated villain transparent cutout -->
+        <div class="char-placeholder">
+          <b>CHRONO-LOCK</b><br>Temporal Automaton
+        </div>
+      </div>
+    </main>
+
+    <!-- Tactical Control Deck -->
+    <footer class="control-deck">
+      <button class="action-btn" onclick="executeAction('strike')">
+        STRIKE 1
+        <span class="subtext">Aura Weaver (20 Dmg)</span>
+      </button>
+
+      <button class="action-btn" onclick="executeAction('drumbeat')">
+        STRIKE 2
+        <span class="subtext">Seismic Drumbeat (35 Dmg)</span>
+      </button>
+
+      <button class="action-btn" onclick="executeAction('barrier')">
+        DEFENSE
+        <span class="subtext">Coincoin Shield (+30 Guard)</span>
+      </button>
+
+      <button class="action-btn burst" onclick="executeAction('overdrive')">
+        OVERDRIVE
+        <span class="subtext">Twin Djembe Quake (60 Dmg)</span>
+      </button>
+    </footer>
   </div>
-</div>
 
-<!-- 2. EMBEDDED STYLING (CSS) -->
-<style>
-.inspect-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(5, 7, 15, 0.88);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 99999;
-}
-.inspect-modal.hidden {
-  display: none !important;
-}
-.card-frame {
-  width: 320px;
-  max-width: 90vw;
-  background: #0d1117;
-  border: 2px solid #c59b27;
-  border-radius: 14px;
-  box-shadow: 0 0 30px rgba(197, 155, 39, 0.45);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  font-family: system-ui, -apple-system, sans-serif;
-}
-.card-header {
-  padding: 10px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: linear-gradient(180deg, #1f2430 0%, #0d1117 100%);
-  border-bottom: 1px solid #c59b27;
-}
-.card-header h3 {
-  margin: 0;
-  font-size: 15px;
-  color: #ffd700;
-  letter-spacing: 1px;
-}
-.card-header span {
-  font-size: 10px;
-  color: #a0aec0;
-}
-.role-tag {
-  font-size: 10px;
-  font-weight: bold;
-  padding: 2px 7px;
-  border-radius: 4px;
-  border: 1px solid currentColor;
-  text-transform: uppercase;
-}
-.role-tag.nexus { color: #b794f4; border-color: #b794f4; }
-.role-tag.frontline { color: #f56565; border-color: #f56565; }
-.role-tag.backline { color: #4299e1; border-color: #4299e1; }
+  <script>
+    let playerMaxHp = 120;
+    let playerHp = 120;
+    let enemyMaxHp = 150;
+    let enemyHp = 150;
+    let isActing = false;
 
-.card-art-container {
-  width: 100%;
-  height: 230px;
-  background: #000;
-  overflow: hidden;
-  position: relative;
-}
-.card-art-container img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.card-stats {
-  display: flex;
-  justify-content: space-around;
-  background: #161b22;
-  padding: 7px 0;
-  border-top: 1px solid #2d3748;
-  border-bottom: 1px solid #2d3748;
-  font-size: 11px;
-}
-.stat.hp { color: #48bb78; }
-.stat.pwr { color: #f56565; }
-.stat.def { color: #4299e1; }
-.stat.wis { color: #ecc94b; }
+    const logEl = document.getElementById('log');
+    const playerEl = document.getElementById('player');
+    const enemyEl = document.getElementById('enemy');
+    const enemyHpBar = document.getElementById('enemy-hp-bar');
+    const enemyHpNum = document.getElementById('enemy-hp-num');
+    const playerHpBar = document.getElementById('player-hp-bar');
+    const playerHpNum = document.getElementById('player-hp-num');
 
-.card-body {
-  padding: 12px 14px;
-  background: #0b0e14;
-  font-size: 11px;
-}
-.skill-entry { margin-bottom: 8px; }
-.skill-cost {
-  background: #c59b27;
-  color: #000;
-  font-weight: 800;
-  padding: 2px 5px;
-  border-radius: 3px;
-  font-size: 9px;
-  margin-right: 5px;
-}
-.skill-entry strong { color: #edf2f7; font-size: 12px; }
-.skill-entry p { margin: 4px 0 8px 0; color: #cbd5e0; line-height: 1.3; }
-.card-lore {
-  font-size: 10px;
-  color: #718096;
-  margin: 0 0 10px 0;
-  border-top: 1px solid #1a202c;
-  padding-top: 6px;
-  line-height: 1.3;
-}
-.close-card-btn {
-  width: 100%;
-  padding: 8px 0;
-  background: #c59b27;
-  border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  color: #0d1117;
-  cursor: pointer;
-  letter-spacing: 1px;
-}
-</style>
+    function executeAction(type) {
+      if (isActing || enemyHp <= 0) return;
+      isActing = true;
 
-<!-- 3. INTERACTIVE LOGIC (JAVASCRIPT) -->
-<script>
-const vanguardFullDeck = {
-  // --- ANCESTRAL VANGUARD (HEROES) ---
-  "Sundiata Prime": {
-    sub: "MANDINKA / MALI LINEAGE", role: "frontline", roleText: "FRONTLINE",
-    img: "sundiata.jpg", hp: 120, pwr: 84, def: 96, wis: 90,
-    cost: "MARROW (3)", skill: "Solar Dundun Roar",
-    desc: "50% team defense buff + 15 damage to enemy line.",
-    lore: "The rhythm of the first kings echoes in the marrow, unyielding against time."
-  },
-  "Marcus": {
-    sub: "URBAN DIASPORA AMERICAS", role: "backline", roleText: "BACKLINE",
-    img: "marcus.jpg", hp: 100, pwr: 91, def: 78, wis: 82,
-    cost: "MARROW (3)", skill: "Seismic Arc Burst",
-    desc: "Shocks enemy line and disables offensive skills for 1 turn.",
-    lore: "Acoustic frequencies carry the voices of the diaspora into modern combat."
-  },
-  "Mother Luta": {
-    sub: "LIVING CODEX HEARTH", role: "nexus", roleText: "NEXUS",
-    img: "mother-luta.jpg", hp: 90, pwr: 60, def: 80, wis: 100,
-    cost: "HEARTH (4)", skill: "Ledger of Resonance",
-    desc: "Generates +2 Marrow per turn and restores health to all allies.",
-    lore: "She keeps the ledger of every soul born into the unbroken chain."
-  },
-  "Xochitl": {
-    sub: "OBSIDIAN SUN LINEAGE", role: "frontline", roleText: "FRONTLINE",
-    img: "Screenshot_20260918_112806_Photos.jpg", hp: 110, pwr: 93, def: 74, wis: 85,
-    cost: "MARROW (3)", skill: "Obsidian Flare",
-    desc: "Ignites frontline targets with burning solar damage that ignores shields.",
-    lore: "The fire of the ancient sun burns through any attempt at erasure."
-  },
-  "Mateo": {
-    sub: "STONE BULWARK", role: "frontline", roleText: "FRONTLINE",
-    img: "Screenshot_20260918_130602_Photos.jpg", hp: 130, pwr: 88, def: 98, wis: 65,
-    cost: "MARROW (3)", skill: "Stone Bulwark",
-    desc: "Intercepts all physical attacks aimed at the backline for one full round.",
-    lore: "Solid bedrock standing between his family and oblivion."
-  },
-  "Elena": {
-    sub: "TAINO TIDE-CALLER", role: "backline", roleText: "BACKLINE",
-    img: "Screenshot_20260918_130641_Photos.jpg", hp: 95, pwr: 82, def: 80, wis: 92,
-    cost: "MARROW (3)", skill: "Tidal Bastion",
-    desc: "Cleanses negative debuffs and grants water barriers to adjacent allies.",
-    lore: "The waters remember every shore the ancestors ever touched."
-  },
-  "Kenjiro": {
-    sub: "SPATIAL DUELIST", role: "backline", roleText: "BACKLINE",
-    img: "Screenshot_20260918_131036_Photos.jpg", hp: 90, pwr: 94, def: 76, wis: 88,
-    cost: "MARROW (3)", skill: "Spatial Sever",
-    desc: "Teleports behind enemy lines for a critical precision strike.",
-    lore: "Folding distance and time to honor the ancient blade."
-  },
-  "Canopy Archer": {
-    sub: "FOREST PRECISION", role: "backline", roleText: "BACKLINE",
-    img: "Screenshot_20260918_131053_Photos.jpg", hp: 85, pwr: 89, def: 75, wis: 86,
-    cost: "MARROW (3)", skill: "Canopy Volley",
-    desc: "Pierces stealth targets and immobilizes mechanical enemies.",
-    lore: "Guided by roots that never lose sight of their mark."
-  },
+      let damage = 0;
+      let actionName = "";
 
-  // --- IRON SYNDICATE (VILLAINS) ---
-  "Chrono-Lock": {
-    sub: "TEMPORAL INHIBITOR", role: "nexus", roleText: "NEXUS",
-    img: "Screenshot_20260918_175152_Photos.jpg", hp: 95, pwr: 72, def: 94, wis: 99,
-    cost: "TECH OVERCHARGE", skill: "Temporal Static",
-    desc: "All Vanguard skill activations cost +1 extra Marrow to cast.",
-    lore: "Forged in the gears of forgotten eras to freeze the bloodline in place."
-  },
-  "Apex Volt": {
-    sub: "KINETIC OVERLORD", role: "frontline", roleText: "FRONTLINE",
-    img: "syndicate.png", hp: 115, pwr: 94, def: 82, wis: 75,
-    cost: "TECH OVERCHARGE (4)", skill: "Conduit Taunt",
-    desc: "Forces Vanguard attacks onto himself while chaining arc damage back across their line.",
-    lore: "Pure kinetic oppression, built to grind legacy into dust."
-  },
-  "Null-Byte": {
-    sub: "CYBER INFILTRATOR", role: "backline", roleText: "BACKLINE",
-    img: "Screenshot_20260918_112817_Photos.jpg", hp: 90, pwr: 85, def: 74, wis: 94,
-    cost: "TECH OVERCHARGE (3)", skill: "Signal Intercept",
-    desc: "Generates digital energy shields whenever a Vanguard skill fires.",
-    lore: "A virus engineered to rewrite and delete the archives of history."
-  }
-};
+      switch (type) {
+        case 'strike':
+          damage = 20;
+          actionName = "Aura Weaver strikes!";
+          break;
+        case 'drumbeat':
+          damage = 35;
+          actionName = "Seismic Drumbeat reverberates!";
+          break;
+        case 'barrier':
+          logEl.innerText = "Ancestral Shield raised! Deflected incoming strike.";
+          isActing = false;
+          return;
+        case 'overdrive':
+          damage = 60;
+          actionName = "OVERDRIVE CLASH: Twin Djembe Earthquake hits!";
+          break;
+      }
 
-// Open card inspect window
-function openInspect(nameKey) {
-  const c = vanguardFullDeck[nameKey] || vanguardFullDeck[Object.keys(vanguardFullDeck).find(k => nameKey.toLowerCase().includes(k.toLowerCase()))];
-  if (!c) return;
+      // Player Attack Animation (Lunge)
+      playerEl.classList.remove('idle-breath');
+      playerEl.classList.add('lunge-right');
+      logEl.innerText = actionName;
 
-  document.getElementById("inspectName").textContent = nameKey.toUpperCase();
-  document.getElementById("inspectSub").textContent = c.sub;
-  
-  const roleEl = document.getElementById("inspectRole");
-  roleEl.className = "role-tag " + c.role;
-  roleEl.textContent = c.roleText;
+      setTimeout(() => {
+        // Enemy Hit Reaction
+        triggerHit(enemyEl, damage);
+        enemyHp = Math.max(0, enemyHp - damage);
+        updateUI();
 
-  document.getElementById("inspectImg").src = c.img;
-  document.getElementById("inspectHp").textContent = c.hp;
-  document.getElementById("inspectPwr").textContent = c.pwr;
-  document.getElementById("inspectDef").textContent = c.def;
-  document.getElementById("inspectWis").textContent = c.wis;
+        playerEl.classList.remove('lunge-right');
+        playerEl.classList.add('idle-breath');
 
-  document.getElementById("inspectSkillCost").textContent = c.cost;
-  document.getElementById("inspectSkillName").textContent = c.skill;
-  document.getElementById("inspectSkillDesc").textContent = c.desc;
-  document.getElementById("inspectLoreText").textContent = `"${c.lore}"`;
+        // Check if enemy defeated
+        if (enemyHp <= 0) {
+          logEl.innerText = "TARGET NEUTRALIZED - VICTORY!";
+          isActing = false;
+          return;
+        }
 
-  document.getElementById("cardInspectModal").classList.remove("hidden");
-}
+        // Enemy Counter-attack after 700ms
+        setTimeout(enemyCounter, 700);
+      }, 250);
+    }
 
-// Close card inspect window
-function closeInspect() {
-  document.getElementById("cardInspectModal").classList.add("hidden");
-}
+    function enemyCounter() {
+      logEl.innerText = "Chrono-Lock activates Temporal Backlash!";
+      enemyEl.classList.remove('idle-breath');
+      enemyEl.style.transform = "translateX(-60px)";
 
-// Auto-wire existing [Inspect] buttons or card taps on page load
-document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll("[data-card-name], .card, .reserve-slot").forEach(el => {
-    el.addEventListener("click", () => {
-      const name = el.getAttribute("data-card-name") || el.querySelector("h4, .card-name, strong")?.textContent?.trim();
-      if (name) openInspect(name);
-    });
-  });
-});
-</script>
+      setTimeout(() => {
+        enemyEl.style.transform = "";
+        enemyEl.classList.add('idle-breath');
+
+        let enemyDmg = 18;
+        triggerHit(playerEl, enemyDmg);
+        playerHp = Math.max(0, playerHp - enemyDmg);
+        updateUI();
+
+        if (playerHp <= 0) {
+          logEl.innerText = "DEFENSE COMPROMISED - DEFEAT!";
+        } else {
+          isActing = false;
+        }
+      }, 200);
+    }
+
+    function triggerHit(targetEl, dmg) {
+      targetEl.classList.add('hit-react');
+
+      // Create floating damage number
+      const dmgPopup = document.createElement('div');
+      dmgPopup.className = 'damage-popup';
+      dmgPopup.innerText = `-${dmg}`;
+      targetEl.appendChild(dmgPopup);
+
+      setTimeout(() => {
+        targetEl.classList.remove('hit-react');
+        dmgPopup.remove();
+      }, 600);
+    }
+
+    function updateUI() {
+      enemyHpNum.innerText = `${enemyHp}/${enemyMaxHp}`;
+      enemyHpBar.style.width = `${(enemyHp / enemyMaxHp) * 100}%`;
+
+      playerHpNum.innerText = `${playerHp}/${playerMaxHp}`;
+      playerHpBar.style.width = `${(playerHp / playerMaxHp) * 100}%`;
+    }
+  </script>
+</body>
+</html>
