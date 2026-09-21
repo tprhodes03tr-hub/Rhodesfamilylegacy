@@ -1,274 +1,1003 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ancestral Vanguard - Active Arena</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  body { background-color: #0b0f19; color: #fff; display: flex; justify-content: center; min-height: 100vh; }
-  .arena-container { width: 100%; max-width: 480px; background: #070a10; display: flex; flex-direction: column; border: 1px solid #1e293b; min-height: 100vh; }
-  
-  /* Top HUD */
-  .hud { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #0f172a; border-bottom: 2px solid #1e293b; }
-  .marrow-badge { background: #b45309; color: #fef08a; font-weight: bold; padding: 4px 10px; border-radius: 4px; font-size: 13px; }
-  .btn-end { background: #d97706; border: none; color: #000; font-weight: 700; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ancestral Vanguard: The Siege of Detroit</title>
+  <style>
+    :root {
+      --bg-dark: #070b13;
+      --panel-bg: #0e1726;
+      --card-bg: #141f33;
+      --border-blue: #1e3a5f;
+      --accent-gold: #f59e0b;
+      --accent-blue: #38bdf8;
+      --accent-red: #ef4444;
+      --accent-green: #22c55e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
 
-  /* Visual Battlefield using your Detroit Comic Art */
-  .battlefield { 
-    position: relative; 
-    height: 280px; 
-    background: url('Screenshot_20260917_005431_Photos.jpg') center/cover no-repeat; 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    padding: 10px 16px; 
-    border-bottom: 2px solid #1e293b; 
-    overflow: hidden; 
-  }
-  
-  .battlefield::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(11, 15, 25, 0.72);
-    z-index: 1;
-  }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
 
-  .team-column { display: flex; flex-direction: column; gap: 8px; z-index: 2; width: 47%; }
-  
-  .unit-card { 
-    background: rgba(15, 23, 42, 0.9); 
-    border: 1px solid #334155; 
-    border-radius: 6px; 
-    padding: 5px 8px; 
-    display: flex; 
-    gap: 8px; 
-    align-items: center;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-  }
-  .unit-card.active-target { border: 1px solid #ef4444; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
 
-  .unit-thumb {
-    width: 44px;
-    height: 44px;
-    border-radius: 4px;
-    object-fit: cover;
-    border: 1px solid rgba(255,255,255,0.25);
-    flex-shrink: 0;
-  }
+    #app-container {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(circle at top, #111e38 0%, #070b13 70%);
+      border-left: 1px solid #1e293b;
+      border-right: 1px solid #1e293b;
+      position: relative;
+    }
 
-  .unit-info { flex: 1; display: flex; flex-direction: column; gap: 3px; }
-  .unit-header { display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; }
-  .bar-bg { width: 100%; height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; }
-  .bar-fill { height: 100%; background: #22c55e; width: 100%; transition: width 0.3s; }
-  .enemy-bar { background: #ef4444; }
+    /* TOP HEADER & CONTROLS */
+    header {
+      background-color: rgba(14, 23, 38, 0.95);
+      border-bottom: 2px solid var(--border-blue);
+      padding: 8px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
 
-  /* Combat Narrative Log */
-  .chronicle-log { padding: 8px 14px; background: #030712; font-size: 12px; color: #94a3b8; border-bottom: 1px solid #1e293b; text-align: center; min-height: 34px; }
-  .highlight-log { color: #38bdf8; font-weight: 600; }
+    .top-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
 
-  /* Hero Command Deck (Buttons) */
-  .command-deck { display: flex; flex-direction: column; gap: 8px; padding: 12px; flex: 1; overflow-y: auto; }
-  .hero-panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-  .hero-title { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: #f8fafc; }
-  .hero-role { font-size: 10px; color: #f59e0b; }
-  .actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .btn-act { background: #1e293b; border: 1px solid #3b82f6; color: #f8fafc; font-size: 11px; padding: 7px; border-radius: 4px; cursor: pointer; text-align: left; }
-  .btn-act.hearth { border-color: #f59e0b; background: #451a03; color: #fef08a; }
-  .btn-act:active { transform: scale(0.98); }
-</style>
+    .title {
+      font-weight: 900;
+      letter-spacing: 1px;
+      font-size: 0.95rem;
+      color: var(--accent-blue);
+      text-transform: uppercase;
+    }
+
+    .status-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .marrow-badge {
+      background: #78350f;
+      border: 1px solid var(--accent-gold);
+      color: #fef08a;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 0.85rem;
+    }
+
+    .btn-end-turn {
+      background: #ea580c;
+      color: #ffffff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 0.85rem;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(234, 88, 12, 0.4);
+      transition: all 0.2s;
+    }
+    .btn-end-turn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: grayscale(0.8);
+    }
+
+    /* MODE SELECTOR TOGGLE */
+    .mode-bar {
+      display: flex;
+      background: #090d16;
+      border-radius: 8px;
+      padding: 3px;
+      border: 1px solid #1e293b;
+      gap: 4px;
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 5px 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: 0.2s;
+    }
+    .mode-tab.active {
+      background: var(--accent-blue);
+      color: #040814;
+    }
+
+    /* COMBAT TICKER / BANNER */
+    .mission-banner {
+      background: rgba(14, 23, 38, 0.8);
+      border-bottom: 1px solid var(--border-blue);
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      text-align: center;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+    .log-alert {
+      color: var(--accent-gold);
+      font-weight: 700;
+    }
+
+    /* SHARED STYLES */
+    .hp-bar-bg {
+      background: #1e293b;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .hp-bar-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+    .hp-player { background: var(--accent-green); }
+    .hp-enemy { background: var(--accent-red); }
+
+    /* =========================================
+       VIEW 1: TACTICAL COMMAND LAYOUT
+       ========================================= */
+    #tactical-view {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .tactical-arena {
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      background-size: cover;
+      background-position: center;
+      border-bottom: 2px solid var(--border-blue);
+      position: relative;
+    }
+
+    .squad-col {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tac-card {
+      background: rgba(14, 23, 38, 0.9);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s, border-color 0.2s;
+    }
+    .tac-card.enemy {
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+    .tac-card.enemy.selected {
+      border-color: var(--accent-red);
+      outline: 2px solid var(--accent-red);
+      transform: scale(1.02);
+    }
+    .tac-card.dead {
+      opacity: 0.3;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    .tac-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      background-color: #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      border: 1px solid #475569;
+    }
+
+    .tac-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .tac-name-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .tac-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #f1f5f9;
+    }
+    .tac-hp {
+      color: var(--text-muted);
+    }
+
+    .tac-dashboard {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      background: #0a0f1d;
+    }
+
+    .dash-hero-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-blue);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .dash-hero-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .dash-hero-name {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .dash-hero-role {
+      font-size: 0.7rem;
+      color: var(--accent-gold);
+      font-weight: 600;
+    }
+
+    .dash-action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .tac-btn {
+      background: #172554;
+      border: 1px solid #2563eb;
+      color: #e2e8f0;
+      padding: 7px 4px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .tac-btn.skill {
+      background: #78350f;
+      border-color: var(--accent-gold);
+      color: #fef08a;
+    }
+    .tac-btn:active {
+      transform: scale(0.97);
+    }
+    .tac-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* =========================================
+       VIEW 2: CARD BATTLER LAYOUT
+       ========================================= */
+    #card-view {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      padding: 8px;
+      gap: 10px;
+    }
+
+    /* ENEMY TOP ROW */
+    .card-row-enemies {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+
+    .enemy-card {
+      background: var(--panel-bg);
+      border: 1px solid #7f1d1d;
+      border-radius: 8px;
+      padding: 6px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .enemy-card.selected {
+      border-color: var(--accent-red);
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    }
+    .enemy-card.dead {
+      opacity: 0.3;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    .enemy-avatar {
+      height: 70px;
+      background: #1e293b;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: 4px;
+    }
+
+    .enemy-title {
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: #f87171;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .enemy-stats-row {
+      display: flex;
+      justify-content: space-around;
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      margin: 4px 0;
+      font-weight: 700;
+    }
+    .enemy-desc {
+      font-size: 0.6rem;
+      color: #94a3b8;
+      min-height: 24px;
+      line-height: 1.2;
+    }
+
+    /* HERO CARD ROW */
+    .card-row-heroes {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+
+    .hero-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-blue);
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hero-card-header {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .hero-sub {
+      font-size: 0.58rem;
+      color: var(--accent-gold);
+      font-weight: 600;
+    }
+
+    .hero-avatar {
+      height: 80px;
+      background: #1e293b;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+    }
+
+    .hero-ability-title {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: #93c5fd;
+      text-align: center;
+    }
+
+    .hero-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      font-weight: 700;
+      padding: 0 2px;
+    }
+
+    .hero-card-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .card-btn {
+      padding: 6px 2px;
+      font-size: 0.65rem;
+      font-weight: 800;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .btn-strike {
+      background: #2563eb;
+      color: #fff;
+    }
+    .btn-skill {
+      background: #f59e0b;
+      color: #000;
+    }
+    .card-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* DRAWER / BENCH */
+    .roster-drawer {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 8px;
+      margin-top: auto;
+    }
+    .roster-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .roster-slots {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+    .bench-card {
+      background: #0f172a;
+      border: 1px dashed #334155;
+      padding: 4px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 0.65rem;
+    }
+    .bench-name {
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+    .bench-tag {
+      font-size: 0.55rem;
+      color: var(--accent-blue);
+    }
+  </style>
 </head>
 <body>
 
-<div class="arena-container">
-  <!-- Top HUD -->
-  <div class="hud">
-    <span style="font-weight:bold; font-size:13px; color:#38bdf8;">ANCESTRAL VANGUARD</span>
-    <span class="marrow-badge">Marrow: <span id="marrowCount">5</span></span>
-    <button class="btn-end" onclick="endTurn()">End Turn</button>
-  </div>
-
-  <!-- Rooftop Battlefield with Real Images -->
-  <div class="battlefield">
-    <!-- Left: Player Heroes -->
-    <div class="team-column" id="vanguardLineup">
-      <div class="unit-card" id="unit-luetta">
-        <img src="mother-luta.jpg" alt="Mother Luetta" class="unit-thumb">
-        <div class="unit-info">
-          <div class="unit-header"><span style="color:#f59e0b;">Mother Luetta</span><span id="hp-luetta">90/90</span></div>
-          <div class="bar-bg"><div class="bar-fill" id="bar-luetta" style="width:100%"></div></div>
-        </div>
-      </div>
-
-      <div class="unit-card" id="unit-sundiata">
-        <img src="Screenshot_20260918_131053_Photos.jpg" alt="Sundiata Prime" class="unit-thumb">
-        <div class="unit-info">
-          <div class="unit-header"><span style="color:#38bdf8;">Sundiata Prime</span><span id="hp-sundiata">120/120</span></div>
-          <div class="bar-bg"><div class="bar-fill" id="bar-sundiata" style="width:100%"></div></div>
-        </div>
-      </div>
-
-      <div class="unit-card" id="unit-marcus">
-        <img src="marcus.jpg" alt="Marcus Prime" class="unit-thumb">
-        <div class="unit-info">
-          <div class="unit-header"><span style="color:#a855f7;">Marcus Prime</span><span id="hp-marcus">100/100</span></div>
-          <div class="bar-bg"><div class="bar-fill" id="bar-marcus" style="width:100%"></div></div>
-        </div>
+<div id="app-container">
+  <!-- SHARED TOP BAR -->
+  <header>
+    <div class="top-meta">
+      <span class="title">Ancestral Vanguard</span>
+      <div class="status-group">
+        <div class="marrow-badge" id="marrow-indicator">Marrow: 5</div>
+        <button class="btn-end-turn" id="btn-end-turn" onclick="triggerEndTurn()">End Turn</button>
       </div>
     </div>
 
-    <!-- Right: Iron Syndicate Villains -->
-    <div class="team-column" id="syndicateLineup">
-      <div class="unit-card active-target" id="unit-apex">
-        <img src="Screenshot_20260918_130602_Photos.jpg" alt="Apex Volt" class="unit-thumb">
-        <div class="unit-info">
-          <div class="unit-header"><span style="color:#ef4444;">Apex Volt</span><span id="hp-apex">115/115</span></div>
-          <div class="bar-bg"><div class="bar-fill enemy-bar" id="bar-apex" style="width:100%"></div></div>
-        </div>
-      </div>
+    <!-- MODE SWITCHER TOGGLE -->
+    <div class="mode-bar">
+      <button class="mode-tab active" id="tab-tactical" onclick="setCombatMode('tactical')">⚔️ Tactical Command</button>
+      <button class="mode-tab" id="tab-card" onclick="setCombatMode('card')">🃏 Card Battler</button>
+    </div>
+  </header>
 
-      <div class="unit-card" id="unit-chrono">
-        <img src="Screenshot_20260918_175152_Photos.jpg" alt="Chrono-Lock" class="unit-thumb">
-        <div class="unit-info">
-          <div class="unit-header"><span style="color:#f97316;">Chrono-Lock</span><span id="hp-chrono">95/95</span></div>
-          <div class="bar-bg"><div class="bar-fill enemy-bar" id="bar-chrono" style="width:100%"></div></div>
-        </div>
-      </div>
+  <!-- COMBAT LOG TICKER -->
+  <div class="mission-banner" id="combat-banner">
+    Detroit Rooftops: Defeat the Syndicate line!
+  </div>
 
-      <div class="unit-card" id="unit-null">
-        <img src="Screenshot_20260918_130641_Photos.jpg" alt="Null-Byte" class="unit-thumb">
-        <div class="unit-info">
-          <div class="unit-header"><span style="color:#94a3b8;">Null-Byte</span><span id="hp-null">90/90</span></div>
-          <div class="bar-bg"><div class="bar-fill enemy-bar" id="bar-null" style="width:100%"></div></div>
-        </div>
+  <!-- =========================================
+       LAYOUT 1: TACTICAL COMMAND (3v3 Arena + Console)
+       ========================================= -->
+  <div id="tactical-view">
+    <div class="tactical-arena">
+      <!-- Heroes Left -->
+      <div class="squad-col" id="tac-heroes-col">
+        <!-- Injected via JS -->
       </div>
+      <!-- Enemies Right -->
+      <div class="squad-col" id="tac-enemies-col">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+
+    <!-- Lower Dashboard -->
+    <div class="tac-dashboard" id="tac-dashboard-col">
+      <!-- Injected via JS -->
     </div>
   </div>
 
-  <!-- Dialogue/Log Ticker -->
-  <div class="chronicle-log" id="chronicleLog">Detroit Rooftops: Defeat the Syndicate line[span_3](start_span)[span_3](end_span)[span_4](start_span)[span_4](end_span)!</div>
-
-  <!-- Bottom Command Deck -->
-  <div class="command-deck">
-    <!-- Mother Luetta -->
-    <div class="hero-panel">
-      <div class="hero-title">Mother Luetta <span class="hero-role">Living Codex Hearth</span></div>
-      <div class="actions-row">
-        <button class="btn-act" onclick="useSkill('luetta', 'beam', 0)">Codex Beam (0M)</button>
-        <button class="btn-act hearth" onclick="useSkill('luetta', 'resonance', 4)">Resonance Heal (4M)</button>
-      </div>
+  <!-- =========================================
+       LAYOUT 2: CARD BATTLER (Full Vertical Cards)
+       ========================================= -->
+  <div id="card-view">
+    <!-- Enemies Top -->
+    <div class="card-row-enemies" id="card-enemies-row">
+      <!-- Injected via JS -->
     </div>
 
-    <!-- Sundiata Prime -->
-    <div class="hero-panel">
-      <div class="hero-title">Sundiata Prime <span class="hero-role">Mali Frontline</span></div>
-      <div class="actions-row">
-        <button class="btn-act" onclick="useSkill('sundiata', 'cleave', 0)">Cleave Strike (0M)</button>
-        <button class="btn-act" onclick="useSkill('sundiata', 'roar', 3)">Solar Dundun (3M)</button>
-      </div>
+    <!-- Heroes Middle -->
+    <div class="card-row-heroes" id="card-heroes-row">
+      <!-- Injected via JS -->
     </div>
 
-    <!-- Marcus Prime -->
-    <div class="hero-panel">
-      <div class="hero-title">Marcus Prime <span class="hero-role">Acoustic Conduit</span></div>
-      <div class="actions-row">
-        <button class="btn-act" onclick="useSkill('marcus', 'shock', 0)">Acoustic Pulse (0M)</button>
-        <button class="btn-act" onclick="useSkill('marcus', 'arc', 3)">Arc Burst (3M)</button>
+    <!-- Starter Operatives Bench -->
+    <div class="roster-drawer">
+      <div class="roster-head">
+        <span>STARTER OPERATIVES (INSPECT)</span>
+        <span style="color: var(--accent-gold);">Ancestral Roster</span>
+      </div>
+      <div class="roster-slots">
+        <div class="bench-card">
+          <div class="bench-name">Elena</div>
+          <div class="bench-tag">Taíno Tide-Caller</div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-name">Kenjiro</div>
+          <div class="bench-tag">Spatial Duelist</div>
+        </div>
+        <div class="bench-card">
+          <div class="bench-name">Canopy</div>
+          <div class="bench-tag">Forest Precision</div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Turn Logic & Health Script -->
 <script>
-  let marrow = 5;
-  const vanguard = {
-    luetta: { hp: 90, max: 90 },
-    sundiata: { hp: 120, max: 120 },
-    marcus: { hp: 100, max: 100 }
-  };
-  const syndicate = {
-    apex: { hp: 115, max: 115, name: "Apex Volt" },
-    chrono: { hp: 95, max: 95, name: "Chrono-Lock" },
-    null: { hp: 90, max: 90, name: "Null-Byte" }
-  };
+  /* ===================================================
+     AUDIO ENGINE (Built-in Synthesizer)
+     =================================================== */
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function playBeep(freq, type = 'sine', duration = 0.12, gainLvl = 0.1) {
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(gainLvl, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
+  }
 
-  function updateHUD() {
-    document.getElementById("marrowCount").innerText = marrow;
-    for (let k in vanguard) {
-      document.getElementById(`hp-${k}`).innerText = `${Math.max(0, vanguard[k].hp)}/${vanguard[k].max}`;
-      document.getElementById(`bar-${k}`).style.width = `${Math.max(0, (vanguard[k].hp / vanguard[k].max) * 100)}%`;
+  /* ===================================================
+     CORE COMBAT STATE
+     =================================================== */
+  let currentMarrow = 5;
+  const maxMarrow = 5;
+  let isEnemyTurnRunning = false;
+  let selectedEnemyIndex = 0; // Target enemy
+
+  const heroes = [
+    {
+      id: 'luetta',
+      name: 'Mother Luetta',
+      role: 'Living Codex Hearth',
+      line: 'NEXUS',
+      avatar: '📖',
+      hp: 90,
+      maxHp: 90,
+      pwr: 60,
+      def: 80,
+      wil: 100,
+      basicName: 'Codex Beam',
+      basicCost: 0,
+      basicPower: 12,
+      skillName: 'Resonance Heal',
+      skillCost: 4,
+      skillType: 'heal',
+      skillPower: 35
+    },
+    {
+      id: 'sundiata',
+      name: 'Sundiata Prime',
+      role: 'Mali Frontline',
+      line: 'FRONTLINE',
+      avatar: '🛡️',
+      hp: 120,
+      maxHp: 120,
+      pwr: 84,
+      def: 96,
+      wil: 90,
+      basicName: 'Cleave Strike',
+      basicCost: 0,
+      basicPower: 18,
+      skillName: 'Solar Dundun',
+      skillCost: 3,
+      skillType: 'attack',
+      skillPower: 32
+    },
+    {
+      id: 'marcus',
+      name: 'Marcus Prime',
+      role: 'Urban Acoustic Conduit',
+      line: 'BACKLINE',
+      avatar: '⚡',
+      hp: 100,
+      maxHp: 100,
+      pwr: 91,
+      def: 78,
+      wil: 82,
+      basicName: 'Acoustic Pulse',
+      basicCost: 0,
+      basicPower: 15,
+      skillName: 'Arc Burst',
+      skillCost: 3,
+      skillType: 'attack',
+      skillPower: 30
     }
-    for (let k in syndicate) {
-      document.getElementById(`hp-${k}`).innerText = `${Math.max(0, syndicate[k].hp)}/${syndicate[k].max}`;
-      document.getElementById(`bar-${k}`).style.width = `${Math.max(0, (syndicate[k].hp / syndicate[k].max) * 100)}%`;
+  ];
+
+  const enemies = [
+    {
+      id: 'apex',
+      name: 'Apex Volt',
+      avatar: '⚡',
+      hp: 115,
+      maxHp: 115,
+      pwr: 94,
+      def: 82,
+      wil: 75,
+      passive: 'Conduit: Chains arc damage.',
+      attackPower: 16
+    },
+    {
+      id: 'chrono',
+      name: 'Chrono-Lock',
+      avatar: '⏳',
+      hp: 95,
+      maxHp: 95,
+      pwr: 72,
+      def: 84,
+      wil: 99,
+      passive: 'Temporal Static: Hero skills +1M.',
+      attackPower: 14
+    },
+    {
+      id: 'null',
+      name: 'Null-Byte',
+      avatar: '👾',
+      hp: 90,
+      maxHp: 90,
+      pwr: 85,
+      def: 74,
+      wil: 94,
+      passive: 'Signal Intercept: Shield tech.',
+      attackPower: 15
+    }
+  ];
+
+  /* ===================================================
+     MODE TOGGLE LOGIC
+     =================================================== */
+  function setCombatMode(mode) {
+    const tacView = document.getElementById('tactical-view');
+    const cardView = document.getElementById('card-view');
+    const tabTac = document.getElementById('tab-tactical');
+    const tabCard = document.getElementById('tab-card');
+
+    if (mode === 'tactical') {
+      tacView.style.display = 'flex';
+      cardView.style.display = 'none';
+      tabTac.classList.add('active');
+      tabCard.classList.remove('active');
+    } else {
+      tacView.style.display = 'none';
+      cardView.style.display = 'flex';
+      tabTac.classList.remove('active');
+      tabCard.classList.add('active');
+    }
+    playBeep(440, 'triangle', 0.08);
+  }
+
+  /* ===================================================
+     UI RENDERING
+     =================================================== */
+  function updateUI() {
+    // Update Marrow
+    document.getElementById('marrow-indicator').textContent = `Marrow: ${currentMarrow}`;
+
+    // Update auto selected enemy if dead
+    if (enemies[selectedEnemyIndex].hp <= 0) {
+      const nextLiving = enemies.findIndex(e => e.hp > 0);
+      if (nextLiving !== -1) selectedEnemyIndex = nextLiving;
+    }
+
+    // 1. Render Tactical Arena (Heroes Col)
+    const tacHeroesCol = document.getElementById('tac-heroes-col');
+    tacHeroesCol.innerHTML = heroes.map(h => {
+      const pct = Math.max(0, (h.hp / h.maxHp) * 100);
+      return `
+        <div class="tac-card ${h.hp <= 0 ? 'dead' : ''}">
+          <div class="tac-thumb">${h.avatar}</div>
+          <div class="tac-info">
+            <div class="tac-name-row">
+              <span class="tac-name">${h.name}</span>
+              <span class="tac-hp">${h.hp}/${h.maxHp}</span>
+            </div>
+            <div class="hp-bar-bg">
+              <div class="hp-bar-fill hp-player" style="width: ${pct}%;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 2. Render Tactical Arena (Enemies Col)
+    const tacEnemiesCol = document.getElementById('tac-enemies-col');
+    tacEnemiesCol.innerHTML = enemies.map((e, idx) => {
+      const pct = Math.max(0, (e.hp / e.maxHp) * 100);
+      const isSelected = idx === selectedEnemyIndex;
+      return `
+        <div class="tac-card enemy ${e.hp <= 0 ? 'dead' : ''} ${isSelected ? 'selected' : ''}" 
+             onclick="selectEnemy(${idx})">
+          <div class="tac-thumb">${e.avatar}</div>
+          <div class="tac-info">
+            <div class="tac-name-row">
+              <span class="tac-name">${e.name}</span>
+              <span class="tac-hp">${e.hp}/${e.maxHp}</span>
+            </div>
+            <div class="hp-bar-bg">
+              <div class="hp-bar-fill hp-enemy" style="width: ${pct}%;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 3. Render Tactical Dashboard (Lower Action Console)
+    const tacDash = document.getElementById('tac-dashboard-col');
+    tacDash.innerHTML = heroes.map((h, i) => {
+      const canCastBasic = h.hp > 0 && !isEnemyTurnRunning;
+      const canCastSkill = h.hp > 0 && currentMarrow >= h.skillCost && !isEnemyTurnRunning;
+      return `
+        <div class="dash-hero-card">
+          <div class="dash-hero-header">
+            <span class="dash-hero-name">${h.name}</span>
+            <span class="dash-hero-role">${h.role}</span>
+          </div>
+          <div class="dash-action-row">
+            <button class="tac-btn" ${!canCastBasic ? 'disabled' : ''} onclick="heroAction(${i}, 'basic')">
+              ${h.basicName} (${h.basicCost}M)
+            </button>
+            <button class="tac-btn skill" ${!canCastSkill ? 'disabled' : ''} onclick="heroAction(${i}, 'skill')">
+              ${h.skillName} (${h.skillCost}M)
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 4. Render Card Battler (Enemies Top)
+    const cardEnemiesRow = document.getElementById('card-enemies-row');
+    cardEnemiesRow.innerHTML = enemies.map((e, idx) => {
+      const pct = Math.max(0, (e.hp / e.maxHp) * 100);
+      const isSelected = idx === selectedEnemyIndex;
+      return `
+        <div class="enemy-card ${e.hp <= 0 ? 'dead' : ''} ${isSelected ? 'selected' : ''}" onclick="selectEnemy(${idx})">
+          <div class="enemy-avatar">${e.avatar}</div>
+          <div class="enemy-title">${e.name}</div>
+          <div class="enemy-stats-row">
+            <span>P:${e.pwr}</span><span>D:${e.def}</span><span>W:${e.wil}</span>
+          </div>
+          <div class="enemy-desc">${e.passive}</div>
+          <div class="hp-bar-bg">
+            <div class="hp-bar-fill hp-enemy" style="width: ${pct}%;"></div>
+          </div>
+          <div style="font-size:0.6rem; text-align:right; color:#cbd5e1; margin-top:2px;">
+            ${e.hp}/${e.maxHp}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 5. Render Card Battler (Heroes Mid)
+    const cardHeroesRow = document.getElementById('card-heroes-row');
+    cardHeroesRow.innerHTML = heroes.map((h, i) => {
+      const pct = Math.max(0, (h.hp / h.maxHp) * 100);
+      const canCastBasic = h.hp > 0 && !isEnemyTurnRunning;
+      const canCastSkill = h.hp > 0 && currentMarrow >= h.skillCost && !isEnemyTurnRunning;
+      return `
+        <div class="hero-card">
+          <div>
+            <div class="hero-card-header">${h.name}</div>
+            <div class="hero-sub">${h.line}</div>
+          </div>
+          <div class="hero-avatar">${h.avatar}</div>
+          <div class="hero-ability-title">${h.skillName}</div>
+          <div class="hero-stats">
+            <span>P:${h.pwr}</span><span>D:${h.def}</span><span>W:${h.wil}</span>
+          </div>
+          <div class="hp-bar-bg">
+            <div class="hp-bar-fill hp-player" style="width: ${pct}%;"></div>
+          </div>
+          <div style="font-size:0.6rem; text-align:right; color:#cbd5e1; margin-top:2px;">
+            ${h.hp}/${h.maxHp}
+          </div>
+          <div class="hero-card-actions">
+            <button class="card-btn btn-strike" ${!canCastBasic ? 'disabled' : ''} onclick="heroAction(${i}, 'basic')">
+              STRIKE
+            </button>
+            <button class="card-btn btn-skill" ${!canCastSkill ? 'disabled' : ''} onclick="heroAction(${i}, 'skill')">
+              SKILL (${h.skillCost})
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function logMessage(text, isAlert = false) {
+    const banner = document.getElementById('combat-banner');
+    banner.innerHTML = isAlert ? `<span class="log-alert">${text}</span>` : text;
+  }
+
+  function selectEnemy(index) {
+    if (enemies[index].hp > 0) {
+      selectedEnemyIndex = index;
+      playBeep(600, 'sine', 0.05);
+      updateUI();
     }
   }
 
-  function log(text) {
-    document.getElementById("chronicleLog").innerHTML = `<span class="highlight-log">${text}</span>`;
-  }
+  /* ===================================================
+     PLAYER ACTION LOGIC
+     =================================================== */
+  function heroAction(heroIdx, type) {
+    if (isEnemyTurnRunning) return;
+    const hero = heroes[heroIdx];
+    const target = enemies[selectedEnemyIndex];
 
-  function getTarget() {
-    if (syndicate.apex.hp > 0) return 'apex';
-    if (syndicate.chrono.hp > 0) return 'chrono';
-    return 'null';
-  }
+    if (type === 'basic') {
+      target.hp = Math.max(0, target.hp - hero.basicPower);
+      playBeep(320, 'square', 0.12);
+      logMessage(`${hero.name} strikes ${target.name} for ${hero.basicPower} damage!`);
+    } else {
+      if (currentMarrow < hero.skillCost) return;
+      currentMarrow -= hero.skillCost;
 
-  function useSkill(hero, skill, cost) {
-    if (marrow < cost) {
-      log("Not enough Marrow energy!");
-      return;
-    }
-    marrow -= cost;
-    let target = getTarget();
-
-    if (skill === 'beam') {
-      syndicate[target].hp -= 15;
-      log(`Mother Luetta strikes ${syndicate[target].name} with Codex Beam (-15 HP).`);
-    } else if (skill === 'resonance') {
-      for (let k in vanguard) vanguard[k].hp = Math.min(vanguard[k].max, vanguard[k].hp + 30);
-      log("Mother Luetta opens the Ledger: Team restored (+30 HP)!");
-    } else if (skill === 'cleave') {
-      syndicate[target].hp -= 18;
-      log(`Sundiata hits ${syndicate[target].name} with Ancestral Cleave (-18 HP).`);
-    } else if (skill === 'roar') {
-      syndicate[target].hp -= 25;
-      log(`Sundiata triggers Solar Dundun Roar (-25 HP to ${syndicate[target].name})!`);
-    } else if (skill === 'shock') {
-      syndicate[target].hp -= 20;
-      log(`Marcus shocks ${syndicate[target].name} (-20 HP).`);
-    } else if (skill === 'arc') {
-      syndicate.apex.hp -= 20;
-      syndicate.chrono.hp -= 20;
-      syndicate.null.hp -= 20;
-      log("Marcus discharges Seismic Arc Burst across the entire Syndicate line!");
+      if (hero.skillType === 'heal') {
+        // Party Heal
+        heroes.forEach(h => {
+          if (h.hp > 0) h.hp = Math.min(h.maxHp, h.hp + hero.skillPower);
+        });
+        playBeep(580, 'sine', 0.25);
+        logMessage(`${hero.name} unleashes ${hero.skillName}! Party restored +${hero.skillPower} HP!`);
+      } else {
+        // Burst Attack
+        target.hp = Math.max(0, target.hp - hero.skillPower);
+        playBeep(220, 'sawtooth', 0.2);
+        logMessage(`${hero.name} unleashes ${hero.skillName} on ${target.name} (-${hero.skillPower} HP)!`);
+      }
     }
 
-    checkWin();
-    updateHUD();
+    checkWinCondition();
+    updateUI();
   }
 
-  function endTurn() {
-    log("The Syndicate retaliates!");
-    setTimeout(() => {
-      let targets = ['luetta', 'sundiata', 'marcus'];
-      let randomHero = targets[Math.floor(Math.random() * targets.length)];
-      vanguard[randomHero].hp -= 15;
-      log(`Apex Volt discharges kinetic shock into ${randomHero.toUpperCase()} (-15 HP)!`);
-      marrow = 5;
-      updateHUD();
-    }, 600);
+  /* ===================================================
+     ENEMY AI TURN (RETALIATION)
+     =================================================== */
+  async function triggerEndTurn() {
+    if (isEnemyTurnRunning) return;
+    isEnemyTurnRunning = true;
+    document.getElementById('btn-end-turn').disabled = true;
+
+    logMessage("Enemy phase: Syndicate operatives retaliate!", true);
+    playBeep(180, 'sawtooth', 0.25);
+    updateUI();
+
+    // Loop through alive enemies and let each strike
+    for (const enemy of enemies) {
+      if (enemy.hp > 0) {
+        await new Promise(r => setTimeout(r, 800));
+
+        // Find living heroes
+        const livingHeroes = heroes.filter(h => h.hp > 0);
+        if (livingHeroes.length === 0) break;
+
+        // Pick a target (prioritizes Frontline Sundiata, or random)
+        let targetHero = livingHeroes.find(h => h.line === 'FRONTLINE') || 
+                         livingHeroes[Math.floor(Math.random() * livingHeroes.length)];
+
+        targetHero.hp = Math.max(0, targetHero.hp - enemy.attackPower);
+        playBeep(140, 'triangle', 0.18);
+        logMessage(`${enemy.name} retaliates against ${targetHero.name} (-${enemy.attackPower} HP)!`, true);
+        updateUI();
+      }
+    }
+
+    // End of turn reset
+    await new Promise(r => setTimeout(r, 600));
+    currentMarrow = maxMarrow;
+    isEnemyTurnRunning = false;
+    document.getElementById('btn-end-turn').disabled = false;
+
+    checkLossCondition();
+    logMessage("Your turn! Marrow replenished to 5.");
+    playBeep(520, 'sine', 0.15);
+    updateUI();
   }
 
-  function checkWin() {
-    if (syndicate.apex.hp <= 0 && syndicate.chrono.hp <= 0 && syndicate.null.hp <= 0) {
-      log("VICTORY! Detroit is secured. The timeline holds[span_5](start_span)[span_5](end_span).");
+  /* ===================================================
+     VICTORY / DEFEAT CHECKS
+     =================================================== */
+  function checkWinCondition() {
+    const allEnemiesDead = enemies.every(e => e.hp <= 0);
+    if (allEnemiesDead) {
+      logMessage("VICTORY! The Vanguard secured the Detroit line!", true);
+      playBeep(659, 'sine', 0.4);
     }
   }
 
-  updateHUD();
+  function checkLossCondition() {
+    const allHeroesDead = heroes.every(h => h.hp <= 0);
+    if (allHeroesDead) {
+      logMessage("DEFEAT! The Vanguard line has collapsed...", true);
+      playBeep(110, 'sawtooth', 0.6);
+    }
+  }
+
+  // Initial Boot
+  updateUI();
 </script>
 </body>
 </html>
