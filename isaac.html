@@ -1,1004 +1,774 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ancestral Vanguard: Legacy Arena</title>
-  <style>
-    :root {
-      --bg-dark: #070b14;
-      --panel-bg: #0d1527;
-      --card-bg: #09101f;
-      --accent-gold: #f59e0b;
-      --accent-blue: #38bdf8;
-      --accent-red: #ef4444;
-      --accent-green: #22c55e;
-      --text-main: #f8fafc;
-      --text-muted: #64748b;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Isaac Rhodes Adventures - Arcade Vault</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+  body, html { width: 100%; height: 100%; overflow: hidden; background: #070913; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #fff; }
+  
+  #game-app {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at center, #0f172a 0%, #030712 100%);
+  }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
+  /* TOP RETRO CABINET HUB BAR */
+  #arcade-nav {
+    display: flex;
+    overflow-x: auto;
+    background: #090d16;
+    border-bottom: 2px solid #00f2fe;
+    white-space: nowrap;
+    z-index: 100;
+  }
+  .nav-tab {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #94a3b8;
+    background: none;
+    border: none;
+    border-right: 1px solid #1e293b;
+    cursor: pointer;
+  }
+  .nav-tab.active {
+    color: #00f2fe;
+    background: #111827;
+    border-bottom: 3px solid #38bdf8;
+    text-shadow: 0 0 8px rgba(0,242,254,0.6);
+  }
 
-    body {
-      background-color: #030712;
-      color: var(--text-main);
-      display: flex;
-      justify-content: center;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+  /* CANVAS CONTAINER */
+  #viewport-wrapper {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #04060d;
+  }
 
-    #app-container {
-      width: 100%;
-      max-width: 480px;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: #070b14;
-      border-left: 1px solid #172033;
-      border-right: 1px solid #172033;
-      position: relative;
-    }
+  /* OVERLAY HUD */
+  #hud-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .bar-container {
+    width: 130px;
+    height: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid #334155;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+  .bar-fill-hero { width: 100%; height: 100%; background: linear-gradient(90deg, #10b981, #06b6d4); transition: width 0.2s; }
+  .bar-fill-boss { width: 100%; height: 100%; background: linear-gradient(90deg, #f43f5e, #dc2626); transition: width 0.2s; }
+  .bar-fill-kinetic { width: 0%; height: 100%; background: #eab308; box-shadow: 0 0 6px #f59e0b; transition: width 0.1s; }
 
-    /* TOP PERSISTENT CONTROLLER */
-    header {
-      background: rgba(10, 16, 29, 0.98);
-      border-bottom: 2px solid #1e293b;
-      padding: 8px 10px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      backdrop-filter: blur(10px);
-    }
+  /* CONTROLS CLUSTER */
+  #control-deck {
+    display: flex;
+    width: 100%;
+    height: 190px;
+    background: #080c14;
+    border-top: 2px solid #1e293b;
+    padding: 8px 12px;
+    gap: 10px;
+    z-index: 100;
+  }
 
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 6px;
-    }
+  /* DUAL THUMB SECTIONS */
+  .deck-left, .deck-right {
+    flex: 1;
+    display: flex;
+    gap: 6px;
+  }
+  .deck-left { flex-direction: column; }
+  .deck-right { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
-    .game-mode-toggle {
-      display: flex;
-      background: #040812;
-      border: 1px solid #1e3a5f;
-      border-radius: 6px;
-      padding: 2px;
-      gap: 2px;
-    }
+  .ctrl-btn {
+    border: none;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-transform: uppercase;
+    color: #e2e8f0;
+    background: #1e293b;
+    box-shadow: 0 4px 0 #0f172a;
+    touch-action: manipulation;
+  }
+  .ctrl-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #0f172a;
+  }
 
-    .mode-btn {
-      background: transparent;
-      border: none;
-      color: #94a3b8;
-      font-size: 0.65rem;
-      font-weight: 800;
-      padding: 5px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      transition: all 0.15s;
-    }
-    .mode-btn.active {
-      background: #f59e0b;
-      color: #000;
-      box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
-    }
+  /* DIRECTIONAL / MOVEMENT BUTTONS */
+  .move-row { display: flex; gap: 6px; flex: 1; }
+  .btn-move { flex: 1; background: #1e293b; border: 1px solid #334155; }
+  .btn-jump { height: 50px; background: #0369a1; border: 1px solid #38bdf8; box-shadow: 0 4px 0 #075985; }
 
-    .marrow-badge {
-      background: #78350f;
-      border: 1px solid #f59e0b;
-      border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 0.75rem;
-      font-weight: 900;
-      color: #fef08a;
-      white-space: nowrap;
-    }
+  /* ACTION BUTTONS */
+  .btn-strike { background: #0284c7; border: 1px solid #38bdf8; }
+  .btn-burst { background: #b91c1c; border: 1px solid #f87171; }
+  .btn-tag { background: #d97706; border: 1px solid #fbbf24; }
+  .btn-super { 
+    background: linear-gradient(135deg, #f59e0b, #e11d48);
+    border: 1px solid #fde047;
+    grid-column: span 2;
+  }
 
-    .btn-end-turn {
-      background: #ea580c;
-      color: #fff;
-      border: 1px solid #fdba74;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-weight: 900;
-      font-size: 0.75rem;
-      cursor: pointer;
-      text-transform: uppercase;
-      box-shadow: 0 0 10px rgba(234, 88, 12, 0.4);
-    }
-    .btn-end-turn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      filter: grayscale(0.8);
-    }
+  /* CLASSIC VIRTUAL D-PAD OVERLAY (FOR FROGGER/PACMAN/DK) */
+  #classic-dpad {
+    display: none;
+    width: 100%;
+    height: 100%;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 4px;
+  }
 
-    /* COMBAT TICKER */
-    .combat-log-ticker {
-      background: #091326;
-      border-bottom: 1px solid #1e3a5f;
-      padding: 6px 10px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: #38bdf8;
-      text-align: center;
-      min-height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* SHARED HEALTH BARS */
-    .hp-bar-wrap {
-      background: #020617;
-      height: 5px;
-      border-radius: 3px;
-      overflow: hidden;
-      margin-top: 3px;
-      border: 1px solid #1e293b;
-    }
-    .hp-bar-fill {
-      height: 100%;
-      transition: width 0.3s ease;
-    }
-    .hp-fill-green { background: #22c55e; }
-    .hp-fill-red { background: #ef4444; }
-
-    /* =========================================================
-       GAME 1: THE ROOFTOP BATTLE (Detroit Rooftops / Tactical)
-       ========================================================= */
-    #view-rooftop {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-    }
-
-    .rooftop-comic-arena {
-      position: relative;
-      padding: 10px;
-      background: linear-gradient(rgba(5, 11, 24, 0.75), rgba(5, 11, 24, 0.85)), 
-                  url('Screenshot_20260917_005431_Photos.jpg');
-      background-size: cover;
-      background-position: center top;
-      border-bottom: 2px solid #1e3a5f;
-    }
-
-    .rooftop-arena-header {
-      font-size: 0.85rem;
-      font-weight: 900;
-      font-style: italic;
-      color: #f59e0b;
-      text-shadow: 0 0 6px rgba(0,0,0,0.9);
-      margin-bottom: 8px;
-      letter-spacing: 0.5px;
-    }
-
-    .rooftop-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .squad-col {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .tac-unit {
-      background: rgba(14, 23, 42, 0.92);
-      border: 1px solid #334155;
-      border-radius: 6px;
-      padding: 5px 6px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      backdrop-filter: blur(4px);
-    }
-    .tac-unit.enemy { border-color: rgba(239, 68, 68, 0.4); }
-    .tac-unit.enemy.selected {
-      border-color: #ef4444;
-      outline: 2px solid #ef4444;
-      transform: scale(1.02);
-    }
-    .tac-unit.dead {
-      opacity: 0.25;
-      filter: grayscale(1);
-      pointer-events: none;
-    }
-
-    .tac-unit-thumb {
-      width: 38px;
-      height: 38px;
-      border-radius: 4px;
-      overflow: hidden;
-      border: 1px solid #475569;
-      flex-shrink: 0;
-    }
-    .tac-unit-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .tac-unit-meta {
-      flex: 1;
-      min-width: 0;
-    }
-    .tac-name-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.72rem;
-      font-weight: 800;
-    }
-
-    /* LOWER ROOFTOP DASHBOARD */
-    .rooftop-dashboard {
-      padding: 10px;
-      background: #080d1a;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      flex: 1;
-    }
-
-    .dash-hero-card {
-      background: #0e172a;
-      border: 1px solid #1e3a5f;
-      border-radius: 8px;
-      padding: 8px 10px;
-    }
-
-    .dash-hero-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
-
-    .dash-btn-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .dash-btn {
-      background: #172554;
-      border: 1px solid #2563eb;
-      color: #e2e8f0;
-      padding: 8px 4px;
-      border-radius: 6px;
-      font-size: 0.72rem;
-      font-weight: 800;
-      cursor: pointer;
-      text-align: center;
-    }
-    .dash-btn.skill {
-      background: #78350f;
-      border-color: #f59e0b;
-      color: #fef08a;
-    }
-    .dash-btn:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-    }
-
-    /* =========================================================
-       GAME 2: THE TABLETOP ARENA (Full Art Cards + Payhip)
-       ========================================================= */
-    #view-tabletop {
-      display: none;
-      flex-direction: column;
-      flex: 1;
-      padding-bottom: 15px;
-    }
-
-    /* BANNER HEROES SPLASH */
-    .tabletop-splash-banner {
-      width: 100%;
+  /* LANDSCAPE ORIENTATION ADAPTATION */
+  @media (orientation: landscape) {
+    #game-app { flex-direction: row; }
+    #arcade-nav { position: absolute; top: 0; left: 0; width: 100%; height: 32px; }
+    #viewport-wrapper { height: 100%; width: 100%; margin-top: 32px; }
+    #control-deck {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
       height: 120px;
-      overflow: hidden;
-      position: relative;
-      border-bottom: 2px solid #1e3a5f;
-    }
-    .tabletop-splash-banner img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center top;
-    }
-
-    .tabletop-titles {
-      text-align: center;
-      padding: 8px 10px 4px 10px;
-    }
-    .tabletop-main-title {
-      font-size: 1.15rem;
-      font-weight: 900;
-      letter-spacing: 1px;
-      color: #f59e0b;
-      text-transform: uppercase;
-    }
-    .tabletop-sub-title {
-      font-size: 0.65rem;
-      font-weight: 700;
-      color: #94a3b8;
-      letter-spacing: 0.8px;
-      margin-top: 2px;
-    }
-
-    .payhip-cta-btn {
-      margin: 6px 10px 10px 10px;
-      background: #f59e0b;
-      color: #000;
-      text-decoration: none;
-      text-align: center;
-      font-weight: 900;
-      font-size: 0.72rem;
-      padding: 7px;
-      border-radius: 6px;
-      letter-spacing: 0.5px;
-      box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
-      display: block;
-    }
-
-    /* TABLETOP SECTION CONTAINERS */
-    .tabletop-box {
-      margin: 0 10px 10px 10px;
-      background: #091020;
-      border: 1px solid #1e293b;
-      border-radius: 10px;
-      padding: 8px;
-    }
-    .tabletop-box.enemies { border-color: #5c1d24; }
-    .tabletop-box.heroes { border-color: #78350f; }
-
-    .tt-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .tt-box-title {
-      font-size: 0.72rem;
-      font-weight: 900;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    .tt-box-pill {
-      font-size: 0.65rem;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: #030712;
-      border: 1px solid #334155;
-      color: #fca5a5;
-    }
-
-    .tt-three-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-    }
-
-    .tt-card {
-      background: #060b17;
-      border: 1px solid #1e293b;
-      border-radius: 8px;
-      padding: 6px 4px;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      cursor: pointer;
-    }
-    .tt-card.enemy.selected {
-      border-color: #ef4444;
-      box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
-    }
-    .tt-card.dead {
-      opacity: 0.25;
-      filter: grayscale(1);
+      background: transparent;
+      border-top: none;
       pointer-events: none;
+      padding: 0 20px 10px 20px;
     }
-
-    .tt-card-header {
-      font-size: 0.65rem;
-      font-weight: 800;
-      color: #fff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: flex;
-      justify-content: space-between;
-    }
-    .tt-card-role {
-      font-size: 0.55rem;
-      color: #94a3b8;
-      margin-bottom: 4px;
-    }
-
-    .tt-card-portrait {
-      height: 80px;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 4px;
-      border: 1px solid #1e293b;
-      background: #030712;
-    }
-    .tt-card-portrait img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: top center;
-    }
-
-    .tt-trait-text {
-      font-size: 0.55rem;
-      color: #cbd5e1;
-      line-height: 1.15;
-      min-height: 24px;
-      margin-bottom: 4px;
-    }
-
-    .tt-stat-strip {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.58rem;
-      font-weight: 800;
-      color: #64748b;
-      border-top: 1px solid #111d33;
-      padding-top: 2px;
-      margin-bottom: 4px;
-    }
-    .tt-stat-strip span { color: #94a3b8; }
-
-    .tt-btn-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 3px;
-      margin-top: auto;
-    }
-    .tt-btn {
-      border: none;
-      border-radius: 4px;
-      font-size: 0.6rem;
-      font-weight: 900;
-      padding: 5px 1px;
-      cursor: pointer;
-      text-transform: uppercase;
-    }
-    .tt-btn.strike { background: #2563eb; color: #fff; }
-    .tt-btn.skill { background: #ea580c; color: #fff; }
-    .tt-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-
-    /* STARTER BENCH */
-    .tabletop-bench {
-      margin: 0 10px;
-      background: #060b17;
-      border: 1px solid #172642;
-      border-radius: 8px;
-      padding: 6px;
-    }
-    .tt-bench-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin-top: 4px;
-    }
-    .tt-bench-item {
-      background: #0b1426;
-      border: 1px dashed #334155;
-      border-radius: 6px;
-      padding: 4px;
-      text-align: center;
-    }
-    .tt-bench-thumb {
-      height: 38px;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 3px;
-    }
-    .tt-bench-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  </style>
+    .deck-left, .deck-right { pointer-events: auto; }
+    .deck-left { width: 200px; flex: none; }
+    .deck-right { width: 220px; flex: none; margin-left: auto; }
+  }
+</style>
 </head>
 <body>
 
-<div id="app-container">
-  <!-- TOP PERSISTENT CONTROLLER -->
-  <header>
-    <div class="top-bar">
-      <!-- MODE SWITCHER (Between the 2 distinct games) -->
-      <div class="game-mode-toggle">
-        <button class="mode-btn active" id="btn-mode-rooftop" onclick="switchGameMode('rooftop')">ROOFTOP BATTLE</button>
-        <button class="mode-btn" id="btn-mode-tabletop" onclick="switchGameMode('tabletop')">TABLETOP ARENA</button>
-      </div>
-
-      <div class="marrow-badge" id="marrow-tracker">Marrow: 5</div>
-      <button class="btn-end-turn" id="btn-end-turn" onclick="triggerEnemyRetaliation()">End Turn</button>
-    </div>
-  </header>
-
-  <!-- DYNAMIC COMBAT LOG TICKER -->
-  <div class="combat-log-ticker" id="ticker-banner">
-    Detroit Rooftops: Defeat the Syndicate line!
+<div id="game-app">
+  <!-- TOP ARCADE MULTICADE SELECTOR -->
+  <div id="arcade-nav">
+    <button class="nav-tab active" onclick="switchGame('brawler')">RenCen Rooftop</button>
+    <button class="nav-tab" onclick="switchGame('pacman')">Ms. Pac-Man</button>
+    <button class="nav-tab" onclick="switchGame('frogger')">Frogger</button>
+    <button class="nav-tab" onclick="switchGame('donkeykong')">Donkey Kong</button>
   </div>
 
-  <!-- =========================================================
-       GAME 1: THE ROOFTOP BATTLE (Detroit Rooftops / Tactical Arena)
-       ========================================================= -->
-  <div id="view-rooftop">
-    <!-- Top Comic Arena (From your 9:16 & 9:19 screenshots) -->
-    <div class="rooftop-comic-arena">
-      <div class="rooftop-arena-header">VANGUARD: THE SIEGE OF DETROIT!</div>
-      <div class="rooftop-grid">
-        <!-- Living Heroes Column Left -->
-        <div class="squad-col" id="rt-heroes-col"></div>
-        <!-- Living Enemies Column Right -->
-        <div class="squad-col" id="rt-enemies-col"></div>
+  <!-- GAME VIEWPORT -->
+  <div id="viewport-wrapper">
+    <canvas id="gameCanvas" width="800" height="450"></canvas>
+    
+    <!-- DYNAMIC BRAWLER HUD -->
+    <div id="hud-overlay">
+      <div id="hero-hud">
+        <div id="hero-name" style="font-weight: bold; color: #38bdf8;">MARCUS PRIME</div>
+        <div class="bar-container"><div id="hero-hp" class="bar-fill-hero"></div></div>
+        <div style="font-size: 9px; margin-top: 2px; color: #fbbf24;">KINETIC VOLTS:</div>
+        <div class="bar-container" style="height: 6px;"><div id="hero-kinetic" class="bar-fill-kinetic"></div></div>
+      </div>
+      <div style="text-align: center;">
+        <div id="stage-chapter" style="font-weight: bold; color: #fbbf24;">CH. 1: DETROIT REN-CEN</div>
+        <div id="score-counter" style="color: #94a3b8;">WAVE 1/2</div>
+      </div>
+      <div id="boss-hud">
+        <div id="boss-name" style="font-weight: bold; color: #f87171; text-align: right;">CHRONO-LOCK</div>
+        <div class="bar-container"><div id="boss-hp" class="bar-fill-boss"></div></div>
+        <div style="font-size: 9px; margin-top: 2px; text-align: right; color: #f43f5e;">THREAT LVL: HIGH</div>
       </div>
     </div>
-
-    <!-- Bottom Action Console Dashboard -->
-    <div class="rooftop-dashboard" id="rt-dashboard-col"></div>
   </div>
 
-  <!-- =========================================================
-       GAME 2: THE TABLETOP ARENA (Tall Cards + Payhip + Roster)
-       ========================================================= -->
-  <div id="view-tabletop">
-    <!-- 5 Heroes Splash Art (From your 9:54 screenshot) -->
-    <div class="tabletop-splash-banner">
-      <img src="Screenshot_20260917_005431_Photos.jpg" alt="Ancestral Vanguard Banner">
+  <!-- CONTROL DECK -->
+  <div id="control-deck">
+    <!-- LEFT CONTROLS: MOVEMENT -->
+    <div class="deck-left" id="brawler-left">
+      <button class="ctrl-btn btn-jump" id="btn-jump">▲ NINJA JUMP / HOVER</button>
+      <div class="move-row">
+        <button class="ctrl-btn btn-move" id="btn-left">◄ LEFT</button>
+        <button class="ctrl-btn btn-move" id="btn-right">RIGHT ►</button>
+      </div>
     </div>
 
-    <div class="tabletop-titles">
-      <div class="tabletop-main-title">Ancestral Vanguard</div>
-      <div class="tabletop-sub-title">LIVING CODEX TABLETOP ARENA &bull; EPISODE 1 TEASER ROUND</div>
+    <!-- RETRO CLASSIC DPAD (FROGGER / PACMAN / DK) -->
+    <div id="classic-dpad">
+      <div></div><button class="ctrl-btn" id="dpad-up">▲</button><div></div>
+      <button class="ctrl-btn" id="dpad-left">◄</button><div></div><button class="ctrl-btn" id="dpad-right">►</button>
+      <div></div><button class="ctrl-btn" id="dpad-down">▼</button><button class="ctrl-btn btn-jump" id="dpad-action">JUMP</button>
     </div>
 
-    <a href="https://payhip.com" target="_blank" class="payhip-cta-btn">
-      GET ISSUE #1 &amp; STARTER CARDS ON PAYHIP
-    </a>
-
-    <!-- THE IRON SYNDICATE CARDS -->
-    <div class="tabletop-box enemies">
-      <div class="tt-header-row">
-        <span class="tt-box-title" style="color: #f87171;">&bull; THE IRON SYNDICATE</span>
-        <span class="tt-box-pill">Tech Overcharge: 4</span>
-      </div>
-      <div class="tt-three-grid" id="tt-enemies-grid"></div>
-    </div>
-
-    <!-- ANCESTRAL VANGUARD CARDS -->
-    <div class="tabletop-box heroes">
-      <div class="tt-header-row">
-        <span class="tt-box-title" style="color: #f59e0b;">&bull; ANCESTRAL VANGUARD</span>
-        <span class="tt-box-pill" style="color: #fef08a;">Marrow: 5</span>
-      </div>
-      <div class="tt-three-grid" id="tt-heroes-grid"></div>
-    </div>
-
-    <!-- STARTER OPERATIVES DRAWER -->
-    <div class="tabletop-bench">
-      <div style="display:flex; justify-content:space-between; font-size:0.65rem; font-weight:800;">
-        <span style="color:#64748b;">STARTER OPERATIVES (TAP TO INSPECT)</span>
-        <span style="color:#f59e0b;">Ancestral Roster</span>
-      </div>
-      <div class="tt-bench-grid">
-        <div class="tt-bench-item">
-          <div class="tt-bench-thumb">
-            <img src="Screenshot_20260918_131036_Photos.jpg" alt="Elena">
-          </div>
-          <div style="font-size:0.65rem; font-weight:800; color:#cbd5e1;">Elena</div>
-          <div style="font-size:0.52rem; color:#38bdf8;">Taíno Tide-Caller</div>
-        </div>
-        <div class="tt-bench-item">
-          <div class="tt-bench-thumb">
-            <img src="Screenshot_20260918_131053_Photos.jpg" alt="Kenjiro">
-          </div>
-          <div style="font-size:0.65rem; font-weight:800; color:#cbd5e1;">Kenjiro</div>
-          <div style="font-size:0.52rem; color:#38bdf8;">Spatial Duelist</div>
-        </div>
-        <div class="tt-bench-item">
-          <div class="tt-bench-thumb">
-            <img src="Screenshot_20260918_131115_Photos.jpg" alt="Canopy Archer">
-          </div>
-          <div style="font-size:0.65rem; font-weight:800; color:#cbd5e1;">Canopy Archer</div>
-          <div style="font-size:0.52rem; color:#38bdf8;">Forest Precision</div>
-        </div>
-      </div>
+    <!-- RIGHT CONTROLS: ACTION PALETTE -->
+    <div class="deck-right" id="brawler-right">
+      <button class="ctrl-btn btn-strike" id="btn-strike">STRIKE<span style="font-size: 8px; opacity: 0.7;">PUNCH / SHOCK</span></button>
+      <button class="ctrl-btn btn-burst" id="btn-burst">BURST<span id="burst-sub" style="font-size: 8px; opacity: 0.7;">BEAM / LAVA</span></button>
+      <button class="ctrl-btn btn-tag" id="btn-tag">TAG SWAP<span id="tag-sub" style="font-size: 8px; opacity: 0.7;">XOCHITL (ON CALL)</span></button>
+      <button class="ctrl-btn btn-super" id="btn-super">★ LUETTA CELESTIAL AID ★<span style="font-size: 8px;">ORBITAL BEAM HEAL</span></button>
     </div>
   </div>
 </div>
 
 <script>
-  /* ===================================================
-     AUDIO ENGINE
-     =================================================== */
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  function playTone(freq, type = 'sine', duration = 0.12, vol = 0.1) {
-    try {
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
-    } catch (e) {}
+/* ---------------- AUDIO SYNTHESIZER (NO EXTERNAL FILES) ---------------- */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playBeep(freq, type, duration, vol=0.1) {
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch(e){}
+}
+
+/* ---------------- MULTICADE GAME STATE ---------------- */
+let currentGame = 'brawler';
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function switchGame(gameKey) {
+  currentGame = gameKey;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const brawlerLeft = document.getElementById('brawler-left');
+  const brawlerRight = document.getElementById('brawler-right');
+  const classicDpad = document.getElementById('classic-dpad');
+  const hud = document.getElementById('hud-overlay');
+
+  if (gameKey === 'brawler') {
+    brawlerLeft.style.display = 'flex';
+    brawlerRight.style.display = 'grid';
+    classicDpad.style.display = 'none';
+    hud.style.display = 'flex';
+  } else {
+    brawlerLeft.style.display = 'none';
+    brawlerRight.style.display = 'none';
+    classicDpad.style.display = 'grid';
+    hud.style.display = 'none';
   }
+}
 
-  /* ===================================================
-     SHARED COMBAT STATE & REPO ART ASSETS
-     =================================================== */
-  let currentMarrow = 5;
-  const maxMarrow = 5;
-  let selectedEnemy = 0;
-  let isEnemyTurnActive = false;
+/* ---------------- FLAGSHIP BRAWLER: ENGINE ---------------- */
+const BRAWLER = {
+  chapter: 1,
+  wave: 1,
+  timeFreeze: 0,
+  screenShake: 0,
+  activeHero: 'MARCUS', // 'MARCUS' or 'XOCHITL'
+  
+  hero: {
+    x: 100, y: 320, vx: 0, vy: 0, w: 32, h: 64,
+    hp: 120, maxHp: 120, kinetic: 0, isGrounded: true,
+    jumpsLeft: 2, isHovering: false, hoverTimer: 0,
+    facing: 1, attackCooldown: 0
+  },
 
-  const enemies = [
-    {
-      id: 'chrono',
-      name: 'Chrono-Lock',
-      role: 'Temporal Inhibitor',
-      line: 'NEXUS',
-      img: 'Screenshot_20260918_175152_Photos.jpg',
-      hp: 95, maxHp: 95,
-      p: 72, d: 84, w: 99,
-      traitDesc: 'Vanguard skills cost +1 Marrow to cast.',
-      attackPower: 14
-    },
-    {
-      id: 'nullbyte',
-      name: 'Null-Byte',
-      role: 'Cyber Infiltrator',
-      line: 'BACKLINE',
-      img: 'Screenshot_20260918_130641_Photos.jpg',
-      hp: 90, maxHp: 90,
-      p: 85, d: 74, w: 94,
-      traitDesc: 'Generates shields on skill activations.',
-      attackPower: 15
-    },
-    {
-      id: 'apex',
-      name: 'Apex Volt',
-      role: 'Kinetic Overlord',
-      line: 'FRONTLINE',
-      img: 'Screenshot_20260918_130602_Photos.jpg',
-      hp: 115, maxHp: 115,
-      p: 94, d: 82, w: 75,
-      traitDesc: 'Absorbs attacks first. Chains arc damage.',
-      attackPower: 16
-    }
-  ];
+  boss: {
+    name: 'CHRONO-LOCK',
+    x: 650, y: 310, vx: 0, vy: 0, w: 48, h: 74,
+    hp: 200, maxHp: 200, phase2: false, attackTimer: 0
+  },
 
-  const heroes = [
-    {
-      id: 'sundiata',
-      name: 'Sundiata Prime',
-      role: 'Mali Frontline',
-      line: 'FRONTLINE',
-      img: 'mother-luta.jpg',
-      hp: 120, maxHp: 120,
-      p: 84, d: 96, w: 90,
-      basicName: 'Cleave Strike',
-      basicDmg: 18,
-      skillName: 'Solar Dundun',
-      skillCost: 3,
-      skillType: 'attack',
-      skillPower: 34
-    },
-    {
-      id: 'marcus',
-      name: 'Marcus Prime',
-      role: 'Urban Acoustic Conduit',
-      line: 'BACKLINE',
-      img: 'Screenshot_20260917_005431_Photos.jpg',
-      hp: 100, maxHp: 100,
-      p: 91, d: 78, w: 82,
-      basicName: 'Acoustic Pulse',
-      basicDmg: 16,
-      skillName: 'Arc Burst',
-      skillCost: 3,
-      skillType: 'attack',
-      skillPower: 30
-    },
-    {
-      id: 'luetta',
-      name: 'Mother Luetta',
-      role: 'Living Codex Hearth',
-      line: 'NEXUS',
-      img: 'mother-luta.jpg',
-      hp: 90, maxHp: 90,
-      p: 60, d: 80, w: 100,
-      basicName: 'Codex Beam',
-      basicDmg: 14,
-      skillName: 'Resonance Heal',
-      skillCost: 4,
-      skillType: 'heal',
-      skillPower: 35
-    }
-  ];
+  droids: [],
+  projectiles: [],
+  particles: [],
+  celestialBeam: null,
+  rain: Array.from({length: 60}, () => ({x: Math.random()*800, y: Math.random()*450, spd: 8 + Math.random()*6}))
+};
 
-  /* ===================================================
-     GAME SWITCHER
-     =================================================== */
-  function switchGameMode(mode) {
-    const viewRooftop = document.getElementById('view-rooftop');
-    const viewTabletop = document.getElementById('view-tabletop');
-    const btnRooftop = document.getElementById('btn-mode-rooftop');
-    const btnTabletop = document.getElementById('btn-mode-tabletop');
-
-    if (mode === 'rooftop') {
-      viewRooftop.style.display = 'flex';
-      viewTabletop.style.display = 'none';
-      btnRooftop.classList.add('active');
-      btnTabletop.classList.remove('active');
-    } else {
-      viewRooftop.style.display = 'none';
-      viewTabletop.style.display = 'flex';
-      btnTabletop.classList.add('active');
-      btnRooftop.classList.remove('active');
-    }
-    playTone(450, 'sine', 0.08);
+/* Spawn Chapter 1 Droids */
+function spawnDroids() {
+  BRAWLER.droids = [];
+  const count = BRAWLER.chapter === 1 ? 3 : 4;
+  for (let i = 0; i < count; i++) {
+    BRAWLER.droids.push({
+      x: 400 + i * 90, y: BRAWLER.chapter === 2 && i%2===1 ? 220 : 330,
+      w: 28, h: 54, hp: 40, isFlying: BRAWLER.chapter === 2 && i%2===1,
+      facing: -1, shootTimer: Math.random() * 80
+    });
   }
+}
+spawnDroids();
 
-  function setLog(text, alert = false) {
-    const ticker = document.getElementById('ticker-banner');
-    ticker.textContent = text;
-    ticker.style.color = alert ? '#f87171' : '#38bdf8';
-  }
+/* ---------------- INPUT MANAGEMENT ---------------- */
+const keys = {};
+function bindBtn(id, pressFn, releaseFn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = (e) => { e.preventDefault(); if (audioCtx.state === 'suspended') audioCtx.resume(); pressFn(); };
+  const end = (e) => { e.preventDefault(); if(releaseFn) releaseFn(); };
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointerleave', end);
+}
 
-  function pickTarget(idx) {
-    if (enemies[idx].hp > 0) {
-      selectedEnemy = idx;
-      playTone(560, 'sine', 0.05);
-      render();
+bindBtn('btn-left', () => { keys['left'] = true; }, () => { keys['left'] = false; });
+bindBtn('btn-right', () => { keys['right'] = true; }, () => { keys['right'] = false; });
+bindBtn('btn-jump', () => {
+  const h = BRAWLER.hero;
+  if (h.jumpsLeft > 0) {
+    h.vy = -12;
+    h.jumpsLeft--;
+    h.isGrounded = false;
+    playBeep(320, 'square', 0.15);
+    createParticles(h.x + 16, h.y + 60, '#38bdf8', 8);
+
+    // Xochitl Air Feather Wing Hover
+    if (BRAWLER.activeHero === 'XOCHITL' && h.jumpsLeft === 0) {
+      h.isHovering = true;
+      h.hoverTimer = 35;
+      playBeep(520, 'sawtooth', 0.25);
     }
   }
+});
 
-  /* ===================================================
-     RENDER LOGIC FOR BOTH GAMES
-     =================================================== */
-  function render() {
-    document.getElementById('marrow-tracker').textContent = `Marrow: ${currentMarrow}`;
+bindBtn('btn-strike', () => {
+  const h = BRAWLER.hero;
+  if (h.attackCooldown > 0) return;
+  h.attackCooldown = 15;
 
-    // Target check
-    if (enemies[selectedEnemy].hp <= 0) {
-      const livingIdx = enemies.findIndex(e => e.hp > 0);
-      if (livingIdx !== -1) selectedEnemy = livingIdx;
-    }
-
-    // 1. RENDER GAME 1: ROOFTOP HEROES (LEFT)
-    const rtHeroesCol = document.getElementById('rt-heroes-col');
-    rtHeroesCol.innerHTML = heroes.map(h => {
-      const pct = Math.max(0, (h.hp / h.maxHp) * 100);
-      return `
-        <div class="tac-unit ${h.hp <= 0 ? 'dead' : ''}">
-          <div class="tac-unit-thumb"><img src="${h.img}" alt="${h.name}"></div>
-          <div class="tac-unit-meta">
-            <div class="tac-name-row">
-              <span style="color:#fde047;">${h.name}</span>
-              <span>${h.hp}/${h.maxHp}</span>
-            </div>
-            <div class="hp-bar-wrap">
-              <div class="hp-bar-fill hp-fill-green" style="width: ${pct}%;"></div>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    // 2. RENDER GAME 1: ROOFTOP ENEMIES (RIGHT)
-    const rtEnemiesCol = document.getElementById('rt-enemies-col');
-    rtEnemiesCol.innerHTML = enemies.map((e, idx) => {
-      const pct = Math.max(0, (e.hp / e.maxHp) * 100);
-      const isSelected = idx === selectedEnemy;
-      return `
-        <div class="tac-unit enemy ${e.hp <= 0 ? 'dead' : ''} ${isSelected ? 'selected' : ''}" 
-             onclick="pickTarget(${idx})">
-          <div class="tac-unit-thumb"><img src="${e.img}" alt="${e.name}"></div>
-          <div class="tac-unit-meta">
-            <div class="tac-name-row">
-              <span style="color:#fca5a5;">${e.name}</span>
-              <span>${e.hp}/${e.maxHp}</span>
-            </div>
-            <div class="hp-bar-wrap">
-              <div class="hp-bar-fill hp-fill-red" style="width: ${pct}%;"></div>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    // 3. RENDER GAME 1: ROOFTOP LOWER ACTION CONSOLE
-    const rtDashboard = document.getElementById('rt-dashboard-col');
-    rtDashboard.innerHTML = heroes.map((h, idx) => {
-      const canBasic = h.hp > 0 && !isEnemyTurnActive;
-      const canSkill = h.hp > 0 && !isEnemyTurnActive && currentMarrow >= h.skillCost;
-      return `
-        <div class="dash-hero-card">
-          <div class="dash-hero-header">
-            <span style="color:#fde047;">${h.name}</span>
-            <span style="color:#f59e0b; font-size:0.68rem;">${h.role}</span>
-          </div>
-          <div class="dash-btn-row">
-            <button class="dash-btn" ${!canBasic ? 'disabled' : ''} onclick="doHeroAction(${idx}, 'basic')">
-              ${h.basicName} (0M)
-            </button>
-            <button class="dash-btn skill" ${!canSkill ? 'disabled' : ''} onclick="doHeroAction(${idx}, 'skill')">
-              ${h.skillName} (${h.skillCost}M)
-            </button>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    // 4. RENDER GAME 2: TABLETOP ENEMY CARDS
-    const ttEnemiesGrid = document.getElementById('tt-enemies-grid');
-    ttEnemiesGrid.innerHTML = enemies.map((e, idx) => {
-      const pct = Math.max(0, (e.hp / e.maxHp) * 100);
-      const isSelected = idx === selectedEnemy;
-      return `
-        <div class="tt-card enemy ${e.hp <= 0 ? 'dead' : ''} ${isSelected ? 'selected' : ''}" onclick="pickTarget(${idx})">
-          <div class="tt-card-header">
-            <span style="color:#fca5a5;">${e.name}</span>
-            <span style="color:#ef4444; font-size:0.55rem;">${e.line}</span>
-          </div>
-          <div class="tt-card-role">${e.role}</div>
-          <div class="tt-card-portrait"><img src="${e.img}" alt="${e.name}"></div>
-          <div class="tt-trait-text">${e.traitDesc}</div>
-          <div class="tt-stat-strip">
-            <span>P:${e.p}</span><span>D:${e.d}</span><span>W:${e.w}</span>
-          </div>
-          <div class="hp-bar-wrap">
-            <div class="hp-bar-fill hp-fill-red" style="width: ${pct}%;"></div>
-          </div>
-          <div style="font-size:0.55rem; color:#cbd5e1; text-align:right; margin-top:2px;">
-            ${e.hp}/${e.maxHp}
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    // 5. RENDER GAME 2: TABLETOP HERO CARDS
-    const ttHeroesGrid = document.getElementById('tt-heroes-grid');
-    ttHeroesGrid.innerHTML = heroes.map((h, idx) => {
-      const pct = Math.max(0, (h.hp / h.maxHp) * 100);
-      const canBasic = h.hp > 0 && !isEnemyTurnActive;
-      const canSkill = h.hp > 0 && !isEnemyTurnActive && currentMarrow >= h.skillCost;
-      return `
-        <div class="tt-card ${h.hp <= 0 ? 'dead' : ''}">
-          <div class="tt-card-header">
-            <span style="color:#fde047;">${h.name}</span>
-            <span style="color:#f59e0b; font-size:0.55rem;">${h.line}</span>
-          </div>
-          <div class="tt-card-role">${h.role}</div>
-          <div class="tt-card-portrait"><img src="${h.img}" alt="${h.name}"></div>
-          <div class="tt-trait-text">${h.skillName}</div>
-          <div class="tt-stat-strip">
-            <span>P:${h.p}</span><span>D:${h.d}</span><span>W:${h.w}</span>
-          </div>
-          <div class="hp-bar-wrap">
-            <div class="hp-bar-fill hp-fill-green" style="width: ${pct}%;"></div>
-          </div>
-          <div style="font-size:0.55rem; color:#cbd5e1; text-align:right; margin-top:2px;">
-            ${h.hp}/${h.maxHp}
-          </div>
-          <div class="tt-btn-row">
-            <button class="tt-btn strike" ${!canBasic ? 'disabled' : ''} onclick="doHeroAction(${idx}, 'basic')">STRIKE</button>
-            <button class="tt-btn skill" ${!canSkill ? 'disabled' : ''} onclick="doHeroAction(${idx}, 'skill')">SKILL (${h.skillCost})</button>
-          </div>
-        </div>
-      `;
-    }).join('');
+  if (BRAWLER.activeHero === 'MARCUS') {
+    // Marcus Kinetic Voltage Strike
+    playBeep(450, 'sawtooth', 0.1);
+    const hitBox = { x: h.facing === 1 ? h.x + 32 : h.x - 30, y: h.y + 15, w: 35, h: 30 };
+    checkMeleeHits(hitBox, 15 + Math.floor(h.kinetic / 10));
+    createParticles(hitBox.x + 15, hitBox.y + 15, '#38bdf8', 6);
+  } else {
+    // Xochitl Volcanic Gauntlet Smash
+    playBeep(180, 'triangle', 0.18, 0.2);
+    const hitBox = { x: h.facing === 1 ? h.x + 32 : h.x - 35, y: h.y + 10, w: 40, h: 40 };
+    checkMeleeHits(hitBox, 24);
+    createParticles(hitBox.x + 20, hitBox.y + 20, '#f97316', 10);
+    BRAWLER.screenShake = 4;
   }
+});
 
-  /* ===================================================
-     PLAYER ACTIONS
-     =================================================== */
-  function doHeroAction(heroIdx, type) {
-    if (isEnemyTurnActive) return;
+bindBtn('btn-burst', () => {
+  const h = BRAWLER.hero;
+  if (h.attackCooldown > 0) return;
+  h.attackCooldown = 28;
 
-    const hero = heroes[heroIdx];
-    const target = enemies[selectedEnemy];
-
-    if (type === 'basic') {
-      target.hp = Math.max(0, target.hp - hero.basicDmg);
-      playTone(340, 'square', 0.1);
-      setLog(`${hero.name} strikes ${target.name} for ${hero.basicDmg} damage!`);
-    } else {
-      if (currentMarrow < hero.skillCost) return;
-      currentMarrow -= hero.skillCost;
-
-      if (hero.skillType === 'heal') {
-        heroes.forEach(h => {
-          if (h.hp > 0) h.hp = Math.min(h.maxHp, h.hp + hero.skillPower);
+  if (BRAWLER.activeHero === 'MARCUS') {
+    // Bio-Electric Voltage Blast
+    playBeep(600, 'square', 0.3);
+    BRAWLER.projectiles.push({
+      x: h.facing === 1 ? h.x + 35 : h.x - 20, y: h.y + 25,
+      vx: h.facing * 11, vy: 0, w: 30, h: 8, color: '#38bdf8', dmg: 30, type: 'beam'
+    });
+    // Kinetic Discharge if charged
+    if (h.kinetic >= 40) {
+      h.kinetic = 0;
+      BRAWLER.screenShake = 6;
+      playBeep(240, 'sawtooth', 0.4, 0.25);
+    }
+  } else {
+    // Xochitl: Lava Wave (Ground) OR Feather Daggers (Air)
+    if (!h.isGrounded) {
+      // Aerial Solar Feather Daggers
+      playBeep(700, 'sawtooth', 0.2);
+      for(let a = -0.3; a <= 0.3; a += 0.3) {
+        BRAWLER.projectiles.push({
+          x: h.x + 16, y: h.y + 35,
+          vx: (h.facing * 8) + Math.sin(a)*3, vy: 7,
+          w: 12, h: 12, color: '#f59e0b', dmg: 22, type: 'feather'
         });
-        playTone(620, 'sine', 0.3);
-        setLog(`${hero.name} activates ${hero.skillName}! Party recovered +${hero.skillPower} HP!`);
-      } else {
-        target.hp = Math.max(0, target.hp - hero.skillPower);
-        playTone(210, 'sawtooth', 0.2);
-        setLog(`${hero.name} unleashes ${hero.skillName} on ${target.name} (-${hero.skillPower} HP)!`);
       }
-    }
-
-    checkCombatState();
-    render();
-  }
-
-  /* ===================================================
-     ENEMY AI RETALIATION LOOP
-     =================================================== */
-  async function triggerEnemyRetaliation() {
-    if (isEnemyTurnActive) return;
-    isEnemyTurnActive = true;
-    document.getElementById('btn-end-turn').disabled = true;
-
-    setLog("Syndicate Turn: Operatives initiating retaliation assault!", true);
-    playTone(180, 'sawtooth', 0.25);
-    render();
-
-    for (const enemy of enemies) {
-      if (enemy.hp > 0) {
-        await new Promise(r => setTimeout(r, 750));
-
-        const livingHeroes = heroes.filter(h => h.hp > 0);
-        if (livingHeroes.length === 0) break;
-
-        // Aggro targeting frontline Sundiata, then random
-        const targetHero = livingHeroes.find(h => h.id === 'sundiata') || 
-                           livingHeroes[Math.floor(Math.random() * livingHeroes.length)];
-
-        targetHero.hp = Math.max(0, targetHero.hp - enemy.attackPower);
-        playTone(130, 'triangle', 0.18);
-        setLog(`${enemy.name} retaliates against ${targetHero.name} (-${enemy.attackPower} HP)!`, true);
-        render();
-      }
-    }
-
-    await new Promise(r => setTimeout(r, 600));
-    currentMarrow = maxMarrow;
-    isEnemyTurnActive = false;
-    document.getElementById('btn-end-turn').disabled = false;
-
-    checkCombatState();
-    setLog("Vanguard Turn: Marrow replenished to 5!");
-    playTone(520, 'sine', 0.15);
-    render();
-  }
-
-  function checkCombatState() {
-    if (enemies.every(e => e.hp <= 0)) {
-      setLog("VICTORY! The Vanguard secured the Detroit line!", false);
-      playTone(660, 'sine', 0.4);
-    } else if (heroes.every(h => h.hp <= 0)) {
-      setLog("DEFEAT! The Vanguard line has collapsed...", true);
-      playTone(100, 'sawtooth', 0.5);
+    } else {
+      // Ground Magma / Lava Wave Surge
+      playBeep(140, 'sawtooth', 0.5, 0.3);
+      BRAWLER.projectiles.push({
+        x: h.facing === 1 ? h.x + 30 : h.x - 50, y: 350,
+        vx: h.facing * 6, vy: 0, w: 55, h: 35, color: '#ea580c', dmg: 38, type: 'lava'
+      });
+      BRAWLER.screenShake = 8;
     }
   }
+});
 
-  render();
+bindBtn('btn-tag', () => {
+  BRAWLER.activeHero = (BRAWLER.activeHero === 'MARCUS') ? 'XOCHITL' : 'MARCUS';
+  playBeep(480, 'sine', 0.2);
+  createParticles(BRAWLER.hero.x + 16, BRAWLER.hero.y + 32, '#fbbf24', 16);
+  
+  document.getElementById('hero-name').innerText = BRAWLER.activeHero === 'MARCUS' ? 'MARCUS PRIME' : 'XOCHITL';
+  document.getElementById('hero-name').style.color = BRAWLER.activeHero === 'MARCUS' ? '#38bdf8' : '#f97316';
+  document.getElementById('tag-sub').innerText = BRAWLER.activeHero === 'MARCUS' ? 'XOCHITL (ON CALL)' : 'MARCUS (ON CALL)';
+  document.getElementById('burst-sub').innerText = BRAWLER.activeHero === 'MARCUS' ? 'VOLT BEAM' : 'LAVA / DAGGERS';
+});
+
+bindBtn('btn-super', () => {
+  // Mother Luetta Celestial Aid
+  if (BRAWLER.celestialBeam) return;
+  playBeep(880, 'triangle', 0.9, 0.4);
+  BRAWLER.celestialBeam = { alpha: 1.0, width: 90, x: BRAWLER.boss.x - 20 };
+  BRAWLER.hero.hp = Math.min(BRAWLER.hero.maxHp, BRAWLER.hero.hp + 40);
+  BRAWLER.boss.hp = Math.max(0, BRAWLER.boss.hp - 50);
+  BRAWLER.screenShake = 14;
+});
+
+function createParticles(x, y, color, qty) {
+  for (let i = 0; i < qty; i++) {
+    BRAWLER.particles.push({
+      x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+      rad: 2 + Math.random() * 3, color, life: 20
+    });
+  }
+}
+
+function checkMeleeHits(hitBox, dmg) {
+  // Hit Boss
+  if (intersect(hitBox, BRAWLER.boss)) {
+    BRAWLER.boss.hp = Math.max(0, BRAWLER.boss.hp - dmg);
+    createParticles(BRAWLER.boss.x + 20, BRAWLER.boss.y + 20, '#f87171', 8);
+    playBeep(220, 'square', 0.1);
+  }
+  // Hit Droids
+  BRAWLER.droids.forEach(d => {
+    if (intersect(hitBox, d)) {
+      d.hp -= dmg;
+      createParticles(d.x + 14, d.y + 20, '#cbd5e1', 6);
+    }
+  });
+}
+
+function intersect(r1, r2) {
+  return !(r2.x > r1.x + r1.w || r2.x + r2.w < r1.x || r2.y > r1.y + r1.h || r2.y + r2.h < r1.y);
+}
+
+/* ---------------- UPDATE & COMBAT LOGIC ---------------- */
+function updateBrawler() {
+  if (BRAWLER.timeFreeze > 0) {
+    BRAWLER.timeFreeze--;
+    return;
+  }
+
+  const h = BRAWLER.hero;
+  const b = BRAWLER.boss;
+
+  // Hero Movement
+  if (keys['left']) { h.vx = -4.5; h.facing = -1; }
+  else if (keys['right']) { h.vx = 4.5; h.facing = 1; }
+  else { h.vx *= 0.8; }
+
+  // Hover Mechanics
+  if (h.isHovering) {
+    h.vy = 0;
+    h.hoverTimer--;
+    if (h.hoverTimer <= 0) h.isHovering = false;
+  } else {
+    h.vy += 0.6; // Gravity
+  }
+
+  h.x += h.vx;
+  h.y += h.vy;
+
+  // Rooftop Floor Bounds
+  if (h.y >= 320) {
+    h.y = 320;
+    h.vy = 0;
+    h.isGrounded = true;
+    h.jumpsLeft = 2;
+    h.isHovering = false;
+  }
+  h.x = Math.max(20, Math.min(740, h.x));
+  if (h.attackCooldown > 0) h.attackCooldown--;
+
+  // Boss Logic: Chrono-Lock Teleport Mechanics
+  b.attackTimer++;
+  if (b.attackTimer > 100) {
+    b.attackTimer = 0;
+    // 50% HP Chrono Phase Time Freeze Teleport
+    if (b.hp <= b.maxHp / 2 && !b.phase2) {
+      b.phase2 = true;
+      BRAWLER.timeFreeze = 40; // Freeze frame
+      b.x = h.x > 400 ? h.x - 120 : h.x + 100;
+      playBeep(120, 'sine', 0.8, 0.4);
+      createParticles(b.x + 24, b.y + 35, '#a855f7', 24);
+    } else {
+      // Standard projectile shot
+      BRAWLER.projectiles.push({
+        x: b.x, y: b.y + 30, vx: b.x > h.x ? -6 : 6, vy: 0,
+        w: 16, h: 8, color: '#f43f5e', dmg: 14, isEnemy: true
+      });
+      playBeep(260, 'sawtooth', 0.2);
+    }
+  }
+
+  // Update Projectiles
+  for (let i = BRAWLER.projectiles.length - 1; i >= 0; i--) {
+    const p = BRAWLER.projectiles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+
+    // Hit Hero
+    if (p.isEnemy && intersect(p, h)) {
+      h.hp = Math.max(0, h.hp - p.dmg);
+      h.kinetic = Math.min(100, h.kinetic + 20); // Marcus absorbs kinetic damage
+      createParticles(h.x + 16, h.y + 30, '#ef4444', 8);
+      BRAWLER.projectiles.splice(i, 1);
+      continue;
+    }
+
+    // Hit Boss
+    if (!p.isEnemy && intersect(p, b)) {
+      b.hp = Math.max(0, b.hp - p.dmg);
+      createParticles(b.x + 20, b.y + 20, p.color, 8);
+      BRAWLER.projectiles.splice(i, 1);
+      continue;
+    }
+
+    // Hit Droids
+    if (!p.isEnemy) {
+      BRAWLER.droids.forEach(d => {
+        if (intersect(p, d)) d.hp -= p.dmg;
+      });
+    }
+
+    if (p.x < 0 || p.x > 800 || p.y > 450) BRAWLER.projectiles.splice(i, 1);
+  }
+
+  // Update Droids
+  BRAWLER.droids = BRAWLER.droids.filter(d => d.hp > 0);
+  BRAWLER.droids.forEach(d => {
+    d.shootTimer++;
+    if (d.shootTimer > 90) {
+      d.shootTimer = 0;
+      BRAWLER.projectiles.push({
+        x: d.x, y: d.y + 20, vx: d.x > h.x ? -4 : 4, vy: 0,
+        w: 10, h: 6, color: '#ef4444', dmg: 8, isEnemy: true
+      });
+    }
+  });
+
+  // Particles
+  BRAWLER.particles.forEach(pt => {
+    pt.x += pt.vx; pt.y += pt.vy; pt.life--;
+  });
+  BRAWLER.particles = BRAWLER.particles.filter(pt => pt.life > 0);
+
+  // Celestial Beam Fade
+  if (BRAWLER.celestialBeam) {
+    BRAWLER.celestialBeam.alpha -= 0.03;
+    if (BRAWLER.celestialBeam.alpha <= 0) BRAWLER.celestialBeam = null;
+  }
+
+  // Next Chapter progression
+  if (b.hp <= 0 && BRAWLER.chapter === 1) {
+    BRAWLER.chapter = 2;
+    BRAWLER.wave = 2;
+    b.name = 'APEX';
+    b.hp = 250; b.maxHp = 250; b.phase2 = false;
+    document.getElementById('boss-name').innerText = 'APEX OVERLORD';
+    document.getElementById('stage-chapter').innerText = 'CH. 2: REN-CEN SPIRE CORE';
+    document.getElementById('score-counter').innerText = 'WAVE 2/2';
+    spawnDroids();
+  }
+
+  // HUD Update
+  document.getElementById('hero-hp').style.width = (h.hp / h.maxHp * 100) + '%';
+  document.getElementById('boss-hp').style.width = (b.hp / b.maxHp * 100) + '%';
+  document.getElementById('hero-kinetic').style.width = h.kinetic + '%';
+}
+
+/* ---------------- RENDERING ---------------- */
+function drawBrawler() {
+  ctx.save();
+
+  // Screen Shake
+  if (BRAWLER.screenShake > 0) {
+    ctx.translate((Math.random() - 0.5) * BRAWLER.screenShake, (Math.random() - 0.5) * BRAWLER.screenShake);
+    BRAWLER.screenShake *= 0.85;
+    if (BRAWLER.screenShake < 0.5) BRAWLER.screenShake = 0;
+  }
+
+  // Detroit RenCen Skyline
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, 450);
+  if (BRAWLER.chapter === 1) {
+    skyGrad.addColorStop(0, '#020617'); skyGrad.addColorStop(1, '#0f172a');
+  } else {
+    skyGrad.addColorStop(0, '#1e1b4b'); skyGrad.addColorStop(1, '#030712');
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, 800, 450);
+
+  // Parallax Buildings
+  ctx.fillStyle = '#090d16';
+  ctx.fillRect(60, 100, 70, 300);
+  ctx.fillRect(180, 70, 100, 330);
+  ctx.fillRect(360, 40, 120, 360); // RenCen Central Tower
+  ctx.fillRect(540, 90, 80, 310);
+  ctx.fillRect(680, 130, 70, 270);
+
+  // Neon Windows
+  ctx.fillStyle = BRAWLER.chapter === 1 ? '#0ea5e9' : '#a855f7';
+  for (let wy = 80; wy < 350; wy += 35) {
+    ctx.fillRect(390, wy, 15, 12);
+    ctx.fillRect(435, wy, 15, 12);
+  }
+
+  // Rain
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+  ctx.beginPath();
+  BRAWLER.rain.forEach(r => {
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(r.x - 2, r.y + 10);
+    r.y += r.spd;
+    if (r.y > 450) { r.y = 0; r.x = Math.random() * 800; }
+  });
+  ctx.stroke();
+
+  // Rooftop Ground
+  ctx.fillStyle = '#0b0f19';
+  ctx.fillRect(0, 380, 800, 70);
+  ctx.strokeStyle = '#00f2fe';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, 380); ctx.lineTo(800, 380);
+  ctx.stroke();
+
+  const h = BRAWLER.hero;
+  const b = BRAWLER.boss;
+
+  // DRAW HERO: MARCUS PRIME OR XOCHITL
+  ctx.save();
+  ctx.translate(h.x + 16, h.y + 32);
+  if (h.facing === -1) ctx.scale(-1, 1);
+
+  if (BRAWLER.activeHero === 'MARCUS') {
+    // Marcus Prime (Blue Kinetic / Tactical Armor)
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(-12, -20, 24, 38); // Torso
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(-8, -32, 16, 14); // Head & Visor
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(0, -28, 8, 4); // Glowing Visor Slit
+    ctx.fillStyle = '#0369a1';
+    ctx.fillRect(-10, 18, 8, 20); ctx.fillRect(2, 18, 8, 20); // Legs
+  } else {
+    // Xochitl (Volcanic / Obsidian Gauntlets)
+    ctx.fillStyle = '#ea580c';
+    ctx.fillRect(-12, -20, 24, 38); // Armor
+    ctx.fillStyle = '#7c2d12';
+    ctx.fillRect(-8, -32, 16, 14); // Head
+    // Fiery Gauntlets
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(8, -8, 12, 12);
+    ctx.fillRect(-20, -8, 12, 12);
+    // Fiery Wings if Hovering
+    if (h.isHovering) {
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.7)';
+      ctx.beginPath();
+      ctx.moveTo(-10, -20); ctx.lineTo(-40, -45); ctx.lineTo(-20, 0);
+      ctx.moveTo(10, -20); ctx.lineTo(40, -45); ctx.lineTo(20, 0);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#9a3412';
+    ctx.fillRect(-10, 18, 8, 20); ctx.fillRect(2, 18, 8, 20);
+  }
+  ctx.restore();
+
+  // DRAW BOSS: CHRONO-LOCK / APEX
+  ctx.fillStyle = BRAWLER.chapter === 1 ? '#64748b' : '#312e81';
+  ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.fillStyle = BRAWLER.chapter === 1 ? '#f59e0b' : '#f43f5e';
+  ctx.fillRect(b.x + 12, b.y + 16, 24, 12); // Chrono Eye Core
+
+  // DRAW DROIDS
+  BRAWLER.droids.forEach(d => {
+    ctx.fillStyle = d.isFlying ? '#6366f1' : '#475569';
+    ctx.fillRect(d.x, d.y, d.w, d.h);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(d.x + 4, d.y + 8, 8, 4);
+  });
+
+  // PROJECTILES
+  BRAWLER.projectiles.forEach(p => {
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 8;
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.shadowBlur = 0;
+  });
+
+  // PARTICLES
+  BRAWLER.particles.forEach(pt => {
+    ctx.fillStyle = pt.color;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.rad, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // MOTHER LUETTA CELESTIAL BEAM
+  if (BRAWLER.celestialBeam) {
+    const beam = BRAWLER.celestialBeam;
+    ctx.fillStyle = `rgba(253, 224, 71, ${beam.alpha * 0.75})`;
+    ctx.fillRect(beam.x, 0, beam.width, 380);
+    ctx.fillStyle = `rgba(255, 255, 255, ${beam.alpha})`;
+    ctx.fillRect(beam.x + 25, 0, beam.width - 50, 380);
+  }
+
+  ctx.restore();
+}
+
+/* ---------------- CLASSIC MINI ENGINES (TABS) ---------------- */
+function drawClassicGame() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 800, 450);
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`★ ${currentGame.toUpperCase()} RETRO CABINET READY ★`, 400, 200);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '13px monospace';
+  ctx.fillText('Thumb controller linked. Press directional keys to navigate.', 400, 240);
+}
+
+/* ---------------- MASTER GAME LOOP ---------------- */
+function loop() {
+  if (currentGame === 'brawler') {
+    updateBrawler();
+    drawBrawler();
+  } else {
+    drawClassicGame();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
