@@ -42,7 +42,6 @@
       display: block;
       background: #000;
     }
-    /* HUD Overlay */
     .hud {
       position: absolute;
       top: 10px;
@@ -84,6 +83,51 @@
     .charge-fill { background: linear-gradient(90deg, #eab308, #f97316); }
     .boss-fill { background: linear-gradient(90deg, #ef4444, #b91c1c); }
     .boss-label { color: #f87171; text-align: right; }
+
+    /* Victory / Chapter Cleared Modal */
+    #victory-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(5, 11, 20, 0.85);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      text-align: center;
+      backdrop-filter: blur(4px);
+    }
+    #victory-modal h2 {
+      font-size: 28px;
+      letter-spacing: 3px;
+      color: #38bdf8;
+      margin-bottom: 8px;
+      text-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+    }
+    #victory-modal p {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 20px;
+    }
+    #btnProceed {
+      background: #0284c7;
+      border: 2px solid #38bdf8;
+      color: #fff;
+      font-weight: bold;
+      font-size: 14px;
+      padding: 12px 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 0 15px rgba(2, 132, 199, 0.6);
+    }
+    #btnProceed:active {
+      background: #38bdf8;
+    }
 
     /* Control Deck */
     #controls {
@@ -137,16 +181,24 @@
 <div id="game-container">
   <div id="canvas-wrapper">
     <canvas id="gameCanvas"></canvas>
+    
     <div class="hud">
       <div class="hud-bar-container">
-        <span class="bar-label" id="heroNameLabel">XOCHITL</span>
+        <span class="bar-label" id="heroNameLabel">MARCUS PRIME</span>
         <div class="bar-bg"><div class="bar-fill hp-fill" id="playerHpBar"></div></div>
         <div class="bar-bg" style="height: 6px;"><div class="bar-fill charge-fill" id="playerChargeBar" style="width: 0%;"></div></div>
       </div>
       <div class="hud-bar-container" style="align-items: flex-end;">
-        <span class="bar-label boss-label">BOSS: CHRONO-LOCK</span>
+        <span class="bar-label boss-label" id="bossLabelText">BOSS: CHRONO-LOCK</span>
         <div class="bar-bg"><div class="bar-fill boss-fill" id="bossHpBar"></div></div>
       </div>
+    </div>
+
+    <!-- Chapter Cleared Modal -->
+    <div id="victory-modal">
+      <h2>CHAPTER 1 CLEARED!</h2>
+      <p>Chrono-Lock has been shattered on the Ren-Cen Rooftop.</p>
+      <button id="btnProceed">PROCEED TO CHAPTER 2 ▶</button>
     </div>
   </div>
 
@@ -154,10 +206,10 @@
     <button class="btn" id="btnLeft">◀ LEFT</button>
     <button class="btn" id="btnRight">RIGHT ▶</button>
     <button class="btn" id="btnJump">▲ JUMP / HOVER</button>
-    <button class="btn" id="btnTag">TAG SWAP<span class="sub" id="tagSub">MARCUS PRIME</span></button>
+    <button class="btn" id="btnTag">TAG SWAP<span class="sub" id="tagSub">XOCHITL</span></button>
 
-    <button class="btn" id="btnStrike">STRIKE<span class="sub" id="strikeSub">MAGMA PUNCH</span></button>
-    <button class="btn" id="btnBurst">BURST<span class="sub" id="burstSub">LAVA / FEATHERS</span></button>
+    <button class="btn" id="btnStrike">STRIKE<span class="sub" id="strikeSub">ELECTRIC BEAM</span></button>
+    <button class="btn" id="btnBurst">BURST<span class="sub" id="burstSub">VOLT OVERLOAD</span></button>
     <button class="btn" id="btnGuard">GUARD<span class="sub">DEFLECTOR</span></button>
     <button class="btn" id="btnRestart">RESTART</button>
 
@@ -171,6 +223,7 @@
 <script>
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
+  const victoryModal = document.getElementById('victory-modal');
 
   function resizeCanvas() {
     canvas.width = canvas.parentElement.clientWidth;
@@ -179,19 +232,20 @@
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
 
-  // State
-  let activeHero = 'XOCHITL'; // 'XOCHITL' or 'MARCUS'
+  // Characters & World State
+  let currentChapter = 1;
+  let activeHero = 'MARCUS';
   let player = {
-    x: 120,
+    x: 140,
     y: 350,
     vx: 0,
     vy: 0,
     w: 40,
-    h: 60,
+    h: 80,
     isGrounded: false,
     hp: 100,
     maxHp: 100,
-    chargeEnergy: 0, // Marcus kinetic absorption
+    chargeEnergy: 0,
     maxCharge: 100,
     guarding: false,
     hovering: false
@@ -199,19 +253,24 @@
 
   let boss = {
     x: 650,
-    y: 280,
+    y: 350,
+    targetX: 650,
     w: 90,
-    h: 140,
+    h: 150,
     hp: 200,
     maxHp: 200,
     active: true,
-    timer: 0
+    dying: false,
+    warpCooldown: 180,
+    warpCharge: 0,
+    walkFrame: 0
   };
 
+  let debris = [];
   let drones = [
-    { x: 300, y: 120, vx: 2 },
-    { x: 500, y: 90, vx: -2 },
-    { x: 700, y: 140, vx: 1.5 }
+    { x: 300, y: 110, vx: 2 },
+    { x: 520, y: 90, vx: -2 },
+    { x: 680, y: 130, vx: 1.5 }
   ];
 
   let playerProjectiles = [];
@@ -222,11 +281,11 @@
   let luettaAid = {
     active: false,
     x: 0,
-    y: -80,
+    y: 80,
     alpha: 0
   };
 
-  // Input Handlers
+  // Input
   const keys = {};
   function setupInput(btnId, startAction, endAction) {
     const el = document.getElementById(btnId);
@@ -242,82 +301,68 @@
       player.isGrounded = false;
     } else {
       player.hovering = true;
-      player.vy = -1.5;
+      player.vy = -1.8;
     }
   }, () => player.hovering = false);
 
   setupInput('btnGuard', () => player.guarding = true, () => player.guarding = false);
   setupInput('btnTag', () => {
-    activeHero = activeHero === 'XOCHITL' ? 'MARCUS' : 'XOCHITL';
-    document.getElementById('heroNameLabel').textContent = activeHero;
-    document.getElementById('tagSub').textContent = activeHero === 'XOCHITL' ? 'MARCUS PRIME' : 'XOCHITL';
-    document.getElementById('strikeSub').textContent = activeHero === 'XOCHITL' ? 'MAGMA PUNCH' : 'ELECTRIC BEAM';
-    document.getElementById('burstSub').textContent = activeHero === 'XOCHITL' ? 'LAVA / FEATHERS' : 'VOLT OVERLOAD';
+    activeHero = activeHero === 'MARCUS' ? 'XOCHITL' : 'MARCUS';
+    document.getElementById('heroNameLabel').textContent = activeHero === 'MARCUS' ? 'MARCUS PRIME' : 'XOCHITL';
+    document.getElementById('tagSub').textContent = activeHero === 'MARCUS' ? 'XOCHITL' : 'MARCUS PRIME';
+    document.getElementById('strikeSub').textContent = activeHero === 'MARCUS' ? 'ELECTRIC BEAM' : 'MAGMA PUNCH';
+    document.getElementById('burstSub').textContent = activeHero === 'MARCUS' ? 'VOLT OVERLOAD' : 'LAVA / FEATHERS';
   });
 
   setupInput('btnStrike', () => {
-    if (activeHero === 'XOCHITL') {
-      // Magma Burst
+    if (!boss.active && !boss.dying) return;
+    if (activeHero === 'MARCUS') {
+      fireMarcusElectricBeam(false);
+    } else {
       playerProjectiles.push({
-        type: 'feather',
-        x: player.x + 25,
-        y: player.y - 15,
+        x: player.x + 30,
+        y: player.y - 45,
         vx: 11,
         vy: 0,
         color: '#f97316'
       });
-    } else {
-      // Marcus Electric Line Attack
-      fireMarcusElectricBeam();
     }
   });
 
   setupInput('btnBurst', () => {
-    if (activeHero === 'XOCHITL') {
-      // Razor Feathers Cone
+    if (!boss.active && !boss.dying) return;
+    if (activeHero === 'MARCUS') {
+      fireMarcusElectricBeam(true);
+    } else {
       for (let i = -2; i <= 2; i++) {
         playerProjectiles.push({
-          type: 'razor_feather',
-          x: player.x + 25,
-          y: player.y - 15,
+          x: player.x + 30,
+          y: player.y - 45,
           vx: 10,
           vy: i * 2.2,
           color: ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6'][i + 2]
         });
       }
-    } else {
-      // Marcus Electric Discharge
-      fireMarcusElectricBeam(true);
     }
   });
 
-  setupInput('btnAid', () => {
-    triggerMotherLuettaAid();
+  setupInput('btnAid', () => triggerMotherLuettaAid());
+  setupInput('btnRestart', () => restartBattle());
+  document.getElementById('btnProceed').addEventListener('click', () => {
+    victoryModal.style.display = 'none';
+    currentChapter = 2;
+    document.querySelector('.boss-label').textContent = 'CHAPTER 2: DETROIT SKYWAY';
+    restartBattle();
   });
 
-  setupInput('btnRestart', () => {
-    player.hp = 100;
-    player.chargeEnergy = 0;
-    boss.hp = 200;
-    boss.active = true;
-    drones = [
-      { x: 300, y: 120, vx: 2 },
-      { x: 500, y: 90, vx: -2 },
-      { x: 700, y: 140, vx: 1.5 }
-    ];
-    enemyProjectiles = [];
-    playerProjectiles = [];
-  });
-
-  // Marcus Laser / Electric Mechanics
   function fireMarcusElectricBeam(isOverload = false) {
-    let powerBonus = 1 + (player.chargeEnergy / player.maxCharge) * 2;
+    let powerBonus = 1 + (player.chargeEnergy / player.maxCharge) * 2.2;
     let targetX = boss.active ? boss.x : canvas.width;
-    let targetY = boss.active ? boss.y - 10 : player.y;
+    let targetY = boss.active ? boss.y - 50 : player.y;
 
     lightningArcs.push({
-      x1: player.x + 20,
-      y1: player.y - 10,
+      x1: player.x + 30,
+      y1: player.y - 45,
       x2: targetX,
       y2: targetY,
       duration: 16,
@@ -326,67 +371,139 @@
     });
 
     if (boss.active && Math.abs(boss.y - player.y) < 160) {
-      boss.hp -= (isOverload ? 20 : 10) * powerBonus;
+      applyDamageToBoss((isOverload ? 26 : 14) * powerBonus);
     }
-
-    // Reset Marcus counter charge after firing
     player.chargeEnergy = 0;
   }
 
-  // Mother Luetta Board Wipe
+  function applyDamageToBoss(dmg) {
+    if (!boss.active) return;
+    boss.hp = Math.max(0, boss.hp - dmg);
+    if (boss.hp <= 0 && !boss.dying) {
+      boss.dying = true;
+      boss.active = false;
+      explodeBossIntoPieces();
+    }
+  }
+
+  function explodeBossIntoPieces() {
+    // Clockwork shatter explosion
+    for (let i = 0; i < 45; i++) {
+      debris.push({
+        x: boss.x + (Math.random() - 0.5) * 60,
+        y: boss.y - 40 + (Math.random() - 0.5) * 80,
+        vx: (Math.random() - 0.5) * 14,
+        vy: (Math.random() - 0.8) * 12,
+        rot: Math.random() * Math.PI,
+        vrot: (Math.random() - 0.5) * 0.3,
+        size: Math.random() * 14 + 6,
+        type: i % 3 === 0 ? 'gear' : 'brass',
+        color: ['#b45309', '#d97706', '#92400e', '#fef08a'][i % 4]
+      });
+    }
+    screenFlash = 35;
+    setTimeout(() => {
+      victoryModal.style.display = 'flex';
+    }, 1200);
+  }
+
   function triggerMotherLuettaAid() {
     luettaAid.active = true;
     luettaAid.x = canvas.width / 2;
-    luettaAid.y = 80;
+    luettaAid.y = 110;
     luettaAid.alpha = 1.0;
 
-    // Heal Player
     player.hp = Math.min(player.maxHp, player.hp + 35);
-
-    // Board Wipe
     drones = [];
     enemyProjectiles = [];
 
-    // Boss heavy damage
     if (boss.active) {
-      boss.hp = Math.max(0, boss.hp - 35);
+      applyDamageToBoss(35);
     }
-
     screenFlash = 25;
   }
 
-  // Update Game Physics
+  function restartBattle() {
+    victoryModal.style.display = 'none';
+    player.hp = 100;
+    player.chargeEnergy = 0;
+    boss.hp = 200;
+    boss.active = true;
+    boss.dying = false;
+    boss.x = canvas.width * 0.75;
+    drones = [
+      { x: 300, y: 110, vx: 2 },
+      { x: 520, y: 90, vx: -2 },
+      { x: 680, y: 130, vx: 1.5 }
+    ];
+    debris = [];
+    enemyProjectiles = [];
+    playerProjectiles = [];
+  }
+
+  // Physics Updates
   function update() {
-    // Movement
-    if (keys['left']) player.vx = -4;
-    else if (keys['right']) player.vx = 4;
-    else player.vx *= 0.8;
+    const groundLevel = canvas.height - 40;
+
+    // Player Movement
+    if (keys['left']) player.vx = -4.5;
+    else if (keys['right']) player.vx = 4.5;
+    else player.vx *= 0.75;
 
     player.x += player.vx;
-    player.x = Math.max(30, Math.min(canvas.width - 60, player.x));
+    player.x = Math.max(40, Math.min(canvas.width - 60, player.x));
 
     if (!player.isGrounded) {
-      player.vy += player.hovering ? 0.15 : 0.6; // Gravity
+      player.vy += player.hovering ? 0.18 : 0.65;
       player.y += player.vy;
     }
 
-    const groundLevel = canvas.height - 40;
     if (player.y >= groundLevel) {
       player.y = groundLevel;
       player.vy = 0;
       player.isGrounded = true;
     }
 
-    // Boss Floating Logic
-    boss.x = canvas.width * 0.75 + Math.sin(Date.now() * 0.002) * 40;
-    boss.y = groundLevel - 70 + Math.cos(Date.now() * 0.003) * 15;
+    // Chrono-Lock Boss AI & Time Warp Mechanic
+    if (boss.active) {
+      boss.walkFrame += 0.08;
+      boss.warpCooldown--;
 
-    // Boss Drones
+      // Time Warp Teleportation
+      if (boss.warpCooldown <= 0) {
+        boss.warpCharge++;
+        if (boss.warpCharge > 40) {
+          // Trigger Warp Behind or Ahead of Player
+          let warpDistance = 140;
+          let warpToRight = (player.x + warpDistance < canvas.width - 100);
+          boss.x = warpToRight ? player.x + warpDistance : player.x - warpDistance;
+          boss.warpCooldown = 220 + Math.random() * 80;
+          boss.warpCharge = 0;
+          screenFlash = 12; // Time warp flash
+        }
+      } else {
+        // Natural heavy stride pacing
+        boss.x += Math.sin(Date.now() * 0.002) * 1.2;
+      }
+      boss.y = groundLevel;
+    }
+
+    // Debris Physics
+    for (let i = debris.length - 1; i >= 0; i--) {
+      let d = debris[i];
+      d.x += d.vx;
+      d.y += d.vy;
+      d.vy += 0.5;
+      d.rot += d.vrot;
+      if (d.y > groundLevel + 20) debris.splice(i, 1);
+    }
+
+    // Drones
     drones.forEach(d => {
       d.x += d.vx;
       if (d.x < 100 || d.x > canvas.width - 100) d.vx *= -1;
       if (Math.random() < 0.015) {
-        enemyProjectiles.push({ x: d.x, y: d.y + 15, vy: 4, vx: (Math.random() - 0.5) * 2 });
+        enemyProjectiles.push({ x: d.x, y: d.y + 15, vy: 4.5, vx: (Math.random() - 0.5) * 2 });
       }
     });
 
@@ -396,15 +513,14 @@
       p.x += p.vx;
       p.y += p.vy;
 
-      // Hit Player
-      if (Math.abs(p.x - player.x) < 25 && Math.abs(p.y - (player.y - 25)) < 35) {
+      if (Math.abs(p.x - player.x) < 25 && Math.abs(p.y - (player.y - 40)) < 40) {
         enemyProjectiles.splice(i, 1);
         if (player.guarding) {
-          player.chargeEnergy = Math.min(player.maxCharge, player.chargeEnergy + 25);
+          player.chargeEnergy = Math.min(player.maxCharge, player.chargeEnergy + 30);
         } else {
           player.hp = Math.max(0, player.hp - 8);
           if (activeHero === 'MARCUS') {
-            player.chargeEnergy = Math.min(player.maxCharge, player.chargeEnergy + 15);
+            player.chargeEnergy = Math.min(player.maxCharge, player.chargeEnergy + 18);
           }
         }
         continue;
@@ -418,16 +534,15 @@
       p.x += p.vx;
       p.y += p.vy;
 
-      // Hit Boss
-      if (boss.active && Math.abs(p.x - boss.x) < 50 && Math.abs(p.y - boss.y) < 70) {
-        boss.hp = Math.max(0, boss.hp - 8);
+      if (boss.active && Math.abs(p.x - boss.x) < 45 && Math.abs(p.y - (boss.y - 60)) < 60) {
+        applyDamageToBoss(9);
         playerProjectiles.splice(i, 1);
         continue;
       }
       if (p.x > canvas.width) playerProjectiles.splice(i, 1);
     }
 
-    // HUD Updates
+    // Update HUD
     document.getElementById('playerHpBar').style.width = (player.hp / player.maxHp * 100) + '%';
     document.getElementById('playerChargeBar').style.width = (player.chargeEnergy / player.maxCharge * 100) + '%';
     document.getElementById('bossHpBar').style.width = (boss.hp / boss.maxHp * 100) + '%';
@@ -435,17 +550,135 @@
 
   // --- RENDERING ROUTINES ---
 
-  // 1. Chrono-Lock: Steampunk Clockwork Colossus[span_9](start_span)[span_9](end_span)
+  // 1. Marcus Prime (Human-Proportioned Cyber Knight)
+  function drawMarcusPrime(ctx, p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+
+    let chargeRatio = p.chargeEnergy / p.maxCharge;
+    let glowCol = chargeRatio > 0.5 ? '#facc15' : '#38bdf8';
+
+    // Kinetic Absorption Glow
+    if (chargeRatio > 0) {
+      ctx.shadowColor = glowCol;
+      ctx.shadowBlur = 15 * chargeRatio;
+    }
+
+    // Human Legs & Armored Greaves
+    let legStride = p.vx !== 0 ? Math.sin(Date.now() * 0.015) * 10 : 0;
+    
+    // Left Leg
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2;
+    ctx.fillRect(-12 - legStride * 0.5, -30, 8, 20); // thigh
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-13 - legStride * 0.5, -12, 10, 14); // shin guard
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(-14 - legStride * 0.5, -2, 12, 4); // boot
+
+    // Right Leg
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(4 + legStride * 0.5, -30, 8, 20);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(3 + legStride * 0.5, -12, 10, 14);
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(2 + legStride * 0.5, -2, 12, 4);
+
+    // Human Muscular Torso (Tapered)
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-14, -60); // Shoulder left
+    ctx.lineTo(14, -60);  // Shoulder right
+    ctx.lineTo(8, -30);   // Waist right
+    ctx.lineTo(-8, -30);  // Waist left
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Pectoral / Kinetic Chest Armor Plates
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-11, -57, 10, 12);
+    ctx.fillRect(1, -57, 10, 12);
+
+    // Glowing Tech Arc Lines
+    ctx.strokeStyle = glowCol;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-9, -52); ctx.lineTo(-3, -52); ctx.lineTo(-3, -36);
+    ctx.moveTo(9, -52); ctx.lineTo(3, -52); ctx.lineTo(3, -36);
+    ctx.stroke();
+
+    // Human Head & Knight Cowl
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(0, -68, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Electric Cyan Visor
+    ctx.fillStyle = glowCol;
+    ctx.fillRect(-4, -70, 9, 3);
+
+    // Armored Shoulders & Arms
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.arc(-16, -58, 6, 0, Math.PI * 2); // left pauldron
+    ctx.arc(16, -58, 6, 0, Math.PI * 2);  // right pauldron
+    ctx.fill();
+
+    // Right Arm / Cannon Gauntlet
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(14, -54, 7, 18);
+    ctx.fillStyle = glowCol;
+    ctx.fillRect(15, -42, 5, 8); // Gauntlet emitter
+
+    ctx.restore();
+  }
+
+  // 2. Chrono-Lock (Steampunk Titan with Articulated Legs & Time Warp)
   function drawChronoLock(ctx, b) {
+    if (!b.active && !b.dying) return;
     ctx.save();
     ctx.translate(b.x, b.y);
 
-    let t = Date.now() * 0.003;
+    // Time Warp Distortion Ring Charging
+    if (b.warpCharge > 0) {
+      let r = b.warpCharge * 2.5;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, -65, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
-    // Shoulder Brass Gears
-    [-42, 42].forEach(dir => {
+    let t = Date.now() * 0.003;
+    let walk = Math.sin(b.walkFrame) * 12;
+
+    // Heavy Brass Mechanical Legs & Greaves
+    // Left Leg
+    ctx.fillStyle = '#78350f';
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 2.5;
+    ctx.fillRect(-30 + walk * 0.5, -45, 14, 25); // Thigh
+    ctx.beginPath(); ctx.arc(-23 + walk * 0.5, -20, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); // Knee Cog
+    ctx.fillRect(-32 + walk * 0.5, -20, 18, 20); // Greave / Shin
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(-34 + walk * 0.5, 0, 24, 8); // Heavy Iron Stomper Boot
+
+    // Right Leg
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(16 - walk * 0.5, -45, 14, 25);
+    ctx.beginPath(); ctx.arc(23 - walk * 0.5, -20, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillRect(14 - walk * 0.5, -20, 18, 20);
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(10 - walk * 0.5, 0, 24, 8);
+
+    // Shoulder Rotating Brass Cogs
+    [-46, 46].forEach(dir => {
       ctx.save();
-      ctx.translate(dir, -40);
+      ctx.translate(dir, -95);
       ctx.rotate(t * (dir > 0 ? 1 : -1));
       ctx.strokeStyle = '#b45309';
       ctx.lineWidth = 6;
@@ -460,105 +693,100 @@
       ctx.restore();
     });
 
-    // Massive Plated Torso
-    ctx.fillStyle = '#78350f';
-    ctx.strokeStyle = '#d97706';
+    // Massive Plated Clockwork Torso
+    ctx.fillStyle = '#92400e';
+    ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(-35, -35);
-    ctx.lineTo(35, -35);
-    ctx.lineTo(26, 40);
-    ctx.lineTo(-26, 40);
+    ctx.moveTo(-40, -90);
+    ctx.lineTo(40, -90);
+    ctx.lineTo(24, -42);
+    ctx.lineTo(-24, -42);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Center Clock Face / Gauge
+    // Center Working Dial
     ctx.beginPath();
-    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+    ctx.arc(0, -65, 20, 0, Math.PI * 2);
     ctx.fillStyle = '#fef3c7';
     ctx.fill();
-    ctx.strokeStyle = '#92400e';
+    ctx.strokeStyle = '#78350f';
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Clock Hands
+    // Dial Ticking Hands
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(Math.cos(t * 1.5) * 13, Math.sin(t * 1.5) * 13);
-    ctx.moveTo(0, 0);
-    ctx.lineTo(Math.cos(t * 0.3) * 9, Math.sin(t * 0.3) * 9);
+    ctx.moveTo(0, -65);
+    ctx.lineTo(Math.cos(t * 1.8) * 14, -65 + Math.sin(t * 1.8) * 14);
+    ctx.moveTo(0, -65);
+    ctx.lineTo(Math.cos(t * 0.3) * 9, -65 + Math.sin(t * 0.3) * 9);
     ctx.stroke();
 
-    // Steampunk Urn Neck / Collar
+    // Urn Neck Collar
     ctx.fillStyle = '#b45309';
-    ctx.fillRect(-18, -55, 36, 16);
+    ctx.fillRect(-18, -112, 36, 18);
 
     // Head Unit
-    ctx.fillStyle = '#92400e';
+    ctx.fillStyle = '#78350f';
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, -68, 16, 0, Math.PI * 2);
+    ctx.arc(0, -125, 17, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Three Glowing Green Tri-Optic Sensors[span_10](start_span)[span_10](end_span)
+    // Three Glowing Green Tri-Optic Sensors
     ctx.fillStyle = '#10b981';
     ctx.shadowColor = '#34d399';
     ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.arc(-5, -69, 3.5, 0, Math.PI * 2);
-    ctx.arc(5, -69, 3.5, 0, Math.PI * 2);
-    ctx.arc(0, -75, 3.5, 0, Math.PI * 2);
+    ctx.arc(-6, -126, 4, 0, Math.PI * 2);
+    ctx.arc(6, -126, 4, 0, Math.PI * 2);
+    ctx.arc(0, -133, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
 
     // Heavy Brass Arms
     ctx.strokeStyle = '#b45309';
-    ctx.lineWidth = 8;
+    ctx.lineWidth = 9;
     ctx.beginPath();
-    ctx.moveTo(-35, -30);
-    ctx.lineTo(-58, 0);
-    ctx.lineTo(-48, 38);
-    ctx.moveTo(35, -30);
-    ctx.lineTo(58, 0);
-    ctx.lineTo(48, 38);
+    ctx.moveTo(-40, -85); ctx.lineTo(-65, -55); ctx.lineTo(-55, -20);
+    ctx.moveTo(40, -85); ctx.lineTo(65, -55); ctx.lineTo(55, -20);
     ctx.stroke();
 
     ctx.restore();
   }
 
-  // 2. Mother Luetta: Glowing Elder Golden Matriarch[span_11](start_span)[span_11](end_span)
+  // 3. Mother Luetta Celestial Assist
   function drawMotherLuetta(ctx, aid) {
     ctx.save();
     ctx.translate(aid.x, aid.y);
     ctx.globalAlpha = aid.alpha;
 
-    // Sacred Radiance Aura
-    let aura = ctx.createRadialGradient(0, 0, 10, 0, 0, 100);
-    aura.addColorStop(0, 'rgba(253, 224, 71, 0.9)');
+    let aura = ctx.createRadialGradient(0, 0, 15, 0, 0, 110);
+    aura.addColorStop(0, 'rgba(253, 224, 71, 0.95)');
     aura.addColorStop(0.5, 'rgba(245, 158, 11, 0.4)');
     aura.addColorStop(1, 'rgba(245, 158, 11, 0)');
     ctx.fillStyle = aura;
     ctx.beginPath();
-    ctx.arc(0, 0, 100, 0, Math.PI * 2);
+    ctx.arc(0, 0, 110, 0, Math.PI * 2);
     ctx.fill();
 
-    // Golden Arc Rays Flowing Out
-    ctx.strokeStyle = 'rgba(254, 240, 138, 0.7)';
+    // Radiant Sun Arcs
+    ctx.strokeStyle = 'rgba(254, 240, 138, 0.8)';
     ctx.lineWidth = 2;
     for (let i = 0; i < 8; i++) {
       let ang = (i * Math.PI) / 4 + Date.now() * 0.002;
       ctx.beginPath();
       ctx.moveTo(Math.cos(ang) * 35, Math.sin(ang) * 35);
-      ctx.quadraticCurveTo(Math.cos(ang + 0.3) * 65, Math.sin(ang + 0.3) * 65, Math.cos(ang) * 85, Math.sin(ang) * 85);
+      ctx.quadraticCurveTo(Math.cos(ang + 0.3) * 65, Math.sin(ang + 0.3) * 65, Math.cos(ang) * 90, Math.sin(ang) * 90);
       ctx.stroke();
     }
 
-    // Floating Hooded Cloak & Matriarch Robes
+    // Robes & Floating Figure
     ctx.fillStyle = '#b45309';
     ctx.strokeStyle = '#fef08a';
     ctx.lineWidth = 2;
@@ -570,13 +798,13 @@
     ctx.fill();
     ctx.stroke();
 
-    // Wise Face & Hood Shadow
+    // Face / Hood
     ctx.fillStyle = '#5f2f11';
     ctx.beginPath();
     ctx.arc(0, -18, 9, 0, Math.PI * 2);
     ctx.fill();
 
-    // Floating Sacred Tome with Light Beams
+    // Floating Sacred Book of Light
     ctx.fillStyle = '#78350f';
     ctx.fillRect(-18, 5, 36, 12);
     ctx.fillStyle = '#fef08a';
@@ -584,24 +812,16 @@
     ctx.shadowBlur = 12;
     ctx.fillRect(-16, 6, 14, 10);
     ctx.fillRect(2, 6, 14, 10);
-    ctx.shadowBlur = 0;
-
-    // Outstretched Golden Hands
-    ctx.fillStyle = '#fef08a';
-    ctx.beginPath();
-    ctx.arc(-22, 2, 4, 0, Math.PI * 2);
-    ctx.arc(22, 2, 4, 0, Math.PI * 2);
-    ctx.fill();
 
     ctx.restore();
   }
 
-  // 3. Xochitl: Aztec Headdress & Layered Razor Feather Wings[span_12](start_span)[span_12](end_span)
+  // 4. Xochitl
   function drawXochitl(ctx, p) {
     ctx.save();
-    ctx.translate(p.x, p.y - 30);
+    ctx.translate(p.x, p.y);
 
-    // Razor Feather Wings (Out during Jump, Hover, or Guard)[span_13](start_span)[span_13](end_span)[span_14](start_span)[span_14](end_span)[span_15](start_span)[span_15](end_span)
+    // Razor Wings (Hover/Jump/Guard)
     if (!p.isGrounded || p.guarding) {
       const tiers = ['#ef4444', '#f97316', '#eab308', '#10b981', '#06b6d4'];
       [-1, 1].forEach(dir => {
@@ -611,12 +831,11 @@
           let flap = Math.sin(Date.now() * 0.01) * 0.12;
           ctx.rotate(spread + flap);
 
-          // Sharp Razor-Blade Feather Blade
           ctx.beginPath();
-          ctx.moveTo(0, -10);
-          ctx.lineTo(dir * 25, -28 - idx * 4);
-          ctx.lineTo(dir * (50 + idx * 5), -14 - idx * 2); // Razor sharp tip
-          ctx.lineTo(dir * 20, 5);
+          ctx.moveTo(0, -45);
+          ctx.lineTo(dir * 28, -62 - idx * 4);
+          ctx.lineTo(dir * (58 + idx * 5), -48 - idx * 2);
+          ctx.lineTo(dir * 24, -30);
           ctx.closePath();
 
           ctx.fillStyle = col;
@@ -631,103 +850,38 @@
       });
     }
 
-    // Armor Body & Skirt
-    ctx.fillStyle = '#9a3412';
-    ctx.fillRect(-10, 0, 20, 26);
-    ctx.fillStyle = '#ea580c';
-    ctx.fillRect(-12, 16, 24, 14);
+    // Legs
+    ctx.fillStyle = '#7c2d12';
+    ctx.fillRect(-10, -28, 6, 28);
+    ctx.fillRect(4, -28, 6, 28);
 
-    // Feathered Solar Crest Headdress[span_16](start_span)[span_16](end_span)
+    // Warrior Dress / Armor
+    ctx.fillStyle = '#9a3412';
+    ctx.fillRect(-12, -56, 24, 30);
+    ctx.fillStyle = '#ea580c';
+    ctx.fillRect(-14, -38, 28, 14);
+
+    // Headdress Feathers
     const headdressColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
     for (let i = -3; i <= 3; i++) {
       ctx.fillStyle = headdressColors[Math.abs(i) % headdressColors.length];
       ctx.beginPath();
-      ctx.moveTo(i * 3.5, -24);
-      ctx.lineTo(i * 5, -42 - (3 - Math.abs(i)) * 3);
-      ctx.lineTo(i * 3.5 + 2, -24);
+      ctx.moveTo(i * 3.5, -70);
+      ctx.lineTo(i * 5, -88 - (3 - Math.abs(i)) * 3);
+      ctx.lineTo(i * 3.5 + 2, -70);
       ctx.fill();
     }
 
-    // Warrior Head
+    // Head
     ctx.fillStyle = '#7c2d12';
     ctx.beginPath();
-    ctx.arc(0, -16, 9, 0, Math.PI * 2);
+    ctx.arc(0, -64, 8, 0, Math.PI * 2);
     ctx.fill();
-
-    // Golden Bracers
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(-14, 4, 4, 10);
-    ctx.fillRect(10, 4, 4, 10);
 
     ctx.restore();
   }
 
-  // 4. Marcus Prime: Cyber Knight with Kinetic Absorption Armor[span_17](start_span)[span_17](end_span)
-  function drawMarcusPrime(ctx, p) {
-    ctx.save();
-    ctx.translate(p.x, p.y - 30);
-
-    // Armor Silhouette
-    ctx.fillStyle = '#0f172a';
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.5;
-
-    // Kinetic glow when holding charge
-    if (p.chargeEnergy > 0) {
-      ctx.shadowColor = '#38bdf8';
-      ctx.shadowBlur = (p.chargeEnergy / p.maxCharge) * 18;
-    }
-
-    // Armored Torso
-    ctx.beginPath();
-    ctx.moveTo(-14, -14);
-    ctx.lineTo(14, -14);
-    ctx.lineTo(10, 24);
-    ctx.lineTo(-10, 24);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Cyan Tech Core
-    ctx.fillStyle = p.chargeEnergy > 50 ? '#facc15' : '#00e5ff';
-    ctx.beginPath();
-    ctx.arc(0, 0, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Armored Shoulders & Gauntlets
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(-22, -14, 8, 12);
-    ctx.fillRect(14, -14, 8, 12);
-
-    // Helmet & Visor
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(0, -22, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Electric Blue Visor
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(-6, -24, 12, 4);
-
-    // Electric Sparks If Charged
-    if (p.chargeEnergy > 20) {
-      ctx.strokeStyle = '#67e8f9';
-      ctx.lineWidth = 1.5;
-      for (let i = 0; i < 3; i++) {
-        let sx = (Math.random() - 0.5) * 36;
-        let sy = (Math.random() - 0.5) * 45;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + (Math.random() - 0.5) * 12, sy + (Math.random() - 0.5) * 12);
-        ctx.stroke();
-      }
-    }
-
-    ctx.restore();
-  }
-
-  // Draw Lightning Beams
+  // Draw Lightning
   function drawLightning(ctx) {
     for (let i = lightningArcs.length - 1; i >= 0; i--) {
       let arc = lightningArcs[i];
@@ -737,15 +891,15 @@
 
       ctx.save();
       ctx.strokeStyle = arc.overload ? '#facc15' : '#38bdf8';
-      ctx.lineWidth = 3 * arc.power;
+      ctx.lineWidth = 3.5 * arc.power;
       ctx.shadowColor = '#00e5ff';
       ctx.shadowBlur = 14;
 
       ctx.beginPath();
       ctx.moveTo(arc.x1, arc.y1);
       for (let s = 1; s < steps; s++) {
-        let jx = (Math.random() - 0.5) * 22 * arc.power;
-        let jy = (Math.random() - 0.5) * 22 * arc.power;
+        let jx = (Math.random() - 0.5) * 20 * arc.power;
+        let jy = (Math.random() - 0.5) * 20 * arc.power;
         ctx.lineTo(arc.x1 + dx * s + jx, arc.y1 + dy * s + jy);
       }
       ctx.lineTo(arc.x2, arc.y2);
@@ -757,19 +911,17 @@
     }
   }
 
-  // City Skyline
+  // Skyline
   function drawSkyline() {
     ctx.fillStyle = '#090d16';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Detroit Rooftops / Towers
     ctx.fillStyle = '#111827';
     ctx.fillRect(80, canvas.height - 240, 90, 240);
     ctx.fillRect(200, canvas.height - 310, 110, 310);
     ctx.fillRect(450, canvas.height - 380, 140, 380); // Ren-Cen Center Tower
     ctx.fillRect(680, canvas.height - 260, 100, 260);
 
-    // Windows
     ctx.fillStyle = '#38bdf8';
     for (let y = canvas.height - 350; y < canvas.height - 60; y += 24) {
       ctx.fillRect(480, y, 6, 12);
@@ -777,7 +929,7 @@
       ctx.fillRect(550, y, 6, 12);
     }
 
-    // Platform Rooftop
+    // Ground Platform
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
     ctx.strokeStyle = '#0284c7';
@@ -785,10 +937,28 @@
     ctx.strokeRect(0, canvas.height - 40, canvas.width, 40);
   }
 
-  // Main Loop
+  // Debris Renderer
+  function drawDebris(ctx) {
+    debris.forEach(d => {
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.rotate(d.rot);
+      ctx.fillStyle = d.color;
+      if (d.type === 'gear') {
+        ctx.beginPath();
+        ctx.arc(0, 0, d.size, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillRect(-d.size, -2, d.size * 2, 4);
+      } else {
+        ctx.fillRect(-d.size / 2, -d.size / 2, d.size, d.size);
+      }
+      ctx.restore();
+    });
+  }
+
+  // Loop
   function loop() {
     update();
-
     drawSkyline();
 
     // Drones
@@ -824,22 +994,25 @@
       ctx.restore();
     });
 
-    // Characters
-    if (boss.active) drawChronoLock(ctx, boss);
-    if (activeHero === 'XOCHITL') drawXochitl(ctx, player);
-    else drawMarcusPrime(ctx, player);
+    // Boss & Shattered Debris
+    drawChronoLock(ctx, boss);
+    drawDebris(ctx);
 
-    // Mother Luetta Assist Active
+    // Active Hero
+    if (activeHero === 'MARCUS') drawMarcusPrime(ctx, player);
+    else drawXochitl(ctx, player);
+
+    // Luetta Aid
     if (luettaAid.active) {
       drawMotherLuetta(ctx, luettaAid);
       luettaAid.alpha -= 0.015;
       if (luettaAid.alpha <= 0) luettaAid.active = false;
     }
 
-    // Lightning
+    // Lightning Arcs
     drawLightning(ctx);
 
-    // Screen Flash (Purge)
+    // Screen Flash
     if (screenFlash > 0) {
       ctx.fillStyle = `rgba(254, 240, 138, ${screenFlash / 35})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
