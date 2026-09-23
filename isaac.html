@@ -91,14 +91,14 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(5, 11, 20, 0.85);
+      background: rgba(5, 11, 20, 0.88);
       display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 20;
       text-align: center;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(5px);
     }
     #victory-modal h2 {
       font-size: 28px;
@@ -232,7 +232,7 @@
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
 
-  // Characters & World State
+  // World & Entity State
   let currentChapter = 1;
   let activeHero = 'MARCUS';
   let player = {
@@ -241,7 +241,7 @@
     vx: 0,
     vy: 0,
     w: 40,
-    h: 80,
+    h: 75,
     isGrounded: false,
     hp: 100,
     maxHp: 100,
@@ -254,7 +254,6 @@
   let boss = {
     x: 650,
     y: 350,
-    targetX: 650,
     w: 90,
     h: 150,
     hp: 200,
@@ -281,11 +280,13 @@
   let luettaAid = {
     active: false,
     x: 0,
-    y: 80,
-    alpha: 0
+    y: -80,
+    targetY: 100,
+    alpha: 0,
+    pulseRings: []
   };
 
-  // Input
+  // Input Setup
   const keys = {};
   function setupInput(btnId, startAction, endAction) {
     const el = document.getElementById(btnId);
@@ -351,7 +352,7 @@
   document.getElementById('btnProceed').addEventListener('click', () => {
     victoryModal.style.display = 'none';
     currentChapter = 2;
-    document.querySelector('.boss-label').textContent = 'CHAPTER 2: DETROIT SKYWAY';
+    document.getElementById('bossLabelText').textContent = 'STAGE 2: DETROIT SKYWAY';
     restartBattle();
   });
 
@@ -387,7 +388,6 @@
   }
 
   function explodeBossIntoPieces() {
-    // Clockwork shatter explosion
     for (let i = 0; i < 45; i++) {
       debris.push({
         x: boss.x + (Math.random() - 0.5) * 60,
@@ -410,8 +410,10 @@
   function triggerMotherLuettaAid() {
     luettaAid.active = true;
     luettaAid.x = canvas.width / 2;
-    luettaAid.y = 110;
+    luettaAid.y = -60;
+    luettaAid.targetY = 110;
     luettaAid.alpha = 1.0;
+    luettaAid.pulseRings = [10, 30, 60, 90, 130];
 
     player.hp = Math.min(player.maxHp, player.hp + 35);
     drones = [];
@@ -441,11 +443,10 @@
     playerProjectiles = [];
   }
 
-  // Physics Updates
   function update() {
     const groundLevel = canvas.height - 40;
 
-    // Player Movement
+    // Movement
     if (keys['left']) player.vx = -4.5;
     else if (keys['right']) player.vx = 4.5;
     else player.vx *= 0.75;
@@ -464,31 +465,28 @@
       player.isGrounded = true;
     }
 
-    // Chrono-Lock Boss AI & Time Warp Mechanic
+    // Boss Stride & Warp AI
     if (boss.active) {
       boss.walkFrame += 0.08;
       boss.warpCooldown--;
 
-      // Time Warp Teleportation
       if (boss.warpCooldown <= 0) {
         boss.warpCharge++;
         if (boss.warpCharge > 40) {
-          // Trigger Warp Behind or Ahead of Player
-          let warpDistance = 140;
-          let warpToRight = (player.x + warpDistance < canvas.width - 100);
-          boss.x = warpToRight ? player.x + warpDistance : player.x - warpDistance;
+          let warpDist = 140;
+          let warpToRight = (player.x + warpDist < canvas.width - 100);
+          boss.x = warpToRight ? player.x + warpDist : player.x - warpDist;
           boss.warpCooldown = 220 + Math.random() * 80;
           boss.warpCharge = 0;
-          screenFlash = 12; // Time warp flash
+          screenFlash = 12;
         }
       } else {
-        // Natural heavy stride pacing
         boss.x += Math.sin(Date.now() * 0.002) * 1.2;
       }
       boss.y = groundLevel;
     }
 
-    // Debris Physics
+    // Debris
     for (let i = debris.length - 1; i >= 0; i--) {
       let d = debris[i];
       d.x += d.vx;
@@ -542,15 +540,239 @@
       if (p.x > canvas.width) playerProjectiles.splice(i, 1);
     }
 
-    // Update HUD
+    // HUD Update
     document.getElementById('playerHpBar').style.width = (player.hp / player.maxHp * 100) + '%';
     document.getElementById('playerChargeBar').style.width = (player.chargeEnergy / player.maxCharge * 100) + '%';
     document.getElementById('bossHpBar').style.width = (boss.hp / boss.maxHp * 100) + '%';
   }
 
-  // --- RENDERING ROUTINES ---
+  // --- REFINED CHARACTER RENDERING ---
 
-  // 1. Marcus Prime (Human-Proportioned Cyber Knight)
+  // 1. Mother Luetta: Golden Goddess Matriarch with Light Rays & Golden Concentric Rings[span_12](start_span)[span_12](end_span)
+  function drawMotherLuetta(ctx, aid) {
+    ctx.save();
+    
+    // Smooth entrance glide down from sky
+    aid.y += (aid.targetY - aid.y) * 0.08;
+    ctx.translate(aid.x, aid.y);
+    ctx.globalAlpha = aid.alpha;
+
+    // Glowing Concentric Celestial Sound/Power Rings[span_13](start_span)[span_13](end_span)[span_14](start_span)[span_14](end_span)
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.45)';
+    ctx.lineWidth = 2;
+    aid.pulseRings.forEach((r, idx) => {
+      let expR = r + (Date.now() * 0.04) % 40;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, expR * 1.5, expR * 0.9, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // Radiant Golden Halo
+    let aura = ctx.createRadialGradient(0, -10, 10, 0, -10, 85);
+    aura.addColorStop(0, 'rgba(254, 240, 138, 0.95)');
+    aura.addColorStop(0.4, 'rgba(234, 179, 8, 0.6)');
+    aura.addColorStop(1, 'rgba(234, 179, 8, 0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, -10, 85, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sacred Light Beam shooting straight down to the player[span_15](start_span)[span_15](end_span)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(254, 240, 138, 0.85)';
+    ctx.lineWidth = 6;
+    ctx.shadowColor = '#fde047';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.moveTo(0, 20);
+    ctx.lineTo(player.x - aid.x, player.y - 40 - aid.y);
+    ctx.stroke();
+    ctx.restore();
+
+    // Golden Wings / Divine Mantle
+    ctx.fillStyle = '#fde047';
+    ctx.shadowColor = '#eab308';
+    ctx.shadowBlur = 12;
+    [-1, 1].forEach(dir => {
+      ctx.beginPath();
+      ctx.moveTo(0, -20);
+      ctx.quadraticCurveTo(dir * 38, -48, dir * 55, -20);
+      ctx.quadraticCurveTo(dir * 42, 10, 0, 15);
+      ctx.fill();
+    });
+
+    // Elegant Human Body & Flowing Golden Dress[span_16](start_span)[span_16](end_span)
+    ctx.fillStyle = '#eab308';
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 1.5;
+    
+    // Robe / Gown
+    ctx.beginPath();
+    ctx.moveTo(-10, -22); // Shoulders
+    ctx.lineTo(10, -22);
+    ctx.quadraticCurveTo(16, 5, 24, 45); // Flared skirt
+    ctx.quadraticCurveTo(0, 38, -24, 45);
+    ctx.quadraticCurveTo(-16, 5, -10, -22);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Golden Bodice & Cinched Waist
+    ctx.fillStyle = '#ca8a04';
+    ctx.fillRect(-8, -12, 16, 14);
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(-10, -2, 20, 3); // Belt
+
+    // Graceful Golden Arms
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(-9, -20); ctx.lineTo(-24, -6); ctx.lineTo(-32, -18); // Left reaching arm
+    ctx.moveTo(9, -20); ctx.lineTo(24, -6); ctx.lineTo(32, -18);   // Right reaching arm
+    ctx.stroke();
+
+    // Human Head & Flowing Golden Hair
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(0, -32, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hair flowing back in the wind[span_17](start_span)[span_17](end_span)
+    ctx.beginPath();
+    ctx.moveTo(-7, -35);
+    ctx.quadraticCurveTo(-22, -45, -28, -28);
+    ctx.quadraticCurveTo(-15, -24, -6, -26);
+    ctx.moveTo(7, -35);
+    ctx.quadraticCurveTo(22, -45, 28, -28);
+    ctx.quadraticCurveTo(15, -24, 6, -26);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // 2. Xochitl: Indigenous Warrior Princess with Feathers & Curved Human Form[span_18](start_span)[span_18](end_span)[span_19](start_span)[span_19](end_span)
+  function drawXochitl(ctx, p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+
+    let legAnim = p.vx !== 0 ? Math.sin(Date.now() * 0.015) * 8 : 0;
+
+    // Prismatic Feathered Wings (Leaping, Hovering, or Guarding)[span_20](start_span)[span_20](end_span)[span_21](start_span)[span_21](end_span)
+    if (!p.isGrounded || p.guarding) {
+      const colors = ['#ef4444', '#f97316', '#eab308', '#10b981', '#06b6d4'];
+      [-1, 1].forEach(dir => {
+        colors.forEach((col, idx) => {
+          ctx.save();
+          let spread = (idx * 0.16 + 0.22) * dir;
+          let flap = Math.sin(Date.now() * 0.012) * 0.14;
+          ctx.rotate(spread + flap);
+
+          // Razor-sharp Curved Feather Blade
+          ctx.beginPath();
+          ctx.moveTo(0, -42);
+          ctx.quadraticCurveTo(dir * 24, -58 - idx * 3, dir * (56 + idx * 6), -46 - idx * 2);
+          ctx.quadraticCurveTo(dir * 28, -32, 0, -38);
+          ctx.closePath();
+
+          ctx.fillStyle = col;
+          ctx.shadowColor = col;
+          ctx.shadowBlur = 8;
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.restore();
+        });
+      });
+    }
+
+    // Natural Legs & Greaves
+    ctx.fillStyle = '#b45309'; // Warm skin tone
+    ctx.fillRect(-9 + legAnim * 0.4, -28, 5, 16); // Left thigh
+    ctx.fillRect(4 - legAnim * 0.4, -28, 5, 16);  // Right thigh
+
+    // Golden Shin Guards & Moccasin Boots
+    ctx.fillStyle = '#ca8a04';
+    ctx.fillRect(-10 + legAnim * 0.4, -14, 7, 12);
+    ctx.fillRect(3 - legAnim * 0.4, -14, 7, 12);
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-11 + legAnim * 0.4, -3, 8, 4);
+    ctx.fillRect(2 - legAnim * 0.4, -3, 8, 4);
+
+    // Human Waist & Tribal Tasseled Skirt
+    ctx.fillStyle = '#9a3412';
+    ctx.beginPath();
+    ctx.moveTo(-11, -38);
+    ctx.lineTo(11, -38);
+    ctx.lineTo(15, -24);
+    ctx.lineTo(-15, -24);
+    ctx.closePath();
+    ctx.fill();
+
+    // Geometric Waist Sash
+    ctx.fillStyle = '#06b6d4';
+    ctx.fillRect(-11, -38, 22, 3);
+
+    // Torso / Cuirass (Feminine Athletic Armor)
+    ctx.fillStyle = '#c2410c';
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-11, -56); // Shoulders
+    ctx.lineTo(11, -56);
+    ctx.lineTo(8, -38);   // Tapered waist
+    ctx.lineTo(-8, -38);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Golden Gorget / Chest Emblem
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(0, -48, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Arms & Golden Gauntlets
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(-14, -54, 4, 14); // Left arm
+    ctx.fillRect(10, -54, 4, 14);  // Right arm
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(-15, -44, 5, 8);  // Gauntlets
+    ctx.fillRect(10, -44, 5, 8);
+
+    // Human Head & Face
+    ctx.fillStyle = '#9a3412';
+    ctx.beginPath();
+    ctx.arc(0, -64, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Flowing Dark Braids / Hair
+    ctx.fillStyle = '#1c1917';
+    ctx.beginPath();
+    ctx.moveTo(-6, -65); ctx.lineTo(-9, -46); ctx.lineTo(-5, -46); ctx.lineTo(-3, -62);
+    ctx.moveTo(6, -65); ctx.lineTo(9, -46); ctx.lineTo(5, -46); ctx.lineTo(3, -62);
+    ctx.fill();
+
+    // Arched Fan Feathers Headdress (No more straight toothpicks)[span_22](start_span)[span_22](end_span)[span_23](start_span)[span_23](end_span)
+    const plumeCols = ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6'];
+    for (let i = -4; i <= 4; i++) {
+      let angle = (i * 0.16);
+      ctx.save();
+      ctx.translate(0, -68);
+      ctx.rotate(angle);
+      ctx.fillStyle = plumeCols[Math.abs(i) % plumeCols.length];
+      ctx.beginPath();
+      ctx.moveTo(-2, 0);
+      ctx.lineTo(0, -22 - (4 - Math.abs(i)) * 2.5); // Arched plume
+      ctx.lineTo(2, 0);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  // 3. Marcus Prime: Proportioned Cyber Knight
   function drawMarcusPrime(ctx, p) {
     ctx.save();
     ctx.translate(p.x, p.y);
@@ -558,92 +780,78 @@
     let chargeRatio = p.chargeEnergy / p.maxCharge;
     let glowCol = chargeRatio > 0.5 ? '#facc15' : '#38bdf8';
 
-    // Kinetic Absorption Glow
     if (chargeRatio > 0) {
       ctx.shadowColor = glowCol;
       ctx.shadowBlur = 15 * chargeRatio;
     }
 
-    // Human Legs & Armored Greaves
     let legStride = p.vx !== 0 ? Math.sin(Date.now() * 0.015) * 10 : 0;
     
-    // Left Leg
+    // Human Form Armored Legs
     ctx.fillStyle = '#0f172a';
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 2;
-    ctx.fillRect(-12 - legStride * 0.5, -30, 8, 20); // thigh
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(-13 - legStride * 0.5, -12, 10, 14); // shin guard
-    ctx.fillStyle = '#0284c7';
-    ctx.fillRect(-14 - legStride * 0.5, -2, 12, 4); // boot
+    ctx.fillRect(-12 - legStride * 0.5, -30, 7, 18);
+    ctx.fillRect(5 + legStride * 0.5, -30, 7, 18);
 
-    // Right Leg
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(4 + legStride * 0.5, -30, 8, 20);
     ctx.fillStyle = '#1e293b';
-    ctx.fillRect(3 + legStride * 0.5, -12, 10, 14);
-    ctx.fillStyle = '#0284c7';
-    ctx.fillRect(2 + legStride * 0.5, -2, 12, 4);
+    ctx.fillRect(-13 - legStride * 0.5, -14, 9, 14);
+    ctx.fillRect(4 + legStride * 0.5, -14, 9, 14);
 
-    // Human Muscular Torso (Tapered)
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(-14 - legStride * 0.5, -2, 11, 4);
+    ctx.fillRect(3 + legStride * 0.5, -2, 11, 4);
+
+    // Muscular Armored Torso
     ctx.fillStyle = '#1e293b';
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(-14, -60); // Shoulder left
-    ctx.lineTo(14, -60);  // Shoulder right
-    ctx.lineTo(8, -30);   // Waist right
-    ctx.lineTo(-8, -30);  // Waist left
+    ctx.moveTo(-14, -60);
+    ctx.lineTo(14, -60);
+    ctx.lineTo(9, -30);
+    ctx.lineTo(-9, -30);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Pectoral / Kinetic Chest Armor Plates
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(-11, -57, 10, 12);
-    ctx.fillRect(1, -57, 10, 12);
-
-    // Glowing Tech Arc Lines
+    // Circuit lines
     ctx.strokeStyle = glowCol;
-    ctx.lineWidth = 1.8;
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.moveTo(-9, -52); ctx.lineTo(-3, -52); ctx.lineTo(-3, -36);
-    ctx.moveTo(9, -52); ctx.lineTo(3, -52); ctx.lineTo(3, -36);
+    ctx.moveTo(-8, -52); ctx.lineTo(-2, -52); ctx.lineTo(-2, -36);
+    ctx.moveTo(8, -52); ctx.lineTo(2, -52); ctx.lineTo(2, -36);
     ctx.stroke();
 
-    // Human Head & Knight Cowl
+    // Head Unit
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
     ctx.arc(0, -68, 7.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Electric Cyan Visor
+    // Glowing Visor
     ctx.fillStyle = glowCol;
     ctx.fillRect(-4, -70, 9, 3);
 
-    // Armored Shoulders & Arms
+    // Pauldrons & Arm Emitters
     ctx.fillStyle = '#334155';
     ctx.beginPath();
-    ctx.arc(-16, -58, 6, 0, Math.PI * 2); // left pauldron
-    ctx.arc(16, -58, 6, 0, Math.PI * 2);  // right pauldron
+    ctx.arc(-16, -58, 6, 0, Math.PI * 2);
+    ctx.arc(16, -58, 6, 0, Math.PI * 2);
     ctx.fill();
 
-    // Right Arm / Cannon Gauntlet
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(14, -54, 7, 18);
     ctx.fillStyle = glowCol;
-    ctx.fillRect(15, -42, 5, 8); // Gauntlet emitter
+    ctx.fillRect(15, -42, 5, 8);
 
     ctx.restore();
   }
 
-  // 2. Chrono-Lock (Steampunk Titan with Articulated Legs & Time Warp)
+  // 4. Chrono-Lock: Steampunk Mechanical Titan[span_24](start_span)[span_24](end_span)[span_25](start_span)[span_25](end_span)
   function drawChronoLock(ctx, b) {
     if (!b.active && !b.dying) return;
     ctx.save();
     ctx.translate(b.x, b.y);
 
-    // Time Warp Distortion Ring Charging
     if (b.warpCharge > 0) {
       let r = b.warpCharge * 2.5;
       ctx.strokeStyle = '#38bdf8';
@@ -656,18 +864,16 @@
     let t = Date.now() * 0.003;
     let walk = Math.sin(b.walkFrame) * 12;
 
-    // Heavy Brass Mechanical Legs & Greaves
-    // Left Leg
+    // Articulated Brass Legs & Feet
     ctx.fillStyle = '#78350f';
     ctx.strokeStyle = '#d97706';
     ctx.lineWidth = 2.5;
-    ctx.fillRect(-30 + walk * 0.5, -45, 14, 25); // Thigh
-    ctx.beginPath(); ctx.arc(-23 + walk * 0.5, -20, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); // Knee Cog
-    ctx.fillRect(-32 + walk * 0.5, -20, 18, 20); // Greave / Shin
+    ctx.fillRect(-30 + walk * 0.5, -45, 14, 25);
+    ctx.beginPath(); ctx.arc(-23 + walk * 0.5, -20, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillRect(-32 + walk * 0.5, -20, 18, 20);
     ctx.fillStyle = '#451a03';
-    ctx.fillRect(-34 + walk * 0.5, 0, 24, 8); // Heavy Iron Stomper Boot
+    ctx.fillRect(-34 + walk * 0.5, 0, 24, 8);
 
-    // Right Leg
     ctx.fillStyle = '#78350f';
     ctx.fillRect(16 - walk * 0.5, -45, 14, 25);
     ctx.beginPath(); ctx.arc(23 - walk * 0.5, -20, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -675,7 +881,7 @@
     ctx.fillStyle = '#451a03';
     ctx.fillRect(10 - walk * 0.5, 0, 24, 8);
 
-    // Shoulder Rotating Brass Cogs
+    // Shoulder Cogs
     [-46, 46].forEach(dir => {
       ctx.save();
       ctx.translate(dir, -95);
@@ -693,7 +899,7 @@
       ctx.restore();
     });
 
-    // Massive Plated Clockwork Torso
+    // Clockwork Torso
     ctx.fillStyle = '#92400e';
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 3;
@@ -706,7 +912,7 @@
     ctx.fill();
     ctx.stroke();
 
-    // Center Working Dial
+    // Center Working Clock Face[span_26](start_span)[span_26](end_span)
     ctx.beginPath();
     ctx.arc(0, -65, 20, 0, Math.PI * 2);
     ctx.fillStyle = '#fef3c7';
@@ -715,7 +921,6 @@
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Dial Ticking Hands
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -725,11 +930,10 @@
     ctx.lineTo(Math.cos(t * 0.3) * 9, -65 + Math.sin(t * 0.3) * 9);
     ctx.stroke();
 
-    // Urn Neck Collar
+    // Head & Tri-Optic Glowing Sensors[span_27](start_span)[span_27](end_span)
     ctx.fillStyle = '#b45309';
     ctx.fillRect(-18, -112, 36, 18);
 
-    // Head Unit
     ctx.fillStyle = '#78350f';
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 2;
@@ -738,7 +942,6 @@
     ctx.fill();
     ctx.stroke();
 
-    // Three Glowing Green Tri-Optic Sensors
     ctx.fillStyle = '#10b981';
     ctx.shadowColor = '#34d399';
     ctx.shadowBlur = 10;
@@ -749,134 +952,13 @@
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Heavy Brass Arms
+    // Heavy Arms
     ctx.strokeStyle = '#b45309';
     ctx.lineWidth = 9;
     ctx.beginPath();
     ctx.moveTo(-40, -85); ctx.lineTo(-65, -55); ctx.lineTo(-55, -20);
     ctx.moveTo(40, -85); ctx.lineTo(65, -55); ctx.lineTo(55, -20);
     ctx.stroke();
-
-    ctx.restore();
-  }
-
-  // 3. Mother Luetta Celestial Assist
-  function drawMotherLuetta(ctx, aid) {
-    ctx.save();
-    ctx.translate(aid.x, aid.y);
-    ctx.globalAlpha = aid.alpha;
-
-    let aura = ctx.createRadialGradient(0, 0, 15, 0, 0, 110);
-    aura.addColorStop(0, 'rgba(253, 224, 71, 0.95)');
-    aura.addColorStop(0.5, 'rgba(245, 158, 11, 0.4)');
-    aura.addColorStop(1, 'rgba(245, 158, 11, 0)');
-    ctx.fillStyle = aura;
-    ctx.beginPath();
-    ctx.arc(0, 0, 110, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Radiant Sun Arcs
-    ctx.strokeStyle = 'rgba(254, 240, 138, 0.8)';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 8; i++) {
-      let ang = (i * Math.PI) / 4 + Date.now() * 0.002;
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(ang) * 35, Math.sin(ang) * 35);
-      ctx.quadraticCurveTo(Math.cos(ang + 0.3) * 65, Math.sin(ang + 0.3) * 65, Math.cos(ang) * 90, Math.sin(ang) * 90);
-      ctx.stroke();
-    }
-
-    // Robes & Floating Figure
-    ctx.fillStyle = '#b45309';
-    ctx.strokeStyle = '#fef08a';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, -32);
-    ctx.quadraticCurveTo(-26, -20, -32, 28);
-    ctx.lineTo(32, 28);
-    ctx.quadraticCurveTo(26, -20, 0, -32);
-    ctx.fill();
-    ctx.stroke();
-
-    // Face / Hood
-    ctx.fillStyle = '#5f2f11';
-    ctx.beginPath();
-    ctx.arc(0, -18, 9, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Floating Sacred Book of Light
-    ctx.fillStyle = '#78350f';
-    ctx.fillRect(-18, 5, 36, 12);
-    ctx.fillStyle = '#fef08a';
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 12;
-    ctx.fillRect(-16, 6, 14, 10);
-    ctx.fillRect(2, 6, 14, 10);
-
-    ctx.restore();
-  }
-
-  // 4. Xochitl
-  function drawXochitl(ctx, p) {
-    ctx.save();
-    ctx.translate(p.x, p.y);
-
-    // Razor Wings (Hover/Jump/Guard)
-    if (!p.isGrounded || p.guarding) {
-      const tiers = ['#ef4444', '#f97316', '#eab308', '#10b981', '#06b6d4'];
-      [-1, 1].forEach(dir => {
-        tiers.forEach((col, idx) => {
-          ctx.save();
-          let spread = (idx * 0.18 + 0.2) * dir;
-          let flap = Math.sin(Date.now() * 0.01) * 0.12;
-          ctx.rotate(spread + flap);
-
-          ctx.beginPath();
-          ctx.moveTo(0, -45);
-          ctx.lineTo(dir * 28, -62 - idx * 4);
-          ctx.lineTo(dir * (58 + idx * 5), -48 - idx * 2);
-          ctx.lineTo(dir * 24, -30);
-          ctx.closePath();
-
-          ctx.fillStyle = col;
-          ctx.shadowColor = col;
-          ctx.shadowBlur = 6;
-          ctx.fill();
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          ctx.restore();
-        });
-      });
-    }
-
-    // Legs
-    ctx.fillStyle = '#7c2d12';
-    ctx.fillRect(-10, -28, 6, 28);
-    ctx.fillRect(4, -28, 6, 28);
-
-    // Warrior Dress / Armor
-    ctx.fillStyle = '#9a3412';
-    ctx.fillRect(-12, -56, 24, 30);
-    ctx.fillStyle = '#ea580c';
-    ctx.fillRect(-14, -38, 28, 14);
-
-    // Headdress Feathers
-    const headdressColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
-    for (let i = -3; i <= 3; i++) {
-      ctx.fillStyle = headdressColors[Math.abs(i) % headdressColors.length];
-      ctx.beginPath();
-      ctx.moveTo(i * 3.5, -70);
-      ctx.lineTo(i * 5, -88 - (3 - Math.abs(i)) * 3);
-      ctx.lineTo(i * 3.5 + 2, -70);
-      ctx.fill();
-    }
-
-    // Head
-    ctx.fillStyle = '#7c2d12';
-    ctx.beginPath();
-    ctx.arc(0, -64, 8, 0, Math.PI * 2);
-    ctx.fill();
 
     ctx.restore();
   }
@@ -919,7 +1001,7 @@
     ctx.fillStyle = '#111827';
     ctx.fillRect(80, canvas.height - 240, 90, 240);
     ctx.fillRect(200, canvas.height - 310, 110, 310);
-    ctx.fillRect(450, canvas.height - 380, 140, 380); // Ren-Cen Center Tower
+    ctx.fillRect(450, canvas.height - 380, 140, 380);
     ctx.fillRect(680, canvas.height - 260, 100, 260);
 
     ctx.fillStyle = '#38bdf8';
@@ -929,7 +1011,6 @@
       ctx.fillRect(550, y, 6, 12);
     }
 
-    // Ground Platform
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
     ctx.strokeStyle = '#0284c7';
@@ -937,7 +1018,6 @@
     ctx.strokeRect(0, canvas.height - 40, canvas.width, 40);
   }
 
-  // Debris Renderer
   function drawDebris(ctx) {
     debris.forEach(d => {
       ctx.save();
@@ -956,7 +1036,7 @@
     });
   }
 
-  // Loop
+  // Main Loop
   function loop() {
     update();
     drawSkyline();
@@ -994,7 +1074,7 @@
       ctx.restore();
     });
 
-    // Boss & Shattered Debris
+    // Boss & Shattered Clockwork Debris
     drawChronoLock(ctx, boss);
     drawDebris(ctx);
 
@@ -1002,17 +1082,17 @@
     if (activeHero === 'MARCUS') drawMarcusPrime(ctx, player);
     else drawXochitl(ctx, player);
 
-    // Luetta Aid
+    // Mother Luetta
     if (luettaAid.active) {
       drawMotherLuetta(ctx, luettaAid);
-      luettaAid.alpha -= 0.015;
+      luettaAid.alpha -= 0.012;
       if (luettaAid.alpha <= 0) luettaAid.active = false;
     }
 
-    // Lightning Arcs
+    // Lightning
     drawLightning(ctx);
 
-    // Screen Flash
+    // Flash
     if (screenFlash > 0) {
       ctx.fillStyle = `rgba(254, 240, 138, ${screenFlash / 35})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
