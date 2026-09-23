@@ -1,1226 +1,855 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Isaac Rhodes Adventures - Chapter 1: Detroit Ren-Cen Rooftop Showdown</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-  body {
-    background-color: #0b111e;
-    color: #fff;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    overflow: hidden;
-  }
-  #game-wrapper {
-    position: relative;
-    width: 960px;
-    max-width: 100vw;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  #hud-top {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 14px;
-    background: rgba(8, 16, 32, 0.9);
-    border: 1px solid #1fa3c7;
-    border-radius: 8px 8px 0 0;
-    box-shadow: 0 0 10px rgba(31, 163, 199, 0.3);
-  }
-  .meter-box {
-    display: flex;
-    flex-direction: column;
-    width: 250px;
-  }
-  .meter-label {
-    font-weight: 800;
-    font-size: 13px;
-    letter-spacing: 1.5px;
-    margin-bottom: 3px;
-  }
-  #player-label { color: #2bf0c5; }
-  #enemy-label { color: #f04848; text-align: right; }
-  .bar-bg {
-    width: 100%;
-    height: 12px;
-    background: #101c2e;
-    border: 1px solid #284469;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  #player-hp-bar {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #1fa3c7, #2bf0c5);
-    transition: width 0.2s ease;
-  }
-  #enemy-hp-bar {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #f04848, #ff8c00);
-    transition: width 0.2s ease;
-  }
-  #center-banner {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.2px;
-    text-align: center;
-    color: #e5f6ff;
-    padding: 3px 10px;
-    border: 1px solid #2389a8;
-    background: rgba(14, 38, 64, 0.75);
-    border-radius: 4px;
-  }
-  canvas {
-    width: 100%;
-    height: 420px;
-    background: #080d19;
-    border-left: 1px solid #1fa3c7;
-    border-right: 1px solid #1fa3c7;
-    display: block;
-  }
-  #controls-panel {
-    width: 100%;
-    background: #0d1a2d;
-    border: 1px solid #1fa3c7;
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    padding: 6px 10px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.6);
-  }
-  .control-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-  }
-  .btn {
-    background: linear-gradient(180deg, #1b3552, #102338);
-    border: 1px solid #2c6e91;
-    color: #dcf2ff;
-    border-radius: 6px;
-    padding: 7px 4px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.8px;
-    cursor: pointer;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1px;
-    transition: all 0.1s;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 2px 5px rgba(0,0,0,0.4);
-  }
-  .btn:active, .btn.active {
-    background: linear-gradient(180deg, #1f6487, #13405c);
-    border-color: #37d6ff;
-    transform: translateY(1px);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.6);
-  }
-  .btn-subtext {
-    font-size: 9px;
-    color: #8bbcd6;
-    text-transform: uppercase;
-  }
-  #btn-aid {
-    width: 100%;
-    background: linear-gradient(180deg, #b27a12, #6b4300);
-    border: 1px solid #fcd34d;
-    color: #fff4bd;
-    padding: 8px;
-    font-size: 13px;
-    border-radius: 6px;
-    cursor: pointer;
-    text-align: center;
-    font-weight: 800;
-    letter-spacing: 1px;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.7);
-  }
-  #btn-aid:active {
-    background: linear-gradient(180deg, #d9991a, #8f5a00);
-    border-color: #ffffff;
-  }
-  #modal-screen {
-    position: absolute;
-    top: 40px;
-    left: 0;
-    width: 100%;
-    height: 420px;
-    background: rgba(5, 12, 24, 0.92);
-    backdrop-filter: blur(4px);
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-  }
-  #modal-title {
-    font-size: 32px;
-    color: #2bf0c5;
-    font-weight: 900;
-    margin-bottom: 12px;
-    text-shadow: 0 0 15px rgba(43,240,197,0.6);
-  }
-  #modal-desc {
-    font-size: 15px;
-    color: #e2f4ff;
-    margin-bottom: 22px;
-    text-align: center;
-    max-width: 500px;
-    line-height: 1.5;
-  }
-  #modal-btn {
-    background: linear-gradient(180deg, #248ba8, #135569);
-    border: 1px solid #48e2ff;
-    color: #fff;
-    padding: 11px 26px;
-    border-radius: 6px;
-    font-weight: 800;
-    cursor: pointer;
-    font-size: 14px;
-    box-shadow: 0 0 14px rgba(72,226,255,0.4);
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Isaac Rhodes Adventures: Ren-Cen Rooftop Clash</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: #050b14;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #game-container {
+      width: 100vw;
+      max-width: 900px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    #canvas-wrapper {
+      position: relative;
+      width: 100%;
+      flex: 1;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #000;
+    }
+    /* HUD Overlay */
+    .hud {
+      position: absolute;
+      top: 10px;
+      left: 15px;
+      right: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .hud-bar-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 32%;
+    }
+    .bar-label {
+      color: #38bdf8;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+    .bar-bg {
+      width: 100%;
+      height: 12px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid #0284c7;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      width: 100%;
+      transition: width 0.15s ease-out;
+    }
+    .hp-fill { background: linear-gradient(90deg, #38bdf8, #0284c7); }
+    .charge-fill { background: linear-gradient(90deg, #eab308, #f97316); }
+    .boss-fill { background: linear-gradient(90deg, #ef4444, #b91c1c); }
+    .boss-label { color: #f87171; text-align: right; }
+
+    /* Control Deck */
+    #controls {
+      background: #0f172a;
+      border-top: 2px solid #0284c7;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-gap: 6px;
+      padding: 8px 10px;
+      width: 100%;
+    }
+    .btn {
+      background: #1e293b;
+      border: 1px solid #38bdf8;
+      border-radius: 6px;
+      color: #f1f5f9;
+      padding: 10px 4px;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .btn:active {
+      background: #0284c7;
+      color: #fff;
+    }
+    .btn span.sub {
+      font-size: 8px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .btn.aid-btn {
+      grid-column: span 4;
+      background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+      border: 1px solid #38bdf8;
+      color: #ffffff;
+      padding: 10px;
+    }
+    .btn.aid-btn:active {
+      background: #38bdf8;
+    }
+  </style>
 </head>
 <body>
 
-<div id="game-wrapper">
-  <div id="hud-top">
-    <div class="meter-box">
-      <div id="player-label" class="meter-label">MARCUS PRIME</div>
-      <div class="bar-bg"><div id="player-hp-bar"></div></div>
-    </div>
-    <div id="center-banner">
-      <span id="center-line1">WAVE 1: DRONE INTRUSION</span><br>
-      <span id="center-line2" style="font-size:9px; color:#85b8d2;">CLEAR DRONES TO SUMMON BOSS</span>
-    </div>
-    <div class="meter-box">
-      <div id="enemy-label" class="meter-label">DRONE FLEET</div>
-      <div class="bar-bg"><div id="enemy-hp-bar"></div></div>
+<div id="game-container">
+  <div id="canvas-wrapper">
+    <canvas id="gameCanvas"></canvas>
+    <div class="hud">
+      <div class="hud-bar-container">
+        <span class="bar-label" id="heroNameLabel">XOCHITL</span>
+        <div class="bar-bg"><div class="bar-fill hp-fill" id="playerHpBar"></div></div>
+        <div class="bar-bg" style="height: 6px;"><div class="bar-fill charge-fill" id="playerChargeBar" style="width: 0%;"></div></div>
+      </div>
+      <div class="hud-bar-container" style="align-items: flex-end;">
+        <span class="bar-label boss-label">BOSS: CHRONO-LOCK</span>
+        <div class="bar-bg"><div class="bar-fill boss-fill" id="bossHpBar"></div></div>
+      </div>
     </div>
   </div>
 
-  <canvas id="gameCanvas" width="960" height="420"></canvas>
+  <div id="controls">
+    <button class="btn" id="btnLeft">◀ LEFT</button>
+    <button class="btn" id="btnRight">RIGHT ▶</button>
+    <button class="btn" id="btnJump">▲ JUMP / HOVER</button>
+    <button class="btn" id="btnTag">TAG SWAP<span class="sub" id="tagSub">MARCUS PRIME</span></button>
 
-  <div id="controls-panel">
-    <div class="control-row">
-      <button class="btn" id="btn-left">◀ LEFT</button>
-      <button class="btn" id="btn-right">RIGHT ▶</button>
-      <button class="btn" id="btn-jump">▲ JUMP / HOVER</button>
-      <button class="btn" id="btn-swap">
-        TAG SWAP
-        <span class="btn-subtext" id="swap-subtext">XOCHITL</span>
-      </button>
-    </div>
-    <div class="control-row">
-      <button class="btn" id="btn-strike">
-        STRIKE
-        <span class="btn-subtext" id="strike-subtext">LIGHTNING BOLT</span>
-      </button>
-      <button class="btn" id="btn-burst">
-        BURST
-        <span class="btn-subtext" id="burst-subtext">VOLT SURGE</span>
-      </button>
-      <button class="btn" id="btn-shield">
-        GUARD
-        <span class="btn-subtext">DEFLECTOR</span>
-      </button>
-      <button class="btn" id="btn-pause">RESTART</button>
-    </div>
-    <button class="btn" id="btn-aid">
+    <button class="btn" id="btnStrike">STRIKE<span class="sub" id="strikeSub">MAGMA PUNCH</span></button>
+    <button class="btn" id="btnBurst">BURST<span class="sub" id="burstSub">LAVA / FEATHERS</span></button>
+    <button class="btn" id="btnGuard">GUARD<span class="sub">DEFLECTOR</span></button>
+    <button class="btn" id="btnRestart">RESTART</button>
+
+    <button class="btn aid-btn" id="btnAid">
       ★ MOTHER LUETTA AID ★
-      <span class="btn-subtext" style="color:#ffe299;">CELESTIAL DESCENSION &amp; RESTORATION (+35 HP)</span>
+      <span class="sub" style="color: #e0f2fe;">CELESTIAL PURGE & RESTORATION (+35 HP)</span>
     </button>
-  </div>
-
-  <div id="modal-screen">
-    <h2 id="modal-title">CHAPTER 1 CLEARED!</h2>
-    <p id="modal-desc">Chrono-Lock has been shattered on the Ren-Cen Rooftop.</p>
-    <button id="modal-btn" onclick="proceedNextChapter()">PROCEED TO CHAPTER 2 ▶</button>
   </div>
 </div>
 
 <script>
-// Synthesizer Audio
-const AudioEngine = {
-  ctx: null,
-  init() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AudioCtx();
-    }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-  },
-  playTone(freq, type, duration, slideFreq = null) {
-    try {
-      this.init();
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      if (slideFreq) {
-        osc.frequency.exponentialRampToValueAtTime(slideFreq, this.ctx.currentTime + duration);
-      }
-      gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + duration);
-    } catch(e) {}
-  },
-  electricZap() {
-    this.playTone(720, 'sawtooth', 0.08, 120);
-    setTimeout(() => this.playTone(950, 'sawtooth', 0.07, 240), 25);
-  },
-  voltSurge() {
-    this.playTone(400, 'sawtooth', 0.22, 900);
-    setTimeout(() => this.playTone(1100, 'square', 0.15, 300), 50);
-  },
-  shootMagma() { this.playTone(320, 'square', 0.18, 90); },
-  wingBurst() { this.playTone(600, 'triangle', 0.22, 1200); },
-  hitSound() { this.playTone(180, 'triangle', 0.08, 60); },
-  aidSound() {
-    this.playTone(523.25, 'sine', 0.4);
-    setTimeout(() => this.playTone(659.25, 'sine', 0.4), 120);
-    setTimeout(() => this.playTone(783.99, 'sine', 0.6), 240);
-  },
-  defeatRumble() {
-    this.playTone(90, 'sawtooth', 0.9, 30);
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
   }
-};
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-const GAME = {
-  width: 960,
-  height: 420,
-  gravity: 0.58,
-  groundY: 360,
-  stage: 'wave1',
-  activeHero: 'marcus',
-  aidActive: false,
-  aidTimer: 0,
-  shakeTimer: 0,
-  shakeIntensity: 0
-};
-
-const player = {
-  x: 120,
-  y: 270,
-  w: 50,
-  h: 84,
-  vx: 0,
-  vy: 0,
-  speed: 4.8,
-  facing: 1,
-  isGrounded: true,
-  hp: 100,
-  maxHp: 100,
-  shielding: false,
-  walkCycle: 0
-};
-
-const DRONE_TOTAL = 6;
-let dronesRemaining = DRONE_TOTAL;
-let drones = [];
-
-function initDrones() {
-  drones = [];
-  for (let i = 0; i < DRONE_TOTAL; i++) {
-    drones.push({
-      x: 500 + (i % 3) * 140,
-      y: 75 + Math.floor(i / 3) * 80,
-      w: 36,
-      h: 22,
-      hp: 30,
-      maxHp: 30,
-      vx: (Math.random() > 0.5 ? 1 : -1) * (1.2 + Math.random() * 0.8),
-      floatOffset: Math.random() * Math.PI * 2,
-      shootCooldown: 80 + Math.floor(Math.random() * 80)
-    });
-  }
-}
-
-const boss = {
-  x: 740,
-  y: 210,
-  w: 120,
-  h: 150,
-  hp: 320,
-  maxHp: 320,
-  gearAngle: 0,
-  attackTimer: 0,
-  warpTimer: 0,
-  hoverBob: 0,
-  facing: -1,
-  active: false
-};
-
-let playerProjectiles = [];
-let enemyProjectiles = [];
-let particles = [];
-
-const keys = { left: false, right: false };
-window.addEventListener('keydown', (e) => {
-  AudioEngine.init();
-  if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
-  if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
-  if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') jumpPlayer();
-  if (e.code === 'KeyJ') triggerStrike();
-  if (e.code === 'KeyK') triggerBurst();
-  if (e.code === 'KeyL') triggerAid();
-  if (e.code === 'KeyT') swapHero();
-});
-window.addEventListener('keyup', (e) => {
-  if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
-  if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
-});
-
-function bindBtn(id, onStart, onEnd) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const start = (e) => {
-    e.preventDefault();
-    AudioEngine.init();
-    el.classList.add('active');
-    if (onStart) onStart();
+  // State
+  let activeHero = 'XOCHITL'; // 'XOCHITL' or 'MARCUS'
+  let player = {
+    x: 120,
+    y: 350,
+    vx: 0,
+    vy: 0,
+    w: 40,
+    h: 60,
+    isGrounded: false,
+    hp: 100,
+    maxHp: 100,
+    chargeEnergy: 0, // Marcus kinetic absorption
+    maxCharge: 100,
+    guarding: false,
+    hovering: false
   };
-  const stop = (e) => {
-    e.preventDefault();
-    el.classList.remove('active');
-    if (onEnd) onEnd();
+
+  let boss = {
+    x: 650,
+    y: 280,
+    w: 90,
+    h: 140,
+    hp: 200,
+    maxHp: 200,
+    active: true,
+    timer: 0
   };
-  el.addEventListener('mousedown', start);
-  el.addEventListener('mouseup', stop);
-  el.addEventListener('mouseleave', stop);
-  el.addEventListener('touchstart', start, { passive: false });
-  el.addEventListener('touchend', stop, { passive: false });
-}
 
-bindBtn('btn-left', () => keys.left = true, () => keys.left = false);
-bindBtn('btn-right', () => keys.right = true, () => keys.right = false);
-bindBtn('btn-jump', () => jumpPlayer(), null);
-bindBtn('btn-strike', () => triggerStrike(), null);
-bindBtn('btn-burst', () => triggerBurst(), null);
-bindBtn('btn-swap', () => swapHero(), null);
-bindBtn('btn-shield', () => player.shielding = true, () => player.shielding = false);
-bindBtn('btn-aid', () => triggerAid(), null);
-bindBtn('btn-pause', () => resetGame(), null);
+  let drones = [
+    { x: 300, y: 120, vx: 2 },
+    { x: 500, y: 90, vx: -2 },
+    { x: 700, y: 140, vx: 1.5 }
+  ];
 
-function triggerScreenShake(duration = 24, intensity = 8) {
-  GAME.shakeTimer = duration;
-  GAME.shakeIntensity = intensity;
-  if (navigator.vibrate) {
-    navigator.vibrate([100, 50, 150, 50, 250]);
-  }
-}
+  let playerProjectiles = [];
+  let enemyProjectiles = [];
+  let lightningArcs = [];
+  let screenFlash = 0;
 
-function jumpPlayer() {
-  if (player.isGrounded) {
-    player.vy = -13.2;
-    player.isGrounded = false;
-    spawnSparks(player.x + player.w/2, player.y + player.h, '#2bf0c5', 8);
+  let luettaAid = {
+    active: false,
+    x: 0,
+    y: -80,
+    alpha: 0
+  };
 
-    if (GAME.activeHero === 'xochitl') {
-      shootAirFeatherDarts();
-    }
-  }
-}
-
-function shootAirFeatherDarts() {
-  AudioEngine.wingBurst();
-  for (let i = -1.5; i <= 1.5; i += 1) {
-    playerProjectiles.push({
-      x: player.facing === 1 ? player.x + player.w + 10 : player.x - 10,
-      y: player.y + player.h * 0.35 + (i * 9),
-      vx: player.facing * 11,
-      vy: i * 2.4,
-      radius: 8,
-      color: '#ffe033',
-      damage: 16,
-      type: 'feather'
-    });
-  }
-  spawnSparks(player.x + player.w/2, player.y + 20, '#ff9838', 16);
-}
-
-function swapHero() {
-  if (GAME.activeHero === 'marcus') {
-    GAME.activeHero = 'xochitl';
-    document.getElementById('player-label').innerText = 'XOCHITL';
-    document.getElementById('player-label').style.color = '#ff9838';
-    document.getElementById('swap-subtext').innerText = 'MARCUS PRIME';
-    document.getElementById('strike-subtext').innerText = 'MAGMA PUNCH';
-    document.getElementById('burst-subtext').innerText = 'LAVA / FEATHERS';
-    spawnSparks(player.x + player.w/2, player.y + player.h/2, '#ff6a14', 18);
-  } else {
-    GAME.activeHero = 'marcus';
-    document.getElementById('player-label').innerText = 'MARCUS PRIME';
-    document.getElementById('player-label').style.color = '#2bf0c5';
-    document.getElementById('swap-subtext').innerText = 'XOCHITL';
-    document.getElementById('strike-subtext').innerText = 'LIGHTNING BOLT';
-    document.getElementById('burst-subtext').innerText = 'VOLT SURGE';
-    spawnSparks(player.x + player.w/2, player.y + player.h/2, '#2bf0c5', 18);
-  }
-}
-
-function triggerStrike() {
-  const isMarcus = (GAME.activeHero === 'marcus');
-  const projX = player.facing === 1 ? player.x + player.w + 4 : player.x - 24;
-  if (isMarcus) {
-    AudioEngine.electricZap();
-    playerProjectiles.push({
-      x: projX,
-      y: player.y + player.h * 0.42,
-      vx: player.facing * 12.5,
-      vy: 0,
-      radius: 12,
-      color: '#2bf0c5',
-      damage: 20,
-      type: 'lightning'
-    });
-  } else {
-    AudioEngine.shootMagma();
-    playerProjectiles.push({
-      x: projX,
-      y: player.y + player.h * 0.42,
-      vx: player.facing * 11,
-      vy: 0,
-      radius: 12,
-      color: '#ff5919',
-      damage: 18,
-      type: 'magma'
-    });
-  }
-}
-
-function triggerBurst() {
-  const isMarcus = (GAME.activeHero === 'marcus');
-  if (isMarcus) {
-    AudioEngine.voltSurge();
-    for (let i = -1; i <= 1; i++) {
-      const projX = player.facing === 1 ? player.x + player.w : player.x;
-      playerProjectiles.push({
-        x: projX,
-        y: player.y + player.h * 0.42 + (i * 12),
-        vx: player.facing * 10,
-        vy: i * 2.5,
-        radius: 14,
-        color: '#6dfaff',
-        damage: 16,
-        type: 'lightning'
-      });
-    }
-    spawnSparks(player.x + player.w/2, player.y + player.h/2, '#2bf0c5', 20);
-  } else {
-    AudioEngine.wingBurst();
-    for (let i = -1; i <= 1; i++) {
-      const projX = player.facing === 1 ? player.x + player.w : player.x;
-      playerProjectiles.push({
-        x: projX,
-        y: player.y + player.h * 0.42 + (i * 12),
-        vx: player.facing * 9.2,
-        vy: i * 2.2,
-        radius: 11,
-        color: '#ffae19',
-        damage: 14,
-        type: 'magma'
-      });
-    }
-    spawnSparks(player.x + player.w/2, player.y + player.h/2, '#ff9838', 16);
-  }
-}
-
-function triggerAid() {
-  if (GAME.aidActive) return;
-  AudioEngine.aidSound();
-  GAME.aidActive = true;
-  GAME.aidTimer = 180;
-  player.hp = Math.min(player.maxHp, player.hp + 35);
-  updateHUD();
-}
-
-function spawnSparks(x, y, color, count) {
-  for (let i = 0; i < count; i++) {
-    particles.push({
-      x: x,
-      y: y,
-      vx: (Math.random() - 0.5) * 6.5,
-      vy: (Math.random() - 0.5) * 6.5,
-      alpha: 1,
-      size: Math.random() * 3.5 + 2,
-      color: color
-    });
-  }
-}
-
-function updateHUD() {
-  const pHpPct = Math.max(0, (player.hp / player.maxHp) * 100);
-  document.getElementById('player-hp-bar').style.width = pHpPct + '%';
-
-  if (GAME.stage === 'wave1') {
-    const dronePct = Math.max(0, (dronesRemaining / DRONE_TOTAL) * 100);
-    document.getElementById('enemy-label').innerText = 'DRONE FLEET';
-    document.getElementById('enemy-hp-bar').style.width = dronePct + '%';
-    document.getElementById('center-line1').innerText = 'WAVE 1: DRONE INTRUSION';
-    document.getElementById('center-line2').innerText = 'CLEAR DRONES TO SUMMON BOSS';
-  } else if (GAME.stage === 'boss') {
-    const bHpPct = Math.max(0, (boss.hp / boss.maxHp) * 100);
-    document.getElementById('enemy-label').innerText = 'CHRONO-LOCK';
-    document.getElementById('enemy-hp-bar').style.width = bHpPct + '%';
-    document.getElementById('center-line1').innerText = 'BOSS: CHRONO-LOCK';
-    document.getElementById('center-line2').innerText = 'TIME-WARP ENGINE ENGAGED';
-  }
-}
-
-function drawMarcusPrime(ctx, x, y, facing, walkBob) {
-  ctx.save();
-  ctx.translate(x + 25, y + 42 + walkBob);
-  ctx.scale(facing, 1);
-
-  ctx.beginPath();
-  ctx.arc(0, 0, 48, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(43, 240, 197, 0.08)';
-  ctx.fill();
-
-  ctx.fillStyle = '#1c2838';
-  ctx.fillRect(-14, -18, 28, 36);
-  ctx.fillStyle = '#2bf0c5';
-  ctx.fillRect(-10, -12, 20, 8);
-  ctx.fillStyle = '#0f8da8';
-  ctx.fillRect(-8, 0, 16, 14);
-
-  ctx.fillStyle = '#263449';
-  ctx.beginPath();
-  ctx.arc(0, -28, 12, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#2bf0c5';
-  ctx.fillRect(0, -32, 12, 6);
-
-  ctx.fillStyle = '#395370';
-  ctx.fillRect(-18, -18, 7, 24);
-  ctx.fillStyle = '#2bf0c5';
-  ctx.fillRect(11, -12, 9, 20);
-
-  ctx.fillStyle = '#131b26';
-  ctx.fillRect(-12, 18, 9, 24);
-  ctx.fillRect(3, 18, 9, 24);
-  ctx.fillStyle = '#2bf0c5';
-  ctx.fillRect(-13, 38, 11, 4);
-  ctx.fillRect(2, 38, 11, 4);
-
-  ctx.restore();
-}
-
-function drawXochitl(ctx, x, y, facing, walkBob, inAir) {
-  ctx.save();
-  ctx.translate(x + 25, y + 42 + walkBob);
-  ctx.scale(facing, 1);
-
-  if (inAir) {
-    ctx.save();
-    const wingFeathers = [
-      { fill: '#ff2828', length: 36, spread: -0.85 },
-      { fill: '#ff881a', length: 44, spread: -0.55 },
-      { fill: '#ffd124', length: 48, spread: -0.25 },
-      { fill: '#ff7700', length: 38, spread: 0.05 }
-    ];
-
-    for (const f of wingFeathers) {
-      ctx.save();
-      ctx.translate(-14, -10);
-      ctx.rotate(f.spread + Math.sin(Date.now() * 0.01) * 0.08);
-      ctx.fillStyle = f.fill;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(-f.length * 0.6, -14, -f.length, -2);
-      ctx.quadraticCurveTo(-f.length * 0.6, 6, 0, 4);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    for (const f of wingFeathers) {
-      ctx.save();
-      ctx.translate(14, -10);
-      ctx.rotate(-f.spread - Math.sin(Date.now() * 0.01) * 0.08);
-      ctx.fillStyle = f.fill;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(f.length * 0.6, -14, f.length, -2);
-      ctx.quadraticCurveTo(f.length * 0.6, 6, 0, 4);
-      ctx.fill();
-      ctx.restore();
-    }
-    ctx.restore();
+  // Input Handlers
+  const keys = {};
+  function setupInput(btnId, startAction, endAction) {
+    const el = document.getElementById(btnId);
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); startAction(); });
+    el.addEventListener('pointerup', (e) => { e.preventDefault(); if (endAction) endAction(); });
   }
 
-  ctx.beginPath();
-  ctx.arc(0, 0, 48, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255, 120, 30, 0.1)';
-  ctx.fill();
-
-  ctx.fillStyle = '#945e3f';
-  ctx.beginPath();
-  ctx.arc(0, -23, 11, 0, Math.PI * 2);
-  ctx.fill();
-
-  const feathers = ['#ff2b2b', '#ff9838', '#ffdf2b', '#24c96b', '#26b5ff'];
-  for (let i = 0; i < feathers.length; i++) {
-    const angle = -Math.PI/2 + (i - 2) * 0.28;
-    ctx.save();
-    ctx.translate(0, -32);
-    ctx.rotate(angle);
-    ctx.fillStyle = feathers[i];
-    ctx.beginPath();
-    ctx.ellipse(0, -14, 4.5, 15, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  ctx.fillStyle = '#f5b027';
-  ctx.fillRect(-11, -34, 22, 6);
-  ctx.fillStyle = '#ff3344';
-  ctx.fillRect(-3, -33, 6, 4);
-
-  ctx.fillStyle = '#8f2316';
-  ctx.fillRect(-13, -12, 26, 30);
-  ctx.fillStyle = '#f5b027';
-  ctx.fillRect(-8, -10, 16, 12);
-
-  ctx.fillStyle = '#f5b027';
-  ctx.fillRect(-19, -8, 8, 22);
-  ctx.fillStyle = '#ff4d00';
-  ctx.fillRect(11, -8, 9, 22);
-  ctx.fillStyle = '#ffe259';
-  ctx.fillRect(13, 6, 6, 8);
-
-  ctx.fillStyle = '#7a4e32';
-  ctx.fillRect(-11, 18, 9, 22);
-  ctx.fillRect(2, 18, 9, 22);
-  ctx.fillStyle = '#f5b027';
-  ctx.fillRect(-12, 36, 11, 5);
-  ctx.fillRect(1, 36, 11, 5);
-
-  ctx.restore();
-}
-
-function drawDrone(ctx, d) {
-  ctx.save();
-  ctx.translate(d.x + d.w/2, d.y + d.h/2 + Math.sin(Date.now() * 0.005 + d.floatOffset) * 4);
-  ctx.fillStyle = '#1c2d3d';
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 18, 9, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#ff3344';
-  ctx.beginPath();
-  ctx.arc(0, 0, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#39d5ff';
-  ctx.fillRect(-6, 8, 12, 3);
-  ctx.restore();
-}
-
-function drawChronoLockBoss(ctx, x, y) {
-  ctx.save();
-  ctx.translate(x + boss.w/2, y + boss.h/2 + boss.hoverBob);
-
-  if (boss.warpTimer > 175) {
-    ctx.beginPath();
-    ctx.arc(0, 0, 95 + Math.sin(Date.now() * 0.05) * 10, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(62, 226, 255, 0.75)';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([8, 6]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  ctx.beginPath();
-  ctx.arc(0, 0, 78, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(75, 230, 255, 0.25)';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  ctx.fillStyle = '#8a9ba8';
-  ctx.fillRect(-45, -55, 90, 100);
-  ctx.fillStyle = '#4c5a66';
-  ctx.fillRect(-38, -48, 76, 86);
-
-  ctx.save();
-  ctx.rotate(boss.gearAngle);
-  ctx.fillStyle = '#d4af37';
-  ctx.fillRect(-22, -22, 44, 44);
-  ctx.rotate(Math.PI / 4);
-  ctx.fillRect(-22, -22, 44, 44);
-  ctx.beginPath();
-  ctx.arc(0, 0, 16, 0, Math.PI * 2);
-  ctx.fillStyle = '#3ee2ff';
-  ctx.fill();
-  ctx.restore();
-
-  ctx.fillStyle = '#2c3947';
-  ctx.fillRect(-55, -45, 14, 45);
-  ctx.fillRect(41, -45, 14, 45);
-  ctx.fillStyle = '#9cb8c9';
-  ctx.beginPath();
-  ctx.moveTo(-45, -55);
-  ctx.lineTo(-58, -80);
-  ctx.lineTo(-32, -55);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(45, -55);
-  ctx.lineTo(58, -80);
-  ctx.lineTo(32, -55);
-  ctx.fill();
-
-  ctx.fillStyle = '#1e2b38';
-  ctx.fillRect(-35, 45, 25, 22);
-  ctx.fillRect(10, 45, 25, 22);
-
-  ctx.restore();
-}
-
-function drawMotherLuettaAid(ctx) {
-  if (!GAME.aidActive) return;
-  const alpha = Math.min(1, GAME.aidTimer / 35);
-  ctx.save();
-  ctx.globalAlpha = alpha;
-
-  const beamGrad = ctx.createLinearGradient(player.x - 50, 0, player.x + 90, GAME.groundY);
-  beamGrad.addColorStop(0, 'rgba(255, 225, 110, 0.65)');
-  beamGrad.addColorStop(0.5, 'rgba(255, 195, 40, 0.35)');
-  beamGrad.addColorStop(1, 'rgba(255, 180, 0, 0.08)');
-  ctx.fillStyle = beamGrad;
-  ctx.fillRect(player.x - 55, 0, 160, GAME.groundY);
-
-  const aidY = Math.min(player.y - 75, 70 + (180 - GAME.aidTimer) * 1.3);
-  ctx.save();
-  ctx.translate(player.x + 25, aidY);
-
-  const auraGlow = ctx.createRadialGradient(0, 0, 5, 0, 0, 60);
-  auraGlow.addColorStop(0, 'rgba(255, 245, 170, 0.9)');
-  auraGlow.addColorStop(0.6, 'rgba(255, 195, 30, 0.4)');
-  auraGlow.addColorStop(1, 'rgba(255, 180, 0, 0)');
-  ctx.fillStyle = auraGlow;
-  ctx.beginPath();
-  ctx.arc(0, 0, 60, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = '#fff5b0';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(0, -25, 20, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.fillStyle = '#ff9f10';
-  ctx.beginPath();
-  ctx.moveTo(0, -12);
-  ctx.lineTo(-20, 36);
-  ctx.lineTo(20, 36);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = '#ffd652';
-  ctx.beginPath();
-  ctx.moveTo(0, -10);
-  ctx.lineTo(-12, 34);
-  ctx.lineTo(12, 34);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(0, -22, 10, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#ffca36';
-  ctx.beginPath();
-  ctx.ellipse(-26, 6, 28, 9, -Math.PI / 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(26, 6, 28, 9, Math.PI / 5, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.restore();
-
-  ctx.strokeStyle = '#ffd84d';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.ellipse(player.x + player.w/2, player.y + player.h - 2, 48, 12, 0, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.restore();
-
-  GAME.aidTimer--;
-  if (GAME.aidTimer <= 0) GAME.aidActive = false;
-}
-
-function drawDetroitSkyline(ctx) {
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, GAME.groundY);
-  skyGrad.addColorStop(0, '#060a14');
-  skyGrad.addColorStop(1, '#11223b');
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, GAME.width, GAME.height);
-
-  ctx.fillStyle = '#ffffff';
-  for (let i = 0; i < 40; i++) {
-    const sx = (i * 24 + 13) % GAME.width;
-    const sy = (i * 37 + 7) % 200;
-    ctx.fillRect(sx, sy, 1.6, 1.6);
-  }
-
-  ctx.fillStyle = '#0c182b';
-  ctx.fillRect(400, 60, 160, 310);
-  ctx.fillStyle = '#14253e';
-  ctx.fillRect(435, 30, 90, 340);
-  ctx.fillRect(290, 130, 95, 240);
-  ctx.fillRect(575, 130, 95, 240);
-
-  ctx.fillStyle = '#4de2ff';
-  for (let r = 70; r < 340; r += 16) {
-    ctx.fillRect(465, r, 5, 8);
-    ctx.fillRect(490, r, 5, 8);
-  }
-  ctx.fillStyle = '#ffaa3b';
-  for (let r = 150; r < 340; r += 20) {
-    ctx.fillRect(320, r, 4, 7);
-    ctx.fillRect(630, r, 4, 7);
-  }
-
-  ctx.fillStyle = '#0f1a29';
-  ctx.fillRect(0, GAME.groundY, GAME.width, GAME.height - GAME.groundY);
-  ctx.fillStyle = '#1fa3c7';
-  ctx.fillRect(0, GAME.groundY - 3, GAME.width, 4);
-
-  ctx.fillStyle = '#213349';
-  ctx.fillRect(180, GAME.groundY - 26, 32, 24);
-  ctx.fillRect(360, GAME.groundY - 30, 42, 28);
-  ctx.fillRect(660, GAME.groundY - 26, 34, 24);
-}
-
-function updateDrones() {
-  for (let i = drones.length - 1; i >= 0; i--) {
-    const d = drones[i];
-    d.x += d.vx;
-    if (d.x < 380 || d.x > GAME.width - 50) d.vx *= -1;
-
-    d.shootCooldown--;
-    if (d.shootCooldown <= 0) {
-      d.shootCooldown = 110 + Math.floor(Math.random() * 80);
-      const angle = Math.atan2((player.y + player.h/2) - d.y, (player.x + player.w/2) - d.x);
-      enemyProjectiles.push({
-        x: d.x + d.w/2,
-        y: d.y + d.h,
-        vx: Math.cos(angle) * 4.5,
-        vy: Math.sin(angle) * 4.5,
-        radius: 6,
-        color: '#ff3344'
-      });
-    }
-  }
-}
-
-function updateBoss() {
-  if (!boss.active || boss.hp <= 0) return;
-  boss.gearAngle += 0.04;
-  boss.hoverBob = Math.sin(Date.now() * 0.003) * 8;
-  boss.facing = boss.x > player.x ? -1 : 1;
-
-  boss.warpTimer++;
-  if (boss.warpTimer > 230) {
-    boss.warpTimer = 0;
-    spawnSparks(boss.x + boss.w / 2, boss.y + boss.h / 2, '#3ee2ff', 24);
-    const warpBehind = Math.random() > 0.5;
-    if (warpBehind) {
-      boss.x = Math.max(50, player.x - 180);
+  setupInput('btnLeft', () => keys['left'] = true, () => keys['left'] = false);
+  setupInput('btnRight', () => keys['right'] = true, () => keys['right'] = false);
+  setupInput('btnJump', () => {
+    if (player.isGrounded) {
+      player.vy = -12;
+      player.isGrounded = false;
     } else {
-      boss.x = Math.min(GAME.width - boss.w - 50, player.x + 140);
+      player.hovering = true;
+      player.vy = -1.5;
     }
-    spawnSparks(boss.x + boss.w / 2, boss.y + boss.h / 2, '#ff3a3a', 24);
-  }
+  }, () => player.hovering = false);
 
-  boss.attackTimer++;
-  if (boss.attackTimer > 105) {
-    boss.attackTimer = 0;
-    const projDir = boss.facing;
-    const vyDir = (player.y - boss.y) * 0.012;
-    enemyProjectiles.push({
-      x: boss.facing === -1 ? boss.x - 10 : boss.x + boss.w + 10,
-      y: boss.y + boss.h * 0.45,
-      vx: projDir * 6.5,
-      vy: vyDir,
-      radius: 12,
-      color: '#ff3a3a'
-    });
-  }
-}
+  setupInput('btnGuard', () => player.guarding = true, () => player.guarding = false);
+  setupInput('btnTag', () => {
+    activeHero = activeHero === 'XOCHITL' ? 'MARCUS' : 'XOCHITL';
+    document.getElementById('heroNameLabel').textContent = activeHero;
+    document.getElementById('tagSub').textContent = activeHero === 'XOCHITL' ? 'MARCUS PRIME' : 'XOCHITL';
+    document.getElementById('strikeSub').textContent = activeHero === 'XOCHITL' ? 'MAGMA PUNCH' : 'ELECTRIC BEAM';
+    document.getElementById('burstSub').textContent = activeHero === 'XOCHITL' ? 'LAVA / FEATHERS' : 'VOLT OVERLOAD';
+  });
 
-function update() {
-  if (GAME.stage === 'cleared') return;
+  setupInput('btnStrike', () => {
+    if (activeHero === 'XOCHITL') {
+      // Magma Burst
+      playerProjectiles.push({
+        type: 'feather',
+        x: player.x + 25,
+        y: player.y - 15,
+        vx: 11,
+        vy: 0,
+        color: '#f97316'
+      });
+    } else {
+      // Marcus Electric Line Attack
+      fireMarcusElectricBeam();
+    }
+  });
 
-  if (keys.left) {
-    player.vx = -player.speed;
-    player.facing = -1;
-    player.walkCycle += 0.22;
-  } else if (keys.right) {
-    player.vx = player.speed;
-    player.facing = 1;
-    player.walkCycle += 0.22;
-  } else {
-    player.vx = 0;
-    player.walkCycle = 0;
-  }
-
-  player.x += player.vx;
-  player.y += player.vy;
-  player.vy += GAME.gravity;
-
-  if (player.x < 10) player.x = 10;
-  if (player.x + player.w > GAME.width - 10) player.x = GAME.width - player.w - 10;
-
-  if (player.y + player.h >= GAME.groundY) {
-    player.y = GAME.groundY - player.h;
-    player.vy = 0;
-    player.isGrounded = true;
-  }
-
-  if (GAME.stage === 'wave1') {
-    updateDrones();
-  } else if (GAME.stage === 'boss') {
-    updateBoss();
-  }
-
-  for (let i = playerProjectiles.length - 1; i >= 0; i--) {
-    const p = playerProjectiles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-
-    if (GAME.stage === 'wave1') {
-      for (let j = drones.length - 1; j >= 0; j--) {
-        const d = drones[j];
-        if (p.x >= d.x && p.x <= d.x + d.w && p.y >= d.y && p.y <= d.y + d.h) {
-          d.hp -= p.damage;
-          AudioEngine.hitSound();
-          spawnSparks(p.x, p.y, p.color, 8);
-          playerProjectiles.splice(i, 1);
-
-          if (d.hp <= 0) {
-            spawnSparks(d.x + d.w/2, d.y + d.h/2, '#ffaa33', 18);
-            drones.splice(j, 1);
-            dronesRemaining--;
-            updateHUD();
-
-            if (dronesRemaining <= 0) {
-              triggerBossSummon();
-            }
-          }
-          break;
-        }
+  setupInput('btnBurst', () => {
+    if (activeHero === 'XOCHITL') {
+      // Razor Feathers Cone
+      for (let i = -2; i <= 2; i++) {
+        playerProjectiles.push({
+          type: 'razor_feather',
+          x: player.x + 25,
+          y: player.y - 15,
+          vx: 10,
+          vy: i * 2.2,
+          color: ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6'][i + 2]
+        });
       }
-    } else if (GAME.stage === 'boss') {
-      if (p.x >= boss.x && p.x <= boss.x + boss.w &&
-          p.y >= boss.y && p.y <= boss.y + boss.h) {
-        boss.hp -= p.damage;
-        AudioEngine.hitSound();
-        spawnSparks(p.x, p.y, p.color, 10);
-        playerProjectiles.splice(i, 1);
-        updateHUD();
-        if (boss.hp <= 0) winGame();
+    } else {
+      // Marcus Electric Discharge
+      fireMarcusElectricBeam(true);
+    }
+  });
+
+  setupInput('btnAid', () => {
+    triggerMotherLuettaAid();
+  });
+
+  setupInput('btnRestart', () => {
+    player.hp = 100;
+    player.chargeEnergy = 0;
+    boss.hp = 200;
+    boss.active = true;
+    drones = [
+      { x: 300, y: 120, vx: 2 },
+      { x: 500, y: 90, vx: -2 },
+      { x: 700, y: 140, vx: 1.5 }
+    ];
+    enemyProjectiles = [];
+    playerProjectiles = [];
+  });
+
+  // Marcus Laser / Electric Mechanics
+  function fireMarcusElectricBeam(isOverload = false) {
+    let powerBonus = 1 + (player.chargeEnergy / player.maxCharge) * 2;
+    let targetX = boss.active ? boss.x : canvas.width;
+    let targetY = boss.active ? boss.y - 10 : player.y;
+
+    lightningArcs.push({
+      x1: player.x + 20,
+      y1: player.y - 10,
+      x2: targetX,
+      y2: targetY,
+      duration: 16,
+      power: powerBonus,
+      overload: isOverload
+    });
+
+    if (boss.active && Math.abs(boss.y - player.y) < 160) {
+      boss.hp -= (isOverload ? 20 : 10) * powerBonus;
+    }
+
+    // Reset Marcus counter charge after firing
+    player.chargeEnergy = 0;
+  }
+
+  // Mother Luetta Board Wipe
+  function triggerMotherLuettaAid() {
+    luettaAid.active = true;
+    luettaAid.x = canvas.width / 2;
+    luettaAid.y = 80;
+    luettaAid.alpha = 1.0;
+
+    // Heal Player
+    player.hp = Math.min(player.maxHp, player.hp + 35);
+
+    // Board Wipe
+    drones = [];
+    enemyProjectiles = [];
+
+    // Boss heavy damage
+    if (boss.active) {
+      boss.hp = Math.max(0, boss.hp - 35);
+    }
+
+    screenFlash = 25;
+  }
+
+  // Update Game Physics
+  function update() {
+    // Movement
+    if (keys['left']) player.vx = -4;
+    else if (keys['right']) player.vx = 4;
+    else player.vx *= 0.8;
+
+    player.x += player.vx;
+    player.x = Math.max(30, Math.min(canvas.width - 60, player.x));
+
+    if (!player.isGrounded) {
+      player.vy += player.hovering ? 0.15 : 0.6; // Gravity
+      player.y += player.vy;
+    }
+
+    const groundLevel = canvas.height - 40;
+    if (player.y >= groundLevel) {
+      player.y = groundLevel;
+      player.vy = 0;
+      player.isGrounded = true;
+    }
+
+    // Boss Floating Logic
+    boss.x = canvas.width * 0.75 + Math.sin(Date.now() * 0.002) * 40;
+    boss.y = groundLevel - 70 + Math.cos(Date.now() * 0.003) * 15;
+
+    // Boss Drones
+    drones.forEach(d => {
+      d.x += d.vx;
+      if (d.x < 100 || d.x > canvas.width - 100) d.vx *= -1;
+      if (Math.random() < 0.015) {
+        enemyProjectiles.push({ x: d.x, y: d.y + 15, vy: 4, vx: (Math.random() - 0.5) * 2 });
+      }
+    });
+
+    // Enemy Projectiles
+    for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+      let p = enemyProjectiles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Hit Player
+      if (Math.abs(p.x - player.x) < 25 && Math.abs(p.y - (player.y - 25)) < 35) {
+        enemyProjectiles.splice(i, 1);
+        if (player.guarding) {
+          player.chargeEnergy = Math.min(player.maxCharge, player.chargeEnergy + 25);
+        } else {
+          player.hp = Math.max(0, player.hp - 8);
+          if (activeHero === 'MARCUS') {
+            player.chargeEnergy = Math.min(player.maxCharge, player.chargeEnergy + 15);
+          }
+        }
         continue;
       }
+      if (p.y > canvas.height) enemyProjectiles.splice(i, 1);
     }
 
-    if (p.x < -40 || p.x > GAME.width + 40) playerProjectiles.splice(i, 1);
-  }
+    // Player Projectiles
+    for (let i = playerProjectiles.length - 1; i >= 0; i--) {
+      let p = playerProjectiles[i];
+      p.x += p.vx;
+      p.y += p.vy;
 
-  for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
-    const ep = enemyProjectiles[i];
-    ep.x += ep.vx;
-    ep.y += ep.vy;
-
-    if (ep.x >= player.x && ep.x <= player.x + player.w &&
-        ep.y >= player.y && ep.y <= player.y + player.h) {
-      if (!player.shielding) {
-        player.hp = Math.max(0, player.hp - 12);
-        AudioEngine.hitSound();
-        spawnSparks(player.x + player.w/2, player.y + player.h/2, '#ff3a3a', 12);
-        updateHUD();
-      } else {
-        spawnSparks(player.x + player.w/2, player.y + player.h/2, '#48e2ff', 12);
+      // Hit Boss
+      if (boss.active && Math.abs(p.x - boss.x) < 50 && Math.abs(p.y - boss.y) < 70) {
+        boss.hp = Math.max(0, boss.hp - 8);
+        playerProjectiles.splice(i, 1);
+        continue;
       }
-      enemyProjectiles.splice(i, 1);
-      continue;
+      if (p.x > canvas.width) playerProjectiles.splice(i, 1);
     }
 
-    if (ep.x < -30 || ep.x > GAME.width + 30) enemyProjectiles.splice(i, 1);
+    // HUD Updates
+    document.getElementById('playerHpBar').style.width = (player.hp / player.maxHp * 100) + '%';
+    document.getElementById('playerChargeBar').style.width = (player.chargeEnergy / player.maxCharge * 100) + '%';
+    document.getElementById('bossHpBar').style.width = (boss.hp / boss.maxHp * 100) + '%';
   }
 
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const pt = particles[i];
-    pt.x += pt.vx;
-    pt.y += pt.vy;
-    pt.alpha -= 0.035;
-    if (pt.alpha <= 0) particles.splice(i, 1);
-  }
+  // --- RENDERING ROUTINES ---
 
-  if (GAME.shakeTimer > 0) GAME.shakeTimer--;
-}
+  // 1. Chrono-Lock: Steampunk Clockwork Colossus[span_9](start_span)[span_9](end_span)
+  function drawChronoLock(ctx, b) {
+    ctx.save();
+    ctx.translate(b.x, b.y);
 
-function triggerBossSummon() {
-  GAME.stage = 'boss';
-  boss.active = true;
-  boss.hp = boss.maxHp;
-  triggerScreenShake(18, 6);
-  spawnSparks(boss.x + boss.w/2, boss.y + boss.h/2, '#3ee2ff', 40);
-  updateHUD();
-}
+    let t = Date.now() * 0.003;
 
-function render() {
-  ctx.save();
+    // Shoulder Brass Gears
+    [-42, 42].forEach(dir => {
+      ctx.save();
+      ctx.translate(dir, -40);
+      ctx.rotate(t * (dir > 0 ? 1 : -1));
+      ctx.strokeStyle = '#b45309';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < 8; i++) {
+        let a = (i * Math.PI) / 4;
+        ctx.fillStyle = '#d97706';
+        ctx.fillRect(Math.cos(a) * 16 - 3, Math.sin(a) * 16 - 3, 6, 6);
+      }
+      ctx.restore();
+    });
 
-  if (GAME.shakeTimer > 0) {
-    const offsetX = (Math.random() - 0.5) * GAME.shakeIntensity;
-    const offsetY = (Math.random() - 0.5) * GAME.shakeIntensity;
-    ctx.translate(offsetX, offsetY);
-  }
-
-  ctx.clearRect(0, 0, GAME.width, GAME.height);
-  drawDetroitSkyline(ctx);
-
-  const bob = (player.vx !== 0 && player.isGrounded) ? Math.sin(player.walkCycle) * 3 : 0;
-  if (GAME.activeHero === 'marcus') {
-    drawMarcusPrime(ctx, player.x, player.y, player.facing, bob);
-  } else {
-    drawXochitl(ctx, player.x, player.y, player.facing, bob, !player.isGrounded);
-  }
-
-  if (player.shielding) {
-    ctx.strokeStyle = '#38e3ff';
+    // Massive Plated Torso
+    ctx.fillStyle = '#78350f';
+    ctx.strokeStyle = '#d97706';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(player.x + player.w/2, player.y + player.h/2, 46, 0, Math.PI * 2);
+    ctx.moveTo(-35, -35);
+    ctx.lineTo(35, -35);
+    ctx.lineTo(26, 40);
+    ctx.lineTo(-26, 40);
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
-  }
 
-  drawMotherLuettaAid(ctx);
-
-  if (GAME.stage === 'wave1') {
-    for (const d of drones) drawDrone(ctx, d);
-  }
-
-  if (GAME.stage === 'boss' && boss.hp > 0) {
-    drawChronoLockBoss(ctx, boss.x, boss.y);
-  }
-
-  // Render Projectiles
-  for (const p of playerProjectiles) {
-    if (p.type === 'lightning') {
-      // Crackling Electric Bolt Art
-      ctx.save();
-      ctx.strokeStyle = p.color;
-      ctx.lineWidth = 3.5;
-      ctx.shadowColor = '#4df6ff';
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      const dir = p.vx > 0 ? 1 : -1;
-      ctx.moveTo(p.x - dir * 18, p.y);
-      ctx.lineTo(p.x - dir * 10, p.y + (Math.random() - 0.5) * 8);
-      ctx.lineTo(p.x - dir * 3, p.y + (Math.random() - 0.5) * 8);
-      ctx.lineTo(p.x + dir * 6, p.y);
-      ctx.stroke();
-
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.restore();
-    } else {
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  for (const ep of enemyProjectiles) {
-    ctx.fillStyle = ep.color;
+    // Center Clock Face / Gauge
     ctx.beginPath();
-    ctx.arc(ep.x, ep.y, ep.radius, 0, Math.PI * 2);
+    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+    ctx.fillStyle = '#fef3c7';
     ctx.fill();
-  }
+    ctx.strokeStyle = '#92400e';
+    ctx.lineWidth = 4;
+    ctx.stroke();
 
-  for (const pt of particles) {
-    ctx.save();
-    ctx.globalAlpha = pt.alpha;
-    ctx.fillStyle = pt.color;
+    // Clock Hands
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(t * 1.5) * 13, Math.sin(t * 1.5) * 13);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(t * 0.3) * 9, Math.sin(t * 0.3) * 9);
+    ctx.stroke();
+
+    // Steampunk Urn Neck / Collar
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(-18, -55, 36, 16);
+
+    // Head Unit
+    ctx.fillStyle = '#92400e';
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, -68, 16, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
+
+    // Three Glowing Green Tri-Optic Sensors[span_10](start_span)[span_10](end_span)
+    ctx.fillStyle = '#10b981';
+    ctx.shadowColor = '#34d399';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(-5, -69, 3.5, 0, Math.PI * 2);
+    ctx.arc(5, -69, 3.5, 0, Math.PI * 2);
+    ctx.arc(0, -75, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Heavy Brass Arms
+    ctx.strokeStyle = '#b45309';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(-35, -30);
+    ctx.lineTo(-58, 0);
+    ctx.lineTo(-48, 38);
+    ctx.moveTo(35, -30);
+    ctx.lineTo(58, 0);
+    ctx.lineTo(48, 38);
+    ctx.stroke();
+
     ctx.restore();
   }
 
-  ctx.restore();
-}
+  // 2. Mother Luetta: Glowing Elder Golden Matriarch[span_11](start_span)[span_11](end_span)
+  function drawMotherLuetta(ctx, aid) {
+    ctx.save();
+    ctx.translate(aid.x, aid.y);
+    ctx.globalAlpha = aid.alpha;
 
-function loop() {
-  update();
-  render();
-  requestAnimationFrame(loop);
-}
+    // Sacred Radiance Aura
+    let aura = ctx.createRadialGradient(0, 0, 10, 0, 0, 100);
+    aura.addColorStop(0, 'rgba(253, 224, 71, 0.9)');
+    aura.addColorStop(0.5, 'rgba(245, 158, 11, 0.4)');
+    aura.addColorStop(1, 'rgba(245, 158, 11, 0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, 0, 100, 0, Math.PI * 2);
+    ctx.fill();
 
-function winGame() {
-  GAME.stage = 'cleared';
-  AudioEngine.defeatRumble();
-  triggerScreenShake(45, 14);
-  spawnSparks(boss.x + boss.w/2, boss.y + boss.h/2, '#ffd700', 60);
-  spawnSparks(boss.x + boss.w/2, boss.y + boss.h/2, '#ff3a3a', 40);
-  setTimeout(() => {
-    document.getElementById('modal-screen').style.display = 'flex';
-  }, 450);
-}
+    // Golden Arc Rays Flowing Out
+    ctx.strokeStyle = 'rgba(254, 240, 138, 0.7)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      let ang = (i * Math.PI) / 4 + Date.now() * 0.002;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang) * 35, Math.sin(ang) * 35);
+      ctx.quadraticCurveTo(Math.cos(ang + 0.3) * 65, Math.sin(ang + 0.3) * 65, Math.cos(ang) * 85, Math.sin(ang) * 85);
+      ctx.stroke();
+    }
 
-function proceedNextChapter() {
-  alert('Proceeding to Chapter 2: The Timeline Rift...');
-  resetGame();
-}
+    // Floating Hooded Cloak & Matriarch Robes
+    ctx.fillStyle = '#b45309';
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -32);
+    ctx.quadraticCurveTo(-26, -20, -32, 28);
+    ctx.lineTo(32, 28);
+    ctx.quadraticCurveTo(26, -20, 0, -32);
+    ctx.fill();
+    ctx.stroke();
 
-function resetGame() {
-  player.hp = 100;
-  player.x = 120;
-  player.y = 270;
-  player.vx = 0;
-  player.vy = 0;
-  boss.hp = boss.maxHp;
-  boss.active = false;
-  boss.warpTimer = 0;
-  dronesRemaining = DRONE_TOTAL;
-  initDrones();
-  GAME.stage = 'wave1';
-  playerProjectiles = [];
-  enemyProjectiles = [];
-  particles = [];
-  document.getElementById('modal-screen').style.display = 'none';
-  updateHUD();
-}
+    // Wise Face & Hood Shadow
+    ctx.fillStyle = '#5f2f11';
+    ctx.beginPath();
+    ctx.arc(0, -18, 9, 0, Math.PI * 2);
+    ctx.fill();
 
-initDrones();
-updateHUD();
-requestAnimationFrame(loop);
+    // Floating Sacred Tome with Light Beams
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-18, 5, 36, 12);
+    ctx.fillStyle = '#fef08a';
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 12;
+    ctx.fillRect(-16, 6, 14, 10);
+    ctx.fillRect(2, 6, 14, 10);
+    ctx.shadowBlur = 0;
+
+    // Outstretched Golden Hands
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(-22, 2, 4, 0, Math.PI * 2);
+    ctx.arc(22, 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // 3. Xochitl: Aztec Headdress & Layered Razor Feather Wings[span_12](start_span)[span_12](end_span)
+  function drawXochitl(ctx, p) {
+    ctx.save();
+    ctx.translate(p.x, p.y - 30);
+
+    // Razor Feather Wings (Out during Jump, Hover, or Guard)[span_13](start_span)[span_13](end_span)[span_14](start_span)[span_14](end_span)[span_15](start_span)[span_15](end_span)
+    if (!p.isGrounded || p.guarding) {
+      const tiers = ['#ef4444', '#f97316', '#eab308', '#10b981', '#06b6d4'];
+      [-1, 1].forEach(dir => {
+        tiers.forEach((col, idx) => {
+          ctx.save();
+          let spread = (idx * 0.18 + 0.2) * dir;
+          let flap = Math.sin(Date.now() * 0.01) * 0.12;
+          ctx.rotate(spread + flap);
+
+          // Sharp Razor-Blade Feather Blade
+          ctx.beginPath();
+          ctx.moveTo(0, -10);
+          ctx.lineTo(dir * 25, -28 - idx * 4);
+          ctx.lineTo(dir * (50 + idx * 5), -14 - idx * 2); // Razor sharp tip
+          ctx.lineTo(dir * 20, 5);
+          ctx.closePath();
+
+          ctx.fillStyle = col;
+          ctx.shadowColor = col;
+          ctx.shadowBlur = 6;
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.restore();
+        });
+      });
+    }
+
+    // Armor Body & Skirt
+    ctx.fillStyle = '#9a3412';
+    ctx.fillRect(-10, 0, 20, 26);
+    ctx.fillStyle = '#ea580c';
+    ctx.fillRect(-12, 16, 24, 14);
+
+    // Feathered Solar Crest Headdress[span_16](start_span)[span_16](end_span)
+    const headdressColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
+    for (let i = -3; i <= 3; i++) {
+      ctx.fillStyle = headdressColors[Math.abs(i) % headdressColors.length];
+      ctx.beginPath();
+      ctx.moveTo(i * 3.5, -24);
+      ctx.lineTo(i * 5, -42 - (3 - Math.abs(i)) * 3);
+      ctx.lineTo(i * 3.5 + 2, -24);
+      ctx.fill();
+    }
+
+    // Warrior Head
+    ctx.fillStyle = '#7c2d12';
+    ctx.beginPath();
+    ctx.arc(0, -16, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Golden Bracers
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(-14, 4, 4, 10);
+    ctx.fillRect(10, 4, 4, 10);
+
+    ctx.restore();
+  }
+
+  // 4. Marcus Prime: Cyber Knight with Kinetic Absorption Armor[span_17](start_span)[span_17](end_span)
+  function drawMarcusPrime(ctx, p) {
+    ctx.save();
+    ctx.translate(p.x, p.y - 30);
+
+    // Armor Silhouette
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.5;
+
+    // Kinetic glow when holding charge
+    if (p.chargeEnergy > 0) {
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = (p.chargeEnergy / p.maxCharge) * 18;
+    }
+
+    // Armored Torso
+    ctx.beginPath();
+    ctx.moveTo(-14, -14);
+    ctx.lineTo(14, -14);
+    ctx.lineTo(10, 24);
+    ctx.lineTo(-10, 24);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Cyan Tech Core
+    ctx.fillStyle = p.chargeEnergy > 50 ? '#facc15' : '#00e5ff';
+    ctx.beginPath();
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Armored Shoulders & Gauntlets
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-22, -14, 8, 12);
+    ctx.fillRect(14, -14, 8, 12);
+
+    // Helmet & Visor
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(0, -22, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Electric Blue Visor
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(-6, -24, 12, 4);
+
+    // Electric Sparks If Charged
+    if (p.chargeEnergy > 20) {
+      ctx.strokeStyle = '#67e8f9';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 3; i++) {
+        let sx = (Math.random() - 0.5) * 36;
+        let sy = (Math.random() - 0.5) * 45;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + (Math.random() - 0.5) * 12, sy + (Math.random() - 0.5) * 12);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // Draw Lightning Beams
+  function drawLightning(ctx) {
+    for (let i = lightningArcs.length - 1; i >= 0; i--) {
+      let arc = lightningArcs[i];
+      let steps = 10;
+      let dx = (arc.x2 - arc.x1) / steps;
+      let dy = (arc.y2 - arc.y1) / steps;
+
+      ctx.save();
+      ctx.strokeStyle = arc.overload ? '#facc15' : '#38bdf8';
+      ctx.lineWidth = 3 * arc.power;
+      ctx.shadowColor = '#00e5ff';
+      ctx.shadowBlur = 14;
+
+      ctx.beginPath();
+      ctx.moveTo(arc.x1, arc.y1);
+      for (let s = 1; s < steps; s++) {
+        let jx = (Math.random() - 0.5) * 22 * arc.power;
+        let jy = (Math.random() - 0.5) * 22 * arc.power;
+        ctx.lineTo(arc.x1 + dx * s + jx, arc.y1 + dy * s + jy);
+      }
+      ctx.lineTo(arc.x2, arc.y2);
+      ctx.stroke();
+      ctx.restore();
+
+      arc.duration--;
+      if (arc.duration <= 0) lightningArcs.splice(i, 1);
+    }
+  }
+
+  // City Skyline
+  function drawSkyline() {
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Detroit Rooftops / Towers
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(80, canvas.height - 240, 90, 240);
+    ctx.fillRect(200, canvas.height - 310, 110, 310);
+    ctx.fillRect(450, canvas.height - 380, 140, 380); // Ren-Cen Center Tower
+    ctx.fillRect(680, canvas.height - 260, 100, 260);
+
+    // Windows
+    ctx.fillStyle = '#38bdf8';
+    for (let y = canvas.height - 350; y < canvas.height - 60; y += 24) {
+      ctx.fillRect(480, y, 6, 12);
+      ctx.fillRect(520, y, 6, 12);
+      ctx.fillRect(550, y, 6, 12);
+    }
+
+    // Platform Rooftop
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, canvas.height - 40, canvas.width, 40);
+  }
+
+  // Main Loop
+  function loop() {
+    update();
+
+    drawSkyline();
+
+    // Drones
+    drones.forEach(d => {
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.fillRect(d.x - 6, d.y - 2, 12, 4);
+    });
+
+    // Enemy Projectiles
+    ctx.fillStyle = '#f87171';
+    enemyProjectiles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Player Projectiles
+    playerProjectiles.forEach(p => {
+      ctx.save();
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.moveTo(p.x + 12, p.y);
+      ctx.lineTo(p.x - 8, p.y - 6);
+      ctx.lineTo(p.x - 8, p.y + 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Characters
+    if (boss.active) drawChronoLock(ctx, boss);
+    if (activeHero === 'XOCHITL') drawXochitl(ctx, player);
+    else drawMarcusPrime(ctx, player);
+
+    // Mother Luetta Assist Active
+    if (luettaAid.active) {
+      drawMotherLuetta(ctx, luettaAid);
+      luettaAid.alpha -= 0.015;
+      if (luettaAid.alpha <= 0) luettaAid.active = false;
+    }
+
+    // Lightning
+    drawLightning(ctx);
+
+    // Screen Flash (Purge)
+    if (screenFlash > 0) {
+      ctx.fillStyle = `rgba(254, 240, 138, ${screenFlash / 35})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      screenFlash--;
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  loop();
 </script>
 </body>
 </html>
