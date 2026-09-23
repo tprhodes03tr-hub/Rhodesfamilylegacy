@@ -25,7 +25,6 @@
     flex-direction: column;
     align-items: center;
   }
-  /* Top HUD */
   #hud-top {
     width: 100%;
     display: flex;
@@ -40,7 +39,7 @@
   .meter-box {
     display: flex;
     flex-direction: column;
-    width: 260px;
+    width: 250px;
   }
   .meter-label {
     font-weight: 800;
@@ -81,8 +80,6 @@
     background: rgba(14, 38, 64, 0.75);
     border-radius: 4px;
   }
-
-  /* Canvas */
   canvas {
     width: 100%;
     height: 420px;
@@ -91,8 +88,6 @@
     border-right: 1px solid #1fa3c7;
     display: block;
   }
-
-  /* Control Panel */
   #controls-panel {
     width: 100%;
     background: #0d1a2d;
@@ -142,9 +137,9 @@
   }
   #btn-aid {
     width: 100%;
-    background: linear-gradient(180deg, #1c4b78, #0f2c4a);
-    border: 1px solid #45b7e8;
-    color: #ffdf79;
+    background: linear-gradient(180deg, #b27a12, #6b4300);
+    border: 1px solid #fcd34d;
+    color: #fff4bd;
     padding: 8px;
     font-size: 13px;
     border-radius: 6px;
@@ -152,13 +147,12 @@
     text-align: center;
     font-weight: 800;
     letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.7);
   }
   #btn-aid:active {
-    background: linear-gradient(180deg, #2768a3, #153c63);
-    border-color: #ffe68a;
+    background: linear-gradient(180deg, #d9991a, #8f5a00);
+    border-color: #ffffff;
   }
-
-  /* Modal Screen */
   #modal-screen {
     position: absolute;
     top: 40px;
@@ -204,7 +198,6 @@
 <body>
 
 <div id="game-wrapper">
-  <!-- Top HUD -->
   <div id="hud-top">
     <div class="meter-box">
       <div id="player-label" class="meter-label">MARCUS PRIME</div>
@@ -220,10 +213,8 @@
     </div>
   </div>
 
-  <!-- Canvas -->
   <canvas id="gameCanvas" width="960" height="420"></canvas>
 
-  <!-- Controls Panel -->
   <div id="controls-panel">
     <div class="control-row">
       <button class="btn" id="btn-left">◀ LEFT</button>
@@ -237,11 +228,11 @@
     <div class="control-row">
       <button class="btn" id="btn-strike">
         STRIKE
-        <span class="btn-subtext" id="strike-subtext">ELECTRIC BEAM</span>
+        <span class="btn-subtext" id="strike-subtext">LIGHTNING BOLT</span>
       </button>
       <button class="btn" id="btn-burst">
         BURST
-        <span class="btn-subtext" id="burst-subtext">VOLT OVERLOAD</span>
+        <span class="btn-subtext" id="burst-subtext">VOLT SURGE</span>
       </button>
       <button class="btn" id="btn-shield">
         GUARD
@@ -251,11 +242,10 @@
     </div>
     <button class="btn" id="btn-aid">
       ★ MOTHER LUETTA AID ★
-      <span class="btn-subtext">CELESTIAL DESCENSION &amp; RESTORATION (+35 HP)</span>
+      <span class="btn-subtext" style="color:#ffe299;">CELESTIAL DESCENSION &amp; RESTORATION (+35 HP)</span>
     </button>
   </div>
 
-  <!-- Next Chapter Screen -->
   <div id="modal-screen">
     <h2 id="modal-title">CHAPTER 1 CLEARED!</h2>
     <p id="modal-desc">Chrono-Lock has been shattered on the Ren-Cen Rooftop.</p>
@@ -264,6 +254,57 @@
 </div>
 
 <script>
+// Synthesizer Audio
+const AudioEngine = {
+  ctx: null,
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  },
+  playTone(freq, type, duration, slideFreq = null) {
+    try {
+      this.init();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      if (slideFreq) {
+        osc.frequency.exponentialRampToValueAtTime(slideFreq, this.ctx.currentTime + duration);
+      }
+      gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch(e) {}
+  },
+  electricZap() {
+    this.playTone(720, 'sawtooth', 0.08, 120);
+    setTimeout(() => this.playTone(950, 'sawtooth', 0.07, 240), 25);
+  },
+  voltSurge() {
+    this.playTone(400, 'sawtooth', 0.22, 900);
+    setTimeout(() => this.playTone(1100, 'square', 0.15, 300), 50);
+  },
+  shootMagma() { this.playTone(320, 'square', 0.18, 90); },
+  wingBurst() { this.playTone(600, 'triangle', 0.22, 1200); },
+  hitSound() { this.playTone(180, 'triangle', 0.08, 60); },
+  aidSound() {
+    this.playTone(523.25, 'sine', 0.4);
+    setTimeout(() => this.playTone(659.25, 'sine', 0.4), 120);
+    setTimeout(() => this.playTone(783.99, 'sine', 0.6), 240);
+  },
+  defeatRumble() {
+    this.playTone(90, 'sawtooth', 0.9, 30);
+  }
+};
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -272,13 +313,14 @@ const GAME = {
   height: 420,
   gravity: 0.58,
   groundY: 360,
-  stage: 'wave1', // 'wave1' | 'boss' | 'cleared'
+  stage: 'wave1',
   activeHero: 'marcus',
   aidActive: false,
-  aidTimer: 0
+  aidTimer: 0,
+  shakeTimer: 0,
+  shakeIntensity: 0
 };
 
-// Player Object
 const player = {
   x: 120,
   y: 270,
@@ -292,11 +334,9 @@ const player = {
   hp: 100,
   maxHp: 100,
   shielding: false,
-  walkCycle: 0,
-  jumpDartCooldown: 0
+  walkCycle: 0
 };
 
-// Wave 1: Drone Fleet
 const DRONE_TOTAL = 6;
 let dronesRemaining = DRONE_TOTAL;
 let drones = [];
@@ -318,7 +358,6 @@ function initDrones() {
   }
 }
 
-// Boss: Chrono-Lock
 const boss = {
   x: 740,
   y: 210,
@@ -338,9 +377,9 @@ let playerProjectiles = [];
 let enemyProjectiles = [];
 let particles = [];
 
-// Keyboard Listeners
 const keys = { left: false, right: false };
 window.addEventListener('keydown', (e) => {
+  AudioEngine.init();
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
   if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
   if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') jumpPlayer();
@@ -354,12 +393,20 @@ window.addEventListener('keyup', (e) => {
   if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
 });
 
-// Touch Button bindings
 function bindBtn(id, onStart, onEnd) {
   const el = document.getElementById(id);
   if (!el) return;
-  const start = (e) => { e.preventDefault(); el.classList.add('active'); if (onStart) onStart(); };
-  const stop = (e) => { e.preventDefault(); el.classList.remove('active'); if (onEnd) onEnd(); };
+  const start = (e) => {
+    e.preventDefault();
+    AudioEngine.init();
+    el.classList.add('active');
+    if (onStart) onStart();
+  };
+  const stop = (e) => {
+    e.preventDefault();
+    el.classList.remove('active');
+    if (onEnd) onEnd();
+  };
   el.addEventListener('mousedown', start);
   el.addEventListener('mouseup', stop);
   el.addEventListener('mouseleave', stop);
@@ -377,13 +424,20 @@ bindBtn('btn-shield', () => player.shielding = true, () => player.shielding = fa
 bindBtn('btn-aid', () => triggerAid(), null);
 bindBtn('btn-pause', () => resetGame(), null);
 
+function triggerScreenShake(duration = 24, intensity = 8) {
+  GAME.shakeTimer = duration;
+  GAME.shakeIntensity = intensity;
+  if (navigator.vibrate) {
+    navigator.vibrate([100, 50, 150, 50, 250]);
+  }
+}
+
 function jumpPlayer() {
   if (player.isGrounded) {
     player.vy = -13.2;
     player.isGrounded = false;
     spawnSparks(player.x + player.w/2, player.y + player.h, '#2bf0c5', 8);
 
-    // If Xochitl jumps, fan out wings and launch feather darts
     if (GAME.activeHero === 'xochitl') {
       shootAirFeatherDarts();
     }
@@ -391,18 +445,20 @@ function jumpPlayer() {
 }
 
 function shootAirFeatherDarts() {
-  for (let i = -1; i <= 1; i++) {
+  AudioEngine.wingBurst();
+  for (let i = -1.5; i <= 1.5; i += 1) {
     playerProjectiles.push({
       x: player.facing === 1 ? player.x + player.w + 10 : player.x - 10,
-      y: player.y + player.h * 0.35 + (i * 10),
-      vx: player.facing * 10,
-      vy: i * 2.8,
+      y: player.y + player.h * 0.35 + (i * 9),
+      vx: player.facing * 11,
+      vy: i * 2.4,
       radius: 8,
       color: '#ffe033',
-      damage: 16
+      damage: 16,
+      type: 'feather'
     });
   }
-  spawnSparks(player.x + player.w/2, player.y + 20, '#ff9838', 14);
+  spawnSparks(player.x + player.w/2, player.y + 20, '#ff9838', 16);
 }
 
 function swapHero() {
@@ -419,8 +475,8 @@ function swapHero() {
     document.getElementById('player-label').innerText = 'MARCUS PRIME';
     document.getElementById('player-label').style.color = '#2bf0c5';
     document.getElementById('swap-subtext').innerText = 'XOCHITL';
-    document.getElementById('strike-subtext').innerText = 'ELECTRIC BEAM';
-    document.getElementById('burst-subtext').innerText = 'VOLT OVERLOAD';
+    document.getElementById('strike-subtext').innerText = 'LIGHTNING BOLT';
+    document.getElementById('burst-subtext').innerText = 'VOLT SURGE';
     spawnSparks(player.x + player.w/2, player.y + player.h/2, '#2bf0c5', 18);
   }
 }
@@ -428,38 +484,75 @@ function swapHero() {
 function triggerStrike() {
   const isMarcus = (GAME.activeHero === 'marcus');
   const projX = player.facing === 1 ? player.x + player.w + 4 : player.x - 24;
-  playerProjectiles.push({
-    x: projX,
-    y: player.y + player.h * 0.42,
-    vx: player.facing * 11,
-    vy: 0,
-    radius: isMarcus ? 9 : 12,
-    color: isMarcus ? '#2bf0c5' : '#ff5919',
-    damage: 18
-  });
+  if (isMarcus) {
+    AudioEngine.electricZap();
+    playerProjectiles.push({
+      x: projX,
+      y: player.y + player.h * 0.42,
+      vx: player.facing * 12.5,
+      vy: 0,
+      radius: 12,
+      color: '#2bf0c5',
+      damage: 20,
+      type: 'lightning'
+    });
+  } else {
+    AudioEngine.shootMagma();
+    playerProjectiles.push({
+      x: projX,
+      y: player.y + player.h * 0.42,
+      vx: player.facing * 11,
+      vy: 0,
+      radius: 12,
+      color: '#ff5919',
+      damage: 18,
+      type: 'magma'
+    });
+  }
 }
 
 function triggerBurst() {
   const isMarcus = (GAME.activeHero === 'marcus');
-  for (let i = -1; i <= 1; i++) {
-    const projX = player.facing === 1 ? player.x + player.w : player.x;
-    playerProjectiles.push({
-      x: projX,
-      y: player.y + player.h * 0.42 + (i * 12),
-      vx: player.facing * 9.2,
-      vy: i * 2.2,
-      radius: 11,
-      color: isMarcus ? '#5cf7ff' : '#ffae19',
-      damage: 14
-    });
+  if (isMarcus) {
+    AudioEngine.voltSurge();
+    for (let i = -1; i <= 1; i++) {
+      const projX = player.facing === 1 ? player.x + player.w : player.x;
+      playerProjectiles.push({
+        x: projX,
+        y: player.y + player.h * 0.42 + (i * 12),
+        vx: player.facing * 10,
+        vy: i * 2.5,
+        radius: 14,
+        color: '#6dfaff',
+        damage: 16,
+        type: 'lightning'
+      });
+    }
+    spawnSparks(player.x + player.w/2, player.y + player.h/2, '#2bf0c5', 20);
+  } else {
+    AudioEngine.wingBurst();
+    for (let i = -1; i <= 1; i++) {
+      const projX = player.facing === 1 ? player.x + player.w : player.x;
+      playerProjectiles.push({
+        x: projX,
+        y: player.y + player.h * 0.42 + (i * 12),
+        vx: player.facing * 9.2,
+        vy: i * 2.2,
+        radius: 11,
+        color: '#ffae19',
+        damage: 14,
+        type: 'magma'
+      });
+    }
+    spawnSparks(player.x + player.w/2, player.y + player.h/2, '#ff9838', 16);
   }
-  spawnSparks(player.x + player.w/2, player.y + player.h/2, isMarcus ? '#2bf0c5' : '#ff9838', 16);
 }
 
 function triggerAid() {
   if (GAME.aidActive) return;
+  AudioEngine.aidSound();
   GAME.aidActive = true;
-  GAME.aidTimer = 160;
+  GAME.aidTimer = 180;
   player.hp = Math.min(player.maxHp, player.hp + 35);
   updateHUD();
 }
@@ -497,19 +590,16 @@ function updateHUD() {
   }
 }
 
-// Player Sprite: Marcus Prime
 function drawMarcusPrime(ctx, x, y, facing, walkBob) {
   ctx.save();
   ctx.translate(x + 25, y + 42 + walkBob);
   ctx.scale(facing, 1);
 
-  // Cyan Aura
   ctx.beginPath();
   ctx.arc(0, 0, 48, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(43, 240, 197, 0.08)';
   ctx.fill();
 
-  // Torso & Core
   ctx.fillStyle = '#1c2838';
   ctx.fillRect(-14, -18, 28, 36);
   ctx.fillStyle = '#2bf0c5';
@@ -517,7 +607,6 @@ function drawMarcusPrime(ctx, x, y, facing, walkBob) {
   ctx.fillStyle = '#0f8da8';
   ctx.fillRect(-8, 0, 16, 14);
 
-  // Cyber Head & Visor
   ctx.fillStyle = '#263449';
   ctx.beginPath();
   ctx.arc(0, -28, 12, 0, Math.PI * 2);
@@ -525,13 +614,11 @@ function drawMarcusPrime(ctx, x, y, facing, walkBob) {
   ctx.fillStyle = '#2bf0c5';
   ctx.fillRect(0, -32, 12, 6);
 
-  // Arms & Gauntlet
   ctx.fillStyle = '#395370';
   ctx.fillRect(-18, -18, 7, 24);
   ctx.fillStyle = '#2bf0c5';
   ctx.fillRect(11, -12, 9, 20);
 
-  // Legs
   ctx.fillStyle = '#131b26';
   ctx.fillRect(-12, 18, 9, 24);
   ctx.fillRect(3, 18, 9, 24);
@@ -542,51 +629,63 @@ function drawMarcusPrime(ctx, x, y, facing, walkBob) {
   ctx.restore();
 }
 
-// Player Sprite: Xochitl (Fixed Headdress on Head + Jump Hover Wings)
 function drawXochitl(ctx, x, y, facing, walkBob, inAir) {
   ctx.save();
   ctx.translate(x + 25, y + 42 + walkBob);
   ctx.scale(facing, 1);
 
-  // 1. Feather Wings: Fan out when jumping/hovering in air
   if (inAir) {
     ctx.save();
-    const wingColors = ['#ff2b2b', '#ff9838', '#ffdf2b', '#ff9838'];
-    // Left / Back Wing
-    for (let i = 0; i < 4; i++) {
-      ctx.fillStyle = wingColors[i];
+    const wingFeathers = [
+      { fill: '#ff2828', length: 36, spread: -0.85 },
+      { fill: '#ff881a', length: 44, spread: -0.55 },
+      { fill: '#ffd124', length: 48, spread: -0.25 },
+      { fill: '#ff7700', length: 38, spread: 0.05 }
+    ];
+
+    for (const f of wingFeathers) {
+      ctx.save();
+      ctx.translate(-14, -10);
+      ctx.rotate(f.spread + Math.sin(Date.now() * 0.01) * 0.08);
+      ctx.fillStyle = f.fill;
       ctx.beginPath();
-      ctx.ellipse(-28 - i * 4, -8 - i * 6, 18, 6, -Math.PI / 4, 0, Math.PI * 2);
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-f.length * 0.6, -14, -f.length, -2);
+      ctx.quadraticCurveTo(-f.length * 0.6, 6, 0, 4);
       ctx.fill();
+      ctx.restore();
     }
-    // Right / Front Wing
-    for (let i = 0; i < 4; i++) {
-      ctx.fillStyle = wingColors[i];
+
+    for (const f of wingFeathers) {
+      ctx.save();
+      ctx.translate(14, -10);
+      ctx.rotate(-f.spread - Math.sin(Date.now() * 0.01) * 0.08);
+      ctx.fillStyle = f.fill;
       ctx.beginPath();
-      ctx.ellipse(28 + i * 4, -8 - i * 6, 18, 6, Math.PI / 4, 0, Math.PI * 2);
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(f.length * 0.6, -14, f.length, -2);
+      ctx.quadraticCurveTo(f.length * 0.6, 6, 0, 4);
       ctx.fill();
+      ctx.restore();
     }
     ctx.restore();
   }
 
-  // 2. Body Aura
   ctx.beginPath();
   ctx.arc(0, 0, 48, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255, 120, 30, 0.1)';
   ctx.fill();
 
-  // 3. Head (Center at Y = -23)
   ctx.fillStyle = '#945e3f';
   ctx.beginPath();
   ctx.arc(0, -23, 11, 0, Math.PI * 2);
   ctx.fill();
 
-  // 4. Aztec Feathered Headdress (Directly mounted on crown at Y = -34)
   const feathers = ['#ff2b2b', '#ff9838', '#ffdf2b', '#24c96b', '#26b5ff'];
   for (let i = 0; i < feathers.length; i++) {
     const angle = -Math.PI/2 + (i - 2) * 0.28;
     ctx.save();
-    ctx.translate(0, -32); // Anchored right on top skull
+    ctx.translate(0, -32);
     ctx.rotate(angle);
     ctx.fillStyle = feathers[i];
     ctx.beginPath();
@@ -595,19 +694,16 @@ function drawXochitl(ctx, x, y, facing, walkBob, inAir) {
     ctx.restore();
   }
 
-  // Golden Headdress Crown Band
   ctx.fillStyle = '#f5b027';
   ctx.fillRect(-11, -34, 22, 6);
   ctx.fillStyle = '#ff3344';
-  ctx.fillRect(-3, -33, 6, 4); // Center ruby jewel
+  ctx.fillRect(-3, -33, 6, 4);
 
-  // 5. Aztec Torso Armor & Talisman
   ctx.fillStyle = '#8f2316';
   ctx.fillRect(-13, -12, 26, 30);
   ctx.fillStyle = '#f5b027';
   ctx.fillRect(-8, -10, 16, 12);
 
-  // 6. Magma Gauntlets
   ctx.fillStyle = '#f5b027';
   ctx.fillRect(-19, -8, 8, 22);
   ctx.fillStyle = '#ff4d00';
@@ -615,7 +711,6 @@ function drawXochitl(ctx, x, y, facing, walkBob, inAir) {
   ctx.fillStyle = '#ffe259';
   ctx.fillRect(13, 6, 6, 8);
 
-  // 7. Legs & Sandals
   ctx.fillStyle = '#7a4e32';
   ctx.fillRect(-11, 18, 9, 22);
   ctx.fillRect(2, 18, 9, 22);
@@ -646,7 +741,6 @@ function drawChronoLockBoss(ctx, x, y) {
   ctx.save();
   ctx.translate(x + boss.w/2, y + boss.h/2 + boss.hoverBob);
 
-  // Warp Distortion Ring
   if (boss.warpTimer > 175) {
     ctx.beginPath();
     ctx.arc(0, 0, 95 + Math.sin(Date.now() * 0.05) * 10, 0, Math.PI * 2);
@@ -657,20 +751,17 @@ function drawChronoLockBoss(ctx, x, y) {
     ctx.setLineDash([]);
   }
 
-  // Aura
   ctx.beginPath();
   ctx.arc(0, 0, 78, 0, Math.PI * 2);
   ctx.strokeStyle = 'rgba(75, 230, 255, 0.25)';
   ctx.lineWidth = 4;
   ctx.stroke();
 
-  // Chassis
   ctx.fillStyle = '#8a9ba8';
   ctx.fillRect(-45, -55, 90, 100);
   ctx.fillStyle = '#4c5a66';
   ctx.fillRect(-38, -48, 76, 86);
 
-  // Rotating Core Time Gear
   ctx.save();
   ctx.rotate(boss.gearAngle);
   ctx.fillStyle = '#d4af37';
@@ -683,7 +774,6 @@ function drawChronoLockBoss(ctx, x, y) {
   ctx.fill();
   ctx.restore();
 
-  // Horns & Shoulders
   ctx.fillStyle = '#2c3947';
   ctx.fillRect(-55, -45, 14, 45);
   ctx.fillRect(41, -45, 14, 45);
@@ -708,48 +798,73 @@ function drawChronoLockBoss(ctx, x, y) {
 
 function drawMotherLuettaAid(ctx) {
   if (!GAME.aidActive) return;
-  const alpha = Math.min(1, GAME.aidTimer / 40);
+  const alpha = Math.min(1, GAME.aidTimer / 35);
   ctx.save();
   ctx.globalAlpha = alpha;
 
-  const beamGrad = ctx.createLinearGradient(player.x - 30, 0, player.x + 80, GAME.groundY);
-  beamGrad.addColorStop(0, 'rgba(255, 235, 160, 0.6)');
-  beamGrad.addColorStop(1, 'rgba(255, 215, 0, 0.08)');
+  const beamGrad = ctx.createLinearGradient(player.x - 50, 0, player.x + 90, GAME.groundY);
+  beamGrad.addColorStop(0, 'rgba(255, 225, 110, 0.65)');
+  beamGrad.addColorStop(0.5, 'rgba(255, 195, 40, 0.35)');
+  beamGrad.addColorStop(1, 'rgba(255, 180, 0, 0.08)');
   ctx.fillStyle = beamGrad;
-  ctx.fillRect(player.x - 40, 0, 130, GAME.groundY);
+  ctx.fillRect(player.x - 55, 0, 160, GAME.groundY);
 
-  const aidY = Math.min(player.y - 65, 80 + (160 - GAME.aidTimer) * 1.2);
+  const aidY = Math.min(player.y - 75, 70 + (180 - GAME.aidTimer) * 1.3);
   ctx.save();
   ctx.translate(player.x + 25, aidY);
 
-  ctx.strokeStyle = '#fff2a8';
-  ctx.lineWidth = 3;
+  const auraGlow = ctx.createRadialGradient(0, 0, 5, 0, 0, 60);
+  auraGlow.addColorStop(0, 'rgba(255, 245, 170, 0.9)');
+  auraGlow.addColorStop(0.6, 'rgba(255, 195, 30, 0.4)');
+  auraGlow.addColorStop(1, 'rgba(255, 180, 0, 0)');
+  ctx.fillStyle = auraGlow;
   ctx.beginPath();
-  ctx.arc(0, -22, 16, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.fillStyle = 'rgba(255, 248, 210, 0.9)';
-  ctx.beginPath();
-  ctx.ellipse(-24, 0, 24, 8, -Math.PI / 6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(24, 0, 24, 8, Math.PI / 6, 0, Math.PI * 2);
+  ctx.arc(0, 0, 60, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = '#fffdf0';
-  ctx.beginPath();
-  ctx.moveTo(0, -14);
-  ctx.lineTo(-14, 26);
-  ctx.lineTo(14, 26);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-
-  ctx.strokeStyle = '#ffe47a';
+  ctx.strokeStyle = '#fff5b0';
   ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.ellipse(player.x + player.w/2, player.y + player.h - 2, 44, 10, 0, 0, Math.PI * 2);
+  ctx.arc(0, -25, 20, 0, Math.PI * 2);
   ctx.stroke();
+
+  ctx.fillStyle = '#ff9f10';
+  ctx.beginPath();
+  ctx.moveTo(0, -12);
+  ctx.lineTo(-20, 36);
+  ctx.lineTo(20, 36);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#ffd652';
+  ctx.beginPath();
+  ctx.moveTo(0, -10);
+  ctx.lineTo(-12, 34);
+  ctx.lineTo(12, 34);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(0, -22, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffca36';
+  ctx.beginPath();
+  ctx.ellipse(-26, 6, 28, 9, -Math.PI / 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(26, 6, 28, 9, Math.PI / 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  ctx.strokeStyle = '#ffd84d';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.ellipse(player.x + player.w/2, player.y + player.h - 2, 48, 12, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
   ctx.restore();
 
   GAME.aidTimer--;
@@ -770,7 +885,6 @@ function drawDetroitSkyline(ctx) {
     ctx.fillRect(sx, sy, 1.6, 1.6);
   }
 
-  // Ren-Cen Style Towers
   ctx.fillStyle = '#0c182b';
   ctx.fillRect(400, 60, 160, 310);
   ctx.fillStyle = '#14253e';
@@ -828,12 +942,10 @@ function updateBoss() {
   boss.hoverBob = Math.sin(Date.now() * 0.003) * 8;
   boss.facing = boss.x > player.x ? -1 : 1;
 
-  // Time Warp Teleport Logic (Every ~3.8 seconds)
   boss.warpTimer++;
   if (boss.warpTimer > 230) {
     boss.warpTimer = 0;
     spawnSparks(boss.x + boss.w / 2, boss.y + boss.h / 2, '#3ee2ff', 24);
-
     const warpBehind = Math.random() > 0.5;
     if (warpBehind) {
       boss.x = Math.max(50, player.x - 180);
@@ -843,7 +955,6 @@ function updateBoss() {
     spawnSparks(boss.x + boss.w / 2, boss.y + boss.h / 2, '#ff3a3a', 24);
   }
 
-  // Attack Burst
   boss.attackTimer++;
   if (boss.attackTimer > 105) {
     boss.attackTimer = 0;
@@ -863,7 +974,6 @@ function updateBoss() {
 function update() {
   if (GAME.stage === 'cleared') return;
 
-  // Horizontal Movement
   if (keys.left) {
     player.vx = -player.speed;
     player.facing = -1;
@@ -877,7 +987,6 @@ function update() {
     player.walkCycle = 0;
   }
 
-  // Physics
   player.x += player.vx;
   player.y += player.vy;
   player.vy += GAME.gravity;
@@ -897,18 +1006,17 @@ function update() {
     updateBoss();
   }
 
-  // Check Player Projectiles
   for (let i = playerProjectiles.length - 1; i >= 0; i--) {
     const p = playerProjectiles[i];
     p.x += p.vx;
     p.y += p.vy;
 
-    // Hits Drones
     if (GAME.stage === 'wave1') {
       for (let j = drones.length - 1; j >= 0; j--) {
         const d = drones[j];
         if (p.x >= d.x && p.x <= d.x + d.w && p.y >= d.y && p.y <= d.y + d.h) {
           d.hp -= p.damage;
+          AudioEngine.hitSound();
           spawnSparks(p.x, p.y, p.color, 8);
           playerProjectiles.splice(i, 1);
 
@@ -925,12 +1033,11 @@ function update() {
           break;
         }
       }
-    } 
-    // Hits Boss
-    else if (GAME.stage === 'boss') {
+    } else if (GAME.stage === 'boss') {
       if (p.x >= boss.x && p.x <= boss.x + boss.w &&
           p.y >= boss.y && p.y <= boss.y + boss.h) {
         boss.hp -= p.damage;
+        AudioEngine.hitSound();
         spawnSparks(p.x, p.y, p.color, 10);
         playerProjectiles.splice(i, 1);
         updateHUD();
@@ -942,7 +1049,6 @@ function update() {
     if (p.x < -40 || p.x > GAME.width + 40) playerProjectiles.splice(i, 1);
   }
 
-  // Enemy Projectiles
   for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
     const ep = enemyProjectiles[i];
     ep.x += ep.vx;
@@ -952,6 +1058,7 @@ function update() {
         ep.y >= player.y && ep.y <= player.y + player.h) {
       if (!player.shielding) {
         player.hp = Math.max(0, player.hp - 12);
+        AudioEngine.hitSound();
         spawnSparks(player.x + player.w/2, player.y + player.h/2, '#ff3a3a', 12);
         updateHUD();
       } else {
@@ -964,7 +1071,6 @@ function update() {
     if (ep.x < -30 || ep.x > GAME.width + 30) enemyProjectiles.splice(i, 1);
   }
 
-  // Particles
   for (let i = particles.length - 1; i >= 0; i--) {
     const pt = particles[i];
     pt.x += pt.vx;
@@ -972,22 +1078,31 @@ function update() {
     pt.alpha -= 0.035;
     if (pt.alpha <= 0) particles.splice(i, 1);
   }
+
+  if (GAME.shakeTimer > 0) GAME.shakeTimer--;
 }
 
 function triggerBossSummon() {
   GAME.stage = 'boss';
   boss.active = true;
   boss.hp = boss.maxHp;
+  triggerScreenShake(18, 6);
   spawnSparks(boss.x + boss.w/2, boss.y + boss.h/2, '#3ee2ff', 40);
   updateHUD();
 }
 
 function render() {
-  ctx.clearRect(0, 0, GAME.width, GAME.height);
+  ctx.save();
 
+  if (GAME.shakeTimer > 0) {
+    const offsetX = (Math.random() - 0.5) * GAME.shakeIntensity;
+    const offsetY = (Math.random() - 0.5) * GAME.shakeIntensity;
+    ctx.translate(offsetX, offsetY);
+  }
+
+  ctx.clearRect(0, 0, GAME.width, GAME.height);
   drawDetroitSkyline(ctx);
 
-  // Render Player
   const bob = (player.vx !== 0 && player.isGrounded) ? Math.sin(player.walkCycle) * 3 : 0;
   if (GAME.activeHero === 'marcus') {
     drawMarcusPrime(ctx, player.x, player.y, player.facing, bob);
@@ -1005,23 +1120,43 @@ function render() {
 
   drawMotherLuettaAid(ctx);
 
-  // Render Drones
   if (GAME.stage === 'wave1') {
     for (const d of drones) drawDrone(ctx, d);
   }
 
-  // Render Chrono-Lock
   if (GAME.stage === 'boss' && boss.hp > 0) {
     drawChronoLockBoss(ctx, boss.x, boss.y);
   }
 
   // Render Projectiles
   for (const p of playerProjectiles) {
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fill();
+    if (p.type === 'lightning') {
+      // Crackling Electric Bolt Art
+      ctx.save();
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 3.5;
+      ctx.shadowColor = '#4df6ff';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      const dir = p.vx > 0 ? 1 : -1;
+      ctx.moveTo(p.x - dir * 18, p.y);
+      ctx.lineTo(p.x - dir * 10, p.y + (Math.random() - 0.5) * 8);
+      ctx.lineTo(p.x - dir * 3, p.y + (Math.random() - 0.5) * 8);
+      ctx.lineTo(p.x + dir * 6, p.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
+
   for (const ep of enemyProjectiles) {
     ctx.fillStyle = ep.color;
     ctx.beginPath();
@@ -1029,7 +1164,6 @@ function render() {
     ctx.fill();
   }
 
-  // Render Particles
   for (const pt of particles) {
     ctx.save();
     ctx.globalAlpha = pt.alpha;
@@ -1039,6 +1173,8 @@ function render() {
     ctx.fill();
     ctx.restore();
   }
+
+  ctx.restore();
 }
 
 function loop() {
@@ -1049,7 +1185,13 @@ function loop() {
 
 function winGame() {
   GAME.stage = 'cleared';
-  document.getElementById('modal-screen').style.display = 'flex';
+  AudioEngine.defeatRumble();
+  triggerScreenShake(45, 14);
+  spawnSparks(boss.x + boss.w/2, boss.y + boss.h/2, '#ffd700', 60);
+  spawnSparks(boss.x + boss.w/2, boss.y + boss.h/2, '#ff3a3a', 40);
+  setTimeout(() => {
+    document.getElementById('modal-screen').style.display = 'flex';
+  }, 450);
 }
 
 function proceedNextChapter() {
@@ -1076,7 +1218,6 @@ function resetGame() {
   updateHUD();
 }
 
-// Initial Boot
 initDrones();
 updateHUD();
 requestAnimationFrame(loop);
