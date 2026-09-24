@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Isaac - Roster Combat</title>
+  <title>Isaac - Vanguard Combat</title>
   <style>
     * {
       box-sizing: border-box;
@@ -14,20 +14,19 @@
       touch-action: manipulation;
     }
     body {
-      background: #090b10;
-      color: #f8fafc;
+      background: #08090d;
+      color: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
       font-family: system-ui, -apple-system, sans-serif;
-      padding: 10px;
+      padding: 6px;
     }
     #gameContainer {
-      position: relative;
       width: 100%;
-      max-width: 800px;
+      max-width: 820px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -36,54 +35,41 @@
       width: 100%;
       height: auto;
       aspect-ratio: 16 / 9;
-      background: #111827;
-      border: 3px solid #3b82f6;
+      background: linear-gradient(180deg, #0b1120 0%, #1e1e38 100%);
+      border: 2px solid #38bdf8;
       border-radius: 8px;
-      box-shadow: 0 0 25px rgba(59, 130, 246, 0.35);
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
       display: block;
     }
     #touchControls {
       display: flex;
       justify-content: space-between;
       width: 100%;
-      max-width: 800px;
-      margin-top: 14px;
-      gap: 12px;
+      margin-top: 10px;
+      gap: 8px;
     }
-    .d-pad, .action-pad {
+    .control-group {
       display: flex;
-      gap: 10px;
+      gap: 6px;
     }
     button.btn {
-      padding: 14px 22px;
-      font-size: 16px;
-      font-weight: 700;
-      border-radius: 8px;
-      border: 2px solid transparent;
-      color: #ffffff;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 6px;
+      border: none;
+      color: #fff;
       cursor: pointer;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
-      active-scale: 0.95;
     }
-    button.btn:active {
-      transform: scale(0.95);
-    }
-    #btnLeft, #btnRight {
-      background: #1e293b;
-      border-color: #334155;
-    }
-    #btnGuard {
-      background: #0284c7;
-      border-color: #38bdf8;
-    }
-    #btnStrike {
-      background: #dc2626;
-      border-color: #f87171;
-    }
+    button.btn:active { transform: scale(0.95); }
+    #btnLeft, #btnRight { background: #1e293b; border: 1px solid #475569; }
+    #btnGuard { background: #0284c7; }
+    #btnStrike { background: #dc2626; }
+    #btnSummon { background: #d97706; }
     .instructions {
-      margin-top: 10px;
-      font-size: 13px;
-      color: #94a3b8;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #64748b;
       text-align: center;
     }
   </style>
@@ -94,18 +80,19 @@
     <canvas id="gameCanvas" width="800" height="450"></canvas>
 
     <div id="touchControls">
-      <div class="d-pad">
+      <div class="control-group">
         <button class="btn" id="btnLeft">◀ LEFT</button>
         <button class="btn" id="btnRight">RIGHT ▶</button>
       </div>
-      <div class="action-pad">
-        <button class="btn" id="btnGuard">SHIELD (ABSORB)</button>
+      <div class="control-group">
+        <button class="btn" id="btnSummon">MOTHER LUETTA</button>
+        <button class="btn" id="btnGuard">SHIELD</button>
         <button class="btn" id="btnStrike">STRIKE</button>
       </div>
     </div>
 
     <div class="instructions">
-      Desktop: [A / D / Arrows] Move | Hold [G / Shift] Shield Absorb | [Space / F] Counter Strike
+      Shield absorbs incoming drone fire & kinetic blasts into counter-voltage.
     </div>
   </div>
 
@@ -114,284 +101,304 @@
     const ctx = canvas.getContext('2d');
 
     // ==========================================
-    // UNIFIED ROSTER REGISTRY & SPRITE SYSTEM
+    // IMAGES & SPRITES
     // ==========================================
-    const ROSTER = {
-      marcus: {
-        name: "Marcus",
-        spriteSrc: "marcus.png",
-        img: new Image(),
-        width: 100,
-        height: 140,
-        speed: 6,
-        hp: 100,
-        maxHp: 100,
-        crop: { active: true, sxRatio: 0.05, syRatio: 0.20, swRatio: 0.90, shRatio: 0.65 },
-        shieldActive: false,
-        energy: 0,
-        maxEnergy: 5,
-        shieldColor: "#00f0ff"
-      },
-      motherLuetta: {
-        name: "Mother Luetta",
-        spriteSrc: "mother-luetta.png",
-        img: new Image(),
-        width: 100,
-        height: 140,
-        crop: { active: true, sxRatio: 0.05, syRatio: 0.20, swRatio: 0.90, shRatio: 0.65 }
-      },
-      xochitl: {
-        name: "Xochitl",
-        spriteSrc: "xochitl.png",
-        img: new Image(),
-        width: 110,
-        height: 140,
-        crop: { active: true, sxRatio: 0.05, syRatio: 0.20, swRatio: 0.90, shRatio: 0.65 }
-      }
+    const sprites = {
+      marcus: new Image(),
+      luetta: new Image(),
+      xochitl: new Image()
     };
+    sprites.marcus.src = 'marcus.png';
+    sprites.luetta.src = 'mother-luetta.png';
+    sprites.xochitl.src = 'xochitl.png';
 
-    // Pre-load assets
-    Object.values(ROSTER).forEach(char => {
-      char.img.src = char.spriteSrc;
-    });
-
-    // Active Combat State
+    // Player Marcus
     const player = {
       x: 80,
-      y: 260,
-      data: ROSTER.marcus
+      y: 250,
+      width: 95,
+      height: 140,
+      hp: 100,
+      maxHp: 100,
+      speed: 6,
+      shieldActive: false,
+      charge: 0,
+      maxCharge: 5
     };
 
+    // Boss (Xochitl)
     const boss = {
-      x: 640,
-      y: 260,
-      data: ROSTER.xochitl,
+      name: "XOCHITL",
+      x: 650,
+      y: 245,
+      width: 105,
+      height: 145,
       hp: 300,
       maxHp: 300
     };
 
-    // Incoming Boss Projectiles
-    const projectiles = [];
-    let spawnTimer = 0;
-    let lightningFlash = 0;
+    // Attacking Droids & Projectiles
+    let droids = [];
+    let projectiles = [];
+    let summonActive = false;
+    let summonTimer = 0;
+    let lightningTimer = 0;
+    let frame = 0;
 
-    // Input Handling
+    // Controls
     const keys = {};
-
     window.addEventListener('keydown', (e) => {
-      keys[e.key.toLowerCase()] = true;
-      if (e.key.toLowerCase() === 'g' || e.key === 'Shift') player.data.shieldActive = true;
-      if (e.key === ' ' || e.key.toLowerCase() === 'f') executeCounterStrike();
+      const k = e.key.toLowerCase();
+      keys[k] = true;
+      if (k === 'g' || e.key === 'Shift') player.shieldActive = true;
+      if (k === ' ' || k === 'f') fireCounterStrike();
+      if (k === 'e') triggerSummon();
     });
-
     window.addEventListener('keyup', (e) => {
-      keys[e.key.toLowerCase()] = false;
-      if (e.key.toLowerCase() === 'g' || e.key === 'Shift') player.data.shieldActive = false;
+      const k = e.key.toLowerCase();
+      keys[k] = false;
+      if (k === 'g' || e.key === 'Shift') player.shieldActive = false;
     });
 
-    // Touch Event Bindings
-    function bindTouch(btn, onStart, onEnd) {
-      btn.addEventListener('touchstart', (e) => { e.preventDefault(); onStart(); }, { passive: false });
-      btn.addEventListener('touchend', (e) => { e.preventDefault(); onEnd(); }, { passive: false });
-      btn.addEventListener('mousedown', onStart);
-      btn.addEventListener('mouseup', onEnd);
+    function bind(id, start, end) {
+      const el = document.getElementById(id);
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); start(); }, { passive: false });
+      el.addEventListener('touchend', (e) => { e.preventDefault(); end(); }, { passive: false });
+      el.addEventListener('mousedown', start);
+      el.addEventListener('mouseup', end);
     }
+    bind('btnLeft', () => { keys['a'] = true; }, () => { keys['a'] = false; });
+    bind('btnRight', () => { keys['d'] = true; }, () => { keys['d'] = false; });
+    bind('btnGuard', () => { player.shieldActive = true; }, () => { player.shieldActive = false; });
+    bind('btnStrike', () => { fireCounterStrike(); }, () => {});
+    bind('btnSummon', () => { triggerSummon(); }, () => {});
 
-    bindTouch(document.getElementById('btnLeft'), () => { keys['arrowleft'] = true; }, () => { keys['arrowleft'] = false; });
-    bindTouch(document.getElementById('btnRight'), () => { keys['arrowright'] = true; }, () => { keys['arrowright'] = false; });
-    bindTouch(document.getElementById('btnGuard'), () => { player.data.shieldActive = true; }, () => { player.data.shieldActive = false; });
-    bindTouch(document.getElementById('btnStrike'), () => { executeCounterStrike(); }, () => {});
-
-    function executeCounterStrike() {
-      if (player.data.energy <= 0) return;
-
-      const damage = 30 * player.data.energy;
-      boss.hp = Math.max(0, boss.hp - damage);
-      lightningFlash = 12; // Frames to render lightning beam
-      player.data.energy = 0;
-    }
-
-    // Helper: Draw character with automatic UI status bar cropping
-    function drawEntity(entity, x, y) {
-      const char = entity.data;
-      if (char.img.complete && char.img.naturalWidth > 0) {
-        if (char.crop.active) {
-          const sx = char.img.naturalWidth * char.crop.sxRatio;
-          const sy = char.img.naturalHeight * char.crop.syRatio;
-          const sw = char.img.naturalWidth * char.crop.swRatio;
-          const sh = char.img.naturalHeight * char.crop.shRatio;
-          ctx.drawImage(char.img, sx, sy, sw, sh, x, y, char.width, char.height);
-        } else {
-          ctx.drawImage(char.img, x, y, char.width, char.height);
-        }
-      } else {
-        ctx.fillStyle = '#475569';
-        ctx.fillRect(x, y, char.width, char.height);
+    function triggerSummon() {
+      if (!summonActive) {
+        summonActive = true;
+        summonTimer = 180; // 3 seconds of healing & barrier
+        player.hp = Math.min(player.maxHp, player.hp + 35);
       }
     }
 
+    function fireCounterStrike() {
+      if (player.charge === 0) return;
+      const dmg = 35 * player.charge;
+      boss.hp = Math.max(0, boss.hp - dmg);
+      // Destroy nearby droids
+      droids.forEach(d => d.hp -= dmg);
+      lightningTimer = 14;
+      player.charge = 0;
+    }
+
     // ==========================================
-    // UPDATE LOGIC
+    // GAME LOOP
     // ==========================================
     function update() {
-      // Movement
-      if (keys['arrowleft'] || keys['a']) player.x = Math.max(20, player.x - player.data.speed);
-      if (keys['arrowright'] || keys['d']) player.x = Math.min(canvas.width - 250, player.x + player.data.speed);
+      frame++;
 
-      // Boss projectile cycle
-      spawnTimer++;
-      if (spawnTimer % 90 === 0 && boss.hp > 0) {
-        projectiles.push({
-          x: boss.x,
-          y: boss.y + 60,
-          radius: 10,
-          speed: 5,
-          active: true
-        });
+      // Movement
+      if (keys['a'] || keys['arrowleft']) player.x = Math.max(20, player.x - player.speed);
+      if (keys['d'] || keys['arrowright']) player.x = Math.min(canvas.width - 250, player.x + player.speed);
+
+      // Spawn Patrol Combat Droids
+      if (frame % 160 === 0 && boss.hp > 0 && droids.length < 3) {
+        droids.push({ x: boss.x - 20, y: 310, width: 35, height: 35, hp: 40, speed: 2 });
       }
 
-      // Update projectiles & collisions
+      // Droid movement & shooting
+      for (let i = droids.length - 1; i >= 0; i--) {
+        const d = droids[i];
+        d.x -= d.speed;
+
+        // Droid fires plasma
+        if (frame % 90 === 0) {
+          projectiles.push({ x: d.x, y: d.y + 15, vx: -5, r: 7, color: '#f59e0b' });
+        }
+
+        if (d.hp <= 0 || d.x < -40) droids.splice(i, 1);
+      }
+
+      // Boss projectile blast
+      if (frame % 120 === 0 && boss.hp > 0) {
+        projectiles.push({ x: boss.x - 10, y: boss.y + 60, vx: -6, r: 11, color: '#ef4444' });
+      }
+
+      // Projectiles & Collisions
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
-        p.x -= p.speed;
+        p.x += p.vx;
 
-        // Bounding check against Marcus
-        const inPlayerX = p.x > player.x && p.x < player.x + player.data.width;
-        const inPlayerY = p.y > player.y && p.y < player.y + player.data.height;
+        const hitMarcus = p.x > player.x && p.x < player.x + player.width &&
+                          p.y > player.y && p.y < player.y + player.height;
 
-        if (inPlayerX && inPlayerY) {
-          if (player.data.shieldActive) {
-            // Absorb!
-            if (player.data.energy < player.data.maxEnergy) {
-              player.data.energy++;
-            }
+        if (hitMarcus) {
+          if (player.shieldActive || summonActive) {
+            if (player.charge < player.maxCharge) player.charge++;
           } else {
-            // Direct Hit
-            player.data.hp = Math.max(0, player.data.hp - 15);
+            player.hp = Math.max(0, player.hp - 12);
           }
           projectiles.splice(i, 1);
           continue;
         }
 
-        if (p.x < -20) {
-          projectiles.splice(i, 1);
-        }
+        if (p.x < -30) projectiles.splice(i, 1);
       }
 
-      if (lightningFlash > 0) lightningFlash--;
+      if (summonTimer > 0) summonTimer--;
+      else summonActive = false;
+
+      if (lightningTimer > 0) lightningTimer--;
     }
 
     // ==========================================
-    // RENDER LOGIC
+    // DRAWING & HUD
     // ==========================================
     function render() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Arena Floor Line
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 4;
+      // Floor
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(0, 400);
-      ctx.lineTo(canvas.width, 400);
+      ctx.moveTo(0, 390);
+      ctx.lineTo(canvas.width, 390);
       ctx.stroke();
 
-      // 1. Draw Player (Marcus)
-      drawEntity(player, player.x, player.y);
+      // 1. Draw Marcus (Tight Source Crop to remove white borders)
+      if (sprites.marcus.complete && sprites.marcus.naturalWidth > 0) {
+        const img = sprites.marcus;
+        ctx.drawImage(img, img.naturalWidth * 0.15, img.naturalHeight * 0.28, img.naturalWidth * 0.70, img.naturalHeight * 0.60, player.x, player.y, player.width, player.height);
+      } else {
+        ctx.fillStyle = '#6366f1';
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+      }
 
-      // Kinetic Shield Dome
-      if (player.data.shieldActive) {
+      // 2. Marcus Shield
+      if (player.shieldActive) {
         ctx.save();
-        ctx.strokeStyle = player.data.shieldColor;
-        ctx.lineWidth = 4 + (player.data.energy * 2);
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 4 + player.charge * 2;
         ctx.shadowColor = '#00f0ff';
-        ctx.shadowBlur = 20;
-
+        ctx.shadowBlur = 18;
         ctx.beginPath();
-        ctx.arc(
-          player.x + player.data.width / 2,
-          player.y + player.data.height / 2,
-          75,
-          0,
-          Math.PI * 2
-        );
+        ctx.arc(player.x + player.width / 2, player.y + player.height / 2, 75, 0, Math.PI * 2);
         ctx.stroke();
-
         ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
         ctx.fill();
         ctx.restore();
       }
 
-      // 2. Draw Boss (Xochitl)
-      if (boss.hp > 0) {
-        drawEntity(boss, boss.x, boss.y);
+      // 3. Mother Luetta Summon Effect
+      if (summonActive) {
+        ctx.save();
+        if (sprites.luetta.complete && sprites.luetta.naturalWidth > 0) {
+          const lImg = sprites.luetta;
+          ctx.drawImage(lImg, lImg.naturalWidth * 0.15, lImg.naturalHeight * 0.20, lImg.naturalWidth * 0.70, lImg.naturalHeight * 0.65, player.x - 70, player.y - 30, 85, 120);
+        }
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 15;
+        ctx.strokeRect(player.x - 75, player.y - 35, 95, 130);
+        ctx.restore();
       }
 
-      // 3. Draw Projectiles
-      ctx.save();
+      // 4. Draw Droids
+      for (const d of droids) {
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(d.x, d.y, d.width, d.height);
+        // Droid eye
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(d.x + 4, d.y + 10, 8, 8);
+      }
+
+      // 5. Draw Boss (Xochitl)
+      if (boss.hp > 0) {
+        if (sprites.xochitl.complete && sprites.xochitl.naturalWidth > 0) {
+          const xImg = sprites.xochitl;
+          ctx.drawImage(xImg, xImg.naturalWidth * 0.10, xImg.naturalHeight * 0.20, xImg.naturalWidth * 0.80, xImg.naturalHeight * 0.70, boss.x, boss.y, boss.width, boss.height);
+        } else {
+          // Boss silhouette fallback with glowing crown
+          ctx.fillStyle = '#ea580c';
+          ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(boss.x + 20, boss.y - 15, boss.width - 40, 15);
+        }
+      }
+
+      // 6. Draw Projectiles
       for (const p of projectiles) {
-        ctx.fillStyle = '#f97316';
-        ctx.shadowColor = '#ea580c';
+        ctx.save();
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
         ctx.shadowBlur = 12;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
       }
-      ctx.restore();
 
-      // 4. Counter Lightning Beam Effect
-      if (lightningFlash > 0) {
+      // 7. Counter Lightning Blast
+      if (lightningTimer > 0) {
         ctx.save();
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 7;
-        ctx.shadowColor = '#00ffff';
+        ctx.lineWidth = 8;
+        ctx.shadowColor = '#00f0ff';
         ctx.shadowBlur = 30;
-
         ctx.beginPath();
-        ctx.moveTo(player.x + player.data.width, player.y + 65);
-        let curX = player.x + player.data.width;
-        let curY = player.y + 65;
-
-        while (curX < boss.x) {
-          curX += 30;
-          curY = player.y + 65 + (Math.random() - 0.5) * 35;
-          ctx.lineTo(curX, curY);
+        ctx.moveTo(player.x + player.width, player.y + 70);
+        let cx = player.x + player.width;
+        while (cx < boss.x) {
+          cx += 25;
+          ctx.lineTo(cx, player.y + 70 + (Math.random() - 0.5) * 30);
         }
-        ctx.lineTo(boss.x + 30, boss.y + 65);
+        ctx.lineTo(boss.x + 20, boss.y + 70);
         ctx.stroke();
         ctx.restore();
       }
 
       // ==========================================
-      // HEADS-UP DISPLAY (HUD)
+      // HEALTH BARS & HUD
       // ==========================================
-      // Marcus Charge & HP
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 16px system-ui';
-      ctx.fillText(`LIGHTNING CHARGE: ${player.data.energy} / ${player.data.maxEnergy}`, 20, 32);
-
+      // Marcus Health Bar
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(20, 20, 200, 18);
       ctx.fillStyle = '#22c55e';
-      ctx.fillText(`MARCUS HP: ${player.data.hp}`, 20, 56);
+      ctx.fillRect(20, 20, (player.hp / player.maxHp) * 200, 18);
+      ctx.strokeStyle = '#475569';
+      ctx.strokeRect(20, 20, 200, 18);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(`MARCUS HP: ${player.hp}`, 25, 34);
 
-      // Boss HP Bar
+      // Charge Meter
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(`VOLT CHARGE: ${player.charge} / ${player.maxCharge}`, 20, 56);
+
+      // Boss Health Bar
       if (boss.hp > 0) {
-        ctx.fillStyle = '#f87171';
-        ctx.font = 'bold 16px system-ui';
-        ctx.fillText(`XOCHITL HP: ${boss.hp} / ${boss.maxHp}`, canvas.width - 200, 32);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(canvas.width - 240, 20, 220, 18);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(canvas.width - 240, 20, (boss.hp / boss.maxHp) * 220, 18);
+        ctx.strokeStyle = '#475569';
+        ctx.strokeRect(canvas.width - 240, 20, 220, 18);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(`${boss.name}: ${boss.hp}`, canvas.width - 230, 34);
       } else {
         ctx.fillStyle = '#facc15';
-        ctx.font = 'bold 22px system-ui';
-        ctx.fillText(`BOSS DEFEATED!`, canvas.width - 210, 40);
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillText('STAGE CLEARED!', canvas.width - 220, 36);
       }
     }
 
-    // Engine loop
-    function gameLoop() {
+    function run() {
       update();
       render();
-      requestAnimationFrame(gameLoop);
+      requestAnimationFrame(run);
     }
-
-    gameLoop();
+    run();
   </script>
 </body>
 </html>
