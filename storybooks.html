@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rhodes Family Legacy: Interactive Children's Storybooks</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Comic Sans MS", "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 30px;
+    }
+
+    header {
+      width: 100%;
+      max-width: 960px;
+      padding: 16px 20px;
+      background: #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid #facc15;
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 900;
+      color: #facc15;
+      letter-spacing: 1px;
+    }
+    .tree-badge {
+      background: #0284c7;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(2, 132, 199, 0.5);
+    }
+
+    /* Side-by-Side Dual Container */
+    .dual-books-container {
+      width: 100%;
+      max-width: 960px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 16px;
+    }
+    @media (max-width: 768px) {
+      .dual-books-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .book-card {
+      background: #1e293b;
+      border-radius: 14px;
+      border: 2px solid #334155;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    }
+    .book-card.luetta-theme { border-color: #eab308; }
+    .book-card.fannie-theme { border-color: #10b981; }
+
+    .card-header {
+      padding: 14px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .luetta-header { background: #854d0e; color: #fef08a; }
+    .fannie-header { background: #065f46; color: #a7f3d0; }
+
+    .story-viewport {
+      padding: 18px;
+      background: #0b1329;
+      font-size: 15px;
+      line-height: 1.8;
+      min-height: 160px;
+    }
+    .word-span {
+      display: inline-block;
+      cursor: pointer;
+      padding: 0 2px;
+      border-radius: 4px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .word-span:hover {
+      background: #38bdf8;
+      color: #000;
+    }
+    .word-active {
+      background: #facc15 !important;
+      color: #000 !important;
+      font-weight: bold;
+    }
+
+    /* Controls Bar */
+    .read-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 18px;
+      background: #182238;
+      border-top: 1px solid #334155;
+    }
+    .btn-audio {
+      background: #facc15;
+      border: none;
+      color: #000;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .quest-indicator {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+    }
+
+    /* Interactive Game Area */
+    .quest-canvas-box {
+      padding: 14px;
+      background: #050a17;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border-top: 2px dashed #334155;
+    }
+    canvas {
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #020617;
+    }
+
+    .quest-instruction {
+      font-size: 12px;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    /* Fannie Mae Relays */
+    .relay-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .relay-btn {
+      background: #0f766e;
+      border: none;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 8px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .relay-btn:disabled {
+      background: #334155;
+      color: #64748b;
+    }
+
+    /* Legacy Tree Modal */
+    #treeModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(2, 6, 23, 0.95);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .tree-box {
+      background: #1e293b;
+      border: 3px solid #facc15;
+      border-radius: 14px;
+      max-width: 440px;
+      width: 100%;
+      padding: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-title">RHODES FAMILY LEGACY</div>
+    <div class="tree-badge" onclick="toggleTreeModal()">🌳 MY LEGACY TREE (<span id="tokenCount">0</span>/2)</div>
+  </header>
+
+  <div class="dual-books-container">
+
+    <!-- BOOK 1: LITTLE LUETTA AND THE GOLDEN CLOCK -->
+    <div class="book-card luetta-theme">
+      <div class="card-header luetta-header">✦ LITTLE LUETTA & THE GOLDEN CLOCK ✦</div>
+      <div class="story-viewport" id="luettaText">
+        <!-- Interactive words populated by JS -->
+      </div>
+      <div class="read-controls">
+        <button class="btn-audio" onclick="readAloud('luetta')">🔊 READ CHAPTER 1</button>
+        <span class="quest-indicator" id="luettaStatus">QUEST: LOCKED</span>
+      </div>
+      <div class="quest-canvas-box">
+        <div class="quest-instruction">Tap the Golden Winding Key 3 times to set the ancient pendulum in motion!</div>
+        <canvas id="clockCanvas" width="280" height="150"></canvas>
+        <button class="btn-audio" id="btnWindKey" style="margin-top:8px; width:100%; background:#eab308;" onclick="windClock()">
+          🔑 WIND THE KEY (<span id="windsLeft">3</span> REMAINING)
+        </button>
+      </div>
+    </div>
+
+    <!-- BOOK 2: THE ADVENTURES OF FANNIE MAE & HER BROTHERS -->
+    <div class="book-card fannie-theme">
+      <div class="card-header fannie-header">✦ THE ADVENTURES OF FANNIE MAE & HER BROTHERS ✦</div>
+      <div class="story-viewport" id="fannieText">
+        <!-- Interactive words populated by JS -->
+      </div>
+      <div class="read-controls">
+        <button class="btn-audio" style="background:#10b981; color:#fff;" onclick="readAloud('fannie')">🔊 READ CHAPTER 1</button>
+        <span class="quest-indicator" id="fannieStatus">QUEST: LOCKED</span>
+      </div>
+      <div class="quest-canvas-box">
+        <div class="quest-instruction">The Morning Hearth: Assign each brother to their morning duty!</div>
+        <canvas id="hearthCanvas" width="280" height="150"></canvas>
+        <div class="relay-buttons">
+          <button class="relay-btn" id="btnDuty1" onclick="assignDuty(1)">🪵 GATHER WOOD</button>
+          <button class="relay-btn" id="btnDuty2" onclick="assignDuty(2)">🪣 DRAW WATER</button>
+          <button class="relay-btn" id="btnDuty3" onclick="assignDuty(3)">🥚 TEND HEARTH</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Shared Legacy Tree Hub Modal -->
+  <div id="treeModal">
+    <div class="tree-box">
+      <h3 style="color:#facc15; font-size:18px; margin-bottom:12px;">✦ THE LIVING ANCESTRAL TREE ✦</h3>
+      <p style="color:#94a3b8; font-size:12px; margin-bottom:14px;">Every educational journey completed plants a sacred token into the root line of our legacy.</p>
+      
+      <div style="background:#0b1329; border:1px solid #334155; border-radius:8px; padding:14px; margin-bottom:16px;">
+        <div id="badgeLuetta" style="color:#64748b; font-size:12px; margin-bottom:8px;">⏳ Golden Pendulum Token: <strong>LOCKED</strong></div>
+        <div id="badgeFannie" style="color:#64748b; font-size:12px;">🏡 Kinship Hearth Token: <strong>LOCKED</strong></div>
+      </div>
+
+      <button class="btn-audio" style="width:100%;" onclick="toggleTreeModal()">CLOSE TREE</button>
+    </div>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // SHARED REWARD STATE
+    // -------------------------------------------------------------
+    let userTokens = {
+      luetta: false,
+      fannie: false
+    };
+
+    function updateTreeHub() {
+      let count = 0;
+      if (userTokens.luetta) {
+        count++;
+        document.getElementById("badgeLuetta").innerHTML = "⏳ Golden Pendulum Token: <strong style='color:#facc15;'>UNLOCKED ✨</strong>";
+      }
+      if (userTokens.fannie) {
+        count++;
+        document.getElementById("badgeFannie").innerHTML = "🏡 Kinship Hearth Token: <strong style='color:#34d399;'>UNLOCKED ✨</strong>";
+      }
+      document.getElementById("tokenCount").innerText = count;
+    }
+
+    function toggleTreeModal() {
+      const modal = document.getElementById("treeModal");
+      modal.style.display = (modal.style.display === "flex") ? "none" : "flex";
+    }
+
+    // -------------------------------------------------------------
+    // STORYBOOK 1: LITTLE LUETTA LOGIC
+    // -------------------------------------------------------------
+    const luettaStory = "Little Luetta stood before the great grandfather clock. Its tall wooden frame was carved with ancient vines, and its golden pendulum hung still in the quiet morning twilight. 'Listen closely,' Grandfather whispered gently. 'Every ticking second is a bridge connecting yesterday with tomorrow.'";
+    
+    function buildStorySpans(elementId, text) {
+      const container = document.getElementById(elementId);
+      container.innerHTML = text.split(" ").map(w => `<span class="word-span" onclick="speakWord('${w.replace(/[.,']/g, '')}')">${w}</span>`).join(" ");
+    }
+    buildStorySpans("luettaText", luettaStory);
+
+    let windsLeft = 3;
+    const clockCanvas = document.getElementById("clockCanvas");
+    const cCtx = clockCanvas.getContext("2d");
+    let pendulumAngle = 0;
+
+    function drawClockScene() {
+      cCtx.clearRect(0, 0, clockCanvas.width, clockCanvas.height);
+      const cx = clockCanvas.width / 2;
+
+      // Clock Housing
+      cCtx.fillStyle = "#451a03";
+      cCtx.fillRect(cx - 36, 10, 72, 130);
+      cCtx.strokeStyle = "#ca8a04";
+      cCtx.lineWidth = 2;
+      cCtx.strokeRect(cx - 36, 10, 72, 130);
+
+      // Dial Face
+      cCtx.beginPath();
+      cCtx.arc(cx, 40, 22, 0, Math.PI * 2);
+      cCtx.fillStyle = "#fef08a";
+      cCtx.fill();
+
+      // Hands
+      cCtx.strokeStyle = "#000";
+      cCtx.lineWidth = 2;
+      cCtx.beginPath();
+      cCtx.moveTo(cx, 40);
+      cCtx.lineTo(cx, 26);
+      cCtx.moveTo(cx, 40);
+      cCtx.lineTo(cx + 10, 40);
+      cCtx.stroke();
+
+      // Pendulum (Oscillates when wound)
+      if (windsLeft === 0) {
+        pendulumAngle = Math.sin(Date.now() / 200) * 0.25;
+      }
+      cCtx.save();
+      cCtx.translate(cx, 75);
+      cCtx.rotate(pendulumAngle);
+      cCtx.strokeStyle = "#eab308";
+      cCtx.lineWidth = 3;
+      cCtx.beginPath();
+      cCtx.moveTo(0, 0);
+      cCtx.lineTo(0, 42);
+      cCtx.stroke();
+      cCtx.beginPath();
+      cCtx.arc(0, 42, 8, 0, Math.PI * 2);
+      cCtx.fillStyle = "#facc15";
+      cCtx.fill();
+      cCtx.restore();
+
+      requestAnimationFrame(drawClockScene);
+    }
+    drawClockScene();
+
+    function windClock() {
+      if (windsLeft > 0) {
+        windsLeft--;
+        document.getElementById("windsLeft").innerText = windsLeft;
+        if (windsLeft === 0) {
+          document.getElementById("btnWindKey").innerText = "✨ THE CLOCK IS TICKING!";
+          document.getElementById("btnWindKey").disabled = true;
+          document.getElementById("luettaStatus").innerHTML = "<strong style='color:#facc15;'>TOKEN EARNED!</strong>";
+          userTokens.luetta = true;
+          updateTreeHub();
+        }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // STORYBOOK 2: FANNIE MAE LOGIC
+    // -------------------------------------------------------------
+    const fannieStory = "Dawn broke over the family homestead as Fannie Mae gathered her brothers by the hearth. The morning chores required everyone to lend their hands. 'No one carries the weight alone,' Fannie Mae reminded them with a smile. 'When brothers stand together, every mountain turns to a gentle hill.'";
+    buildStorySpans("fannieText", fannieStory);
+
+    const hearthCanvas = document.getElementById("hearthCanvas");
+    const hCtx = hearthCanvas.getContext("2d");
+    let completedDuties = 0;
+
+    function drawHearthScene() {
+      hCtx.clearRect(0, 0, hearthCanvas.width, hearthCanvas.height);
+      const cx = hearthCanvas.width / 2;
+
+      // Stone Hearth
+      hCtx.fillStyle = "#334155";
+      hCtx.fillRect(cx - 50, 40, 100, 80);
+
+      // Fire Pit
+      hCtx.fillStyle = "#0f172a";
+      hCtx.fillRect(cx - 30, 70, 60, 50);
+
+      // Animated Flames
+      if (completedDuties === 3) {
+        const flameHeight = Math.sin(Date.now() / 150) * 8;
+        hCtx.fillStyle = "#f97316";
+        hCtx.beginPath();
+        hCtx.arc(cx, 95 - flameHeight, 18, 0, Math.PI * 2);
+        hCtx.fill();
+        hCtx.fillStyle = "#facc15";
+        hCtx.beginPath();
+        hCtx.arc(cx, 100 - flameHeight, 10, 0, Math.PI * 2);
+        hCtx.fill();
+      }
+
+      // Sibling Duty Markers
+      for (let i = 0; i < 3; i++) {
+        hCtx.beginPath();
+        hCtx.arc(cx - 40 + i * 40, 25, 10, 0, Math.PI * 2);
+        hCtx.fillStyle = (i < completedDuties) ? "#10b981" : "#475569";
+        hCtx.fill();
+      }
+
+      requestAnimationFrame(drawHearthScene);
+    }
+    drawHearthScene();
+
+    function assignDuty(num) {
+      document.getElementById(`btnDuty${num}`).disabled = true;
+      completedDuties++;
+      if (completedDuties === 3) {
+        document.getElementById("fannieStatus").innerHTML = "<strong style='color:#10b981;'>TOKEN EARNED!</strong>";
+        userTokens.fannie = true;
+        updateTreeHub();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // PHONICS & TEXT-TO-SPEECH
+    // -------------------------------------------------------------
+    function speakWord(word) {
+      if ('speechSynthesis' in window) {
+        const utter = new SpeechSynthesisUtterance(word);
+        utter.rate = 0.85;
+        window.speechSynthesis.speak(utter);
+      }
+    }
+
+    function readAloud(bookKey) {
+      if (!('speechSynthesis' in window)) return;
+      const text = (bookKey === 'luetta') ? luettaStory : fannieStory;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 0.9;
+
+      const container = document.getElementById(bookKey === 'luetta' ? "luettaText" : "fannieText");
+      const spans = container.querySelectorAll(".word-span");
+
+      let currentWordIndex = 0;
+      utter.onboundary = (e) => {
+        if (e.name === 'word') {
+          spans.forEach(s => s.classList.remove('word-active'));
+          if (spans[currentWordIndex]) {
+            spans[currentWordIndex].classList.add('word-active');
+            currentWordIndex++;
+          }
+        }
+      };
+      utter.onend = () => {
+        spans.forEach(s => s.classList.remove('word-active'));
+      };
+
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    }
+  </script>
+</body>
+</html>
