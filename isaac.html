@@ -1,92 +1,208 @@
-// ==========================================
-// UNIFIED ROSTER REGISTRY & COMBAT MECHANICS
-// ==========================================
-const ROSTER = {
-  marcus: {
-    name: "Marcus",
-    type: "Player",
-    spriteSrc: "marcus.png",
-    img: new Image(),
-    stats: { hp: 100, maxHp: 100, speed: 5, width: 90, height: 120 },
-    combat: {
-      shieldActive: false,
-      absorbedEnergy: 0,
-      maxEnergy: 5,
-      shieldColor: "#00ffff",
-      guardPower: "Kinetic Shock Barrier",
-      counterSkill: "Volt Overcharge Beam"
-    },
-    // Marcus absorbs damage when guarding to charge lightning strikes
-    onAbsorb: function(bullet) {
-      if (this.combat.shieldActive) {
-        bullet.active = false;
-        if (this.combat.absorbedEnergy < this.combat.maxEnergy) {
-          this.combat.absorbedEnergy++;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Isaac - Roster Combat</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f111a;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      background: #1a1e2e;
+      border: 3px solid #4f46e5;
+      box-shadow: 0 0 25px rgba(79, 70, 229, 0.4);
+      border-radius: 8px;
+    }
+    .instructions {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="gameCanvas" width="800" height="450"></canvas>
+  <div class="instructions">
+    [Arrow Keys / WASD] Move | Hold [G] or [Shift] Guard & Absorb | [Space] or [F] Lightning Strike
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // ==========================================
+    // UNIFIED ROSTER REGISTRY
+    // ==========================================
+    const ROSTER = {
+      marcus: {
+        name: "Marcus",
+        type: "Player",
+        spriteSrc: "marcus.png",
+        img: new Image(),
+        stats: { hp: 100, maxHp: 100, speed: 5, width: 90, height: 120 },
+        combat: {
+          shieldActive: false,
+          absorbedEnergy: 0,
+          maxEnergy: 5,
+          shieldColor: "#00ffff"
         }
+      },
+      motherLuetta: {
+        name: "Mother Luetta",
+        type: "Summon",
+        spriteSrc: "mother-luetta.png",
+        img: new Image(),
+        stats: { hp: 150, maxHp: 150, width: 85, height: 125 }
+      },
+      xochitl: {
+        name: "Xochitl",
+        type: "Boss",
+        spriteSrc: "xochitl.png",
+        img: new Image(),
+        stats: { hp: 300, maxHp: 300, speed: 2, width: 100, height: 130 }
       }
-    },
-    triggerSpecial: function(playerX, playerY, target) {
-      if (this.combat.absorbedEnergy === 0) return 0;
-      const damage = 25 * (1 + this.combat.absorbedEnergy * 0.8);
-      this.combat.absorbedEnergy = 0;
-      return damage;
-    }
-  },
+    };
 
-  apex: {
-    name: "Apex Volt",
-    type: "Boss",
-    spriteSrc: "roster.png", // Extracted or direct sprite
-    img: new Image(),
-    stats: { hp: 250, maxHp: 250, speed: 3, width: 100, height: 130 },
-    combat: {
-      shieldColor: "#ffd700",
-      power: "Thunder Arc Discharge",
-      attackCooldown: 90
-    },
-    triggerSpecial: function(target) {
-      // Fires high-voltage burst projectiles
-      return { damage: 20, element: "lightning", count: 3 };
-    }
-  },
+    // Pre-load all sprites
+    Object.values(ROSTER).forEach(char => {
+      char.img.src = char.spriteSrc;
+    });
 
-  motherLuetta: {
-    name: "Mother Luetta",
-    type: "Summon / Mystic Assist",
-    spriteSrc: "mother-luetta.png",
-    img: new Image(),
-    stats: { hp: 150, maxHp: 150, speed: 2, width: 85, height: 125 },
-    combat: {
-      shieldColor: "#ffaa00",
-      power: "Ancestral Aegis & Healing Tide",
-      cooldown: 300
-    },
-    triggerSpecial: function(party) {
-      // Restores party health and fortifies shield capacity
-      party.hp = Math.min(party.maxHp, party.hp + 40);
-      return "Party Shield Fortified!";
-    }
-  },
+    // Player Marcus setup
+    const player = {
+      x: 80,
+      y: 200,
+      vx: 0,
+      vy: 0,
+      data: ROSTER.marcus
+    };
 
-  xochitl: {
-    name: "Xochitl",
-    type: "Boss / Heavy Melee",
-    spriteSrc: "xochitl.png",
-    img: new Image(),
-    stats: { hp: 320, maxHp: 320, speed: 4, width: 95, height: 125 },
-    combat: {
-      shieldColor: "#ff4500",
-      power: "Solar Bastion Claw Slam",
-      furyCharge: 0
-    },
-    triggerSpecial: function(target) {
-      // Heavy kinetic ground wave
-      return { damage: 35, areaEffect: true, knockback: 12 };
-    }
-  }
-};
+    // Controls
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.key.toLowerCase() === 'g' || e.key === 'Shift') {
+        player.data.combat.shieldActive = true;
+      }
+      if (e.key === ' ' || e.key.toLowerCase() === 'f') {
+        fireLightning();
+      }
+    });
 
-// Pre-load all character images simultaneously
-Object.values(ROSTER).forEach(char => {
-  char.img.src = char.spriteSrc;
-});
+    window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+      if (e.key.toLowerCase() === 'g' || e.key === 'Shift') {
+        player.data.combat.shieldActive = false;
+      }
+    });
+
+    // Dummy projectile to test absorption
+    let projectile = { x: 750, y: 260, vx: -4, active: true };
+
+    function fireLightning() {
+      if (player.data.combat.absorbedEnergy > 0) {
+        // Visual lightning bolt
+        ctx.save();
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 6;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.moveTo(player.x + player.data.stats.width, player.y + 60);
+        ctx.lineTo(canvas.width, player.y + 60);
+        ctx.stroke();
+        ctx.restore();
+
+        player.data.combat.absorbedEnergy = 0;
+      }
+    }
+
+    // Main Game Loop
+    function update() {
+      // Movement
+      if (keys['arrowleft'] || keys['a']) player.x = Math.max(0, player.x - player.data.stats.speed);
+      if (keys['arrowright'] || keys['d']) player.x = Math.min(canvas.width - player.data.stats.width, player.x + player.data.stats.speed);
+      if (keys['arrowup'] || keys['w']) player.y = Math.max(0, player.y - player.data.stats.speed);
+      if (keys['arrowdown'] || keys['s']) player.y = Math.min(canvas.height - player.data.stats.height, player.y + player.data.stats.speed);
+
+      // Incoming projectile absorption test
+      if (projectile.active) {
+        projectile.x += projectile.vx;
+        if (
+          projectile.x < player.x + player.data.stats.width &&
+          projectile.x > player.x &&
+          projectile.y > player.y &&
+          projectile.y < player.y + player.data.stats.height
+        ) {
+          if (player.data.combat.shieldActive) {
+            if (player.data.combat.absorbedEnergy < player.data.combat.maxEnergy) {
+              player.data.combat.absorbedEnergy++;
+            }
+          }
+          // Reset projectile to test again
+          projectile.x = 750;
+        }
+        if (projectile.x < 0) projectile.x = 750;
+      }
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Marcus
+      const m = player.data;
+      if (m.img.complete && m.img.naturalWidth > 0) {
+        ctx.drawImage(m.img, player.x, player.y, m.stats.width, m.stats.height);
+      } else {
+        ctx.fillStyle = '#6366f1';
+        ctx.fillRect(player.x, player.y, m.stats.width, m.stats.height);
+      }
+
+      // Draw Guard Shield
+      if (m.combat.shieldActive) {
+        ctx.save();
+        ctx.strokeStyle = m.combat.shieldColor;
+        ctx.lineWidth = 4 + m.combat.absorbedEnergy * 2;
+        ctx.shadowColor = m.combat.shieldColor;
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(player.x + m.stats.width / 2, player.y + m.stats.height / 2, 70, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Draw Energy Gauge
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(`LIGHTNING CHARGE: ${m.combat.absorbedEnergy} / ${m.combat.maxEnergy}`, 20, 35);
+
+      // Draw Test Projectile
+      if (projectile.active) {
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function loop() {
+      update();
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+</html>
