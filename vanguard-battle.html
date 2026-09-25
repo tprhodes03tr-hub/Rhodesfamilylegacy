@@ -2,459 +2,522 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vanguard Universe - Tactical Arena</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ancestral Vanguard | Tactical Card Combat</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
     body {
-      background-color: #0b0f19;
-      color: #fff;
+      background: #090b12;
+      color: #f8fafc;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 10px;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
       min-height: 100vh;
-      overflow: hidden;
     }
-
-    /* Game Container */
-    #game-stage {
-      position: relative;
-      width: 100vw;
-      max-width: 1080px;
-      height: 600px;
-      background: radial-gradient(circle at center, #1b263b 0%, #080d1a 100%);
-      border: 2px solid #2a3a5e;
-      border-radius: 8px;
-      overflow: hidden;
+    .wrapper {
+      width: 100%;
+      max-width: 850px;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-    }
-
-    /* Top HUD */
-    .hud-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 20px;
-      background: rgba(10, 15, 25, 0.85);
-      border-bottom: 1px solid rgba(0, 195, 255, 0.3);
-      z-index: 10;
-    }
-
-    .hud-title {
-      font-size: 14px;
-      letter-spacing: 1px;
-      color: #79a6d2;
-      font-weight: bold;
-    }
-
-    .hud-title span {
-      color: #00d2ff;
-    }
-
-    .meter-container {
-      width: 250px;
-    }
-
-    .meter-label {
-      font-size: 11px;
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 3px;
-      color: #8fa0b5;
-    }
-
-    .bar-bg {
-      width: 100%;
-      height: 10px;
-      background: #1e2638;
-      border-radius: 5px;
-      overflow: hidden;
-      border: 1px solid #334466;
-    }
-
-    .bar-fill {
-      height: 100%;
-      width: 100%;
-      background: linear-gradient(90deg, #00d2ff, #00ffaa);
-      transition: width 0.3s ease-out;
-    }
-
-    .bar-fill.enemy {
-      background: linear-gradient(90deg, #ff3366, #ff9900);
-    }
-
-    /* Combat Battlefield */
-    .arena {
-      position: relative;
-      flex: 1;
-      display: flex;
-      justify-content: space-around;
-      align-items: flex-end;
-      padding-bottom: 40px;
-    }
-
-    /* Floor line */
-    .arena::after {
-      content: '';
-      position: absolute;
-      bottom: 20px;
-      left: 5%;
-      width: 90%;
-      height: 2px;
-      background: radial-gradient(ellipse at center, rgba(0, 210, 255, 0.5) 0%, transparent 80%);
-    }
-
-    /* Entity Stance */
-    .combatant {
-      position: relative;
-      width: 200px;
-      height: 280px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      z-index: 5;
-      transition: transform 0.15s ease-in-out;
-    }
-
-    /* Idle subtle breathing */
-    .idle-breath {
-      animation: breath 3s ease-in-out infinite alternate;
-    }
-
-    @keyframes breath {
-      0% { transform: scale(1) translateY(0); }
-      100% { transform: scale(1.02) translateY(-4px); }
-    }
-
-    /* Character Artwork Slot */
-    .char-graphic {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.7));
-    }
-
-    /* Fallback placeholder if no image source */
-    .char-placeholder {
-      width: 140px;
-      height: 240px;
-      border: 2px dashed #00d2ff;
-      border-radius: 12px;
-      background: rgba(0, 210, 255, 0.05);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      font-size: 13px;
-      color: #79a6d2;
-      padding: 10px;
-    }
-
-    /* Combat Animations */
-    .lunge-right {
-      animation: lungeRight 0.35s ease-out;
-    }
-
-    .hit-react {
-      animation: hitShake 0.4s ease-in-out;
-      filter: brightness(2) contrast(1.5);
-    }
-
-    @keyframes lungeRight {
-      0% { transform: translateX(0); }
-      50% { transform: translateX(120px) scale(1.05); }
-      100% { transform: translateX(0); }
-    }
-
-    @keyframes hitShake {
-      0% { transform: translateX(0); }
-      20% { transform: translateX(-15px); }
-      40% { transform: translateX(12px); }
-      60% { transform: translateX(-8px); }
-      80% { transform: translateX(4px); }
-      100% { transform: translateX(0); }
-    }
-
-    /* Damage popup */
-    .damage-popup {
-      position: absolute;
-      top: 40px;
-      font-size: 28px;
-      font-weight: 900;
-      color: #ffeb3b;
-      text-shadow: 0 0 10px #ff3300, 2px 2px 0 #000;
-      animation: floatUp 0.8s ease-out forwards;
-      pointer-events: none;
-    }
-
-    @keyframes floatUp {
-      0% { opacity: 0; transform: translateY(20px) scale(0.6); }
-      30% { opacity: 1; transform: translateY(-10px) scale(1.2); }
-      100% { opacity: 0; transform: translateY(-40px) scale(1); }
-    }
-
-    /* Action Control Panel */
-    .control-deck {
-      background: rgba(8, 12, 20, 0.95);
-      border-top: 2px solid #1a2744;
-      padding: 16px;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
-      z-index: 10;
     }
-
-    .action-btn {
-      background: linear-gradient(180deg, #16243d 0%, #0d1627 100%);
-      border: 1px solid #2a436e;
-      border-radius: 6px;
-      padding: 12px 8px;
-      color: #e0e8f5;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
+    .banner {
+      background: #111827;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      text-align: center;
+    }
+    .board-section {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
+      gap: 10px;
+    }
+    .board-header {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .enemy-title { color: #f87171; }
+    .hero-title { color: #f59e0b; }
+    .marrow-tracker {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .marrow-badge {
+      background: #b45309;
+      color: #fef3c7;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.8rem;
+    }
+    .end-turn-btn {
+      background: #f59e0b;
+      color: #451a03;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 5px;
+      font-weight: bold;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .card {
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .card-enemy { border-color: #7f1d1d; }
+    .card-hero { border-color: #1e3a8a; }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .card-name {
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #fbbf24;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-role {
+      font-size: 0.6rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+    .card-sub {
+      font-size: 0.62rem;
+      color: #64748b;
+    }
+    .card-art-frame {
+      width: 100%;
+      height: 125px;
+      background: #020617;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+    }
+    .card-art {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .fallback-icon {
+      font-size: 2.2rem;
+      font-weight: bold;
+      color: #475569;
+    }
+    .card-ability {
+      font-size: 0.64rem;
+      color: #cbd5e1;
+      min-height: 28px;
+      line-height: 1.2;
+    }
+    .card-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.62rem;
+      color: #94a3b8;
+      font-weight: bold;
+      border-top: 1px solid #1e293b;
+      padding-top: 4px;
+    }
+    .health-bar-bg {
+      background: #1e293b;
+      height: 5px;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+    .health-bar-fill {
+      height: 100%;
+      background: #10b981;
+      width: 100%;
+      transition: width 0.3s ease;
+    }
+    .card-actions {
+      display: flex;
+      gap: 5px;
+      margin-top: 4px;
+    }
+    .action-btn {
+      flex: 1;
+      padding: 6px 0;
+      font-size: 0.68rem;
+      font-weight: bold;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      text-transform: uppercase;
+      text-align: center;
+    }
+    .btn-blue { background: #0284c7; color: #fff; }
+    .btn-gold { background: #d97706; color: #fff; }
+    .roster-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .roster-tile {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 6px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
       gap: 4px;
-      transition: all 0.15s ease;
     }
-
-    .action-btn:hover {
-      border-color: #00d2ff;
-      box-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
-      transform: translateY(-2px);
+    .roster-thumb-frame {
+      width: 100%;
+      height: 70px;
+      background: #020617;
+      border-radius: 4px;
+      overflow: hidden;
     }
-
-    .action-btn:active {
-      transform: translateY(1px);
+    .roster-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
-
-    .action-btn span.subtext {
-      font-size: 10px;
-      color: #79a6d2;
-      font-weight: normal;
+    .roster-name {
+      font-size: 0.7rem;
+      font-weight: bold;
+      color: #93c5fd;
     }
-
-    .action-btn.burst {
-      border-color: #ff3366;
-      background: linear-gradient(180deg, #441223 0%, #200810 100%);
+    .roster-tag {
+      font-size: 0.58rem;
+      color: #64748b;
     }
-
-    .action-btn.burst:hover {
-      border-color: #ff6699;
-      box-shadow: 0 0 12px rgba(255, 51, 102, 0.4);
-    }
-
-    /* Combat Log */
-    #log {
-      position: absolute;
-      top: 60px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 12px;
-      color: #7a8fa8;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 4px 12px;
-      border-radius: 20px;
-      pointer-events: none;
+    #battle-log {
+      font-family: monospace;
+      font-size: 0.72rem;
+      color: #38bdf8;
+      background: #020617;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #1e293b;
+      text-align: center;
     }
   </style>
 </head>
 <body>
 
-  <div id="game-stage">
-    <!-- Top HUD -->
-    <header class="hud-header">
-      <div class="meter-container">
-        <div class="meter-label">
-          <span>SUNDIATA / ANCESTRAL VANGUARD</span>
-          <span id="player-hp-num">120/120</span>
+  <div class="wrapper">
+    <div class="banner">
+      Teaser Round Active: Defeat the Iron Syndicate line to secure the Timeline Core.
+    </div>
+
+    <div id="battle-log">BATTLE READY — CHOOSE YOUR COMBAT ACTION</div>
+
+    <!-- THE IRON SYNDICATE -->
+    <div class="board-section">
+      <div class="board-header">
+        <div class="section-title enemy-title">● The Iron Syndicate</div>
+        <div style="font-size: 0.72rem; color: #94a3b8;">Tech Overcharge: <span id="enemy-power">4</span></div>
+      </div>
+
+      <div class="card-grid">
+        <!-- Chrono-Lock -->
+        <div class="card card-enemy" id="enemy-card-0">
+          <div class="card-top">
+            <span class="card-name" style="color: #f87171;">Chrono-Lock</span>
+            <span class="card-role">Nexus</span>
+          </div>
+          <span class="card-sub">Temporal Inhibitor</span>
+          <div class="card-art-frame">
+            <img class="card-art" src="Screenshot_20260918_131115_.png" onerror="this.src='1789398446187.png'; this.onerror=null;" alt="Chrono-Lock" />
+          </div>
+          <div class="card-ability">Temporal Static: Vanguard skill actions cost +1 Marrow.</div>
+          <div class="card-stats"><span>P:72</span><span>D:84</span><span>W:99</span></div>
+          <div class="health-bar-bg"><div class="health-bar-fill" id="e-hp-0" style="width: 100%;"></div></div>
         </div>
-        <div class="bar-bg">
-          <div id="player-hp-bar" class="bar-fill" style="width: 100%;"></div>
+
+        <!-- Null-Byte -->
+        <div class="card card-enemy" id="enemy-card-1">
+          <div class="card-top">
+            <span class="card-name" style="color: #f87171;">Null-Byte</span>
+            <span class="card-role">Backline</span>
+          </div>
+          <span class="card-sub">Cyber Infiltrator</span>
+          <div class="card-art-frame">
+            <img class="card-art" src="Screenshot_20260918_112817_.png" onerror="this.src='Screenshot_20260918_112806_.png'; this.onerror=null;" alt="Null-Byte" />
+          </div>
+          <div class="card-ability">Signal Intercept: Generates defensive barrier shields.</div>
+          <div class="card-stats"><span>P:85</span><span>D:74</span><span>W:94</span></div>
+          <div class="health-bar-bg"><div class="health-bar-fill" id="e-hp-1" style="width: 100%;"></div></div>
+        </div>
+
+        <!-- Apex Volt -->
+        <div class="card card-enemy" id="enemy-card-2">
+          <div class="card-top">
+            <span class="card-name" style="color: #f87171;">Apex Volt</span>
+            <span class="card-role">Frontline</span>
+          </div>
+          <span class="card-sub">Kinetic Overlord</span>
+          <div class="card-art-frame">
+            <img class="card-art" src="Screenshot_20260918_130602_Photos.jpg" onerror="this.src='Screenshot_20260918_130641_.png'; this.onerror=null;" alt="Apex Volt" />
+          </div>
+          <div class="card-ability">Conduit Taunt: Absorbs attacks and chains arc damage.</div>
+          <div class="card-stats"><span>P:94</span><span>D:82</span><span>W:75</span></div>
+          <div class="health-bar-bg"><div class="health-bar-fill" id="e-hp-2" style="width: 100%;"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANSTRAL VANGUARD ACTIVE LINE -->
+    <div class="board-section">
+      <div class="board-header">
+        <div class="section-title hero-title">● Ancestral Vanguard</div>
+        <div class="marrow-tracker">
+          <span class="marrow-badge">Marrow: <span id="marrow-val">5</span></span>
+          <button class="end-turn-btn" onclick="endPlayerTurn()">End Turn</button>
         </div>
       </div>
 
-      <div class="hud-title">ZONE: <span>RENCEN PLAZA</span></div>
-
-      <div class="meter-container">
-        <div class="meter-label">
-          <span>CHRONO-INHIBITOR</span>
-          <span id="enemy-hp-num">150/150</span>
+      <div class="card-grid">
+        <!-- Sundiata -->
+        <div class="card card-hero">
+          <div class="card-top">
+            <span class="card-name">Sundiata</span>
+            <span class="card-role">Frontline</span>
+          </div>
+          <span class="card-sub">Mandinka Lineage</span>
+          <div class="card-art-frame">
+            <img class="card-art" src="sundiata.jpg" onerror="this.src='vanguard-cover.jpg'; this.onerror=null;" alt="Sundiata" />
+          </div>
+          <div class="card-ability">Dundun Roar: +50% defense and strikes for 25 damage.</div>
+          <div class="card-stats"><span>P:84</span><span>D:96</span><span>W:90</span></div>
+          <div class="health-bar-bg"><div class="health-bar-fill" id="h-hp-0" style="width: 100%;"></div></div>
+          <div class="card-actions">
+            <button class="action-btn btn-blue" onclick="heroAction(0, 'strike')">Strike</button>
+            <button class="action-btn btn-gold" onclick="heroAction(0, 'skill')">Skill (3)</button>
+          </div>
         </div>
-        <div class="bar-bg">
-          <div id="enemy-hp-bar" class="bar-fill enemy" style="width: 100%;"></div>
+
+        <!-- Marcus -->
+        <div class="card card-hero">
+          <div class="card-top">
+            <span class="card-name">Marcus</span>
+            <span class="card-role">Backline</span>
+          </div>
+          <span class="card-sub">Acoustic Conduit</span>
+          <div class="card-art-frame">
+            <img class="card-art" src="marcus.png" onerror="this.src='Screenshot_20260824_103250_.png'; this.onerror=null;" alt="Marcus" />
+          </div>
+          <div class="card-ability">Seismic Arc: Shocks front enemies and creates forcefield.</div>
+          <div class="card-stats"><span>P:91</span><span>D:78</span><span>W:82</span></div>
+          <div class="health-bar-bg"><div class="health-bar-fill" id="h-hp-1" style="width: 100%;"></div></div>
+          <div class="card-actions">
+            <button class="action-btn btn-blue" onclick="heroAction(1, 'strike')">Strike</button>
+            <button class="action-btn btn-gold" onclick="heroAction(1, 'skill')">Skill (3)</button>
+          </div>
+        </div>
+
+        <!-- Mother Luetta / Luta -->
+        <div class="card card-hero">
+          <div class="card-top">
+            <span class="card-name">Mother Luetta</span>
+            <span class="card-role">Nexus</span>
+          </div>
+          <span class="card-sub">Living Codex Hearth</span>
+          <div class="card-art-frame">
+            <img class="card-art" src="mother-luta.png" onerror="this.src='mother-luta.jpg'; this.onerror=null;" alt="Mother Luetta" />
+          </div>
+          <div class="card-ability">Ledger of Resonance: Restores +2 Marrow and heals line.</div>
+          <div class="card-stats"><span>P:60</span><span>D:80</span><span>W:100</span></div>
+          <div class="health-bar-bg"><div class="health-bar-fill" id="h-hp-2" style="width: 100%;"></div></div>
+          <div class="card-actions">
+            <button class="action-btn btn-blue" onclick="heroAction(2, 'strike')">Strike</button>
+            <button class="action-btn btn-gold" onclick="heroAction(2, 'hearth')">Hearth (4)</button>
+          </div>
         </div>
       </div>
-    </header>
+    </div>
 
-    <div id="log">Battle Ready</div>
-
-    <!-- Battlefield -->
-    <main class="arena">
-      <!-- Player Entity -->
-      <div id="player" class="combatant idle-breath">
-        <!-- Replace src with your isolated hero transparent cutout -->
-        <div class="char-placeholder">
-          <b>SUNDIATA</b><br>Solar Dundun Warrior
-        </div>
+    <!-- STARTER OPERATIVES / ROSTER RESERVE -->
+    <div class="board-section">
+      <div class="board-header">
+        <div class="section-title" style="color: #94a3b8;">Starter Operatives (Reserve Roster)</div>
+        <div style="font-size: 0.7rem; color: #64748b;">Ancestral Line</div>
       </div>
 
-      <!-- Enemy Entity -->
-      <div id="enemy" class="combatant idle-breath">
-        <!-- Replace src with your isolated villain transparent cutout -->
-        <div class="char-placeholder">
-          <b>CHRONO-LOCK</b><br>Temporal Automaton
+      <div class="roster-grid">
+        <!-- Elena -->
+        <div class="roster-tile">
+          <div class="roster-thumb-frame">
+            <img class="roster-thumb" src="Screenshot_20260918_131036_Photos.jpg" alt="Elena" />
+          </div>
+          <span class="roster-name">Elena</span>
+          <span class="roster-tag">Taíno Tide-Caller</span>
+        </div>
+
+        <!-- Kenjiro -->
+        <div class="roster-tile">
+          <div class="roster-thumb-frame">
+            <img class="roster-thumb" src="Screenshot_20260918_124753_.png" onerror="this.src='Screenshot_20260918_130641_.png'; this.onerror=null;" alt="Kenjiro" />
+          </div>
+          <span class="roster-name">Kenjiro</span>
+          <span class="roster-tag">Spatial Duelist</span>
+        </div>
+
+        <!-- Canopy Archer -->
+        <div class="roster-tile">
+          <div class="roster-thumb-frame">
+            <img class="roster-thumb" src="Screenshot_20260918_131053_.png" onerror="this.src='Screenshot_20260824_105007_.png'; this.onerror=null;" alt="Canopy Archer" />
+          </div>
+          <span class="roster-name">Canopy Archer</span>
+          <span class="roster-tag">Forest Precision</span>
+        </div>
+
+        <!-- Amina Zazzau -->
+        <div class="roster-tile">
+          <div class="roster-thumb-frame">
+            <img class="roster-thumb" src="1789251362705.png" onerror="this.src='vanguard-cover.jpg'; this.onerror=null;" alt="Amina Zazzau" />
+          </div>
+          <span class="roster-name">Amina Zazzau</span>
+          <span class="roster-tag">Spear of Realm</span>
+        </div>
+
+        <!-- Xochitl -->
+        <div class="roster-tile">
+          <div class="roster-thumb-frame">
+            <img class="roster-thumb" src="xochitl.png" alt="Xochitl" />
+          </div>
+          <span class="roster-name">Xochitl</span>
+          <span class="roster-tag">Obsidian Sun</span>
+        </div>
+
+        <!-- Mateo -->
+        <div class="roster-tile">
+          <div class="roster-thumb-frame">
+            <img class="roster-thumb" src="Screenshot_20260917_005431_.png" onerror="this.src='Screenshot_20260824_105007_.png'; this.onerror=null;" alt="Mateo" />
+          </div>
+          <span class="roster-name">Mateo</span>
+          <span class="roster-tag">Stone Bulwark</span>
         </div>
       </div>
-    </main>
-
-    <!-- Tactical Control Deck -->
-    <footer class="control-deck">
-      <button class="action-btn" onclick="executeAction('strike')">
-        STRIKE 1
-        <span class="subtext">Aura Weaver (20 Dmg)</span>
-      </button>
-
-      <button class="action-btn" onclick="executeAction('drumbeat')">
-        STRIKE 2
-        <span class="subtext">Seismic Drumbeat (35 Dmg)</span>
-      </button>
-
-      <button class="action-btn" onclick="executeAction('barrier')">
-        DEFENSE
-        <span class="subtext">Coincoin Shield (+30 Guard)</span>
-      </button>
-
-      <button class="action-btn burst" onclick="executeAction('overdrive')">
-        OVERDRIVE
-        <span class="subtext">Twin Djembe Quake (60 Dmg)</span>
-      </button>
-    </footer>
+    </div>
   </div>
 
   <script>
-    let playerMaxHp = 120;
-    let playerHp = 120;
-    let enemyMaxHp = 150;
-    let enemyHp = 150;
-    let isActing = false;
+    let marrow = 5;
+    const logBox = document.getElementById('battle-log');
+    const marrowBadge = document.getElementById('marrow-val');
 
-    const logEl = document.getElementById('log');
-    const playerEl = document.getElementById('player');
-    const enemyEl = document.getElementById('enemy');
-    const enemyHpBar = document.getElementById('enemy-hp-bar');
-    const enemyHpNum = document.getElementById('enemy-hp-num');
-    const playerHpBar = document.getElementById('player-hp-bar');
-    const playerHpNum = document.getElementById('player-hp-num');
+    const heroLine = [
+      { name: 'Sundiata', hp: 120, maxHp: 120 },
+      { name: 'Marcus', hp: 100, maxHp: 100 },
+      { name: 'Mother Luetta', hp: 90, maxHp: 90 }
+    ];
 
-    function executeAction(type) {
-      if (isActing || enemyHp <= 0) return;
-      isActing = true;
+    const enemyLine = [
+      { name: 'Chrono-Lock', hp: 95, maxHp: 95 },
+      { name: 'Null-Byte', hp: 90, maxHp: 90 },
+      { name: 'Apex Volt', hp: 115, maxHp: 115 }
+    ];
 
-      let damage = 0;
-      let actionName = "";
+    function updateBars() {
+      heroLine.forEach((h, i) => {
+        const bar = document.getElementById(`h-hp-${i}`);
+        if (bar) bar.style.width = `${Math.max(0, (h.hp / h.maxHp) * 100)}%`;
+      });
+      enemyLine.forEach((e, i) => {
+        const bar = document.getElementById(`e-hp-${i}`);
+        if (bar) bar.style.width = `${Math.max(0, (e.hp / e.maxHp) * 100)}%`;
+      });
+      marrowBadge.textContent = marrow;
+    }
 
-      switch (type) {
-        case 'strike':
-          damage = 20;
-          actionName = "Aura Weaver strikes!";
-          break;
-        case 'drumbeat':
-          damage = 35;
-          actionName = "Seismic Drumbeat reverberates!";
-          break;
-        case 'barrier':
-          logEl.innerText = "Ancestral Shield raised! Deflected incoming strike.";
-          isActing = false;
+    function heroAction(index, type) {
+      if (type === 'strike') {
+        const target = enemyLine[2].hp > 0 ? enemyLine[2] : (enemyLine[1].hp > 0 ? enemyLine[1] : enemyLine[0]);
+        target.hp = Math.max(0, target.hp - 18);
+        logBox.textContent = `${heroLine[index].name} STRIKES ${target.name} FOR 18 DAMAGE!`;
+      } else if (type === 'skill') {
+        if (marrow < 3) {
+          logBox.textContent = 'INSUFFICIENT MARROW FOR SKILL ACTIVATION!';
           return;
-        case 'overdrive':
-          damage = 60;
-          actionName = "OVERDRIVE CLASH: Twin Djembe Earthquake hits!";
-          break;
+        }
+        marrow -= 3;
+        if (index === 0) { // Sundiata
+          enemyLine[2].hp = Math.max(0, enemyLine[2].hp - 30);
+          logBox.textContent = 'SUNDIATA UNLEASHES DUNDUN ROAR (30 DMG)!';
+        } else if (index === 1) { // Marcus
+          enemyLine.forEach(e => { e.hp = Math.max(0, e.hp - 16); });
+          logBox.textContent = 'MARCUS SEISMIC ARC DISCHARGES ACROSS THE ENEMY LINE!';
+        }
+      } else if (type === 'hearth') {
+        if (marrow < 4) {
+          logBox.textContent = 'INSUFFICIENT MARROW FOR HEARTH CALL!';
+          return;
+        }
+        marrow = Math.min(8, marrow - 4 + 2);
+        heroLine.forEach(h => { h.hp = Math.min(h.maxHp, h.hp + 25); });
+        logBox.textContent = 'MOTHER LUETTA RESTORES ALLIES (+25 HP, +2 MARROW)!';
       }
+      updateBars();
+      checkVictory();
+    }
 
-      // Player Attack Animation (Lunge)
-      playerEl.classList.remove('idle-breath');
-      playerEl.classList.add('lunge-right');
-      logEl.innerText = actionName;
-
+    function endPlayerTurn() {
+      logBox.textContent = 'ENEMY TURN: APEX VOLT AND SYNDICATE STRIKE!';
       setTimeout(() => {
-        // Enemy Hit Reaction
-        triggerHit(enemyEl, damage);
-        enemyHp = Math.max(0, enemyHp - damage);
-        updateUI();
-
-        playerEl.classList.remove('lunge-right');
-        playerEl.classList.add('idle-breath');
-
-        // Check if enemy defeated
-        if (enemyHp <= 0) {
-          logEl.innerText = "TARGET NEUTRALIZED - VICTORY!";
-          isActing = false;
-          return;
-        }
-
-        // Enemy Counter-attack after 700ms
-        setTimeout(enemyCounter, 700);
-      }, 250);
+        const target = heroLine[0].hp > 0 ? heroLine[0] : heroLine[1];
+        target.hp = Math.max(0, target.hp - 20);
+        marrow = Math.min(8, marrow + 3);
+        logBox.textContent = `APEX VOLT SHOCKS ${target.name} FOR 20 DAMAGE. TURN RESET (+3 MARROW).`;
+        updateBars();
+      }, 700);
     }
 
-    function enemyCounter() {
-      logEl.innerText = "Chrono-Lock activates Temporal Backlash!";
-      enemyEl.classList.remove('idle-breath');
-      enemyEl.style.transform = "translateX(-60px)";
-
-      setTimeout(() => {
-        enemyEl.style.transform = "";
-        enemyEl.classList.add('idle-breath');
-
-        let enemyDmg = 18;
-        triggerHit(playerEl, enemyDmg);
-        playerHp = Math.max(0, playerHp - enemyDmg);
-        updateUI();
-
-        if (playerHp <= 0) {
-          logEl.innerText = "DEFENSE COMPROMISED - DEFEAT!";
-        } else {
-          isActing = false;
-        }
-      }, 200);
+    function checkVictory() {
+      const allDown = enemyLine.every(e => e.hp <= 0);
+      if (allDown) {
+        logBox.textContent = 'VICTORY! THE IRON SYNDICATE LINE HAS COLLAPSED!';
+        logBox.style.color = '#10b981';
+      }
     }
 
-    function triggerHit(targetEl, dmg) {
-      targetEl.classList.add('hit-react');
-
-      // Create floating damage number
-      const dmgPopup = document.createElement('div');
-      dmgPopup.className = 'damage-popup';
-      dmgPopup.innerText = `-${dmg}`;
-      targetEl.appendChild(dmgPopup);
-
-      setTimeout(() => {
-        targetEl.classList.remove('hit-react');
-        dmgPopup.remove();
-      }, 600);
-    }
-
-    function updateUI() {
-      enemyHpNum.innerText = `${enemyHp}/${enemyMaxHp}`;
-      enemyHpBar.style.width = `${(enemyHp / enemyMaxHp) * 100}%`;
-
-      playerHpNum.innerText = `${playerHp}/${playerMaxHp}`;
-      playerHpBar.style.width = `${(playerHp / playerMaxHp) * 100}%`;
-    }
+    updateBars();
   </script>
 </body>
 </html>
