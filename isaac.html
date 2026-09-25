@@ -3,783 +3,805 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ancestral Vanguard | Arcade Brawler</title>
+  <title>Isaac: Vanguard Gauntlet</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: #06070c;
+      background: #08090d;
       color: #fff;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 100vh;
-      overflow: hidden;
-      touch-action: none;
+      justify-content: center;
+      height: 100vh;
+      user-select: none;
     }
-    header {
-      width: 100%;
-      padding: 8px 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(15, 18, 30, 0.95);
-      border-bottom: 2px solid #8b5cf6;
-    }
-    header h1 {
-      font-size: 0.95rem;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: #c084fc;
-    }
-    #combat-status {
-      font-size: 0.8rem;
-      font-weight: bold;
-      color: #38bdf8;
-    }
-    #roster-bar {
-      width: 100%;
-      max-width: 800px;
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 4px;
-      padding: 6px 8px;
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 0 0 8px 8px;
-    }
-    .roster-card {
-      background: #1e293b;
-      border: 2px solid #475569;
-      border-radius: 6px;
-      padding: 6px 2px;
-      text-align: center;
-      font-size: 0.68rem;
-      cursor: pointer;
-      color: #cbd5e1;
-      font-weight: bold;
-    }
-    .roster-card.active {
-      border-color: #38bdf8;
-      background: #0284c7;
-      color: #fff;
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
-    }
-    #game-container {
+
+    #gameContainer {
       position: relative;
-      margin-top: 6px;
-      width: 100%;
-      max-width: 800px;
-      aspect-ratio: 16 / 9;
-      background: #000;
-      border: 2px solid #4c1d95;
+      width: 960px;
+      height: 540px;
+      max-width: 100vw;
+      max-height: 56.25vw;
+      border: 2px solid #202635;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 210, 255, 0.2);
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
+      background: #000;
     }
+
     canvas {
-      display: block;
       width: 100%;
       height: 100%;
+      display: block;
     }
-    #touch-controls {
+
+    /* In-Game HUD */
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
       display: flex;
       justify-content: space-between;
-      width: 100%;
-      max-width: 800px;
-      padding: 8px 12px;
-      margin-top: 4px;
-      gap: 8px;
+      pointer-events: none;
+      font-weight: bold;
+      text-transform: uppercase;
+      font-size: 14px;
+      z-index: 10;
     }
-    .control-cluster {
+
+    .hud-box {
+      background: rgba(10, 14, 23, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 8px 12px;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 220px;
+    }
+
+    .bar-container {
+      width: 100%;
+      height: 10px;
+      background: #222;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .hp-player { background: #00d2ff; }
+    .marrow-energy { background: #d4af37; }
+    .hp-boss { background: #ff0055; }
+
+    /* Touch Controls */
+    #touchControls {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: auto;
+      z-index: 10;
+    }
+
+    .dpad, .action-pad {
       display: flex;
       gap: 8px;
-      align-items: center;
     }
+
     .btn {
-      background: rgba(30, 27, 75, 0.9);
-      border: 2px solid #a855f7;
-      color: #e9d5ff;
-      font-weight: bold;
-      font-size: 1.1rem;
-      border-radius: 50%;
       width: 52px;
       height: 52px;
+      background: rgba(20, 26, 40, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-weight: 800;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       touch-action: manipulation;
     }
+
     .btn:active {
-      background: #7e22ce;
-      transform: scale(0.92);
+      background: rgba(0, 210, 255, 0.4);
+      transform: scale(0.95);
     }
-    .btn-action {
-      border-radius: 10px;
-      width: 72px;
-      height: 48px;
-      font-size: 0.72rem;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
+
+    .btn-super {
+      background: rgba(212, 175, 55, 0.3);
+      border-color: #d4af37;
+      color: #d4af37;
     }
-    .btn-strike { border-color: #38bdf8; color: #bae6fd; }
-    .btn-super { border-color: #f59e0b; color: #fef3c7; }
-    .btn-ascend { border-color: #ec4899; color: #fbcfe8; }
+
+    /* Screen Overlays */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(4, 6, 10, 0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .overlay h2 {
+      font-size: 2rem;
+      letter-spacing: 2px;
+      margin-bottom: 15px;
+      background: linear-gradient(90deg, #00d2ff, #d4af37);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .select-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+      max-height: 60vh;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .char-card {
+      background: #111622;
+      border: 1px solid #232d42;
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 140px;
+    }
+
+    .char-card.selected {
+      border-color: #00d2ff;
+      background: #152438;
+      box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+    }
+
+    .char-card img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      margin-bottom: 6px;
+    }
+
+    .char-card .name { font-size: 0.85rem; font-weight: bold; }
+    .char-card .power { font-size: 0.7rem; color: #8b9bb4; margin-top: 2px; }
+
+    .btn-launch {
+      padding: 12px 30px;
+      background: linear-gradient(135deg, #d4af37, #9b7d1d);
+      color: #000;
+      font-weight: 800;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>Ancestral Vanguard</h1>
-    <div id="combat-status">WAVE 1: SYNDICATE ASSAULT</div>
-  </header>
+<div id="gameContainer">
+  <canvas id="gameCanvas" width="960" height="540"></canvas>
 
-  <div id="roster-bar">
-    <div class="roster-card active" onclick="switchHero('marcus')">MARCUS</div>
-    <div class="roster-card" onclick="switchHero('chronolock')">CHRONO</div>
-    <div class="roster-card" onclick="switchHero('motherluta')">M. LUTA</div>
-    <div class="roster-card" onclick="switchHero('xochitl')">XOCHITL</div>
-    <div class="roster-card" onclick="switchHero('apexvolt')">APEX VOLT</div>
-    <div class="roster-card" onclick="switchHero('amina')">AMINA</div>
-  </div>
-
-  <div id="game-container">
-    <canvas id="stage" width="800" height="450"></canvas>
-  </div>
-
-  <div id="touch-controls">
-    <div class="control-cluster">
-      <button class="btn" id="btn-left">◀</button>
-      <button class="btn" id="btn-right">▶</button>
-      <button class="btn" id="btn-jump">▲</button>
+  <!-- HUD Overlay -->
+  <div id="hud" style="display: none;">
+    <div class="hud-box">
+      <div style="display:flex; justify-content:space-between;">
+        <span id="playerHudName">HERO</span>
+        <span id="playerHpTxt">100%</span>
+      </div>
+      <div class="bar-container">
+        <div id="playerHpBar" class="bar-fill hp-player"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-top:4px;">
+        <span style="font-size:10px; color:#d4af37;">Marrow Resonance (Special)</span>
+      </div>
+      <div class="bar-container">
+        <div id="playerEnergyBar" class="bar-fill marrow-energy" style="width: 0%;"></div>
+      </div>
     </div>
-    <div class="control-cluster">
-      <button class="btn btn-action btn-strike" id="btn-strike">STRIKE</button>
-      <button class="btn btn-action btn-super" id="btn-super">SUPER</button>
-      <button class="btn btn-action btn-ascend" id="btn-ascend">ASCEND</button>
+
+    <div class="hud-box" style="text-align: right;">
+      <div style="display:flex; justify-content:space-between;">
+        <span id="bossHudName">SYNDICATE ADVERSARY</span>
+        <span id="bossHpTxt">100%</span>
+      </div>
+      <div class="bar-container">
+        <div id="bossHpBar" class="bar-fill hp-boss"></div>
+      </div>
+      <div id="bossTier" style="font-size:10px; color:#ff0055; margin-top:4px;">PHASE 1 / 4</div>
     </div>
   </div>
 
-  <script>
-    const canvas = document.getElementById('stage');
-    const ctx = canvas.getContext('2d');
-    const statusBadge = document.getElementById('combat-status');
+  <!-- Mobile Touch Controls -->
+  <div id="touchControls" style="display: none;">
+    <div class="dpad">
+      <button class="btn" id="btnLeft">◄</button>
+      <button class="btn" id="btnRight">►</button>
+      <button class="btn" id="btnJump">▲</button>
+    </div>
+    <div class="action-pad">
+      <button class="btn" id="btnAttack">ATK</button>
+      <button class="btn btn-super" id="btnSpecial">SUPER</button>
+    </div>
+  </div>
 
-    const bossImg = new Image();
-    bossImg.src = 'syndicate.png';
-    let bossReady = false;
-    bossImg.onload = () => { bossReady = true; };
+  <!-- Character Roster Selection -->
+  <div class="overlay" id="rosterOverlay">
+    <h2>Select Vanguard Operative</h2>
+    <div class="select-grid" id="rosterList"></div>
+    <button class="btn-launch" onclick="startGame()">Initiate Battle</button>
+  </div>
 
-    const ROSTER = {
-      marcus: {
-        name: 'MARCUS (ANCHOR)',
-        files: ['marcus.png'],
-        speed: 5.2,
-        gravity: 0.85,
-        jumpForce: -14,
-        scaleW: 110,
-        scaleH: 145,
-        color: '#a855f7',
-        drawVector: (c, w, h) => {
-          c.fillStyle = '#7c3aed'; c.fillRect(-w*0.3, -h*0.4, w*0.6, h*0.7);
-          c.fillStyle = '#38bdf8'; c.fillRect(-w*0.2, -h*0.35, w*0.4, h*0.25);
-        },
-        superPower: (h) => {
-          marcusShield = 180;
-          h.hp = Math.min(100, h.hp + 25);
-          screenShake = 16;
-          for (let i = 0; i < 30; i++) {
-            particles.push({
-              x: h.x + h.w / 2, y: h.y + h.h / 2,
-              vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14,
-              size: 4, color: '#38bdf8', life: 25
-            });
-          }
-          shockwaves.push({ x: h.x + h.w / 2, y: h.y + h.h / 2, radius: 10, maxRadius: 200, color: '#38bdf8' });
-          dealAoeDamage(30);
-        }
-      },
-      chronolock: {
-        name: 'CHRONOLOCK (TEMPORAL)',
-        files: ['chrono.png', '1789398446187.png'],
-        speed: 4.2,
-        gravity: 0.75,
-        jumpForce: -13,
-        scaleW: 115,
-        scaleH: 150,
-        color: '#10b981',
-        drawVector: (c, w, h) => {
-          c.fillStyle = '#065f46'; c.fillRect(-w*0.3, -h*0.38, w*0.6, h*0.65);
-          c.fillStyle = '#10b981'; c.beginPath(); c.arc(0, -h*0.1, w*0.18, 0, Math.PI*2); c.fill();
-        },
-        superPower: (h) => {
-          screenShake = 10;
-          shockwaves.push({ x: h.x + h.w / 2, y: h.y + h.h / 2, radius: 15, maxRadius: 240, color: '#10b981' });
-          droids.forEach(d => { d.vx *= 0.2; });
-          dealAoeDamage(22);
-        }
-      },
-      motherluta: {
-        name: 'MOTHER LUTA (MYSTIC)',
-        files: ['mother-luta.png'],
-        speed: 5.4,
-        gravity: 0.45,
-        jumpForce: -12,
-        scaleW: 110,
-        scaleH: 145,
-        color: '#fbbf24',
-        drawVector: (c, w, h) => {
-          c.fillStyle = '#b45309'; c.beginPath();
-          c.moveTo(0, -h*0.45); c.lineTo(w*0.35, h*0.45); c.lineTo(-w*0.35, h*0.45); c.fill();
-        },
-        superPower: (h) => {
-          h.vy = -18;
-          h.isGrounded = false;
-          h.hp = 100;
-          screenShake = 22;
-          for (let i = 0; i < 40; i++) {
-            particles.push({
-              x: Math.random() * canvas.width, y: Math.random() * canvas.height,
-              vx: (Math.random() - 0.5) * 6, vy: Math.random() * 8 + 4,
-              size: 5, color: '#fbbf24', life: 35
-            });
-          }
-          wipeDroidsAndDamageBoss(50);
-        }
-      },
-      xochitl: {
-        name: 'XOCHITL (FLAME CLAW)',
-        files: ['xochitl.png'],
-        speed: 6.2,
-        gravity: 0.8,
-        jumpForce: -15,
-        scaleW: 115,
-        scaleH: 148,
-        color: '#ea580c',
-        drawVector: (c, w, h) => {},
-        superPower: (h) => {
-          h.vy = -16;
-          h.isGrounded = false;
-          wingModeTimer = 60;
-          screenShake = 12;
-          for (let i = -3; i <= 3; i++) {
-            projectiles.push({
-              x: h.x + h.w / 2, y: h.y + 30,
-              vx: (h.facing * 11) + i * 2, vy: Math.abs(i) * 2 + 6,
-              color: '#ea580c', life: 40
-            });
-          }
-          dealAoeDamage(32);
-        }
-      },
-      apexvolt: {
-        name: 'APEX VOLT (ELECTRIC)',
-        files: ['apex.png', 'apex-volt.png'],
-        speed: 5.2,
-        gravity: 0.82,
-        jumpForce: -14,
-        scaleW: 120,
-        scaleH: 150,
-        color: '#06b6d4',
-        drawVector: (c, w, h) => {
-          c.fillStyle = '#0e7490'; c.fillRect(-w*0.3, -h*0.4, w*0.6, h*0.75);
-          c.fillStyle = '#67e8f9'; c.fillRect(-w*0.15, -h*0.3, w*0.3, h*0.2);
-        },
-        superPower: (h) => {
-          screenShake = 14;
-          dealAoeDamage(28);
-        }
-      },
-      amina: {
-        name: 'AMINA (SPEAR VANGUARD)',
-        files: ['amina.png'],
-        speed: 5.6,
-        gravity: 0.82,
-        jumpForce: -14.5,
-        scaleW: 115,
-        scaleH: 150,
-        color: '#e11d48',
-        drawVector: (c, w, h) => {
-          c.fillStyle = '#9f1239'; c.fillRect(-w*0.25, -h*0.4, w*0.5, h*0.75);
-          c.strokeStyle = '#f43f5e'; c.lineWidth = 4;
-          c.beginPath(); c.moveTo(w*0.2, -h*0.45); c.lineTo(w*0.2, h*0.45); c.stroke();
-        },
-        superPower: (h) => {
-          screenShake = 12;
-          h.vx = h.facing * 18;
-          dealAoeDamage(30);
-        }
-      }
-    };
+  <!-- Gauntlet Victory Overlay -->
+  <div class="overlay" id="victoryOverlay" style="display: none;">
+    <h2>Iron Syndicate Purged</h2>
+    <p style="margin-bottom: 20px; max-width: 480px; color: #a1b0cb;">
+      All Iron Syndicate line anchors have collapsed under Marrow Resonance. The Ancestral Vault is unlocked.
+    </p>
+    <button class="btn-launch" onclick="routeToPayhip()">Claim Full Legacy Access</button>
+  </div>
+</div>
 
-    const sprites = {};
-    Object.keys(ROSTER).forEach(key => {
-      sprites[key] = { img: new Image(), ready: false };
-      loadSprite(key, 0);
-    });
+<script>
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
 
-    function loadSprite(key, index) {
-      const list = ROSTER[key].files;
-      if (index >= list.length) return;
-      const img = new Image();
-      img.src = list[index];
-      img.onload = () => { sprites[key].img = img; sprites[key].ready = true; };
-      img.onerror = () => { loadSprite(key, index + 1); };
+  const PAYHIP_URL = "https://payhip.com/rhodesfamilylegacy";
+
+  // Web Audio Context Synthesizer (Instant SFX Engine)
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-
-    let activeKey = 'marcus';
-    let screenShake = 0;
-    let marcusShield = 0;
-    let wingModeTimer = 0;
-    const ghosts = [];
-    const particles = [];
-    const shockwaves = [];
-    const projectiles = [];
-    const enemyLasers = [];
-
-    const hero = {
-      x: 120, y: 250, w: 110, h: 145,
-      vx: 0, vy: 0, facing: 1,
-      isGrounded: true, cooldown: 0,
-      runCycle: 0, groundY: 250, hp: 100
-    };
-
-    let gameState = 'DROIDS';
-    let droids = [
-      { x: 620, y: 180, w: 42, h: 42, vx: -2, shootTimer: 50, hp: 20 },
-      { x: 700, y: 130, w: 42, h: 42, vx: -1.6, shootTimer: 80, hp: 20 },
-      { x: 760, y: 220, w: 42, h: 42, vx: -2.2, shootTimer: 110, hp: 20 }
-    ];
-    let droidsRemaining = 6;
-
-    const boss = {
-      x: 580, y: 245, w: 135, h: 155,
-      hp: 160, maxHp: 160, groundY: 245,
-      atkTimer: 80, active: false
-    };
-
-    window.switchHero = function(key) {
-      if (!ROSTER[key]) return;
-      activeKey = key;
-      const cfg = ROSTER[key];
-      hero.w = cfg.scaleW;
-      hero.h = cfg.scaleH;
-      document.querySelectorAll('.roster-card').forEach(c => c.classList.remove('active'));
-      event.target.classList.add('active');
-    };
-
-    function wipeDroidsAndDamageBoss(bossDmg) {
-      droids.forEach(d => {
-        d.hp = 0;
-        for (let i = 0; i < 12; i++) {
-          particles.push({
-            x: d.x + d.w / 2, y: d.y + d.h / 2,
-            vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
-            size: 4, color: '#fde047', life: 25
-          });
-        }
-      });
-      droids = [];
-      droidsRemaining = 0;
-      if (gameState === 'BOSS' && boss.active) {
-        boss.hp = Math.max(0, boss.hp - bossDmg);
-      }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
     }
+  }
 
-    function dealAoeDamage(amt) {
-      if (gameState === 'DROIDS') {
-        droids.forEach(d => {
-          if (Math.abs((hero.x + hero.w / 2) - (d.x + d.w / 2)) < 220) d.hp -= amt;
+  function playSound(type) {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+
+    if (type === 'hit') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } 
+    else if (type === 'super') {
+      // Thunderous sub-harmonic impact
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(25, now + 0.6);
+      gain.gain.setValueAtTime(0.7, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.6);
+    } 
+    else if (type === 'jump') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.exponentialRampToValueAtTime(380, now + 0.15);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    }
+    else if (type === 'shield') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.25);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    }
+  }
+
+  // Screen Shake Mechanics
+  let shakeIntensity = 0;
+  let shakeDuration = 0;
+
+  function triggerShake(intensity, duration) {
+    shakeIntensity = intensity;
+    shakeDuration = duration;
+  }
+
+  // Assets Mapped to GitHub Root
+  const SPRITES = {
+    "mother-luta": "./mother-luta.png",
+    "marcus": "./marcus.png",
+    "sundiata-prime": "./sundiata-prime.png",
+    "amina": "./amina.png",
+    "akecheta": "./akecheta.png",
+    "matteo": "./matteo.png",
+    "elena": "./elena.png",
+    "shadow-kensei": "./shadow-kensei.png",
+    "xochitl": "./xochitl.png",
+    "null-byte": "./null-byte.png",
+    "vipera": "./vipera.png",
+    "ironclad": "./ironclad.png",
+    "apex-volt": "./apex-volt.png"
+  };
+
+  const images = {};
+  for (let key in SPRITES) {
+    images[key] = new Image();
+    images[key].src = SPRITES[key];
+  }
+
+  const HERO_DATA = {
+    "mother-luta": {
+      name: "Mother Luta",
+      powerTitle: "Ascension Wipe & Full Heal",
+      speed: 4.5,
+      attackDmg: 22,
+      castSuper: (p, enemies) => {
+        p.hp = 100;
+        screenFlash = { color: "rgba(255, 230, 100, 0.85)", timer: 35 };
+        triggerShake(16, 30);
+        playSound('super');
+        enemies.forEach(e => e.takeDamage(80));
+      }
+    },
+    "marcus": {
+      name: "Marcus",
+      powerTitle: "Kinetic Fortress Barrier",
+      speed: 4,
+      attackDmg: 24,
+      castSuper: (p) => {
+        p.shieldTimer = 300;
+        screenFlash = { color: "rgba(0, 210, 255, 0.5)", timer: 15 };
+        triggerShake(6, 12);
+        playSound('shield');
+      }
+    },
+    "sundiata-prime": {
+      name: "Sundiata Prime",
+      powerTitle: "Bronze Dundun Resonance Shock",
+      speed: 5,
+      attackDmg: 25,
+      castSuper: (p, enemies) => {
+        screenFlash = { color: "rgba(212, 175, 55, 0.6)", timer: 20 };
+        triggerShake(12, 22);
+        playSound('super');
+        enemies.forEach(e => e.takeDamage(65));
+      }
+    },
+    "amina": {
+      name: "Amina",
+      powerTitle: "Celestial Hard-Light Spear Dive",
+      speed: 6,
+      attackDmg: 26,
+      castSuper: (p, enemies) => {
+        p.x += 180;
+        triggerShake(10, 18);
+        playSound('super');
+        enemies.forEach(e => {
+          if (Math.abs(e.x - p.x) < 220) e.takeDamage(75);
         });
-      } else if (gameState === 'BOSS' && boss.active) {
-        if (Math.abs((hero.x + hero.w / 2) - (boss.x + boss.w / 2)) < 240) {
-          boss.hp = Math.max(0, boss.hp - amt);
-          screenShake = 10;
-        }
+        screenFlash = { color: "rgba(100, 180, 255, 0.6)", timer: 15 };
       }
-    }
-
-    function meleeStrike() {
-      let hit = false;
-      if (gameState === 'DROIDS') {
-        droids.forEach(d => {
-          if (Math.abs((hero.x + hero.w / 2) - (d.x + d.w / 2)) < 120 && Math.abs(hero.y - d.y) < 90) {
-            d.hp -= 12;
-            hit = true;
-          }
+    },
+    "matteo": {
+      name: "Matteo",
+      powerTitle: "Tectonic Tremor Spire",
+      speed: 3.5,
+      attackDmg: 30,
+      castSuper: (p, enemies) => {
+        triggerShake(15, 25);
+        playSound('super');
+        enemies.forEach(e => {
+          e.takeDamage(55);
+          e.stunTimer = 120;
         });
-      } else if (gameState === 'BOSS' && boss.active) {
-        if (Math.abs((hero.x + hero.w / 2) - (boss.x + boss.w / 2)) < 135) {
-          boss.hp = Math.max(0, boss.hp - 14);
-          hit = true;
-        }
+        screenFlash = { color: "rgba(130, 90, 50, 0.6)", timer: 15 };
       }
-      if (hit) screenShake = 6;
-    }
-
-    const keys = { left: false, right: false };
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = true;
-      if (e.key === 'd' || e.key === 'ArrowRight') keys.right = true;
-      if (e.key === 'w' || e.key === 'ArrowUp') doJump();
-      if (e.key === 'j' || e.key === 'z') doStrike();
-      if (e.key === 'k' || e.key === 'x') doSuper();
-      if (e.key === 'l' || e.key === 'c') doAscend();
-    });
-    window.addEventListener('keyup', (e) => {
-      if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = false;
-      if (e.key === 'd' || e.key === 'ArrowRight') keys.right = false;
-    });
-
-    function bind(id, down, up) {
-      const el = document.getElementById(id);
-      el.addEventListener('touchstart', (e) => { e.preventDefault(); down(); }, { passive: false });
-      el.addEventListener('touchend', (e) => { e.preventDefault(); if (up) up(); }, { passive: false });
-      el.addEventListener('mousedown', (e) => { e.preventDefault(); down(); });
-      el.addEventListener('mouseup', (e) => { e.preventDefault(); if (up) up(); });
-    }
-    bind('btn-left', () => keys.left = true, () => keys.left = false);
-    bind('btn-right', () => keys.right = true, () => keys.right = false);
-    bind('btn-jump', () => doJump());
-    bind('btn-strike', () => doStrike());
-    bind('btn-super', () => doSuper());
-    bind('btn-ascend', () => doAscend());
-
-    function doJump() {
-      if (hero.isGrounded) {
-        hero.vy = ROSTER[activeKey].jumpForce;
-        hero.isGrounded = false;
+    },
+    "elena": {
+      name: "Elena",
+      powerTitle: "Petrified Root Barricade",
+      speed: 4.8,
+      attackDmg: 20,
+      castSuper: (p, enemies) => {
+        triggerShake(7, 15);
+        playSound('super');
+        enemies.forEach(e => e.stunTimer = 180);
+        screenFlash = { color: "rgba(50, 200, 100, 0.6)", timer: 15 };
       }
-    }
-    function doStrike() {
-      if (hero.cooldown === 0) {
-        hero.cooldown = 15;
-        meleeStrike();
+    },
+    "akecheta": {
+      name: "Akecheta",
+      powerTitle: "Gale-Force Atmospheric Counter",
+      speed: 5.5,
+      attackDmg: 23,
+      castSuper: (p, enemies) => {
+        triggerShake(9, 18);
+        playSound('super');
+        enemies.forEach(e => {
+          e.x += (e.x > p.x ? 250 : -250);
+          e.takeDamage(45);
+        });
+        screenFlash = { color: "rgba(200, 230, 255, 0.6)", timer: 15 };
       }
-    }
-    function doSuper() {
-      if (hero.cooldown === 0) {
-        hero.cooldown = 40;
-        ROSTER[activeKey].superPower(hero);
+    },
+    "shadow-kensei": {
+      name: "Shadow Kensei",
+      powerTitle: "Dual-Blade Cleave",
+      speed: 5.8,
+      attackDmg: 28,
+      castSuper: (p, enemies) => {
+        triggerShake(13, 20);
+        playSound('super');
+        enemies.forEach(e => {
+          if (Math.abs(e.x - p.x) < 190) e.takeDamage(90);
+        });
+        screenFlash = { color: "rgba(220, 220, 255, 0.8)", timer: 12 };
       }
-    }
-    function doAscend() {
-      if (hero.cooldown === 0) {
-        hero.cooldown = 45;
-        if (activeKey === 'motherluta' || activeKey === 'xochitl') {
-          ROSTER[activeKey].superPower(hero);
-        } else {
-          hero.vy = -16;
-          hero.isGrounded = false;
-          dealAoeDamage(20);
-        }
+    },
+    "xochitl": {
+      name: "Xochitl",
+      powerTitle: "Solar Flare Flash",
+      speed: 5.2,
+      attackDmg: 24,
+      castSuper: (p, enemies) => {
+        triggerShake(10, 20);
+        playSound('super');
+        enemies.forEach(e => e.takeDamage(60));
+        screenFlash = { color: "rgba(255, 180, 0, 0.7)", timer: 20 };
       }
     }
+  };
 
-    function update() {
-      if (screenShake > 0) screenShake *= 0.85;
-      if (screenShake < 0.5) screenShake = 0;
-      if (hero.cooldown > 0) hero.cooldown--;
-      if (marcusShield > 0) marcusShield--;
-      if (wingModeTimer > 0) wingModeTimer--;
+  const BOSS_SEQUENCE = [
+    { id: "null-byte", name: "Null-Byte", hp: 120, speed: 3.5, power: 12 },
+    { id: "vipera", name: "Vipera", hp: 160, speed: 4.2, power: 15 },
+    { id: "ironclad", name: "Ironclad", hp: 220, speed: 2.2, power: 22 },
+    { id: "apex-volt", name: "Apex Volt", hp: 300, speed: 4.8, power: 28 }
+  ];
 
-      const cfg = ROSTER[activeKey];
-      const isMoving = keys.left || keys.right;
+  let selectedHeroKey = "sundiata-prime";
+  let activeBossIndex = 0;
+  let player = null;
+  let currentBoss = null;
+  let screenFlash = null;
+  let gameRunning = false;
+  let keys = { left: false, right: false, up: false, atk: false, sp: false };
 
-      if (keys.left) { hero.vx = -cfg.speed; hero.facing = -1; }
-      else if (keys.right) { hero.vx = cfg.speed; hero.facing = 1; }
-      else { hero.vx *= 0.8; }
+  // Setup Roster Selector
+  const rosterContainer = document.getElementById("rosterList");
+  for (let key in HERO_DATA) {
+    const card = document.createElement("div");
+    card.className = `char-card ${key === selectedHeroKey ? "selected" : ""}`;
+    card.onclick = () => {
+      document.querySelectorAll(".char-card").forEach(c => c.classList.remove("selected"));
+      card.classList.add("selected");
+      selectedHeroKey = key;
+    };
+    card.innerHTML = `
+      <img src="${SPRITES[key]}" alt="${HERO_DATA[key].name}">
+      <div class="name">${HERO_DATA[key].name}</div>
+      <div class="power">${HERO_DATA[key].powerTitle}</div>
+    `;
+    rosterContainer.appendChild(card);
+  }
 
-      // Authentic Stride Cycle
-      if (isMoving && hero.isGrounded) {
-        hero.runCycle += 0.28;
-        // Spawn ground dust
-        if (Math.random() < 0.4) {
-          particles.push({
-            x: hero.x + (hero.facing === 1 ? 10 : hero.w - 10),
-            y: hero.groundY + hero.h - 4,
-            vx: -hero.facing * (Math.random() * 2 + 1),
-            vy: -(Math.random() * 2 + 1),
-            size: 3, color: '#64748b', life: 15
-          });
-        }
+  class Entity {
+    constructor(x, y, w, h, spriteKey) {
+      this.x = x;
+      this.y = y;
+      this.w = w;
+      this.h = h;
+      this.spriteKey = spriteKey;
+      this.vx = 0;
+      this.vy = 0;
+      this.isGrounded = false;
+    }
+
+    draw() {
+      const img = images[this.spriteKey];
+      if (img && img.complete) {
+        ctx.drawImage(img, this.x, this.y, this.w, this.h);
       } else {
-        hero.runCycle += 0.06; // Idle Breathing
-      }
-
-      hero.x += hero.vx;
-      hero.y += hero.vy;
-
-      if (!hero.isGrounded) {
-        hero.vy += cfg.gravity;
-        if (hero.y >= hero.groundY) {
-          hero.y = hero.groundY;
-          hero.vy = 0;
-          hero.isGrounded = true;
-        }
-      }
-
-      if (hero.x < 15) hero.x = 15;
-      if (hero.x + hero.w > canvas.width - 15) hero.x = canvas.width - hero.w - 15;
-
-      // Afterimage Ghosting during Dashing/Super
-      if (Math.abs(hero.vx) > 4.5 || !hero.isGrounded) {
-        ghosts.push({
-          x: hero.x, y: hero.y, w: hero.w, h: hero.h,
-          facing: hero.facing, key: activeKey, alpha: 0.4
-        });
-      }
-      for (let i = ghosts.length - 1; i >= 0; i--) {
-        ghosts[i].alpha -= 0.05;
-        if (ghosts[i].alpha <= 0) ghosts.splice(i, 1);
-      }
-
-      // Feather Daggers
-      for (let i = projectiles.length - 1; i >= 0; i--) {
-        const p = projectiles[i];
-        p.x += p.vx; p.y += p.vy; p.life--;
-        droids.forEach(d => {
-          if (p.x > d.x && p.x < d.x + d.w && p.y > d.y && p.y < d.y + d.h) {
-            d.hp -= 15; p.life = 0;
-          }
-        });
-        if (gameState === 'BOSS' && boss.active) {
-          if (p.x > boss.x && p.x < boss.x + boss.w && p.y > boss.y && p.y < boss.y + boss.h) {
-            boss.hp -= 16; p.life = 0;
-          }
-        }
-        if (p.life <= 0) projectiles.splice(i, 1);
-      }
-
-      // Enemy Lasers vs Forcefield / Hero
-      for (let i = enemyLasers.length - 1; i >= 0; i--) {
-        const l = enemyLasers[i];
-        l.x += l.vx;
-        if (marcusShield > 0 && Math.abs(l.x - (hero.x + hero.w / 2)) < 60) {
-          particles.push({ x: l.x, y: l.y, vx: -l.vx * 0.4, vy: (Math.random() - 0.5) * 4, size: 4, color: '#38bdf8', life: 12 });
-          enemyLasers.splice(i, 1);
-          continue;
-        }
-        if (l.x > hero.x && l.x < hero.x + hero.w && l.y > hero.y && l.y < hero.y + hero.h) {
-          hero.hp = Math.max(0, hero.hp - 6);
-          screenShake = 6;
-          enemyLasers.splice(i, 1);
-          continue;
-        }
-        if (l.x < 0) enemyLasers.splice(i, 1);
-      }
-
-      // Wave Progression
-      if (gameState === 'DROIDS') {
-        for (let i = droids.length - 1; i >= 0; i--) {
-          const d = droids[i];
-          d.x += d.vx;
-          if (d.x < 380 || d.x > 750) d.vx *= -1;
-
-          d.shootTimer--;
-          if (d.shootTimer <= 0) {
-            d.shootTimer = Math.floor(Math.random() * 65) + 45;
-            enemyLasers.push({ x: d.x, y: d.y + d.h / 2, vx: -6 });
-          }
-          if (d.hp <= 0) {
-            droidsRemaining--;
-            droids.splice(i, 1);
-            if (droidsRemaining > 0 && droids.length < 3) {
-              droids.push({ x: 740, y: 150 + Math.random() * 110, w: 42, h: 42, vx: -2, shootTimer: 60, hp: 20 });
-            }
-          }
-        }
-        if (droids.length === 0 && droidsRemaining <= 0) {
-          gameState = 'BOSS';
-          boss.active = true;
-          statusBadge.textContent = 'WARNING: SYNDICATE BOSS DEPLOYED';
-          statusBadge.style.color = '#ef4444';
-          screenShake = 22;
-        }
-      }
-
-      if (gameState === 'BOSS' && boss.active) {
-        boss.atkTimer--;
-        if (boss.atkTimer <= 0) {
-          boss.atkTimer = 75;
-          enemyLasers.push({ x: boss.x, y: boss.y + 55, vx: -7 });
-          enemyLasers.push({ x: boss.x, y: boss.y + 105, vx: -7 });
-        }
-        if (boss.hp <= 0) {
-          gameState = 'VICTORY';
-          boss.active = false;
-          statusBadge.textContent = 'SECTOR CLEARED: VANGUARD WINS';
-          statusBadge.style.color = '#10b981';
-        }
-      }
-
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx; p.y += p.vy; p.life--;
-        if (p.life <= 0) particles.splice(i, 1);
-      }
-      for (let i = shockwaves.length - 1; i >= 0; i--) {
-        const s = shockwaves[i];
-        s.radius += 7;
-        if (s.radius > s.maxRadius) shockwaves.splice(i, 1);
+        ctx.fillStyle = "#555";
+        ctx.fillRect(this.x, this.y, this.w, this.h);
       }
     }
 
-    function render() {
-      ctx.save();
-      if (screenShake > 0) {
-        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+    applyPhysics() {
+      this.vy += 0.8;
+      this.y += this.vy;
+      this.x += this.vx;
+
+      if (this.y > 380) {
+        this.y = 380;
+        this.vy = 0;
+        this.isGrounded = true;
       }
 
-      // Clean Cyber Detroit Backdrop (Deep Skyline & Floor)
-      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      grad.addColorStop(0, '#040714');
-      grad.addColorStop(0.7, '#0f172a');
-      grad.addColorStop(1, '#020617');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (this.x < 0) this.x = 0;
+      if (this.x > canvas.width - this.w) this.x = canvas.width - this.w;
+    }
+  }
 
-      // Distant Cyber Skyline Silhouette
-      ctx.fillStyle = '#1e1b4b';
-      ctx.fillRect(80, 160, 90, 190);
-      ctx.fillRect(190, 120, 110, 230);
-      ctx.fillRect(320, 180, 80, 170);
-      ctx.fillRect(480, 110, 140, 240);
-      ctx.fillRect(640, 150, 100, 200);
+  class Player extends Entity {
+    constructor(heroKey) {
+      super(120, 380, 80, 110, heroKey);
+      this.hero = HERO_DATA[heroKey];
+      this.hp = 100;
+      this.energy = 0;
+      this.shieldTimer = 0;
+      this.attackCooldown = 0;
+    }
 
-      // Arena Floor
-      const floorY = hero.groundY + hero.h - 5;
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, floorY, canvas.width, canvas.height - floorY);
-      ctx.strokeStyle = ROSTER[activeKey].color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(0, floorY);
-      ctx.lineTo(canvas.width, floorY);
-      ctx.stroke();
-
-      // HUD Bars
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-      ctx.fillRect(25, 18, 250, 16);
-      ctx.fillRect(canvas.width - 275, 18, 250, 16);
-
-      ctx.fillStyle = ROSTER[activeKey].color;
-      ctx.fillRect(25, 18, (hero.hp / 100) * 250, 16);
-
-      ctx.fillStyle = '#ef4444';
-      if (gameState === 'DROIDS') {
-        ctx.fillRect(canvas.width - 275, 18, (droidsRemaining / 6) * 250, 16);
-      } else if (gameState === 'BOSS') {
-        ctx.fillRect(canvas.width - 275, 18, (boss.hp / boss.maxHp) * 250, 16);
+    update() {
+      this.vx = 0;
+      if (keys.left) this.vx = -this.hero.speed;
+      if (keys.right) this.vx = this.hero.speed;
+      if (keys.up && this.isGrounded) {
+        this.vy = -14;
+        this.isGrounded = false;
+        playSound('jump');
       }
 
-      // Lasers & Feather Daggers
-      ctx.fillStyle = '#f43f5e';
-      enemyLasers.forEach(l => { ctx.fillRect(l.x, l.y, 14, 4); });
+      if (this.shieldTimer > 0) this.shieldTimer--;
+      if (this.attackCooldown > 0) this.attackCooldown--;
 
-      projectiles.forEach(p => {
-        ctx.fillStyle = p.color;
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.beginPath();
-        ctx.moveTo(0, -5); ctx.lineTo(14, 0); ctx.lineTo(0, 5); ctx.fill();
-        ctx.restore();
-      });
+      this.applyPhysics();
 
-      // Shockwaves & Particles
-      shockwaves.forEach(s => {
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = s.color;
+      if (this.energy < 100) this.energy += 0.15;
+    }
+
+    draw() {
+      super.draw();
+      if (this.shieldTimer > 0) {
+        ctx.strokeStyle = "rgba(0, 210, 255, 0.85)";
         ctx.lineWidth = 4;
-        ctx.stroke();
-      });
-      particles.forEach(p => {
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
-      });
-
-      // Forcefield Aura
-      if (marcusShield > 0) {
-        ctx.save();
         ctx.beginPath();
-        ctx.arc(hero.x + hero.w / 2, hero.y + hero.h / 2, 70, 0, Math.PI * 2);
-        ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4;
-        ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 16;
+        ctx.arc(this.x + this.w / 2, this.y + this.h / 2, 65, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.15)'; ctx.fill();
-        ctx.restore();
       }
-
-      // Afterimage Trails
-      ghosts.forEach(g => {
-        ctx.save();
-        ctx.globalAlpha = g.alpha;
-        ctx.translate(g.x + g.w / 2, g.y + g.h / 2);
-        ctx.scale(g.facing, 1);
-        const spr = sprites[g.key];
-        if (spr && spr.ready) {
-          ctx.drawImage(spr.img, -g.w / 2, -g.h / 2, g.w, g.h);
-        }
-        ctx.restore();
-      });
-
-      // Animated Hero Render with Procedural Physics
-      ctx.save();
-      const isMoving = keys.left || keys.right;
-      // Stride deformation: running squashes Y and stretches X rhythmically
-      const bobY = isMoving ? Math.sin(hero.runCycle) * 4 : Math.sin(hero.runCycle) * 2;
-      const tilt = isMoving ? hero.facing * 0.08 : 0; // Forward sprint lean
-      const stretchX = isMoving ? 1 + Math.cos(hero.runCycle) * 0.04 : 1;
-      const stretchY = isMoving ? 1 - Math.cos(hero.runCycle) * 0.04 : 1;
-
-      ctx.translate(hero.x + hero.w / 2, hero.y + hero.h / 2 + bobY);
-      ctx.rotate(tilt);
-      ctx.scale(hero.facing * stretchX, stretchY);
-
-      const spr = sprites[activeKey];
-      if (spr && spr.ready) {
-        ctx.drawImage(spr.img, -hero.w / 2, -hero.h / 2, hero.w, hero.h);
-      } else {
-        ctx.fillStyle = ROSTER[activeKey].color;
-        ctx.shadowColor = ROSTER[activeKey].color;
-        ctx.shadowBlur = 15;
-        ROSTER[activeKey].drawVector(ctx, hero.w, hero.h);
-      }
-      ctx.restore();
-
-      // Droid Squad
-      droids.forEach(d => {
-        ctx.fillStyle = '#475569';
-        ctx.fillRect(d.x, d.y, d.w, d.h);
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(d.x + 8, d.y + 14, 10, 6);
-        ctx.strokeStyle = '#94a3b8';
-        ctx.strokeRect(d.x, d.y, d.w, d.h);
-      });
-
-      // Boss
-      if (gameState === 'BOSS' && boss.active) {
-        ctx.save();
-        ctx.translate(boss.x + boss.w / 2, boss.y + boss.h / 2);
-        if (bossReady) {
-          ctx.drawImage(bossImg, -boss.w / 2, -boss.h / 2, boss.w, boss.h);
-        } else {
-          ctx.fillStyle = '#991b1b';
-          ctx.fillRect(-boss.w / 2, -boss.h / 2, boss.w, boss.h);
-        }
-        ctx.restore();
-      }
-
-      ctx.restore();
     }
 
-    function loop() {
-      update();
-      render();
-      requestAnimationFrame(loop);
+    attack(target) {
+      if (this.attackCooldown <= 0) {
+        this.attackCooldown = 18;
+        if (Math.abs((this.x + this.w / 2) - (target.x + target.w / 2)) < 110) {
+          target.takeDamage(this.hero.attackDmg);
+          this.energy = Math.min(100, this.energy + 10);
+          triggerShake(5, 8);
+          playSound('hit');
+        }
+      }
     }
-    requestAnimationFrame(loop);
-  </script>
+
+    special(enemies) {
+      if (this.energy >= 100) {
+        this.energy = 0;
+        this.hero.castSuper(this, enemies);
+      }
+    }
+
+    takeDamage(amount) {
+      if (this.shieldTimer > 0) {
+        playSound('shield');
+        triggerShake(3, 6);
+        return;
+      }
+      this.hp = Math.max(0, this.hp - amount);
+      triggerShake(8, 12);
+      playSound('hit');
+      if (this.hp <= 0) {
+        alert("Lineage defense breach! Restarting encounter...");
+        resetEncounter();
+      }
+    }
+  }
+
+  class Boss extends Entity {
+    constructor(config) {
+      super(740, 380, 95, 120, config.id);
+      this.config = config;
+      this.maxHp = config.hp;
+      this.hp = config.hp;
+      this.attackTimer = 0;
+      this.stunTimer = 0;
+    }
+
+    update(target) {
+      if (this.stunTimer > 0) {
+        this.stunTimer--;
+        this.vx = 0;
+        this.applyPhysics();
+        return;
+      }
+
+      this.vx = (target.x > this.x ? this.config.speed : -this.config.speed);
+
+      this.attackTimer++;
+      if (this.attackTimer > 60) {
+        this.attackTimer = 0;
+        if (Math.abs((this.x + this.w / 2) - (target.x + target.w / 2)) < 100) {
+          target.takeDamage(this.config.power);
+        }
+      }
+
+      this.applyPhysics();
+    }
+
+    takeDamage(amount) {
+      this.hp = Math.max(0, this.hp - amount);
+      if (this.hp <= 0) {
+        advanceGauntlet();
+      }
+    }
+  }
+
+  function startGame() {
+    initAudio();
+    document.getElementById("rosterOverlay").style.display = "none";
+    document.getElementById("hud").style.display = "flex";
+    document.getElementById("touchControls").style.display = "flex";
+    resetEncounter();
+    gameRunning = true;
+    requestAnimationFrame(gameLoop);
+  }
+
+  function resetEncounter() {
+    player = new Player(selectedHeroKey);
+    loadBoss(activeBossIndex);
+  }
+
+  function loadBoss(index) {
+    const config = BOSS_SEQUENCE[index];
+    currentBoss = new Boss(config);
+    document.getElementById("bossHudName").innerText = config.name;
+    document.getElementById("bossTier").innerText = `PHASE ${index + 1} / 4`;
+    document.getElementById("playerHudName").innerText = player.hero.name;
+  }
+
+  function advanceGauntlet() {
+    activeBossIndex++;
+    triggerShake(14, 25);
+    playSound('super');
+    if (activeBossIndex >= BOSS_SEQUENCE.length) {
+      gameRunning = false;
+      document.getElementById("victoryOverlay").style.display = "flex";
+    } else {
+      loadBoss(activeBossIndex);
+    }
+  }
+
+  function routeToPayhip() {
+    window.location.href = PAYHIP_URL;
+  }
+
+  // Keyboard Event Handlers
+  window.addEventListener("keydown", e => {
+    initAudio();
+    if (e.code === "ArrowLeft" || e.code === "KeyA") keys.left = true;
+    if (e.code === "ArrowRight" || e.code === "KeyD") keys.right = true;
+    if (e.code === "ArrowUp" || e.code === "KeyW") keys.up = true;
+    if (e.code === "Space" || e.code === "KeyJ") player.attack(currentBoss);
+    if (e.code === "KeyK") player.special([currentBoss]);
+  });
+
+  window.addEventListener("keyup", e => {
+    if (e.code === "ArrowLeft" || e.code === "KeyA") keys.left = false;
+    if (e.code === "ArrowRight" || e.code === "KeyD") keys.right = false;
+    if (e.code === "ArrowUp" || e.code === "KeyW") keys.up = false;
+  });
+
+  // Touch Event Handlers
+  const bindTouch = (id, onDown, onUp) => {
+    const el = document.getElementById(id);
+    el.addEventListener("touchstart", (e) => { e.preventDefault(); initAudio(); onDown(); });
+    el.addEventListener("touchend", (e) => { e.preventDefault(); if (onUp) onUp(); });
+  };
+
+  bindTouch("btnLeft", () => keys.left = true, () => keys.left = false);
+  bindTouch("btnRight", () => keys.right = true, () => keys.right = false);
+  bindTouch("btnJump", () => {
+    if (player.isGrounded) { 
+      player.vy = -14; 
+      player.isGrounded = false; 
+      playSound('jump');
+    }
+  });
+  bindTouch("btnAttack", () => player.attack(currentBoss));
+  bindTouch("btnSpecial", () => player.special([currentBoss]));
+
+  // Main Loop with Screen Shake and Effects
+  function gameLoop() {
+    if (!gameRunning) return;
+
+    ctx.save();
+
+    // Compute Screen Shake Offset
+    if (shakeDuration > 0) {
+      const offsetX = (Math.random() - 0.5) * shakeIntensity;
+      const offsetY = (Math.random() - 0.5) * shakeIntensity;
+      ctx.translate(offsetX, offsetY);
+      shakeDuration--;
+    }
+
+    // Clear Screen & Draw Scenery
+    ctx.fillStyle = "#0c1017";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Floor Plate
+    ctx.fillStyle = "#151b26";
+    ctx.fillRect(0, 490, canvas.width, 50);
+    ctx.strokeStyle = "#00d2ff";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 490, canvas.width, 1);
+
+    // Updates
+    player.update();
+    currentBoss.update(player);
+
+    // Renders
+    player.draw();
+    currentBoss.draw();
+
+    // Visual Super Effects
+    if (screenFlash && screenFlash.timer > 0) {
+      ctx.fillStyle = screenFlash.color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      screenFlash.timer--;
+    }
+
+    ctx.restore();
+
+    // Update HUD
+    document.getElementById("playerHpBar").style.width = `${player.hp}%`;
+    document.getElementById("playerHpTxt").innerText = `${Math.ceil(player.hp)}%`;
+    document.getElementById("playerEnergyBar").style.width = `${player.energy}%`;
+    document.getElementById("bossHpBar").style.width = `${(currentBoss.hp / currentBoss.maxHp) * 100}%`;
+    document.getElementById("bossHpTxt").innerText = `${Math.ceil((currentBoss.hp / currentBoss.maxHp) * 100)}%`;
+
+    requestAnimationFrame(gameLoop);
+  }
+</script>
 </body>
 </html>
