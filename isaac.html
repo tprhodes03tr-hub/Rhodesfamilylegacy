@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Ancestral Vanguard | Arcade Combat Engine</title>
+  <title>Ancestral Vanguard | Combat Engine</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
@@ -135,7 +135,7 @@
 
   <header>
     <h1>Ancestral Vanguard</h1>
-    <div id="hero-name">MARCUS</div>
+    <div id="hero-name">MARCUS (ANCHOR)</div>
   </header>
 
   <div id="roster-bar">
@@ -171,7 +171,7 @@
     const ROSTER = {
       marcus: {
         name: 'MARCUS (ANCHOR)',
-        files: ['marcus-real.png', 'marcus.png', 'marcus_clean.png', 'marcus-hero.png'],
+        files: ['marcus.png', 'marcus_clean.png', 'marcus-hero.png'],
         speed: 4.8,
         gravity: 0.85,
         jumpForce: -14,
@@ -225,7 +225,7 @@
       },
       motherluta: {
         name: 'MOTHER LUTA (MYSTIC)',
-        files: ['luta-real.png', 'mother-luta.png', 'mother-luetta.png'],
+        files: ['mother-luta.png', 'mother-luetta.png', 'luta-real.png'],
         speed: 5.2,
         gravity: 0.45,
         jumpForce: -12,
@@ -322,51 +322,35 @@
       }
     };
 
+    // Direct Browser Image Loader (Bypasses Canvas CORS Restrictions)
     const sprites = {};
     Object.keys(ROSTER).forEach(key => {
-      sprites[key] = { img: null, ready: false, isClean: false };
-      loadCleanSprite(key, 0);
+      sprites[key] = { img: new Image(), ready: false };
+      loadRosterSprite(key, 0);
     });
 
-    function loadCleanSprite(key, index) {
+    function loadRosterSprite(key, index) {
       const list = ROSTER[key].files;
       if (index >= list.length) return;
 
-      const testImg = new Image();
-      testImg.crossOrigin = "anonymous";
-      testImg.src = list[index];
+      const img = new Image();
+      img.src = list[index];
 
-      testImg.onload = () => {
-        // Inspect corners to filter out screenshot boxes
-        try {
-          const cTest = document.createElement('canvas');
-          cTest.width = testImg.naturalWidth || 100;
-          cTest.height = testImg.naturalHeight || 100;
-          const ctxTest = cTest.getContext('2d');
-          ctxTest.drawImage(testImg, 0, 0);
-          const pTopLeft = ctxTest.getImageData(2, 2, 1, 1).data;
-          const pTopRight = ctxTest.getImageData(cTest.width - 3, 2, 1, 1).data;
-
-          // If top corners are solid white/gray screenshot banners, reject
-          const isWhite = (pTopLeft[0] > 235 && pTopLeft[1] > 235 && pTopLeft[2] > 235 && pTopLeft[3] > 200) ||
-                          (pTopRight[0] > 235 && pTopRight[1] > 235 && pTopRight[2] > 235 && pTopRight[3] > 200);
-
-          if (!isWhite && (pTopLeft[3] === 0 || pTopRight[3] === 0 || key === 'xochitl')) {
-            sprites[key].img = testImg;
-            sprites[key].ready = true;
-            sprites[key].isClean = true;
-            return;
-          }
-        } catch (e) {}
-
-        // If file contains solid screenshot background, test next candidate
-        loadCleanSprite(key, index + 1);
+      img.onload = () => {
+        sprites[key].img = img;
+        sprites[key].ready = true;
       };
 
-      testImg.onerror = () => {
-        loadCleanSprite(key, index + 1);
+      img.onerror = () => {
+        loadRosterSprite(key, index + 1);
       };
     }
+
+    // Boss Opponent Asset Loader
+    const bossImg = new Image();
+    bossImg.src = 'syndicate.png';
+    let bossReady = false;
+    bossImg.onload = () => { bossReady = true; };
 
     let activeKey = 'marcus';
     let screenShake = 0;
@@ -576,10 +560,9 @@
       const breathe = Math.sin(hero.auraTick) * 2;
 
       const spr = sprites[activeKey];
-      if (spr && spr.ready && spr.isClean) {
+      if (spr && spr.ready) {
         ctx.drawImage(spr.img, -hero.w / 2, -hero.h / 2 - breathe, hero.w, hero.h + breathe);
       } else {
-        // Fallback Arcade Silhouette
         ctx.fillStyle = ROSTER[activeKey].color;
         ctx.shadowColor = ROSTER[activeKey].color;
         ctx.shadowBlur = 15;
@@ -591,11 +574,15 @@
       ctx.save();
       ctx.translate(opponent.x + opponent.w / 2, opponent.y + opponent.h / 2);
       ctx.scale(opponent.facing, 1);
-      ctx.fillStyle = '#991b1b';
-      ctx.fillRect(-opponent.w / 2, -opponent.h / 2, opponent.w, opponent.h);
-      ctx.strokeStyle = '#f87171';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(-opponent.w / 2, -opponent.h / 2, opponent.w, opponent.h);
+      if (bossReady) {
+        ctx.drawImage(bossImg, -opponent.w / 2, -opponent.h / 2, opponent.w, opponent.h);
+      } else {
+        ctx.fillStyle = '#991b1b';
+        ctx.fillRect(-opponent.w / 2, -opponent.h / 2, opponent.w, opponent.h);
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-opponent.w / 2, -opponent.h / 2, opponent.w, opponent.h);
+      }
       ctx.restore();
 
       ctx.restore();
