@@ -3,33 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Isaac: Vanguard Gauntlet</title>
+  <title>Isaac Rhodes Adventures: Vanguard Gauntlet</title>
   <style>
+    :root {
+      --bg: #06080d;
+      --panel: #0e131d;
+      --border: #1c2638;
+      --cyan: #00d2ff;
+      --gold: #d4af37;
+      --crimson: #ff0055;
+      --green: #00e676;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: #08090d;
+      background: var(--bg);
       color: #fff;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      height: 100vh;
+      justify-content: flex-start;
+      padding: 8px;
+      touch-action: manipulation;
       user-select: none;
     }
 
-    #gameContainer {
+    #gameWrapper {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Screen Stage Box */
+    #stageContainer {
       position: relative;
-      width: 960px;
-      height: 540px;
-      max-width: 100vw;
-      max-height: 56.25vw;
-      border: 2px solid #202635;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 210, 255, 0.2);
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border: 2px solid var(--border);
       border-radius: 8px;
       overflow: hidden;
-      background: #000;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.8), 0 0 15px rgba(0, 210, 255, 0.2);
     }
 
     canvas {
@@ -38,97 +56,136 @@
       display: block;
     }
 
-    /* In-Game HUD */
+    /* HUD */
     #hud {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      right: 10px;
+      top: 8px;
+      left: 8px;
+      right: 8px;
       display: flex;
       justify-content: space-between;
+      gap: 10px;
       pointer-events: none;
-      font-weight: bold;
-      text-transform: uppercase;
-      font-size: 14px;
+      font-size: 11px;
+      font-weight: 800;
       z-index: 10;
+      text-transform: uppercase;
     }
 
     .hud-box {
-      background: rgba(10, 14, 23, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 8px 12px;
+      background: rgba(10, 15, 24, 0.88);
+      border: 1px solid rgba(255,255,255,0.15);
       border-radius: 6px;
+      padding: 6px 10px;
+      flex: 1;
+    }
+
+    .bar-wrap {
+      width: 100%;
+      height: 7px;
+      background: #202430;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 3px;
+    }
+
+    .bar-fill { height: 100%; width: 100%; transition: width 0.15s ease; }
+    .hp-p { background: var(--cyan); }
+    .burst-p { background: var(--gold); }
+    .hp-b { background: var(--crimson); }
+
+    /* Command Tactical Deck Below Canvas */
+    #deck {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      min-width: 220px;
+      gap: 6px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
     }
 
-    .bar-container {
-      width: 100%;
-      height: 10px;
-      background: #222;
+    .row-hero-swap {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .btn-hero {
+      background: #141b2a;
+      border: 1px solid #23314d;
+      color: #9ab;
+      padding: 6px 2px;
+      font-size: 10px;
+      font-weight: bold;
       border-radius: 5px;
-      overflow: hidden;
+      text-align: center;
+      cursor: pointer;
     }
 
-    .bar-fill {
-      height: 100%;
-      width: 100%;
-      transition: width 0.1s linear;
+    .btn-hero.active {
+      background: #1c2b45;
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 8px rgba(0, 210, 255, 0.4);
     }
 
-    .hp-player { background: #00d2ff; }
-    .marrow-energy { background: #d4af37; }
-    .hp-boss { background: #ff0055; }
+    .btn-aid {
+      grid-column: span 4;
+      background: linear-gradient(90deg, #9b720b, #d4af37, #9b720b);
+      color: #000;
+      font-weight: 900;
+      padding: 9px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
 
-    /* Touch Controls */
-    #touchControls {
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      right: 12px;
+    .row-controls {
       display: flex;
       justify-content: space-between;
-      pointer-events: auto;
-      z-index: 10;
-    }
-
-    .dpad, .action-pad {
-      display: flex;
       gap: 8px;
     }
 
-    .btn {
-      width: 52px;
-      height: 52px;
-      background: rgba(20, 26, 40, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    .pad-left, .pad-right {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-ctrl {
+      width: 58px;
+      height: 48px;
+      background: #172133;
+      border: 1px solid #2b3b5c;
       color: #fff;
       font-weight: 800;
-      border-radius: 8px;
+      font-size: 13px;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      touch-action: manipulation;
+      cursor: pointer;
     }
 
-    .btn:active {
-      background: rgba(0, 210, 255, 0.4);
-      transform: scale(0.95);
+    .btn-ctrl:active {
+      background: var(--cyan);
+      color: #000;
     }
 
-    .btn-super {
-      background: rgba(212, 175, 55, 0.3);
-      border-color: #d4af37;
-      color: #d4af37;
+    .btn-special {
+      background: rgba(212, 175, 55, 0.2);
+      border-color: var(--gold);
+      color: var(--gold);
     }
 
-    /* Screen Overlays */
+    /* Overlays */
     .overlay {
       position: absolute;
       inset: 0;
-      background: rgba(4, 6, 10, 0.92);
+      background: rgba(4, 6, 12, 0.94);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -139,126 +196,102 @@
     }
 
     .overlay h2 {
-      font-size: 2rem;
+      font-size: 1.8rem;
       letter-spacing: 2px;
-      margin-bottom: 15px;
-      background: linear-gradient(90deg, #00d2ff, #d4af37);
+      background: linear-gradient(90deg, var(--cyan), var(--gold));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
     }
 
-    .select-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-bottom: 20px;
-      max-height: 60vh;
-      overflow-y: auto;
-      padding: 10px;
-    }
-
-    .char-card {
-      background: #111622;
-      border: 1px solid #232d42;
-      border-radius: 8px;
-      padding: 10px;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 140px;
-    }
-
-    .char-card.selected {
-      border-color: #00d2ff;
-      background: #152438;
-      box-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
-    }
-
-    .char-card img {
-      width: 80px;
-      height: 80px;
-      object-fit: contain;
-      margin-bottom: 6px;
-    }
-
-    .char-card .name { font-size: 0.85rem; font-weight: bold; }
-    .char-card .power { font-size: 0.7rem; color: #8b9bb4; margin-top: 2px; }
-
-    .btn-launch {
-      padding: 12px 30px;
-      background: linear-gradient(135deg, #d4af37, #9b7d1d);
+    .btn-action {
+      padding: 12px 28px;
+      background: linear-gradient(135deg, var(--gold), #a37f17);
       color: #000;
-      font-weight: 800;
-      font-size: 1rem;
+      font-weight: 900;
+      font-size: 14px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
+      text-transform: uppercase;
     }
   </style>
 </head>
 <body>
 
-<div id="gameContainer">
-  <canvas id="gameCanvas" width="960" height="540"></canvas>
+<div id="gameWrapper">
+  <!-- Visual Screen Stage -->
+  <div id="stageContainer">
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
 
-  <!-- HUD Overlay -->
-  <div id="hud" style="display: none;">
-    <div class="hud-box">
-      <div style="display:flex; justify-content:space-between;">
-        <span id="playerHudName">HERO</span>
-        <span id="playerHpTxt">100%</span>
+    <!-- Top Screen HUD -->
+    <div id="hud">
+      <div class="hud-box">
+        <div style="display:flex; justify-content:space-between;">
+          <span id="playerTxt">MARCUS PRIME</span>
+          <span id="playerHpNum">120/120</span>
+        </div>
+        <div class="bar-wrap"><div id="playerHpBar" class="bar-fill hp-p"></div></div>
+        <div style="display:flex; justify-content:space-between; margin-top:3px; font-size:9px; color:var(--gold);">
+          <span>BURST ENERGY</span><span id="burstNum">0%</span>
+        </div>
+        <div class="bar-wrap"><div id="playerBurstBar" class="bar-fill burst-p" style="width:0%;"></div></div>
       </div>
-      <div class="bar-container">
-        <div id="playerHpBar" class="bar-fill hp-player"></div>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-top:4px;">
-        <span style="font-size:10px; color:#d4af37;">Marrow Resonance (Special)</span>
-      </div>
-      <div class="bar-container">
-        <div id="playerEnergyBar" class="bar-fill marrow-energy" style="width: 0%;"></div>
+
+      <div class="hud-box" style="text-align: right;">
+        <div style="display:flex; justify-content:space-between;">
+          <span id="bossPhase">PHASE 1 / 4</span>
+          <span id="bossTxt">NULL-BYTE</span>
+        </div>
+        <div class="bar-wrap"><div id="bossHpBar" class="bar-fill hp-b"></div></div>
+        <div style="margin-top:3px; font-size:9px; color:var(--crimson);" id="bossHpNum">120 / 120</div>
       </div>
     </div>
 
-    <div class="hud-box" style="text-align: right;">
-      <div style="display:flex; justify-content:space-between;">
-        <span id="bossHudName">SYNDICATE ADVERSARY</span>
-        <span id="bossHpTxt">100%</span>
-      </div>
-      <div class="bar-container">
-        <div id="bossHpBar" class="bar-fill hp-boss"></div>
-      </div>
-      <div id="bossTier" style="font-size:10px; color:#ff0055; margin-top:4px;">PHASE 1 / 4</div>
+    <!-- Start Overlay -->
+    <div class="overlay" id="startOverlay">
+      <h2>Isaac Rhodes Adventures</h2>
+      <p style="color:#8b9bb4; font-size:13px; max-width:440px; margin-bottom:18px;">
+        Detroit RenCen Promenade Stage: The Iron Syndicate is attempting to break the Marrow Line. Engage with all Vanguard hero specials.
+      </p>
+      <button class="btn-action" onclick="initAndStart()">Initiate Battle</button>
+    </div>
+
+    <!-- Victory Overlay -->
+    <div class="overlay" id="victoryOverlay" style="display:none;">
+      <h2>Syndicate Overthrown</h2>
+      <p style="color:#8b9bb4; font-size:13px; max-width:440px; margin-bottom:18px;">
+        The ancestral lineage stands fortified across Detroit. All 4 Boss Gauntlet anchors cleared.
+      </p>
+      <button class="btn-action" onclick="window.location.href='https://payhip.com/rhodesfamilylegacy'">Claim Full Legacy Access</button>
     </div>
   </div>
 
-  <!-- Mobile Touch Controls -->
-  <div id="touchControls" style="display: none;">
-    <div class="dpad">
-      <button class="btn" id="btnLeft">◄</button>
-      <button class="btn" id="btnRight">►</button>
-      <button class="btn" id="btnJump">▲</button>
+  <!-- Tactical Deck Underneath the Screen (No Overlapping Buttons) -->
+  <div id="deck">
+    <!-- Active Hero Swap Line -->
+    <div class="row-hero-swap">
+      <button class="btn-hero active" id="btnHeroMarcus" onclick="switchHero('marcus')">Marcus<br><span style="font-size:8px;">Lightning</span></button>
+      <button class="btn-hero" id="btnHeroAiko" onclick="switchHero('aiko')">Aiko<br><span style="font-size:8px;">Tsunami</span></button>
+      <button class="btn-hero" id="btnHeroSundiata" onclick="switchHero('sundiata')">Sundiata<br><span style="font-size:8px;">Resonance</span></button>
+      <button class="btn-hero" id="btnHeroAmina" onclick="switchHero('amina')">Amina<br><span style="font-size:8px;">Spear Dive</span></button>
     </div>
-    <div class="action-pad">
-      <button class="btn" id="btnAttack">ATK</button>
-      <button class="btn btn-super" id="btnSpecial">SUPER</button>
+
+    <!-- Mother Luetta Celestial Aid Button -->
+    <button class="btn-aid" onclick="triggerMotherLuetta()">✦ Mother Luetta Aid: Ascension Full Heal & Wipe ✦</button>
+
+    <!-- Movement & Action Controls -->
+    <div class="row-controls">
+      <div class="pad-left">
+        <button class="btn-ctrl" id="btnL">◄</button>
+        <button class="btn-ctrl" id="btnR">►</button>
+        <button class="btn-ctrl" id="btnJ">▲</button>
+      </div>
+      <div class="pad-right">
+        <button class="btn-ctrl" id="btnAtk">STRIKE</button>
+        <button class="btn-ctrl btn-special" id="btnSpecial">SUPER</button>
+      </div>
     </div>
-  </div>
-
-  <!-- Character Roster Selection -->
-  <div class="overlay" id="rosterOverlay">
-    <h2>Select Vanguard Operative</h2>
-    <div class="select-grid" id="rosterList"></div>
-    <button class="btn-launch" onclick="startGame()">Initiate Battle</button>
-  </div>
-
-  <!-- Gauntlet Victory Overlay -->
-  <div class="overlay" id="victoryOverlay" style="display: none;">
-    <h2>Iron Syndicate Purged</h2>
-    <p style="margin-bottom: 20px; max-width: 480px; color: #a1b0cb;">
-      All Iron Syndicate line anchors have collapsed under Marrow Resonance. The Ancestral Vault is unlocked.
-    </p>
-    <button class="btn-launch" onclick="routeToPayhip()">Claim Full Legacy Access</button>
   </div>
 </div>
 
@@ -266,20 +299,37 @@
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
 
-  const PAYHIP_URL = "https://payhip.com/rhodesfamilylegacy";
+  // Assets Mapped Directly to Root
+  const SPRITES = {
+    marcus: "./marcus.png",
+    aiko: "./aiko.png",
+    sundiata: "./sundiata-prime.png",
+    amina: "./amina.png",
+    luetta: "./mother-luta.png",
+    "null-byte": "./null-byte.png",
+    vipera: "./vipera.png",
+    ironclad: "./ironclad.png",
+    "apex-volt": "./apex-volt.png"
+  };
 
-  // Web Audio Context Synthesizer (Instant SFX Engine)
-  let audioCtx = null;
-  function initAudio() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
+  const images = {};
+  for (let k in SPRITES) {
+    images[k] = new Image();
+    images[k].src = SPRITES[k];
   }
 
-  function playSound(type) {
+  // Preload Detroit Skyline Backdrop
+  const bgDetroit = new Image();
+  bgDetroit.src = "./bg-detroit.jpg";
+
+  // Web Audio Procedural Sound Engine
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playSFX(type) {
     if (!audioCtx) return;
     const now = audioCtx.currentTime;
 
@@ -287,518 +337,390 @@
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(140, now);
-      osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+      osc.frequency.setValueAtTime(120, now);
+      osc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
       gain.gain.setValueAtTime(0.4, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start(now);
-      osc.stop(now + 0.12);
+      osc.stop(now + 0.1);
     } 
-    else if (type === 'super') {
-      // Thunderous sub-harmonic impact
+    else if (type === 'tsunami') {
+      // Roaring low-pass wave swoosh
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.exponentialRampToValueAtTime(25, now + 0.6);
-      gain.gain.setValueAtTime(0.7, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.linearRampToValueAtTime(300, now + 0.4);
+      osc.frequency.exponentialRampToValueAtTime(50, now + 0.8);
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.8);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start(now);
-      osc.stop(now + 0.6);
-    } 
-    else if (type === 'jump') {
+      osc.stop(now + 0.8);
+    }
+    else if (type === 'lightning') {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(160, now);
-      osc.frequency.exponentialRampToValueAtTime(380, now + 0.15);
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(450, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.35);
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start(now);
-      osc.stop(now + 0.15);
+      osc.stop(now + 0.35);
     }
-    else if (type === 'shield') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.25);
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.25);
+    else if (type === 'ascension') {
+      // Golden celestial chord chime
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + (idx * 0.08));
+        gain.gain.setValueAtTime(0.3, now + (idx * 0.08));
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + (idx * 0.08));
+        osc.stop(now + 1.2);
+      });
     }
   }
 
-  // Screen Shake Mechanics
-  let shakeIntensity = 0;
-  let shakeDuration = 0;
-
-  function triggerShake(intensity, duration) {
-    shakeIntensity = intensity;
-    shakeDuration = duration;
-  }
-
-  // Assets Mapped to GitHub Root
-  const SPRITES = {
-    "mother-luta": "./mother-luta.png",
-    "marcus": "./marcus.png",
-    "sundiata-prime": "./sundiata-prime.png",
-    "amina": "./amina.png",
-    "akecheta": "./akecheta.png",
-    "matteo": "./matteo.png",
-    "elena": "./elena.png",
-    "shadow-kensei": "./shadow-kensei.png",
-    "xochitl": "./xochitl.png",
-    "null-byte": "./null-byte.png",
-    "vipera": "./vipera.png",
-    "ironclad": "./ironclad.png",
-    "apex-volt": "./apex-volt.png"
-  };
-
-  const images = {};
-  for (let key in SPRITES) {
-    images[key] = new Image();
-    images[key].src = SPRITES[key];
-  }
-
-  const HERO_DATA = {
-    "mother-luta": {
-      name: "Mother Luta",
-      powerTitle: "Ascension Wipe & Full Heal",
-      speed: 4.5,
-      attackDmg: 22,
-      castSuper: (p, enemies) => {
-        p.hp = 100;
-        screenFlash = { color: "rgba(255, 230, 100, 0.85)", timer: 35 };
-        triggerShake(16, 30);
-        playSound('super');
-        enemies.forEach(e => e.takeDamage(80));
-      }
-    },
-    "marcus": {
-      name: "Marcus",
-      powerTitle: "Kinetic Fortress Barrier",
-      speed: 4,
-      attackDmg: 24,
-      castSuper: (p) => {
-        p.shieldTimer = 300;
-        screenFlash = { color: "rgba(0, 210, 255, 0.5)", timer: 15 };
-        triggerShake(6, 12);
-        playSound('shield');
-      }
-    },
-    "sundiata-prime": {
-      name: "Sundiata Prime",
-      powerTitle: "Bronze Dundun Resonance Shock",
-      speed: 5,
-      attackDmg: 25,
-      castSuper: (p, enemies) => {
-        screenFlash = { color: "rgba(212, 175, 55, 0.6)", timer: 20 };
-        triggerShake(12, 22);
-        playSound('super');
-        enemies.forEach(e => e.takeDamage(65));
-      }
-    },
-    "amina": {
-      name: "Amina",
-      powerTitle: "Celestial Hard-Light Spear Dive",
-      speed: 6,
-      attackDmg: 26,
-      castSuper: (p, enemies) => {
-        p.x += 180;
-        triggerShake(10, 18);
-        playSound('super');
-        enemies.forEach(e => {
-          if (Math.abs(e.x - p.x) < 220) e.takeDamage(75);
-        });
-        screenFlash = { color: "rgba(100, 180, 255, 0.6)", timer: 15 };
-      }
-    },
-    "matteo": {
-      name: "Matteo",
-      powerTitle: "Tectonic Tremor Spire",
-      speed: 3.5,
-      attackDmg: 30,
-      castSuper: (p, enemies) => {
-        triggerShake(15, 25);
-        playSound('super');
-        enemies.forEach(e => {
-          e.takeDamage(55);
-          e.stunTimer = 120;
-        });
-        screenFlash = { color: "rgba(130, 90, 50, 0.6)", timer: 15 };
-      }
-    },
-    "elena": {
-      name: "Elena",
-      powerTitle: "Petrified Root Barricade",
-      speed: 4.8,
-      attackDmg: 20,
-      castSuper: (p, enemies) => {
-        triggerShake(7, 15);
-        playSound('super');
-        enemies.forEach(e => e.stunTimer = 180);
-        screenFlash = { color: "rgba(50, 200, 100, 0.6)", timer: 15 };
-      }
-    },
-    "akecheta": {
-      name: "Akecheta",
-      powerTitle: "Gale-Force Atmospheric Counter",
-      speed: 5.5,
-      attackDmg: 23,
-      castSuper: (p, enemies) => {
-        triggerShake(9, 18);
-        playSound('super');
-        enemies.forEach(e => {
-          e.x += (e.x > p.x ? 250 : -250);
-          e.takeDamage(45);
-        });
-        screenFlash = { color: "rgba(200, 230, 255, 0.6)", timer: 15 };
-      }
-    },
-    "shadow-kensei": {
-      name: "Shadow Kensei",
-      powerTitle: "Dual-Blade Cleave",
-      speed: 5.8,
-      attackDmg: 28,
-      castSuper: (p, enemies) => {
-        triggerShake(13, 20);
-        playSound('super');
-        enemies.forEach(e => {
-          if (Math.abs(e.x - p.x) < 190) e.takeDamage(90);
-        });
-        screenFlash = { color: "rgba(220, 220, 255, 0.8)", timer: 12 };
-      }
-    },
-    "xochitl": {
-      name: "Xochitl",
-      powerTitle: "Solar Flare Flash",
-      speed: 5.2,
-      attackDmg: 24,
-      castSuper: (p, enemies) => {
-        triggerShake(10, 20);
-        playSound('super');
-        enemies.forEach(e => e.takeDamage(60));
-        screenFlash = { color: "rgba(255, 180, 0, 0.7)", timer: 20 };
-      }
-    }
-  };
-
-  const BOSS_SEQUENCE = [
-    { id: "null-byte", name: "Null-Byte", hp: 120, speed: 3.5, power: 12 },
-    { id: "vipera", name: "Vipera", hp: 160, speed: 4.2, power: 15 },
-    { id: "ironclad", name: "Ironclad", hp: 220, speed: 2.2, power: 22 },
-    { id: "apex-volt", name: "Apex Volt", hp: 300, speed: 4.8, power: 28 }
+  // Combat Gauntlet Progression
+  const BOSS_GAUNTLET = [
+    { id: "null-byte", name: "Null-Byte", hp: 120, maxHp: 120, speed: 3.2, pwr: 12 },
+    { id: "vipera", name: "Vipera", hp: 160, maxHp: 160, speed: 4.2, pwr: 15 },
+    { id: "ironclad", name: "Ironclad", hp: 220, maxHp: 220, speed: 2.0, pwr: 24 },
+    { id: "apex-volt", name: "Apex Volt", hp: 300, maxHp: 300, speed: 4.6, pwr: 28 }
   ];
 
-  let selectedHeroKey = "sundiata-prime";
   let activeBossIndex = 0;
-  let player = null;
-  let currentBoss = null;
-  let screenFlash = null;
-  let gameRunning = false;
-  let keys = { left: false, right: false, up: false, atk: false, sp: false };
+  let boss = null;
+  let activeHero = "marcus";
+  let running = false;
+  let shakeTime = 0, shakePower = 0;
 
-  // Setup Roster Selector
-  const rosterContainer = document.getElementById("rosterList");
-  for (let key in HERO_DATA) {
-    const card = document.createElement("div");
-    card.className = `char-card ${key === selectedHeroKey ? "selected" : ""}`;
-    card.onclick = () => {
-      document.querySelectorAll(".char-card").forEach(c => c.classList.remove("selected"));
-      card.classList.add("selected");
-      selectedHeroKey = key;
-    };
-    card.innerHTML = `
-      <img src="${SPRITES[key]}" alt="${HERO_DATA[key].name}">
-      <div class="name">${HERO_DATA[key].name}</div>
-      <div class="power">${HERO_DATA[key].powerTitle}</div>
-    `;
-    rosterContainer.appendChild(card);
-  }
+  // Visual Effects State
+  let waveEffect = null;
+  let lightningEffect = null;
+  let luettaAscension = null;
 
-  class Entity {
-    constructor(x, y, w, h, spriteKey) {
-      this.x = x;
-      this.y = y;
-      this.w = w;
-      this.h = h;
-      this.spriteKey = spriteKey;
-      this.vx = 0;
-      this.vy = 0;
-      this.isGrounded = false;
-    }
+  const player = {
+    x: 140,
+    y: 350,
+    w: 85,
+    h: 125,
+    vx: 0,
+    vy: 0,
+    hp: 120,
+    maxHp: 120,
+    burst: 0,
+    grounded: true,
+    shield: 0
+  };
 
-    draw() {
-      const img = images[this.spriteKey];
-      if (img && img.complete) {
-        ctx.drawImage(img, this.x, this.y, this.w, this.h);
-      } else {
-        ctx.fillStyle = "#555";
-        ctx.fillRect(this.x, this.y, this.w, this.h);
-      }
-    }
+  const keys = { l: false, r: false, j: false };
 
-    applyPhysics() {
-      this.vy += 0.8;
-      this.y += this.vy;
-      this.x += this.vx;
-
-      if (this.y > 380) {
-        this.y = 380;
-        this.vy = 0;
-        this.isGrounded = true;
-      }
-
-      if (this.x < 0) this.x = 0;
-      if (this.x > canvas.width - this.w) this.x = canvas.width - this.w;
-    }
-  }
-
-  class Player extends Entity {
-    constructor(heroKey) {
-      super(120, 380, 80, 110, heroKey);
-      this.hero = HERO_DATA[heroKey];
-      this.hp = 100;
-      this.energy = 0;
-      this.shieldTimer = 0;
-      this.attackCooldown = 0;
-    }
-
-    update() {
-      this.vx = 0;
-      if (keys.left) this.vx = -this.hero.speed;
-      if (keys.right) this.vx = this.hero.speed;
-      if (keys.up && this.isGrounded) {
-        this.vy = -14;
-        this.isGrounded = false;
-        playSound('jump');
-      }
-
-      if (this.shieldTimer > 0) this.shieldTimer--;
-      if (this.attackCooldown > 0) this.attackCooldown--;
-
-      this.applyPhysics();
-
-      if (this.energy < 100) this.energy += 0.15;
-    }
-
-    draw() {
-      super.draw();
-      if (this.shieldTimer > 0) {
-        ctx.strokeStyle = "rgba(0, 210, 255, 0.85)";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(this.x + this.w / 2, this.y + this.h / 2, 65, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    }
-
-    attack(target) {
-      if (this.attackCooldown <= 0) {
-        this.attackCooldown = 18;
-        if (Math.abs((this.x + this.w / 2) - (target.x + target.w / 2)) < 110) {
-          target.takeDamage(this.hero.attackDmg);
-          this.energy = Math.min(100, this.energy + 10);
-          triggerShake(5, 8);
-          playSound('hit');
-        }
-      }
-    }
-
-    special(enemies) {
-      if (this.energy >= 100) {
-        this.energy = 0;
-        this.hero.castSuper(this, enemies);
-      }
-    }
-
-    takeDamage(amount) {
-      if (this.shieldTimer > 0) {
-        playSound('shield');
-        triggerShake(3, 6);
-        return;
-      }
-      this.hp = Math.max(0, this.hp - amount);
-      triggerShake(8, 12);
-      playSound('hit');
-      if (this.hp <= 0) {
-        alert("Lineage defense breach! Restarting encounter...");
-        resetEncounter();
-      }
-    }
-  }
-
-  class Boss extends Entity {
-    constructor(config) {
-      super(740, 380, 95, 120, config.id);
-      this.config = config;
-      this.maxHp = config.hp;
-      this.hp = config.hp;
-      this.attackTimer = 0;
-      this.stunTimer = 0;
-    }
-
-    update(target) {
-      if (this.stunTimer > 0) {
-        this.stunTimer--;
-        this.vx = 0;
-        this.applyPhysics();
-        return;
-      }
-
-      this.vx = (target.x > this.x ? this.config.speed : -this.config.speed);
-
-      this.attackTimer++;
-      if (this.attackTimer > 60) {
-        this.attackTimer = 0;
-        if (Math.abs((this.x + this.w / 2) - (target.x + target.w / 2)) < 100) {
-          target.takeDamage(this.config.power);
-        }
-      }
-
-      this.applyPhysics();
-    }
-
-    takeDamage(amount) {
-      this.hp = Math.max(0, this.hp - amount);
-      if (this.hp <= 0) {
-        advanceGauntlet();
-      }
-    }
-  }
-
-  function startGame() {
-    initAudio();
-    document.getElementById("rosterOverlay").style.display = "none";
-    document.getElementById("hud").style.display = "flex";
-    document.getElementById("touchControls").style.display = "flex";
-    resetEncounter();
-    gameRunning = true;
+  function initAndStart() {
+    ensureAudio();
+    document.getElementById("startOverlay").style.display = "none";
+    loadBoss(0);
+    running = true;
     requestAnimationFrame(gameLoop);
   }
 
-  function resetEncounter() {
-    player = new Player(selectedHeroKey);
-    loadBoss(activeBossIndex);
+  function loadBoss(idx) {
+    const b = BOSS_GAUNTLET[idx];
+    boss = {
+      x: 740,
+      y: 345,
+      w: 95,
+      h: 130,
+      id: b.id,
+      name: b.name,
+      hp: b.hp,
+      maxHp: b.maxHp,
+      speed: b.speed,
+      pwr: b.pwr,
+      atkTimer: 0,
+      stun: 0
+    };
+    document.getElementById("bossTxt").innerText = b.name;
+    document.getElementById("bossPhase").innerText = `PHASE ${idx + 1} / 4`;
   }
 
-  function loadBoss(index) {
-    const config = BOSS_SEQUENCE[index];
-    currentBoss = new Boss(config);
-    document.getElementById("bossHudName").innerText = config.name;
-    document.getElementById("bossTier").innerText = `PHASE ${index + 1} / 4`;
-    document.getElementById("playerHudName").innerText = player.hero.name;
+  function switchHero(heroKey) {
+    activeHero = heroKey;
+    document.querySelectorAll(".btn-hero").forEach(b => b.classList.remove("active"));
+    if (heroKey === 'marcus') document.getElementById("btnHeroMarcus").classList.add("active");
+    if (heroKey === 'aiko') document.getElementById("btnHeroAiko").classList.add("active");
+    if (heroKey === 'sundiata') document.getElementById("btnHeroSundiata").classList.add("active");
+    if (heroKey === 'amina') document.getElementById("btnHeroAmina").classList.add("active");
+    document.getElementById("playerTxt").innerText = heroKey.toUpperCase();
   }
 
-  function advanceGauntlet() {
+  function triggerShake(pow, time) {
+    shakePower = pow;
+    shakeTime = time;
+  }
+
+  // Super Powers Engine
+  function castSuper() {
+    if (player.burst < 100) return;
+    player.burst = 0;
+
+    if (activeHero === 'marcus') {
+      // Marcus Lightning Arc Beam
+      playSFX('lightning');
+      triggerShake(12, 18);
+      lightningEffect = { x1: player.x + 60, y1: player.y + 40, x2: boss.x + 40, y2: boss.y + 50, timer: 20 };
+      boss.hp = Math.max(0, boss.hp - 75);
+      boss.stun = 90;
+    } 
+    else if (activeHero === 'aiko') {
+      // Aiko Azure Tsunami Surge
+      playSFX('tsunami');
+      triggerShake(14, 25);
+      waveEffect = { x: player.x, y: 320, w: 60, timer: 35 };
+      boss.hp = Math.max(0, boss.hp - 80);
+      boss.x += 180;
+    }
+    else if (activeHero === 'sundiata') {
+      // Dundun Shockwave
+      playSFX('hit');
+      triggerShake(16, 25);
+      boss.hp = Math.max(0, boss.hp - 70);
+      boss.stun = 120;
+    }
+    else if (activeHero === 'amina') {
+      // Hard Light Spear Dive
+      playSFX('lightning');
+      player.x = boss.x - 60;
+      triggerShake(12, 16);
+      boss.hp = Math.max(0, boss.hp - 85);
+    }
+
+    if (boss.hp <= 0) advanceBoss();
+  }
+
+  // Mother Luetta Celestial Ascension
+  function triggerMotherLuetta() {
+    ensureAudio();
+    playSFX('ascension');
+    triggerShake(18, 45);
+    luettaAscension = {
+      y: -140,
+      targetY: 80,
+      timer: 110,
+      ringRadius: 10
+    };
+    player.hp = player.maxHp;
+    if (boss) {
+      boss.hp = Math.max(0, boss.hp - 110);
+      boss.stun = 150;
+      if (boss.hp <= 0) advanceBoss();
+    }
+  }
+
+  function advanceBoss() {
     activeBossIndex++;
-    triggerShake(14, 25);
-    playSound('super');
-    if (activeBossIndex >= BOSS_SEQUENCE.length) {
-      gameRunning = false;
+    triggerShake(15, 30);
+    if (activeBossIndex >= BOSS_GAUNTLET.length) {
+      running = false;
       document.getElementById("victoryOverlay").style.display = "flex";
     } else {
       loadBoss(activeBossIndex);
     }
   }
 
-  function routeToPayhip() {
-    window.location.href = PAYHIP_URL;
+  function strike() {
+    ensureAudio();
+    if (Math.abs((player.x + player.w/2) - (boss.x + boss.w/2)) < 110) {
+      playSFX('hit');
+      triggerShake(5, 8);
+      boss.hp = Math.max(0, boss.hp - 20);
+      player.burst = Math.min(100, player.burst + 15);
+      if (boss.hp <= 0) advanceBoss();
+    }
   }
 
-  // Keyboard Event Handlers
+  // Keyboard Binding
   window.addEventListener("keydown", e => {
-    initAudio();
-    if (e.code === "ArrowLeft" || e.code === "KeyA") keys.left = true;
-    if (e.code === "ArrowRight" || e.code === "KeyD") keys.right = true;
-    if (e.code === "ArrowUp" || e.code === "KeyW") keys.up = true;
-    if (e.code === "Space" || e.code === "KeyJ") player.attack(currentBoss);
-    if (e.code === "KeyK") player.special([currentBoss]);
+    ensureAudio();
+    if (e.code === "ArrowLeft" || e.code === "KeyA") keys.l = true;
+    if (e.code === "ArrowRight" || e.code === "KeyD") keys.r = true;
+    if ((e.code === "ArrowUp" || e.code === "KeyW") && player.grounded) {
+      player.vy = -14;
+      player.grounded = false;
+    }
+    if (e.code === "Space" || e.code === "KeyJ") strike();
+    if (e.code === "KeyK") castSuper();
+    if (e.code === "KeyL") triggerMotherLuetta();
   });
 
   window.addEventListener("keyup", e => {
-    if (e.code === "ArrowLeft" || e.code === "KeyA") keys.left = false;
-    if (e.code === "ArrowRight" || e.code === "KeyD") keys.right = false;
-    if (e.code === "ArrowUp" || e.code === "KeyW") keys.up = false;
+    if (e.code === "ArrowLeft" || e.code === "KeyA") keys.l = false;
+    if (e.code === "ArrowRight" || e.code === "KeyD") keys.r = false;
   });
 
-  // Touch Event Handlers
-  const bindTouch = (id, onDown, onUp) => {
+  // Touch Screen Binding
+  const touch = (id, dn, up) => {
     const el = document.getElementById(id);
-    el.addEventListener("touchstart", (e) => { e.preventDefault(); initAudio(); onDown(); });
-    el.addEventListener("touchend", (e) => { e.preventDefault(); if (onUp) onUp(); });
+    el.addEventListener("touchstart", e => { e.preventDefault(); ensureAudio(); dn(); });
+    el.addEventListener("touchend", e => { e.preventDefault(); if (up) up(); });
   };
 
-  bindTouch("btnLeft", () => keys.left = true, () => keys.left = false);
-  bindTouch("btnRight", () => keys.right = true, () => keys.right = false);
-  bindTouch("btnJump", () => {
-    if (player.isGrounded) { 
-      player.vy = -14; 
-      player.isGrounded = false; 
-      playSound('jump');
-    }
+  touch("btnL", () => keys.l = true, () => keys.l = false);
+  touch("btnR", () => keys.r = true, () => keys.r = false);
+  touch("btnJ", () => {
+    if (player.grounded) { player.vy = -14; player.grounded = false; }
   });
-  bindTouch("btnAttack", () => player.attack(currentBoss));
-  bindTouch("btnSpecial", () => player.special([currentBoss]));
+  touch("btnAtk", () => strike());
+  touch("btnSpecial", () => castSuper());
 
-  // Main Loop with Screen Shake and Effects
+  // Main Render & Game Loop
   function gameLoop() {
-    if (!gameRunning) return;
+    if (!running) return;
 
-    ctx.save();
+    // Movement & Physics
+    player.vx = 0;
+    if (keys.l) player.vx = -5;
+    if (keys.r) player.vx = 5;
+    player.vy += 0.8;
+    player.x += player.vx;
+    player.y += player.vy;
 
-    // Compute Screen Shake Offset
-    if (shakeDuration > 0) {
-      const offsetX = (Math.random() - 0.5) * shakeIntensity;
-      const offsetY = (Math.random() - 0.5) * shakeIntensity;
-      ctx.translate(offsetX, offsetY);
-      shakeDuration--;
+    if (player.y > 350) { player.y = 350; player.vy = 0; player.grounded = true; }
+    if (player.x < 10) player.x = 10;
+    if (player.x > canvas.width - player.w) player.x = canvas.width - player.w;
+
+    // Boss AI
+    if (boss.stun > 0) {
+      boss.stun--;
+    } else {
+      boss.x += (player.x > boss.x ? boss.speed : -boss.speed);
+      boss.atkTimer++;
+      if (boss.atkTimer > 55) {
+        boss.atkTimer = 0;
+        if (Math.abs((player.x + player.w/2) - (boss.x + boss.w/2)) < 95) {
+          playSFX('hit');
+          triggerShake(7, 10);
+          player.hp = Math.max(0, player.hp - boss.pwr);
+          if (player.hp <= 0) {
+            alert("Marrow Line breached! Regrouping defense...");
+            player.hp = player.maxHp;
+            loadBoss(activeBossIndex);
+          }
+        }
+      }
     }
 
-    // Clear Screen & Draw Scenery
-    ctx.fillStyle = "#0c1017";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Canvas Frame Setup
+    ctx.save();
+    if (shakeTime > 0) {
+      ctx.translate((Math.random() - 0.5) * shakePower, (Math.random() - 0.5) * shakePower);
+      shakeTime--;
+    }
 
-    // Floor Plate
-    ctx.fillStyle = "#151b26";
-    ctx.fillRect(0, 490, canvas.width, 50);
-    ctx.strokeStyle = "#00d2ff";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0, 490, canvas.width, 1);
-
-    // Updates
-    player.update();
-    currentBoss.update(player);
-
-    // Renders
-    player.draw();
-    currentBoss.draw();
-
-    // Visual Super Effects
-    if (screenFlash && screenFlash.timer > 0) {
-      ctx.fillStyle = screenFlash.color;
+    // 1. Detroit RenCen Backdrop
+    if (bgDetroit.complete && bgDetroit.naturalWidth > 0) {
+      ctx.drawImage(bgDetroit, 0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgba(6, 10, 18, 0.4)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      screenFlash.timer--;
+    } else {
+      ctx.fillStyle = "#0c1322";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 2. Stage Floor (Detroit Riverfront Promenade Edge)
+    ctx.fillStyle = "#101726";
+    ctx.fillRect(0, 470, canvas.width, 70);
+    ctx.strokeStyle = "rgba(0, 210, 255, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 470);
+    ctx.lineTo(canvas.width, 470);
+    ctx.stroke();
+
+    // 3. Render Hero Sprite
+    const pImg = images[activeHero];
+    if (pImg && pImg.complete) {
+      ctx.drawImage(pImg, player.x, player.y, player.w, player.h);
+    } else {
+      ctx.fillStyle = "#00d2ff";
+      ctx.fillRect(player.x, player.y, player.w, player.h);
+    }
+
+    // 4. Render Boss Sprite
+    const bImg = images[boss.id];
+    if (bImg && bImg.complete) {
+      ctx.drawImage(bImg, boss.x, boss.y, boss.w, boss.h);
+    } else {
+      ctx.fillStyle = "#ff0055";
+      ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
+    }
+
+    // 5. Special Effect: Aiko Azure Tsunami Wave
+    if (waveEffect && waveEffect.timer > 0) {
+      waveEffect.x += 16;
+      ctx.fillStyle = "rgba(0, 210, 255, 0.65)";
+      ctx.beginPath();
+      ctx.arc(waveEffect.x, 400, waveEffect.w + (35 - waveEffect.timer) * 2, 0, Math.PI * 2);
+      ctx.fill();
+      waveEffect.timer--;
+    }
+
+    // 6. Special Effect: Marcus Lightning Arcs
+    if (lightningEffect && lightningEffect.timer > 0) {
+      ctx.strokeStyle = "#00e5ff";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(lightningEffect.x1, lightningEffect.y1);
+      ctx.lineTo((lightningEffect.x1 + lightningEffect.x2) / 2 + (Math.random() - 0.5) * 40, (lightningEffect.y1 + lightningEffect.y2) / 2 + (Math.random() - 0.5) * 40);
+      ctx.lineTo(lightningEffect.x2, lightningEffect.y2);
+      ctx.stroke();
+      lightningEffect.timer--;
+    }
+
+    // 7. Special Effect: Mother Luetta Ascension & Board Wipe
+    if (luettaAscension && luettaAscension.timer > 0) {
+      if (luettaAscension.y < luettaAscension.targetY) luettaAscension.y += 6;
+      luettaAscension.ringRadius += 9;
+
+      // Radiant Golden Halo Expansion
+      ctx.strokeStyle = "rgba(255, 220, 80, 0.8)";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, luettaAscension.y + 50, luettaAscension.ringRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Mother Luetta Ascended Sprite
+      const mImg = images.luetta;
+      if (mImg && mImg.complete) {
+        ctx.drawImage(mImg, (canvas.width / 2) - 50, luettaAscension.y, 100, 140);
+      }
+
+      // Golden Beam Strike downward
+      ctx.fillStyle = "rgba(255, 230, 100, 0.35)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      luettaAscension.timer--;
     }
 
     ctx.restore();
 
-    // Update HUD
-    document.getElementById("playerHpBar").style.width = `${player.hp}%`;
-    document.getElementById("playerHpTxt").innerText = `${Math.ceil(player.hp)}%`;
-    document.getElementById("playerEnergyBar").style.width = `${player.energy}%`;
-    document.getElementById("bossHpBar").style.width = `${(currentBoss.hp / currentBoss.maxHp) * 100}%`;
-    document.getElementById("bossHpTxt").innerText = `${Math.ceil((currentBoss.hp / currentBoss.maxHp) * 100)}%`;
+    // Sync HUD Elements
+    document.getElementById("playerHpBar").style.width = `${(player.hp / player.maxHp) * 100}%`;
+    document.getElementById("playerHpNum").innerText = `${Math.ceil(player.hp)} / ${player.maxHp}`;
+    document.getElementById("playerBurstBar").style.width = `${player.burst}%`;
+    document.getElementById("burstNum").innerText = `${Math.ceil(player.burst)}%`;
+
+    document.getElementById("bossHpBar").style.width = `${(boss.hp / boss.maxHp) * 100}%`;
+    document.getElementById("bossHpNum").innerText = `${Math.ceil(boss.hp)} / ${boss.maxHp}`;
 
     requestAnimationFrame(gameLoop);
   }
