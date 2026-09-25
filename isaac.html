@@ -14,21 +14,18 @@
       --accent-red: #ff3b56;
       --text-main: #f0f4f8;
       --text-muted: #8ca0ba;
-      --health-green: #00e676;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg-dark); color: var(--text-main); display: flex; justify-content: center; padding: 12px; }
     .game-container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 10px; }
 
-    /* Top Offer Link */
     .promo-banner {
       background: var(--accent-gold); color: #000; text-align: center;
       padding: 10px; font-weight: 800; font-size: 0.85rem; border-radius: 6px;
       text-transform: uppercase; text-decoration: none; display: block;
     }
 
-    /* Screen Frame */
     .arena-frame {
       background: var(--panel-bg);
       border: 1px solid var(--border-color);
@@ -46,7 +43,6 @@
       height: 220px;
     }
 
-    /* Mobile Controls */
     .controls-grid {
       display: grid;
       grid-template-columns: 1fr 1.2fr 1fr;
@@ -68,7 +64,6 @@
     .btn-move { background: #14223d; border: 1px solid var(--border-color); }
     .btn-strike { background: var(--accent-red); }
 
-    /* HUD Log */
     .hud-box {
       background: #02060c;
       border: 1px solid #14223d;
@@ -79,7 +74,6 @@
       color: #79c0ff;
     }
 
-    /* Payhip Gate Modal */
     #payhip-modal {
       display: none;
       position: fixed;
@@ -124,9 +118,9 @@
       <canvas id="brawlerCanvas" width="460" height="220"></canvas>
       
       <div class="controls-grid">
-        <button class="btn btn-move" onclick="moveIsaac(-25)">◀ Move</button>
-        <button class="btn btn-strike" onclick="attackIsaac()">⚔ Strike</button>
-        <button class="btn btn-move" onclick="moveIsaac(25)">Move ▶</button>
+        <button class="btn btn-move" onclick="moveHero(-25)">◀ Move</button>
+        <button class="btn btn-strike" onclick="attackHero()">⚔ Strike</button>
+        <button class="btn btn-move" onclick="moveHero(25)">Move ▶</button>
       </div>
     </div>
 
@@ -135,15 +129,14 @@
     </div>
   </div>
 
-  <!-- Payhip Lockout Popup -->
   <div id="payhip-modal">
     <div class="modal-content">
       <h2 style="color: var(--accent-gold); margin-bottom: 8px;">TRIAL COMPLETE!</h2>
       <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">
-        You cleared the 3-round gauntlet! The timeline shifts deeper into the syndicate's territory.
+        You cleared the 3-round trial! Continue the campaign with the official bundle:
       </p>
       <p style="font-size: 0.85rem; color: #fff; line-height: 1.5;">
-        Get <strong>Comic Issues #1 &amp; #2</strong>, unlock full campaign boss waves, and access the master Living Codex card deck.
+        Get <strong>Comic Issues #1 &amp; #2</strong>, full boss encounters, and the digital Living Codex collection.
       </p>
       <a href="https://payhip.com" target="_blank" class="modal-btn">Unlock Issues #1 &amp; #2 Bundle</a>
     </div>
@@ -153,67 +146,76 @@
     const canvas = document.getElementById("brawlerCanvas");
     const ctx = canvas.getContext("2d");
 
-    // Game Progression States
+    // Load Sprites from Repository Root
+    const bgImg = new Image();
+    bgImg.src = "bg-detroit.jpg";
+
+    const heroImg = new Image();
+    heroImg.src = "marcus.png";
+
+    const droidImg = new Image();
+    droidImg.src = "null-byte.png";
+
+    const chronoImg = new Image();
+    chronoImg.src = "chrono-lock.png";
+
     let currentRound = 1;
-    let waveState = "DROIDS"; // "DROIDS", "BOSS", "EXPLODING", "GATE"
+    let waveState = "DROIDS";
     let droidsLeft = 3;
 
-    // Player (Isaac)
+    // Player Hero
     const player = {
       x: 40,
-      y: 140,
-      w: 30,
-      h: 50,
-      color: "#0088ff",
+      y: 110,
+      w: 60,
+      h: 80,
       speedMod: 1.0
     };
 
-    // Minion Droids
-    let droids = [{ x: 380, y: 145, w: 25, h: 45, hp: 20 }];
+    // Droid Minion
+    let droid = { x: 370, y: 115, w: 50, h: 75, hp: 20 };
 
-    // Chrono-Lock Boss Definition
+    // Chrono-Lock Boss
     const boss = {
       name: "Chrono-Lock",
-      x: 360,
-      y: 125,
-      w: 45,
-      h: 65,
+      x: 350,
+      y: 100,
+      w: 65,
+      h: 90,
       hp: 100,
       maxHp: 100,
       warpTimer: 0,
       active: false
     };
 
-    // Particle storage for clock explosion
     let clockParticles = [];
 
-    // Player Actions
-    function moveIsaac(dir) {
+    function moveHero(dir) {
       player.x += dir * player.speedMod;
       player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
     }
 
-    function attackIsaac() {
+    function attackHero() {
       if (waveState === "DROIDS") {
-        if (droids.length > 0 && Math.abs(player.x - droids[0].x) < 55) {
-          droids[0].hp -= 20;
-          if (droids[0].hp <= 0) {
+        if (Math.abs(player.x - droid.x) < 70) {
+          droid.hp -= 20;
+          if (droid.hp <= 0) {
             droidsLeft--;
             if (droidsLeft > 0) {
-              droids[0] = { x: 380, y: 145, w: 25, h: 45, hp: 20 };
+              droid.x = 370;
+              droid.hp = 20 + (currentRound * 10);
               document.getElementById("system-log").innerText = 
                 `Droid destroyed! ${droidsLeft} droids remain before Boss.`;
             } else {
-              droids = [];
               startBossFight();
             }
           }
         }
       } else if (waveState === "BOSS") {
-        if (Math.abs(player.x - boss.x) < 65) {
+        if (Math.abs(player.x - boss.x) < 80) {
           boss.hp -= 25;
           document.getElementById("system-log").innerText = 
-            `Direct Hit on Chrono-Lock! Boss HP: ${boss.hp}/${boss.maxHp}`;
+            `Direct Hit on Chrono-Lock! HP: ${Math.max(0, boss.hp)}/${boss.maxHp}`;
           
           if (boss.hp <= 0) {
             waveState = "EXPLODING";
@@ -231,31 +233,28 @@
         "TEMPORAL DISTORTION: Chrono-Lock has entered the arena!";
     }
 
-    // Chrono-Lock Warp & Slow Logic
-    function updateBossBehavior() {
+    function updateBoss() {
       if (waveState !== "BOSS") return;
-
       const dist = Math.abs(player.x - boss.x);
 
       // Proximity Slow
-      if (dist < 90) {
-        player.speedMod = 0.45; // Time dilates near Chrono-Lock
+      if (dist < 110) {
+        player.speedMod = 0.45;
       } else {
         player.speedMod = 1.0;
       }
 
-      // Time Warp (Behind or In Front)
+      // Time Warp Phase Shift
       boss.warpTimer++;
-      if (boss.warpTimer > 150) { // Shifts every ~2.5 seconds
+      if (boss.warpTimer > 150) {
         boss.warpTimer = 0;
-        const warpOffset = Math.random() > 0.5 ? -90 : 90;
-        boss.x = Math.max(40, Math.min(canvas.width - boss.w - 40, player.x + warpOffset));
+        const warpOffset = Math.random() > 0.5 ? -110 : 110;
+        boss.x = Math.max(30, Math.min(canvas.width - boss.w - 30, player.x + warpOffset));
         document.getElementById("system-log").innerText = 
           "TIME WARP: Chrono-Lock shifted his timeline position!";
       }
     }
 
-    // Clock Burst Physics
     function explodeChronoLock() {
       boss.active = false;
       player.speedMod = 1.0;
@@ -286,7 +285,6 @@
         p.rot += p.rotSpeed;
         p.alpha -= 0.015;
 
-        // Draw Clock Faces
         ctx.save();
         ctx.globalAlpha = Math.max(0, p.alpha);
         ctx.translate(p.x, p.y);
@@ -309,7 +307,6 @@
         if (p.alpha <= 0) clockParticles.splice(i, 1);
       }
 
-      // Check if explosion ended to trigger next wave or Payhip modal
       if (waveState === "EXPLODING" && clockParticles.length === 0) {
         currentRound++;
         if (currentRound > 3) {
@@ -318,7 +315,8 @@
         } else {
           waveState = "DROIDS";
           droidsLeft = 3 + currentRound;
-          droids = [{ x: 380, y: 145, w: 25, h: 45, hp: 20 + (currentRound * 10) }];
+          droid.x = 370;
+          droid.hp = 20 + (currentRound * 10);
           boss.maxHp += 40;
           document.getElementById("system-log").innerText = 
             `Round ${currentRound} Started! Defeat ${droidsLeft} upgraded droids!`;
@@ -326,46 +324,67 @@
       }
     }
 
-    // Main Engine Render Loop
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Floor
-      ctx.fillStyle = "#1e2c45";
-      ctx.fillRect(0, 190, canvas.width, 30);
-
-      // Render Player (Isaac)
-      ctx.fillStyle = player.color;
-      ctx.fillRect(player.x, player.y, player.w, player.h);
-
-      // Render Droid
-      if (waveState === "DROIDS" && droids.length > 0) {
-        ctx.fillStyle = "#a855f7";
-        ctx.fillRect(droids[0].x, droids[0].y, droids[0].w, droids[0].h);
+      // Render Stage Background or Fallback Floor
+      if (bgImg.complete && bgImg.naturalWidth > 0) {
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = "#070d18";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // Render Chrono-Lock Boss & Temporal Halo
+      // Floor line
+      ctx.fillStyle = "rgba(30, 44, 69, 0.8)";
+      ctx.fillRect(0, 190, canvas.width, 30);
+
+      // Render Hero Sprite
+      if (heroImg.complete && heroImg.naturalWidth > 0) {
+        ctx.drawImage(heroImg, player.x, player.y, player.w, player.h);
+      } else {
+        ctx.fillStyle = "#0088ff";
+        ctx.fillRect(player.x, player.y + 30, player.w, player.h - 30);
+      }
+
+      // Render Droid Minion Sprite
+      if (waveState === "DROIDS" && droidsLeft > 0) {
+        if (droidImg.complete && droidImg.naturalWidth > 0) {
+          ctx.drawImage(droidImg, droid.x, droid.y, droid.w, droid.h);
+        } else {
+          ctx.fillStyle = "#a855f7";
+          ctx.fillRect(droid.x, droid.y + 30, droid.w, droid.h - 30);
+        }
+      }
+
+      // Render Chrono-Lock Boss
       if (waveState === "BOSS" && boss.active) {
-        updateBossBehavior();
-        
-        // Temporal slow aura effect
+        updateBoss();
+
+        // Temporal Aura ring during slowdown
         if (player.speedMod < 1.0) {
-          ctx.strokeStyle = "rgba(0, 230, 118, 0.4)";
+          ctx.strokeStyle = "rgba(0, 230, 118, 0.5)";
           ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.arc(boss.x + boss.w / 2, boss.y + boss.h / 2, 85, 0, Math.PI * 2);
+          ctx.arc(boss.x + boss.w / 2, boss.y + boss.h / 2, 90, 0, Math.PI * 2);
           ctx.stroke();
         }
 
-        ctx.fillStyle = "#e6a122";
-        ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
-        
-        // Boss HP Bar
+        if (chronoImg.complete && chronoImg.naturalWidth > 0) {
+          ctx.drawImage(chronoImg, boss.x, boss.y, boss.w, boss.h);
+        } else {
+          ctx.fillStyle = "#e6a122";
+          ctx.fillRect(boss.x, boss.y + 25, boss.w, boss.h - 25);
+        }
+
+        // Boss Health Bar
+        ctx.fillStyle = "#1e2c45";
+        ctx.fillRect(boss.x - 5, boss.y - 12, 75, 6);
         ctx.fillStyle = "#ff3b56";
-        ctx.fillRect(boss.x - 5, boss.y - 12, (boss.hp / boss.maxHp) * 55, 6);
+        ctx.fillRect(boss.x - 5, boss.y - 12, (boss.hp / boss.maxHp) * 75, 6);
       }
 
-      // Update Particles
+      // Particles
       if (clockParticles.length > 0) {
         updateParticles();
       }
