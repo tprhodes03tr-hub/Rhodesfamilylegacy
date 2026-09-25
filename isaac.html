@@ -179,7 +179,10 @@
 
     .overlay {
       position: absolute;
-      inset: 0;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       background: rgba(4, 6, 12, 0.94);
       display: flex;
       flex-direction: column;
@@ -244,7 +247,7 @@
     <div class="overlay" id="startOverlay">
       <h2>Isaac Rhodes Adventures</h2>
       <p style="color:#8b9bb4; font-size:13px; max-width:440px; margin-bottom:18px;">
-        Detroit RenCen Promenade Stage: Defeat the Iron Syndicate enforcers using your complete Vanguard team abilities.
+        Detroit RenCen Promenade Stage: The Iron Syndicate is assaulting the marrow line. Defeat all 4 phases using your Vanguard hero abilities.
       </p>
       <button class="btn-action" onclick="initAndStart()">Initiate Battle</button>
     </div>
@@ -261,7 +264,7 @@
   <div id="deck">
     <div class="row-hero-swap">
       <button class="btn-hero active" id="btnHeroMarcus" onclick="switchHero('marcus')">Marcus<br><span style="font-size:8px;">Lightning</span></button>
-      <button class="btn-hero" id="btnHeroAiko" onclick="switchHero('aiko')">Aiko<br><span style="font-size:8px;">Tsunami</span></button>
+      <button class="btn-hero" id="btnHeroElena" onclick="switchHero('elena')">Aiko / Elena<br><span style="font-size:8px;">Tsunami</span></button>
       <button class="btn-hero" id="btnHeroSundiata" onclick="switchHero('sundiata')">Sundiata<br><span style="font-size:8px;">Resonance</span></button>
       <button class="btn-hero" id="btnHeroAmina" onclick="switchHero('amina')">Amina<br><span style="font-size:8px;">Spear Dive</span></button>
     </div>
@@ -286,9 +289,10 @@
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
 
+  // Assets Mapped Directly to Verified GitHub Root Sprites
   const SPRITES = {
     marcus: "./marcus.png",
-    aiko: "./aiko.png",
+    elena: "./elena.png",
     sundiata: "./sundiata-prime.png",
     amina: "./amina.png",
     luetta: "./mother-luta.png",
@@ -403,8 +407,7 @@
     burst: 0,
     grounded: true,
     facing: 1,
-    attackAnim: 0,
-    respawnTimer: 0
+    attackAnim: 0
   };
 
   const keys = { l: false, r: false, j: false };
@@ -443,10 +446,10 @@
     activeHero = heroKey;
     document.querySelectorAll(".btn-hero").forEach(b => b.classList.remove("active"));
     if (heroKey === 'marcus') document.getElementById("btnHeroMarcus").classList.add("active");
-    if (heroKey === 'aiko') document.getElementById("btnHeroAiko").classList.add("active");
+    if (heroKey === 'elena') document.getElementById("btnHeroElena").classList.add("active");
     if (heroKey === 'sundiata') document.getElementById("btnHeroSundiata").classList.add("active");
     if (heroKey === 'amina') document.getElementById("btnHeroAmina").classList.add("active");
-    document.getElementById("playerTxt").innerText = heroKey.toUpperCase();
+    document.getElementById("playerTxt").innerText = heroKey === 'elena' ? "AIKO / ELENA" : heroKey.toUpperCase();
   }
 
   function triggerShake(pow, time) {
@@ -466,7 +469,7 @@
       boss.hp = Math.max(0, boss.hp - 75);
       boss.stun = 90;
     } 
-    else if (activeHero === 'aiko') {
+    else if (activeHero === 'elena') {
       playSFX('tsunami');
       triggerShake(14, 25);
       waveEffect = { x: player.x, y: 320, w: 60, timer: 35 };
@@ -562,34 +565,30 @@
   touch("btnAtk", () => strike());
   touch("btnSpecial", () => castSuper());
 
-  // Procedural Animation Renderer (Bobble, Weave, Squash & Stretch)
+  // Procedural Animation: Sinusoidal Bobble, Tilt Weaving, Squash & Stretch
   function drawAnimatedSprite(img, x, y, w, h, isMoving, facing, animOffset, attackTimer) {
     ctx.save();
 
-    // 1. Dynamic Drop Shadow
+    // Floor Shadow
     ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
     ctx.beginPath();
     ctx.ellipse(x + w / 2, 475, w * 0.42, 10, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. Procedural Sinusoidal Bobble & Weave
     let bobY = 0;
     let swayTilt = 0;
     let scaleX = 1;
     let scaleY = 1;
 
     if (isMoving) {
-      // Walking bobble bounce
       bobY = Math.abs(Math.sin((animTick + animOffset) * 0.18)) * -9;
       swayTilt = Math.sin((animTick + animOffset) * 0.18) * 0.08;
     } else {
-      // Idle combat breathing oscillation
       bobY = Math.sin((animTick + animOffset) * 0.06) * 3;
       scaleY = 1 + Math.sin((animTick + animOffset) * 0.06) * 0.025;
       scaleX = 1 - Math.sin((animTick + animOffset) * 0.06) * 0.02;
     }
 
-    // 3. Attack Forward Lunge
     let lungeX = 0;
     if (attackTimer > 0) {
       lungeX = facing * 18;
@@ -597,7 +596,6 @@
       scaleY *= 0.92;
     }
 
-    // Transform Matrix
     ctx.translate(x + w / 2 + lungeX, y + h + bobY);
     ctx.scale(facing * scaleX, scaleY);
     ctx.rotate(swayTilt);
@@ -616,7 +614,6 @@
     if (!running) return;
     animTick++;
 
-    // Player Update
     player.vx = 0;
     if (keys.l) { player.vx = -5; player.facing = -1; }
     if (keys.r) { player.vx = 5; player.facing = 1; }
@@ -630,7 +627,6 @@
 
     if (player.attackAnim > 0) player.attackAnim--;
 
-    // Boss Update
     if (boss.stun > 0) {
       boss.stun--;
     } else {
@@ -644,7 +640,7 @@
           playSFX('hit');
           triggerShake(7, 10);
           player.hp = Math.max(0, player.hp - boss.pwr);
-          // In-Engine Respawn without page freeze
+          // In-Engine Respawn (Never freezes or calls alert)
           if (player.hp <= 0) {
             triggerShake(16, 20);
             player.hp = player.maxHp;
@@ -656,14 +652,13 @@
     }
     if (boss.attackAnim > 0) boss.attackAnim--;
 
-    // Canvas Draw Pass
     ctx.save();
     if (shakeTime > 0) {
       ctx.translate((Math.random() - 0.5) * shakePower, (Math.random() - 0.5) * shakePower);
       shakeTime--;
     }
 
-    // Detroit Backdrop
+    // Detroit Skyline
     if (bgDetroit.complete && bgDetroit.naturalWidth > 0) {
       ctx.drawImage(bgDetroit, 0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "rgba(6, 10, 18, 0.4)";
@@ -690,7 +685,7 @@
     const isBossMoving = boss.stun === 0 && Math.abs(boss.speed) > 0.1;
     drawAnimatedSprite(images[boss.id], boss.x, boss.y, boss.w, boss.h, isBossMoving, boss.facing, 45, boss.attackAnim);
 
-    // Visual Super Effects
+    // Tsunami Wave Effect
     if (waveEffect && waveEffect.timer > 0) {
       waveEffect.x += 16;
       ctx.fillStyle = "rgba(0, 210, 255, 0.65)";
@@ -700,6 +695,7 @@
       waveEffect.timer--;
     }
 
+    // Marcus Lightning Beam
     if (lightningEffect && lightningEffect.timer > 0) {
       ctx.strokeStyle = "#00e5ff";
       ctx.lineWidth = 4;
@@ -711,6 +707,7 @@
       lightningEffect.timer--;
     }
 
+    // Mother Luetta Ascension Halo & Board Wipe
     if (luettaAscension && luettaAscension.timer > 0) {
       if (luettaAscension.y < luettaAscension.targetY) luettaAscension.y += 6;
       luettaAscension.ringRadius += 9;
