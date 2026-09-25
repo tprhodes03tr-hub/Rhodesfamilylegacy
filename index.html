@@ -224,45 +224,82 @@
     .bg-emerald { background: radial-gradient(circle, #047857 0%, #064e3b 100%); }
     .bg-amber   { background: radial-gradient(circle, #b45309 0%, #78350f 100%); }
 
-    /* VIDEO SHOWCASE HUB */
+    /* AUTOMATED CINEMA SHOWCASE */
     .video-card-wrap {
       width: 100%;
-      max-width: 680px;
+      max-width: 760px;
+    }
+    .cinema-toggle-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .cinema-toggle-btn {
+      padding: 10px;
+      font-size: 12px;
+      font-weight: 800;
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.2s ease;
+    }
+    .btn-cinema-vanguard {
+      border: 2px solid #a855f7;
+      background: #581c87;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+    }
+    .btn-cinema-heritage {
+      border: 2px solid #334155;
+      background: #0f172a;
+      color: #94a3b8;
     }
     .video-frame {
       width: 100%;
+      aspect-ratio: 16 / 9;
       border-radius: 10px;
       background: #000;
       overflow: hidden;
-      border: 1px solid rgba(212, 175, 55, 0.4);
-      box-shadow: 0 0 25px rgba(212, 175, 55, 0.2);
+      border: 2px solid #a855f7;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85);
+      transition: border-color 0.3s ease;
     }
     video {
       width: 100%;
+      height: 100%;
       display: block;
-      max-height: 360px;
+      object-fit: contain;
     }
-    .video-picker-wrap {
-      background: #1e293b;
-      border: 1px dashed #475569;
-      border-radius: 8px;
-      padding: 12px;
-      text-align: center;
-      font-size: 12px;
-      color: #94a3b8;
+    .cinema-status-bar {
       display: flex;
-      flex-direction: column;
+      justify-content: space-between;
       align-items: center;
-      gap: 8px;
-    }
-    .picker-btn {
-      background: #2563eb;
-      color: #fff;
-      padding: 8px 16px;
+      background: #090d16;
+      border: 1px solid #1e293b;
+      padding: 8px 12px;
       border-radius: 6px;
+      margin-top: 10px;
       font-size: 12px;
       font-weight: 700;
-      cursor: pointer;
+    }
+    #cinemaTrackTitle {
+      color: #38bdf8;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      max-width: 65%;
+    }
+    .theater-launch-link {
+      color: #c084fc;
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .theater-launch-link:hover {
+      text-decoration: underline;
     }
 
     footer {
@@ -348,23 +385,31 @@
 
     </div>
 
-    <!-- CINEMATIC VIDEO SHOWCASE -->
+    <!-- CINEMATIC VIDEO SHOWCASE (AUTOMATED STREAMING, ZERO FILE PICKER) -->
     <h2 class="section-title" id="cinematic">Cinematic Center</h2>
-    <p class="section-desc">Video & Trailer Showcase: Preview promotional trailers, animations, and story teasers directly in your browser.</p>
+    <p class="section-desc">Video & Trailer Showcase: Stream promotional trailers, animated sequences, and origin chronicles directly in your browser.</p>
 
     <div class="video-card-wrap">
       <div class="card">
-        <div class="video-frame">
-          <video id="legacyVideoPlayer" controls poster="1789398446187.png" preload="metadata">
-            <source src="Origins & The Tree of Lineage.mp4" type="video/mp4">
-            <source src="trailer.mp4" type="video/mp4">
+        <div class="cinema-toggle-bar">
+          <button id="btnCinemaVan" class="cinema-toggle-btn btn-cinema-vanguard" onclick="switchCinemaChannel('vanguard')">
+            Vanguard Universe
+          </button>
+          <button id="btnCinemaHer" class="cinema-toggle-btn btn-cinema-heritage" onclick="switchCinemaChannel('heritage')">
+            Heritage Storybooks
+          </button>
+        </div>
+
+        <div class="video-frame" id="cinemaFrame">
+          <video id="legacyVideoPlayer" controls autoplay muted playsinline poster="1789535309047.png" preload="metadata">
+            <source id="legacyVideoSource" src="Origins & The Tree of Lineage.mp4" type="video/mp4">
             Your browser does not support the video tag.
           </video>
         </div>
-        <div class="video-picker-wrap">
-          <span>Upload or choose any video file from your device to feature:</span>
-          <label class="picker-btn" for="videoFileInput">Choose Video File</label>
-          <input type="file" id="videoFileInput" accept="video/*" style="display:none;" onchange="loadChosenVideo(event)" />
+
+        <div class="cinema-status-bar">
+          <span id="cinemaTrackTitle">NOW PLAYING: Origins & The Tree of Lineage</span>
+          <a href="theater.html" class="theater-launch-link">Expand Cinema Hub ↗</a>
         </div>
       </div>
     </div>
@@ -438,13 +483,58 @@
   </div>
 
   <script>
-    function loadChosenVideo(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const player = document.getElementById('legacyVideoPlayer');
-        player.src = URL.createObjectURL(file);
-        player.play();
+    const CINEMA_CHANNELS = {
+      vanguard: {
+        borderColor: '#a855f7',
+        src: 'Origins & The Tree of Lineage.mp4',
+        poster: '1789535309047.png',
+        title: 'NOW PLAYING: Origins & The Tree of Lineage (Master Saga)'
+      },
+      heritage: {
+        borderColor: '#f59e0b',
+        src: 'Origins & The Tree of Lineage.mp4',
+        poster: 'marrow-bundle.jpg',
+        title: 'NOW PLAYING: The Tree of Lineage (Heritage Edition)'
       }
+    };
+
+    function switchCinemaChannel(chan) {
+      const data = CINEMA_CHANNELS[chan];
+      const player = document.getElementById('legacyVideoPlayer');
+      const source = document.getElementById('legacyVideoSource');
+      const frame = document.getElementById('cinemaFrame');
+      const track = document.getElementById('cinemaTrackTitle');
+      const btnVan = document.getElementById('btnCinemaVan');
+      const btnHer = document.getElementById('btnCinemaHer');
+
+      if (chan === 'vanguard') {
+        btnVan.className = 'cinema-toggle-btn btn-cinema-vanguard';
+        btnVan.style.border = '2px solid #a855f7';
+        btnVan.style.background = '#581c87';
+        btnVan.style.color = '#ffffff';
+
+        btnHer.className = 'cinema-toggle-btn btn-cinema-heritage';
+        btnHer.style.border = '2px solid #334155';
+        btnHer.style.background = '#0f172a';
+        btnHer.style.color = '#94a3b8';
+      } else {
+        btnHer.className = 'cinema-toggle-btn btn-cinema-vanguard';
+        btnHer.style.border = '2px solid #f59e0b';
+        btnHer.style.background = '#78350f';
+        btnHer.style.color = '#ffffff';
+
+        btnVan.className = 'cinema-toggle-btn btn-cinema-heritage';
+        btnVan.style.border = '2px solid #334155';
+        btnVan.style.background = '#0f172a';
+        btnVan.style.color = '#94a3b8';
+      }
+
+      frame.style.borderColor = data.borderColor;
+      player.poster = data.poster;
+      source.src = data.src;
+      track.textContent = data.title;
+      player.load();
+      player.play().catch(() => {});
     }
   </script>
 </body>
