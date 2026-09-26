@@ -710,7 +710,7 @@
     </div>
   </section>
 
-  <!-- TAB 3: SIDE BRAWLER (2.5D DELUXE ARCADE ENGINE) -->
+  <!-- TAB 3: SIDE BRAWLER (2.5D KINETIC CO-OP ENGINE) -->
   <section id="tab-brawler" class="portal-section">
     <div class="brawler-wrapper">
       <div class="hud-header">
@@ -771,10 +771,10 @@
       <div style="font-size: 32px; margin-bottom: 6px;">⏳</div>
       <h2 id="modalTitle">CHRONO-LOCK SHATTERED!</h2>
       <p id="modalBody">
-        You cleared the encounters! Unlock the complete 54-card physical deck, standalone starter operatives, metallic gold & platinum foil editions, and the tie-in comic series on Payhip[span_4](start_span)[span_4](end_span).
+        You cleared the encounters! Unlock the complete 54-card physical deck, standalone starter operatives, metallic gold & platinum foil editions, and the tie-in comic series on Payhip[span_0](start_span)[span_0](end_span).
       </p>
       <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="payhip-btn">
-        UNLOCK FULL GAME, DECK & COMIC ON PAYHIP[span_5](start_span)[span_5](end_span)
+        UNLOCK FULL GAME, DECK & COMIC ON PAYHIP[span_1](start_span)[span_1](end_span)
       </a>
     </div>
   </div>
@@ -863,7 +863,7 @@
         currentRound++;
         if (currentRound > 3) {
           document.getElementById('modalTitle').innerText = "3-Round Trial Completed";
-          document.getElementById('modalBody').innerText = "You survived the initial Ashen Syndicate clash! Unlock the complete 54-card physical deck, standalone starter operatives, metallic gold & platinum foil editions, and the full official rules compendium[span_6](start_span)[span_6](end_span).";
+          document.getElementById('modalBody').innerText = "You survived the initial Ashen Syndicate clash! Unlock the complete 54-card physical deck, standalone starter operatives, metallic gold & platinum foil editions, and the full official rules compendium[span_2](start_span)[span_2](end_span).";
           document.getElementById('trial-modal').style.display = 'flex';
           return;
         }
@@ -873,7 +873,7 @@
     }
 
     /* ------------------------------------------------------------- */
-    /* TAB 3: SIDE BRAWLER - 2.5D ARCADE CO-OP ENGINE               */
+    /* TAB 3: SIDE BRAWLER - KINETIC FLUID CO-OP ENGINE              */
     /* ------------------------------------------------------------- */
     let audioCtx = null;
     function initAudio() {
@@ -953,6 +953,11 @@
     let activeLead = "marcus";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
 
+    /* INERTIA & FLUID ANATOMY PHYSICS */
+    let leadLean = 0;
+    let leadLandSquash = 0;
+    let walkCadence = 0;
+
     /* COMPANION AI STATE */
     let aiPartner = {
       x: 35,
@@ -961,7 +966,9 @@
       isGrounded: true,
       attackCooldown: 0,
       desiredDistance: 65,
-      wanderTimer: 0
+      wanderTimer: 0,
+      lean: 0,
+      landSquash: 0
     };
 
     let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
@@ -1123,6 +1130,10 @@
       leadX = Math.max(65, Math.min(330, leadX + dx));
       bgScrollOffset -= (dx * 0.15);
       groundScrollOffset -= (dx * 0.6);
+
+      // Kinetic Inertia Lean & Footstep Cadence
+      leadLean = dx > 0 ? 0.08 : -0.08;
+      walkCadence += 1.4;
     }
 
     function playerJump() {
@@ -1130,6 +1141,7 @@
       initAudio();
       leadVy = -13;
       isGrounded = false;
+      leadLean = 0.04;
       if (activeLead === "xochitl") {
         createBurstParticles(leadX + 25, 230, "#f97316", 16);
         logBrawler("Xochitl spreads blazing Aztec wings!");
@@ -1158,6 +1170,8 @@
       initAudio();
       let target = getClosestTarget(leadX);
       let targetX = target ? target.x : (boss.active ? boss.x : 400);
+
+      leadLean = 0.12; // Dynamic lunge forward
 
       if (activeLead === "marcus") {
         playSound('zap');
@@ -1194,6 +1208,7 @@
     function executePlasmaOrb() {
       if (!gameActive) return;
       initAudio();
+      leadLean = 0.09;
 
       if (activeLead === "marcus") {
         playSound('orb');
@@ -1277,7 +1292,7 @@
       }, 900);
     }
 
-    /* COMPANION AI UPDATE ROUTINE */
+    /* COMPANION AI STATE MACHINE & COMBAT */
     function updateAIPartner() {
       if (!gameActive || xochitlFlight.active) return;
 
@@ -1292,6 +1307,9 @@
 
       if (Math.abs(diffX) > 4) {
         aiPartner.x += diffX * 0.045;
+        aiPartner.lean = diffX > 0 ? 0.05 : -0.05;
+      } else {
+        aiPartner.lean *= 0.85;
       }
 
       if (!aiPartner.isGrounded) {
@@ -1301,6 +1319,7 @@
           aiPartner.y = 0;
           aiPartner.vy = 0;
           aiPartner.isGrounded = true;
+          aiPartner.landSquash = 1.0;
         }
       }
 
@@ -1392,7 +1411,7 @@
       setTimeout(() => {
         gameActive = false;
         document.getElementById("modalTitle").innerText = "CHRONO-LOCK SHATTERED!";
-        document.getElementById("modalBody").innerText = "You cleared the drone swarms and destroyed Chrono-Lock on the RenCen rooftop! Unlock the complete adventure and read the tie-in comic series on Payhip[span_7](start_span)[span_7](end_span).";
+        document.getElementById("modalBody").innerText = "You cleared the drone swarms and destroyed Chrono-Lock on the RenCen rooftop! Unlock the complete adventure and read the tie-in comic series on Payhip[span_3](start_span)[span_3](end_span).";
         document.getElementById("trial-modal").style.display = "flex";
       }, 1600);
     }
@@ -1417,24 +1436,24 @@
       lightningBolts.push({ segments: segments, weight: Math.min(8, 3 + powerBoost * 0.2), life: 10 });
     }
 
-    function drawFieryWings(ctx, x, y, tiltAngle = 0) {
+    function drawFieryWings(ctx, x, y, tiltAngle = 0, wingWave = 0) {
       ctx.save();
       ctx.translate(x + 32, y + 28);
       ctx.rotate(tiltAngle);
       const wingFeathers = [
-        { angle: -0.75, len: 55, w: 12, col: '#f59e0b' },
-        { angle: -0.52, len: 75, w: 16, col: '#ea580c' },
-        { angle: -0.28, len: 65, w: 14, col: '#fbbf24' },
-        { angle: 0.28, len: 65, w: 14, col: '#fbbf24' },
-        { angle: 0.52, len: 75, w: 16, col: '#ea580c' },
-        { angle: 0.75, len: 55, w: 12, col: '#f59e0b' }
+        { angle: -0.75, len: 55 + wingWave * 4, w: 12, col: '#f59e0b' },
+        { angle: -0.52, len: 75 + wingWave * 6, w: 16, col: '#ea580c' },
+        { angle: -0.28, len: 65 + wingWave * 5, w: 14, col: '#fbbf24' },
+        { angle: 0.28, len: 65 + wingWave * 5, w: 14, col: '#fbbf24' },
+        { angle: 0.52, len: 75 + wingWave * 6, w: 16, col: '#ea580c' },
+        { angle: 0.75, len: 55 + wingWave * 4, w: 12, col: '#f59e0b' }
       ];
       ctx.shadowColor = '#ea580c';
       ctx.shadowBlur = 24;
 
       wingFeathers.forEach(f => {
         ctx.save();
-        ctx.rotate(f.angle + (Math.sin(Date.now() / 90) * 0.05));
+        ctx.rotate(f.angle + (Math.sin(Date.now() / 90) * 0.05) + (wingWave * 0.04));
         const grad = ctx.createLinearGradient(0, 0, 0, -f.len);
         grad.addColorStop(0, '#ffffff');
         grad.addColorStop(0.35, f.col);
@@ -1477,7 +1496,6 @@
       const droneBob = Math.sin(Date.now() / 150 + e.x) * 4.5;
       const currentY = e.y + droneBob;
 
-      // Dynamic Altitude Hover Drop Shadow
       const hoverAltitude = Math.max(15, 255 - currentY);
       const shadowScale = Math.max(0.3, 1 - (hoverAltitude / 190));
       drawDropShadow(ctx, e.x + 16, 256, 18 * shadowScale, 5 * shadowScale, 0.45 * shadowScale);
@@ -1485,7 +1503,6 @@
       ctx.save();
       ctx.translate(e.x, currentY);
 
-      // Downwash Thruster Plume
       const thrusterGlow = Math.sin(Date.now() / 60) * 3;
       ctx.fillStyle = "rgba(56, 189, 248, 0.4)";
       ctx.beginPath();
@@ -1495,22 +1512,19 @@
       ctx.closePath();
       ctx.fill();
 
-      // Twin 2.5D Elliptical Rotor Discs (Perspective Pylons)
       const rotorSpan = Math.cos(e.rotorPhase) * 11;
       ctx.strokeStyle = "rgba(226, 232, 240, 0.75)";
       ctx.lineWidth = 1.6;
-      // Left Rotor
       ctx.strokeRect(0, 1, 6, 2);
       ctx.beginPath();
       ctx.ellipse(3, 1, Math.abs(rotorSpan), 2.5, 0.2, 0, Math.PI * 2);
       ctx.stroke();
-      // Right Rotor
+
       ctx.strokeRect(26, 1, 6, 2);
       ctx.beginPath();
       ctx.ellipse(29, 1, Math.abs(rotorSpan), 2.5, -0.2, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Faceted Aerodynamic Gunmetal Fuselage
       const bodyGrad = ctx.createLinearGradient(0, 0, 0, 14);
       bodyGrad.addColorStop(0, "#475569");
       bodyGrad.addColorStop(0.5, "#1e293b");
@@ -1527,7 +1541,6 @@
       ctx.closePath();
       ctx.fill();
 
-      // Specular Top Bevel Edge Highlight
       ctx.strokeStyle = "rgba(226, 232, 240, 0.6)";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -1535,12 +1548,10 @@
       ctx.lineTo(26, 4);
       ctx.stroke();
 
-      // Twin Carbon Pulse Barrels
       ctx.fillStyle = "#020617";
       ctx.fillRect(8, 12, 4, 3);
       ctx.fillRect(20, 12, 4, 3);
 
-      // Glowing Crimson Optic Sensor (Tracks Front)
       ctx.fillStyle = "#ef4444";
       ctx.shadowColor = "#ef4444";
       ctx.shadowBlur = 8;
@@ -1857,6 +1868,7 @@
 
       updateAIPartner();
 
+      // Lead Hero Physics & Jump Landing Cushion
       if (!isGrounded) {
         leadY -= leadVy;
         leadVy += 0.8;
@@ -1864,11 +1876,31 @@
           leadY = 0;
           leadVy = 0;
           isGrounded = true;
+          leadLandSquash = 1.0;
         }
       }
 
-      const breathScale = 1 + Math.sin(Date.now() / 320) * 0.025;
-      const drawLeadY = 175 - leadY;
+      // Smooth decay of kinetic lean & impact squash
+      leadLean *= 0.88;
+      leadLandSquash *= 0.78;
+      aiPartner.landSquash *= 0.78;
+      walkCadence *= 0.84;
+
+      const currentTime = Date.now();
+
+      /* VOLUME-PRESERVING DYNAMIC BREATHING (ASYMMETRIC TIMERS) */
+      // Marcus: 260ms cycle, deep industrial dynamo cadence
+      const marcusBreathY = 1 + Math.sin(currentTime / 260) * 0.045;
+      const marcusBreathX = 1 - Math.sin(currentTime / 260) * 0.024;
+
+      // Xochitl: 290ms cycle with a 1.9 rad phase offset, organic Mesoamerican flame cadence
+      const xochitlBreathY = 1 + Math.sin((currentTime / 290) + 1.9) * 0.048;
+      const xochitlBreathX = 1 - Math.sin((currentTime / 290) + 1.9) * 0.026;
+      const xochitlWingWave = Math.sin(currentTime / 180) * 0.12;
+
+      // Walking cadence floor bob
+      const leadStepBob = Math.sin(walkCadence) * 3;
+      const drawLeadY = (175 - leadY) + leadStepBob;
       const drawAiY = 175 - aiPartner.y;
 
       /* 2.5D DYNAMIC GROUND DROP SHADOWS */
@@ -1888,39 +1920,71 @@
         drawDropShadow(ctx, xochitlFlight.x + 30, 256, 22 * flightShadowScale, 6 * flightShadowScale, 0.45 * flightShadowScale);
       }
 
-      /* 1. AUTONOMOUS AI COMPANION RENDER */
+      /* 1. AUTONOMOUS AI COMPANION RENDER (WITH DYNAMIC DECK ANCHOR) */
       const shouldDrawAI = !(xochitlFlight.active && activeLead === "marcus");
       if (shouldDrawAI) {
         const aiImg = activeLead === "marcus" ? ASSETS.xochitl : ASSETS.marcus;
+        const aiScaleY = (activeLead === "marcus" ? xochitlBreathY : marcusBreathY) - (aiPartner.landSquash * 0.15);
+        const aiScaleX = (activeLead === "marcus" ? xochitlBreathX : marcusBreathX) + (aiPartner.landSquash * 0.18);
+
         ctx.save();
         ctx.globalAlpha = 0.92;
         ctx.shadowColor = activeLead === "marcus" ? "#f97316" : "#38bdf8";
         ctx.shadowBlur = 9;
 
-        if (activeLead === "marcus" && (!aiPartner.isGrounded || daggers.length > 0)) {
-          drawFieryWings(ctx, aiPartner.x, drawAiY);
+        // Anchor rotation and scaling to character feet
+        ctx.translate(aiPartner.x + 29, drawAiY + 76);
+        ctx.rotate(aiPartner.lean);
+        ctx.scale(aiScaleX, aiScaleY);
+
+        if (activeLead === "marcus") {
+          drawFieryWings(ctx, -29, -76, 0, xochitlWingWave);
         }
 
         if (aiImg.complete && aiImg.naturalWidth > 0) {
-          ctx.drawImage(aiImg, aiPartner.x, drawAiY + (76 * (1 - breathScale)), 58, 76 * breathScale);
+          ctx.drawImage(aiImg, -29, -76, 58, 76);
         }
         ctx.restore();
       }
 
-      /* 2. PLAYER-CONTROLLED LEAD HERO RENDER */
+      /* 2. PLAYER-CONTROLLED LEAD HERO RENDER (KINETIC LEAN & BREATHING) */
       const shouldDrawLead = !(xochitlFlight.active && activeLead === "xochitl");
       if (shouldDrawLead) {
-        if (activeLead === "xochitl" && (!isGrounded || daggers.length > 0)) {
-          drawFieryWings(ctx, leadX, drawLeadY);
-        }
-
         const leadImg = activeLead === "marcus" ? ASSETS.marcus : ASSETS.xochitl;
+        const leadScaleY = (activeLead === "marcus" ? marcusBreathY : xochitlBreathY) - (leadLandSquash * 0.16);
+        const leadScaleX = (activeLead === "marcus" ? marcusBreathX : xochitlBreathX) + (leadLandSquash * 0.20);
+
         ctx.save();
         ctx.shadowColor = activeLead === "marcus" ? "#38bdf8" : "#f97316";
         ctx.shadowBlur = 14;
-        if (leadImg.complete && leadImg.naturalWidth > 0) {
-          ctx.drawImage(leadImg, leadX, drawLeadY + (80 * (1 - breathScale)), 65, 80 * breathScale);
+
+        // Ground-anchored transformation matrix
+        ctx.translate(leadX + 32, drawLeadY + 80);
+        ctx.rotate(leadLean);
+        ctx.scale(leadScaleX, leadScaleY);
+
+        if (activeLead === "xochitl") {
+          drawFieryWings(ctx, -32, -80, 0, xochitlWingWave);
         }
+
+        if (leadImg.complete && leadImg.naturalWidth > 0) {
+          ctx.drawImage(leadImg, -32, -80, 65, 80);
+        }
+
+        // Marcus idle voltage spark jitter across knuckles
+        if (activeLead === "marcus" && Math.random() > 0.65) {
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 1.8;
+          ctx.shadowColor = "#38bdf8";
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          const jx = 18 + (Math.random() - 0.5) * 12;
+          const jy = -35 + (Math.random() - 0.5) * 12;
+          ctx.moveTo(jx, jy);
+          ctx.lineTo(jx + (Math.random() - 0.5) * 8, jy + (Math.random() - 0.5) * 8);
+          ctx.stroke();
+        }
+
         ctx.restore();
       }
 
@@ -1963,12 +2027,13 @@
           }
         }
 
-        drawFieryWings(ctx, xochitlFlight.x - 15, xochitlFlight.y - 10, flightAngle * 0.4);
+        drawFieryWings(ctx, xochitlFlight.x - 15, xochitlFlight.y - 10, flightAngle * 0.4, xochitlWingWave);
         if (ASSETS.xochitl.complete && ASSETS.xochitl.naturalWidth > 0) {
           ctx.drawImage(ASSETS.xochitl, xochitlFlight.x, xochitlFlight.y, 60, 75);
         }
       }
 
+      // Marcus Shield Dome
       if (isShieldActive) {
         ctx.save();
         const domeGlow = Math.min(32, 12 + (absorbedCharge * 0.5));
