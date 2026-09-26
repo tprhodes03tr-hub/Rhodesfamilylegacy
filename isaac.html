@@ -1,398 +1,931 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Isaac: Ancestral Brawler | Rhodes Family Legacy</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Isaac Rhodes Adventures: RenCen Rooftop Battle</title>
   <style>
-    :root {
-      --bg-dark: #070d18;
-      --panel-bg: #0f192c;
-      --border-color: #1e2c45;
-      --accent-gold: #e6a122;
-      --accent-blue: #0088ff;
-      --accent-red: #ff3b56;
-      --text-main: #f0f4f8;
-      --text-muted: #8ca0ba;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg-dark); color: var(--text-main); display: flex; justify-content: center; padding: 12px; }
-    .game-container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 10px; }
-
-    .promo-banner {
-      background: var(--accent-gold); color: #000; text-align: center;
-      padding: 10px; font-weight: 800; font-size: 0.85rem; border-radius: 6px;
-      text-transform: uppercase; text-decoration: none; display: block;
+    body {
+      background-color: #070b14;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    .arena-frame {
-      background: var(--panel-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
+    /* Top Promo Banner */
+    .top-banner {
+      width: 100%;
+      background: linear-gradient(90deg, #f59e0b, #d97706);
+      color: #000;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      text-align: center;
       padding: 10px;
+      text-transform: uppercase;
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3);
+    }
+
+    /* Game Container */
+    .game-wrapper {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      gap: 10px;
       position: relative;
     }
 
-    canvas {
-      background: #02060c;
-      border: 1px solid #14223d;
-      border-radius: 6px;
-      display: block;
-      width: 100%;
-      height: 220px;
+    /* Header & HUD */
+    .hud-header {
+      background: #101726;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
+    .hud-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hero-title {
+      font-size: 15px;
+      font-weight: bold;
+      color: #38bdf8;
+    }
+
+    .wave-badge {
+      font-size: 12px;
+      color: #f59e0b;
+      font-weight: 700;
+      background: rgba(245, 158, 11, 0.15);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .bars-container {
+      display: flex;
+      gap: 12px;
+    }
+
+    .bar-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .bar-label {
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 8px;
+      background: #1e293b;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-fill-hero {
+      width: 100%;
+      height: 100%;
+      background: #10b981;
+      transition: width 0.15s ease;
+    }
+
+    .bar-fill-enemy {
+      width: 100%;
+      height: 100%;
+      background: #ef4444;
+      transition: width 0.15s ease;
+    }
+
+    /* Selection Modal / Drawer */
+    .roster-picker {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .roster-picker select {
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid #475569;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    /* Combat Arena Canvas/Stage */
+    .stage-arena {
+      position: relative;
+      width: 100%;
+      height: 250px;
+      background: radial-gradient(circle at top, #1e293b 0%, #090d16 100%);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+    }
+
+    /* Rooftop Skyline Graphics */
+    .skyline-bg {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 170px;
+      background-image: 
+        linear-gradient(to top, rgba(15, 23, 42, 0.95), transparent),
+        repeating-linear-gradient(90deg, #1e293b 0px, #1e293b 28px, #0f172a 28px, #0f172a 56px);
+      opacity: 0.6;
+      border-bottom: 2px solid #38bdf8;
+    }
+
+    .floor-line {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: #334155;
+      box-shadow: 0 0 10px #38bdf8;
+    }
+
+    /* Sprites / Entities */
+    .entity {
+      position: absolute;
+      bottom: 22px;
+      width: 44px;
+      height: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      transition: transform 0.1s ease;
+    }
+
+    .entity-tag {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 3px;
+      position: absolute;
+      top: -14px;
+      white-space: nowrap;
+    }
+
+    #playerSprite {
+      left: 40px;
+    }
+
+    #playerSprite .entity-tag {
+      background: #0284c7;
+      color: #fff;
+    }
+
+    .droid-entity {
+      right: 20px;
+    }
+
+    .droid-entity .entity-tag {
+      background: #dc2626;
+      color: #fff;
+    }
+
+    #bossSprite {
+      right: 30px;
+      font-size: 42px;
+      display: none;
+    }
+
+    #bossSprite .entity-tag {
+      background: #9333ea;
+      color: #fff;
+    }
+
+    /* Visual Effects */
+    .shield-aura {
+      position: absolute;
+      inset: -6px;
+      border: 3px solid #38bdf8;
+      border-radius: 50%;
+      box-shadow: 0 0 15px #38bdf8;
+      animation: pulse 1s infinite alternate;
+      display: none;
+    }
+
+    .tsunami-wave {
+      position: absolute;
+      bottom: 15px;
+      left: 0;
+      width: 60px;
+      height: 70px;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.8), rgba(14, 165, 233, 0.4));
+      border-radius: 0 30px 30px 0;
+      box-shadow: 0 0 20px #38bdf8;
+      display: none;
+    }
+
+    .root-snare {
+      position: absolute;
+      bottom: 18px;
+      font-size: 24px;
+      display: none;
+      filter: drop-shadow(0 0 6px #10b981);
+    }
+
+    .luetta-celestial {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.55) 0%, rgba(245, 158, 11, 0) 75%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 64px;
+      z-index: 10;
+    }
+
+    .chrono-debris {
+      position: absolute;
+      font-size: 24px;
+      pointer-events: none;
+      animation: clockBurst 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    @keyframes clockBurst {
+      0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--vx), calc(var(--vy) + 200px)) rotate(720deg); opacity: 0; }
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.7; }
+      100% { transform: scale(1.1); opacity: 1; }
+    }
+
+    /* Combat Feed */
+    .combat-log {
+      font-family: monospace;
+      font-size: 11px;
+      background: #090e18;
+      border: 1px solid #1e293b;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: #38bdf8;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Controls Grid: Minimalist Arcade Layout */
     .controls-grid {
       display: grid;
-      grid-template-columns: 1fr 1.2fr 1fr;
+      grid-template-columns: 1.1fr 1.3fr;
       gap: 8px;
-      margin-top: 10px;
+    }
+
+    .dpad-cluster, .action-cluster {
+      display: grid;
+      gap: 6px;
+    }
+
+    .dpad-cluster {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .action-cluster {
+      grid-template-columns: 1fr 1fr;
     }
 
     .btn {
-      padding: 12px 6px;
-      border: none;
-      border-radius: 6px;
-      font-weight: 800;
-      font-size: 0.85rem;
-      cursor: pointer;
-      color: #fff;
-      text-transform: uppercase;
-    }
-
-    .btn-move { background: #14223d; border: 1px solid var(--border-color); }
-    .btn-strike { background: var(--accent-red); }
-
-    .hud-box {
-      background: #02060c;
-      border: 1px solid #14223d;
-      border-radius: 6px;
-      padding: 8px;
-      font-family: monospace;
-      font-size: 0.8rem;
-      color: #79c0ff;
-    }
-
-    #payhip-modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(2,6,12,0.95);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-      padding: 16px;
-    }
-
-    .modal-content {
-      background: var(--panel-bg);
-      border: 2px solid var(--accent-gold);
-      border-radius: 12px;
-      padding: 20px;
-      max-width: 400px;
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 14px 4px;
       text-align: center;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      transition: background 0.1s, transform 0.05s;
     }
 
-    .modal-btn {
+    .btn:active {
+      transform: scale(0.96);
+      background: #334155;
+    }
+
+    .btn-action {
+      background: linear-gradient(180deg, #1e293b, #0f172a);
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+
+    .btn-tag {
+      background: linear-gradient(180deg, #7c3aed, #5b21b6);
+      border-color: #a78bfa;
+      color: #fff;
+    }
+
+    .btn-ultimate {
+      grid-column: span 2;
+      background: linear-gradient(180deg, #d97706, #b45309);
+      border-color: #fbbf24;
+      color: #fff;
+      font-size: 12px;
+      padding: 10px 4px;
+    }
+
+    /* Paywall Overlay */
+    .paywall-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(7, 11, 20, 0.96);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 100;
+      text-align: center;
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+    }
+
+    .paywall-box {
+      border: 2px solid #f59e0b;
+      border-radius: 12px;
+      background: #0f172a;
+      padding: 24px;
+      max-width: 400px;
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.3);
+    }
+
+    .paywall-title {
+      font-size: 20px;
+      color: #f59e0b;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .paywall-body {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    .paywall-link {
       display: block;
-      background: var(--accent-gold);
+      background: linear-gradient(90deg, #f59e0b, #d97706);
       color: #000;
       font-weight: 800;
-      padding: 12px;
-      border-radius: 6px;
+      font-size: 13px;
       text-decoration: none;
-      margin-top: 14px;
-      text-transform: uppercase;
+      padding: 12px 18px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
     }
   </style>
 </head>
 <body>
 
-  <div class="game-container">
-    <a href="https://payhip.com" target="_blank" class="promo-banner">
-      ⚡ Collector Bundle: Comic Issues #1 &amp; #2 + Full Deck
-    </a>
+  <div class="top-banner">
+    ⚡ Vanguard Universe: RenCen Skyway Chapter 1 Demo
+  </div>
 
-    <div class="arena-frame">
-      <canvas id="brawlerCanvas" width="460" height="220"></canvas>
-      
-      <div class="controls-grid">
-        <button class="btn btn-move" onclick="moveHero(-25)">◀ Move</button>
-        <button class="btn btn-strike" onclick="attackHero()">⚔ Strike</button>
-        <button class="btn btn-move" onclick="moveHero(25)">Move ▶</button>
+  <div class="game-wrapper">
+
+    <!-- Character / Roster Selector -->
+    <div class="roster-picker">
+      <span style="font-size: 12px; color: #94a3b8; font-weight: bold;">ACTIVE FIGHTER:</span>
+      <select id="heroSelect" onchange="onHeroChange(this.value)">
+        <option value="marcus">Marcus Prime (Energy Conduit)</option>
+        <option value="xochitl">Xochitl (Flame Wings)</option>
+        <option value="water">Water Weaver (Tsunami)</option>
+        <option value="earth">Earth Weaver (Root Snare)</option>
+      </select>
+    </div>
+
+    <!-- HUD -->
+    <div class="hud-header">
+      <div class="hud-top-row">
+        <span id="heroNameLabel" class="hero-title">Marcus Prime</span>
+        <span id="waveDisplay" class="wave-badge">Wave 1: Scout Droids</span>
+      </div>
+      <div class="bars-container">
+        <div class="bar-group">
+          <div class="bar-label">
+            <span>Hero Health</span>
+            <span id="heroHpText">100/100</span>
+          </div>
+          <div class="bar-track">
+            <div id="heroHpBar" class="bar-fill-hero"></div>
+          </div>
+        </div>
+        <div class="bar-group">
+          <div class="bar-label">
+            <span id="enemyTypeLabel">Syndicate Droid</span>
+            <span id="enemyHpText">1/1</span>
+          </div>
+          <div class="bar-track">
+            <div id="enemyHpBar" class="bar-fill-enemy"></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="hud-box" id="system-log">
-      Round 1: Eliminate 3 Syndicate Droids to summon Chrono-Lock!
-    </div>
-  </div>
+    <!-- Battle Stage -->
+    <div class="stage-arena" id="arena">
+      <div class="skyline-bg"></div>
+      <div class="floor-line"></div>
 
-  <div id="payhip-modal">
-    <div class="modal-content">
-      <h2 style="color: var(--accent-gold); margin-bottom: 8px;">TRIAL COMPLETE!</h2>
-      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">
-        You cleared the 3-round trial! Continue the campaign with the official bundle:
-      </p>
-      <p style="font-size: 0.85rem; color: #fff; line-height: 1.5;">
-        Get <strong>Comic Issues #1 &amp; #2</strong>, full boss encounters, and the digital Living Codex collection.
-      </p>
-      <a href="https://payhip.com" target="_blank" class="modal-btn">Unlock Issues #1 &amp; #2 Bundle</a>
+      <!-- Player Entity -->
+      <div id="playerSprite" class="entity">
+        <span class="entity-tag" id="playerTag">MARCUS</span>
+        <div id="shieldFx" class="shield-aura"></div>
+        <span id="playerGraphic">⚡🤖</span>
+      </div>
+
+      <!-- Wave Syndicate Droid -->
+      <div id="droidSprite" class="entity droid-entity">
+        <span class="entity-tag">DROID</span>
+        <span>👾</span>
+      </div>
+
+      <!-- Chrono-Lock Boss Model -->
+      <div id="bossSprite" class="entity">
+        <span class="entity-tag">CHRONO-LOCK</span>
+        <span>🕰️</span>
+      </div>
+
+      <!-- Ability Overlays -->
+      <div id="tsunamiFx" class="tsunami-wave"></div>
+      <div id="rootFx" class="root-snare">🌿</div>
+      <div id="luettaFx" class="luetta-celestial">✨👑✨</div>
+
+      <!-- End of Demo Paywall Overlay -->
+      <div id="paywallModal" class="paywall-overlay">
+        <div class="paywall-box">
+          <div style="font-size: 32px; margin-bottom: 6px;">🔒</div>
+          <div class="paywall-title">CHAPTER 1 COMPLETED</div>
+          <p class="paywall-body">
+            You cleared all three Syndicate droid waves on the Detroit RenCen Rooftop! To confront Chrono-Lock, unlock the full Vanguard roster, and read the tie-in comic issues, visit our storefront.
+          </p>
+          <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="paywall-link">
+            UNLOCK FULL GAME & COMIC ON PAYHIP
+          </a>
+        </div>
+      </div>
     </div>
+
+    <!-- Console Log Display -->
+    <div class="combat-log" id="combatLog">
+      Mission started: Clear 3 Syndicate Scout Droids.
+    </div>
+
+    <!-- Minimalist Controls -->
+    <div class="controls-grid">
+      <!-- Movement -->
+      <div class="dpad-cluster">
+        <button class="btn" onclick="movePlayer(-20)">◄ LEFT</button>
+        <button class="btn" onclick="playerJump()">▲ JUMP</button>
+        <button class="btn" onclick="movePlayer(20)">RIGHT ►</button>
+      </div>
+
+      <!-- Dynamic Context Actions -->
+      <div class="action-cluster">
+        <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">⚡ Beam</button>
+        <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Deflect</button>
+        <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: XOCHITL</button>
+        <button id="btnLuetta" class="btn btn-ultimate" onclick="executeLuettaAid()">★ SUMMON MOTHER LUETTA ★</button>
+      </div>
+    </div>
+
   </div>
 
   <script>
-    const canvas = document.getElementById("brawlerCanvas");
-    const ctx = canvas.getContext("2d");
-
-    // Load Sprites from Repository Root
-    const bgImg = new Image();
-    bgImg.src = "bg-detroit.jpg";
-
-    const heroImg = new Image();
-    heroImg.src = "marcus.png";
-
-    const droidImg = new Image();
-    droidImg.src = "null-byte.png";
-
-    const chronoImg = new Image();
-    chronoImg.src = "chrono-lock.png";
-
-    let currentRound = 1;
-    let waveState = "DROIDS";
-    let droidsLeft = 3;
-
-    // Player Hero
-    const player = {
-      x: 40,
-      y: 110,
-      w: 60,
-      h: 80,
-      speedMod: 1.0
+    /* Roster Data & Superpowers */
+    const ROSTER = {
+      marcus: {
+        name: "Marcus Prime",
+        tag: "MARCUS",
+        icon: "⚡🤖",
+        strikeName: "⚡ Volt Strike",
+        burstName: "🛡️ Deflect Absorb",
+        hasShield: true
+      },
+      xochitl: {
+        name: "Xochitl",
+        tag: "XOCHITL",
+        icon: "🦅🔥",
+        strikeName: "🔥 Magma Punch",
+        burstName: "🪶 Lava Daggers",
+        hasWings: true
+      },
+      water: {
+        name: "Water Weaver",
+        tag: "WATER",
+        icon: "🌊🧙‍♀️",
+        strikeName: "💧 Hydro Burst",
+        burstName: "🌊 Tsunami Surge"
+      },
+      earth: {
+        name: "Earth Weaver",
+        tag: "EARTH",
+        icon: "🌿🧙‍♂️",
+        strikeName: "🪨 Rock Sunder",
+        burstName: "🌿 Root Snare"
+      }
     };
 
-    // Droid Minion
-    let droid = { x: 370, y: 115, w: 50, h: 75, hp: 20 };
-
-    // Chrono-Lock Boss
-    const boss = {
-      name: "Chrono-Lock",
-      x: 350,
-      y: 100,
-      w: 65,
-      h: 90,
-      hp: 100,
-      maxHp: 100,
-      warpTimer: 0,
-      active: false
+    /* Progressive Wave Configuration */
+    const WAVES = {
+      1: { name: "Wave 1: Scout Droids", total: 3, hp: 1, speed: 1.0, power: 5 },
+      2: { name: "Wave 2: Syndicate Squad", total: 5, hp: 2, speed: 1.6, power: 10 },
+      3: { name: "Wave 3: Heavy Vanguard", total: 7, hp: 3, speed: 2.2, power: 15 }
     };
 
-    let clockParticles = [];
+    /* Runtime State Variables */
+    let currentHero = "marcus";
+    let isComicDuo = true;
+    let playerX = 40;
+    let playerY = 0;
+    let playerHp = 100;
+    let isShieldActive = false;
+    let absorbedCharge = 0;
 
-    function moveHero(dir) {
-      player.x += dir * player.speedMod;
-      player.x = Math.max(10, Math.min(canvas.width - player.w - 10, player.x));
-    }
+    let waveNum = 1;
+    let droidsLeftInWave = 3;
+    let droidHp = 1;
+    let droidMaxHp = 1;
+    let droidX = 320;
+    let droidSpeed = 1.0;
+    let droidImmobilized = false;
+    let gameActive = true;
 
-    function attackHero() {
-      if (waveState === "DROIDS") {
-        if (Math.abs(player.x - droid.x) < 70) {
-          droid.hp -= 20;
-          if (droid.hp <= 0) {
-            droidsLeft--;
-            if (droidsLeft > 0) {
-              droid.x = 370;
-              droid.hp = 20 + (currentRound * 10);
-              document.getElementById("system-log").innerText = 
-                `Droid destroyed! ${droidsLeft} droids remain before Boss.`;
-            } else {
-              startBossFight();
-            }
-          }
-        }
-      } else if (waveState === "BOSS") {
-        if (Math.abs(player.x - boss.x) < 80) {
-          boss.hp -= 25;
-          document.getElementById("system-log").innerText = 
-            `Direct Hit on Chrono-Lock! HP: ${Math.max(0, boss.hp)}/${boss.maxHp}`;
-          
-          if (boss.hp <= 0) {
-            waveState = "EXPLODING";
-            explodeChronoLock();
-          }
-        }
-      }
-    }
+    /* Element References */
+    const playerEl = document.getElementById("playerSprite");
+    const droidEl = document.getElementById("droidSprite");
+    const bossEl = document.getElementById("bossSprite");
+    const shieldFx = document.getElementById("shieldFx");
+    const tsunamiFx = document.getElementById("tsunamiFx");
+    const rootFx = document.getElementById("rootFx");
+    const luettaFx = document.getElementById("luettaFx");
+    const paywallModal = document.getElementById("paywallModal");
+    const logEl = document.getElementById("combatLog");
+    const btnTag = document.getElementById("btnTag");
+    const btnStrike = document.getElementById("btnStrike");
+    const btnBurst = document.getElementById("btnBurst");
 
-    function startBossFight() {
-      waveState = "BOSS";
-      boss.active = true;
-      boss.hp = boss.maxHp;
-      document.getElementById("system-log").innerText = 
-        "TEMPORAL DISTORTION: Chrono-Lock has entered the arena!";
-    }
-
-    function updateBoss() {
-      if (waveState !== "BOSS") return;
-      const dist = Math.abs(player.x - boss.x);
-
-      // Proximity Slow
-      if (dist < 110) {
-        player.speedMod = 0.45;
-      } else {
-        player.speedMod = 1.0;
-      }
-
-      // Time Warp Phase Shift
-      boss.warpTimer++;
-      if (boss.warpTimer > 150) {
-        boss.warpTimer = 0;
-        const warpOffset = Math.random() > 0.5 ? -110 : 110;
-        boss.x = Math.max(30, Math.min(canvas.width - boss.w - 30, player.x + warpOffset));
-        document.getElementById("system-log").innerText = 
-          "TIME WARP: Chrono-Lock shifted his timeline position!";
-      }
-    }
-
-    function explodeChronoLock() {
-      boss.active = false;
-      player.speedMod = 1.0;
-      document.getElementById("system-log").innerText = 
-        "CRITICAL HIT! Chrono-Lock shattered into spinning gears and clocks!";
-
-      for (let i = 0; i < 30; i++) {
-        clockParticles.push({
-          x: boss.x + boss.w / 2,
-          y: boss.y + boss.h / 2,
-          vx: (Math.random() - 0.5) * 8,
-          vy: (Math.random() - 0.8) * 8,
-          gravity: 0.25,
-          rot: 0,
-          rotSpeed: (Math.random() - 0.5) * 0.2,
-          radius: Math.random() * 6 + 5,
-          alpha: 1.0
-        });
-      }
-    }
-
-    function updateParticles() {
-      for (let i = clockParticles.length - 1; i >= 0; i--) {
-        let p = clockParticles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += p.gravity;
-        p.rot += p.rotSpeed;
-        p.alpha -= 0.015;
-
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, p.alpha);
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rot);
-        ctx.strokeStyle = "#e6a122";
-        ctx.fillStyle = "#fff8db";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.strokeStyle = "#000";
-        ctx.beginPath();
-        ctx.moveTo(0, 0); ctx.lineTo(0, -p.radius * 0.6);
-        ctx.moveTo(0, 0); ctx.lineTo(p.radius * 0.5, 0);
-        ctx.stroke();
-        ctx.restore();
-
-        if (p.alpha <= 0) clockParticles.splice(i, 1);
-      }
-
-      if (waveState === "EXPLODING" && clockParticles.length === 0) {
-        currentRound++;
-        if (currentRound > 3) {
-          waveState = "GATE";
-          document.getElementById("payhip-modal").style.display = "flex";
-        } else {
-          waveState = "DROIDS";
-          droidsLeft = 3 + currentRound;
-          droid.x = 370;
-          droid.hp = 20 + (currentRound * 10);
-          boss.maxHp += 40;
-          document.getElementById("system-log").innerText = 
-            `Round ${currentRound} Started! Defeat ${droidsLeft} upgraded droids!`;
-        }
-      }
-    }
-
-    function gameLoop() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Render Stage Background or Fallback Floor
-      if (bgImg.complete && bgImg.naturalWidth > 0) {
-        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.fillStyle = "#070d18";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-
-      // Floor line
-      ctx.fillStyle = "rgba(30, 44, 69, 0.8)";
-      ctx.fillRect(0, 190, canvas.width, 30);
-
-      // Render Hero Sprite
-      if (heroImg.complete && heroImg.naturalWidth > 0) {
-        ctx.drawImage(heroImg, player.x, player.y, player.w, player.h);
-      } else {
-        ctx.fillStyle = "#0088ff";
-        ctx.fillRect(player.x, player.y + 30, player.w, player.h - 30);
-      }
-
-      // Render Droid Minion Sprite
-      if (waveState === "DROIDS" && droidsLeft > 0) {
-        if (droidImg.complete && droidImg.naturalWidth > 0) {
-          ctx.drawImage(droidImg, droid.x, droid.y, droid.w, droid.h);
-        } else {
-          ctx.fillStyle = "#a855f7";
-          ctx.fillRect(droid.x, droid.y + 30, droid.w, droid.h - 30);
-        }
-      }
-
-      // Render Chrono-Lock Boss
-      if (waveState === "BOSS" && boss.active) {
-        updateBoss();
-
-        // Temporal Aura ring during slowdown
-        if (player.speedMod < 1.0) {
-          ctx.strokeStyle = "rgba(0, 230, 118, 0.5)";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(boss.x + boss.w / 2, boss.y + boss.h / 2, 90, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-
-        if (chronoImg.complete && chronoImg.naturalWidth > 0) {
-          ctx.drawImage(chronoImg, boss.x, boss.y, boss.w, boss.h);
-        } else {
-          ctx.fillStyle = "#e6a122";
-          ctx.fillRect(boss.x, boss.y + 25, boss.w, boss.h - 25);
-        }
-
-        // Boss Health Bar
-        ctx.fillStyle = "#1e2c45";
-        ctx.fillRect(boss.x - 5, boss.y - 12, 75, 6);
-        ctx.fillStyle = "#ff3b56";
-        ctx.fillRect(boss.x - 5, boss.y - 12, (boss.hp / boss.maxHp) * 75, 6);
-      }
-
-      // Particles
-      if (clockParticles.length > 0) {
-        updateParticles();
-      }
-
+    /* Game Initialization */
+    function init() {
+      applyHeroConfig();
+      startWave(1);
       requestAnimationFrame(gameLoop);
     }
 
-    gameLoop();
+    /* Roster Switch */
+    function onHeroChange(heroKey) {
+      currentHero = heroKey;
+      // Tag swap is only active when playing the classic Issue #1 duo: Marcus & Xochitl
+      isComicDuo = (heroKey === "marcus" || heroKey === "xochitl");
+      applyHeroConfig();
+    }
+
+    function applyHeroConfig() {
+      const hero = ROSTER[currentHero];
+      document.getElementById("heroNameLabel").innerText = hero.name;
+      document.getElementById("playerTag").innerText = hero.tag;
+      document.getElementById("playerGraphic").innerText = hero.icon;
+      btnStrike.innerText = hero.strikeName;
+      btnBurst.innerText = hero.burstName;
+
+      if (isComicDuo) {
+        btnTag.style.display = "flex";
+        btnTag.innerText = currentHero === "marcus" ? "TAG: XOCHITL" : "TAG: MARCUS";
+      } else {
+        btnTag.style.display = "none";
+      }
+    }
+
+    /* Tag Swap Execution */
+    function executeTagSwap() {
+      if (!isComicDuo || !gameActive) return;
+      currentHero = currentHero === "marcus" ? "xochitl" : "marcus";
+      document.getElementById("heroSelect").value = currentHero;
+      applyHeroConfig();
+      log(`Tag Swap! ${ROSTER[currentHero].name} enters the battle!`);
+    }
+
+    /* Movement & Jump */
+    function movePlayer(dx) {
+      if (!gameActive) return;
+      playerX = Math.max(10, Math.min(260, playerX + dx));
+      playerEl.style.left = playerX + "px";
+    }
+
+    function playerJump() {
+      if (!gameActive || playerY > 0) return;
+      playerY = 60;
+      playerEl.style.transform = "translateY(-60px)";
+      if (ROSTER[currentHero].hasWings) {
+        log("Xochitl spreads glowing wings to hover!");
+      }
+      setTimeout(() => {
+        playerY = 0;
+        playerEl.style.transform = "translateY(0px)";
+      }, 450);
+    }
+
+    /* Wave Management */
+    function startWave(num) {
+      waveNum = num;
+      const cfg = WAVES[num];
+      droidsLeftInWave = cfg.total;
+      droidSpeed = cfg.speed;
+      document.getElementById("waveDisplay").innerText = cfg.name;
+      spawnDroid();
+      log(`${cfg.name} begins! ${cfg.total} units inbound.`);
+    }
+
+    function spawnDroid() {
+      droidX = 340;
+      droidHp = WAVES[waveNum].hp;
+      droidMaxHp = droidHp;
+      droidImmobilized = false;
+      droidEl.style.display = "flex";
+      droidEl.style.transform = "scale(1)";
+      updateEnemyHUD("Syndicate Droid", droidHp, droidMaxHp);
+    }
+
+    /* Main Game / Movement Loop */
+    function gameLoop() {
+      if (gameActive) {
+        // Droid continuous advance toward player
+        if (droidEl.style.display !== "none" && !droidImmobilized) {
+          if (droidX > playerX + 45) {
+            droidX -= droidSpeed;
+            droidEl.style.left = droidX + "px";
+          } else {
+            // Droid reached player: trigger attack
+            onDroidReachPlayer();
+          }
+        }
+      }
+      requestAnimationFrame(gameLoop);
+    }
+
+    /* Combat Collision */
+    function onDroidReachPlayer() {
+      const damage = WAVES[waveNum].power;
+      if (isShieldActive) {
+        absorbedCharge += damage;
+        log(`Marcus Deflector absorbed ${damage} damage! Energy stored: ${absorbedCharge}`);
+      } else {
+        playerHp = Math.max(0, playerHp - damage);
+        updateHeroHUD();
+        log(`Syndicate Droid hits hero for ${damage} damage!`);
+        if (playerHp <= 0) {
+          log("Hero down! Restart wave to try again.");
+          playerHp = 100;
+          updateHeroHUD();
+        }
+      }
+      // Droid steps back briefly
+      droidX += 40;
+      droidEl.style.left = droidX + "px";
+    }
+
+    /* Attacks & Special Abilities */
+    function executeStrike() {
+      if (!gameActive) return;
+      
+      // Calculate hit range
+      if (Math.abs(droidX - playerX) < 120 && droidEl.style.display !== "none") {
+        let dmg = 1;
+        // Marcus releases absorbed charge
+        if (currentHero === "marcus" && absorbedCharge > 0) {
+          dmg += Math.floor(absorbedCharge / 5);
+          log(`Volt Beam boosted with absorbed energy! Hits for ${dmg} damage!`);
+          absorbedCharge = 0;
+        } else {
+          log(`${ROSTER[currentHero].name} strikes Syndicate Droid!`);
+        }
+
+        droidHp -= dmg;
+        droidX += 30; // Knockback
+        droidEl.style.left = droidX + "px";
+        updateEnemyHUD("Syndicate Droid", droidHp, droidMaxHp);
+
+        if (droidHp <= 0) {
+          onDroidDefeated();
+        }
+      } else {
+        log("Attack swung, but no enemy in range!");
+      }
+    }
+
+    function executeBurst() {
+      if (!gameActive) return;
+
+      if (currentHero === "marcus") {
+        // Deflector Shield
+        isShieldActive = true;
+        shieldFx.style.display = "block";
+        log("Deflector Shield active! Absorbing incoming energy.");
+        setTimeout(() => {
+          isShieldActive = false;
+          shieldFx.style.display = "none";
+        }, 3000);
+
+      } else if (currentHero === "xochitl") {
+        // Lava Feathers Burst
+        playerJump();
+        log("Xochitl unleashes Lava Feathers downwards!");
+        if (droidEl.style.display !== "none") {
+          droidHp -= 2;
+          droidX += 50;
+          updateEnemyHUD("Syndicate Droid", Math.max(0, droidHp), droidMaxHp);
+          if (droidHp <= 0) onDroidDefeated();
+        }
+
+      } else if (currentHero === "water") {
+        // Tsunami Wave
+        tsunamiFx.style.display = "block";
+        tsunamiFx.style.left = (playerX + 20) + "px";
+        log("Water Weaver summons a Tsunami Surge sweeping the floor!");
+        
+        let waveX = playerX + 20;
+        const waveInterval = setInterval(() => {
+          waveX += 10;
+          tsunamiFx.style.left = waveX + "px";
+          if (waveX >= droidX - 20 && droidEl.style.display !== "none") {
+            droidX = 340; // Swept back to spawn
+            droidEl.style.left = droidX + "px";
+            droidHp -= 1;
+            updateEnemyHUD("Syndicate Droid", Math.max(0, droidHp), droidMaxHp);
+            if (droidHp <= 0) onDroidDefeated();
+          }
+          if (waveX > 400) {
+            clearInterval(waveInterval);
+            tsunamiFx.style.display = "none";
+          }
+        }, 30);
+
+      } else if (currentHero === "earth") {
+        // Root Snare
+        if (droidEl.style.display !== "none") {
+          log("Earth Weaver roots the Syndicate Droid in place!");
+          rootFx.style.display = "block";
+          rootFx.style.left = droidX + "px";
+          droidImmobilized = true;
+
+          setTimeout(() => {
+            droidImmobilized = false;
+            rootFx.style.display = "none";
+          }, 3500);
+        }
+      }
+    }
+
+    /* Mother Luetta Ultimate Summon */
+    function executeLuettaAid() {
+      if (!gameActive) return;
+      luettaFx.style.display = "flex";
+      log("✨ Mother Luetta descends with Celestial Purge & Restoration! ✨");
+
+      // Heal Hero
+      playerHp = 100;
+      updateHeroHUD();
+
+      // Wipe active droid
+      setTimeout(() => {
+        luettaFx.style.display = "none";
+        if (droidEl.style.display !== "none") {
+          droidHp = 0;
+          onDroidDefeated();
+        }
+      }, 1200);
+    }
+
+    /* Defeat & Progression Handling */
+    function onDroidDefeated() {
+      droidEl.style.display = "none";
+      droidsLeftInWave--;
+      log(`Syndicate Droid destroyed! ${droidsLeftInWave} remain in this wave.`);
+
+      if (droidsLeftInWave > 0) {
+        setTimeout(spawnDroid, 1000);
+      } else {
+        // Wave complete
+        if (waveNum < 3) {
+          log(`Wave ${waveNum} cleared! Preparing next squad...`);
+          setTimeout(() => startWave(waveNum + 1), 1600);
+        } else {
+          // Wave 3 beaten: End of demo, show Payhip lock
+          triggerDemoLockout();
+        }
+      }
+    }
+
+    /* Paywall Lockout */
+    function triggerDemoLockout() {
+      gameActive = false;
+      paywallModal.style.display = "flex";
+      log("Demonstration completed. Access full adventure on Payhip.");
+    }
+
+    /* Boss Encounter & Clock Burst (Ready for full version unlock) */
+    function spawnBossChronoLock() {
+      bossEl.style.display = "flex";
+      let bossHp = 100;
+      updateEnemyHUD("Chrono-Lock", bossHp, 100);
+
+      // Boss time shifts
+      const shiftTimer = setInterval(() => {
+        if (!gameActive || bossHp <= 0) {
+          clearInterval(shiftTimer);
+          return;
+        }
+        const shiftBehind = Math.random() > 0.5;
+        const newX = shiftBehind ? Math.max(10, playerX - 60) : playerX + 110;
+        bossEl.style.left = newX + "px";
+        log("Chrono-Lock time-shifted positions!");
+      }, 4000);
+    }
+
+    function defeatBossChronoLock() {
+      bossEl.style.display = "none";
+      const watchIcons = ["⏱️", "🕰️", "⚙️", "⌛", "⌚"];
+      for (let i = 0; i < 20; i++) {
+        const p = document.createElement("div");
+        p.className = "chrono-debris";
+        p.innerText = watchIcons[Math.floor(Math.random() * watchIcons.length)];
+        p.style.left = (playerX + 80) + "px";
+        p.style.bottom = "30px";
+        p.style.setProperty("--vx", `${(Math.random() - 0.5) * 180}px`);
+        p.style.setProperty("--vy", `${-(Math.random() * 120 + 40)}px`);
+        document.getElementById("arena").appendChild(p);
+        setTimeout(() => p.remove(), 1800);
+      }
+      log("Chrono-Lock shattered into watches and clockwork gears!");
+    }
+
+    /* HUD Helpers */
+    function updateHeroHUD() {
+      document.getElementById("heroHpText").innerText = `${playerHp}/100`;
+      document.getElementById("heroHpBar").style.width = `${playerHp}%`;
+    }
+
+    function updateEnemyHUD(name, current, max) {
+      document.getElementById("enemyTypeLabel").innerText = name;
+      document.getElementById("enemyHpText").innerText = `${Math.max(0, current)}/${max}`;
+      document.getElementById("enemyHpBar").style.width = `${(Math.max(0, current) / max) * 100}%`;
+    }
+
+    function log(msg) {
+      logEl.innerText = msg;
+    }
+
+    // Start on load
+    window.onload = init;
   </script>
 </body>
 </html>
