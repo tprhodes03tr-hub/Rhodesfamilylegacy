@@ -121,7 +121,6 @@
       transition: width 0.1s ease;
     }
 
-    /* Hardware Accelerated Canvas */
     .canvas-container {
       position: relative;
       width: 100%;
@@ -139,7 +138,6 @@
       height: 100%;
     }
 
-    /* Combat Log */
     .combat-log {
       font-family: monospace;
       font-size: 11px;
@@ -153,7 +151,6 @@
       align-items: center;
     }
 
-    /* Modern Controller Grid */
     .controls-grid {
       display: grid;
       grid-template-columns: 1fr 1.25fr;
@@ -218,7 +215,6 @@
       box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
     }
 
-    /* Paywall Overlay */
     .paywall-overlay {
       position: absolute;
       inset: 0;
@@ -278,7 +274,6 @@
 
   <div class="game-wrapper">
 
-    <!-- HUD -->
     <div class="hud-header">
       <div class="hud-top-row">
         <span id="heroNameLabel" class="hero-title">Marcus Prime</span>
@@ -306,17 +301,15 @@
       </div>
     </div>
 
-    <!-- Canvas Viewport -->
     <div class="canvas-container">
       <canvas id="gameCanvas" width="540" height="290"></canvas>
 
-      <!-- Paywall Screen -->
       <div id="paywallModal" class="paywall-overlay">
         <div class="paywall-box">
           <div style="font-size: 32px; margin-bottom: 6px;">⏳</div>
           <div class="paywall-title">CHRONO-LOCK SHATTERED!</div>
           <p class="paywall-body">
-            Chrono-Lock collapsed into tumbling clocks across the Detroit rooftop! Unlock the full Vanguard game and read the comic collection on Payhip.
+            Chrono-Lock collapsed into tumbling clocks and gears across the rooftop! Unlock the full Vanguard game and read the comic collection on Payhip.
           </p>
           <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="paywall-link">
             UNLOCK FULL GAME & COMIC ON PAYHIP
@@ -325,12 +318,10 @@
       </div>
     </div>
 
-    <!-- Battle Log -->
     <div class="combat-log" id="combatLog">
       Mission: Clear 2 waves of Syndicate Droids, then defeat Chrono-Lock!
     </div>
 
-    <!-- Controls -->
     <div class="controls-grid">
       <div class="dpad-cluster">
         <button class="btn" onclick="playerMove(-25)">◄ LEFT</button>
@@ -349,7 +340,6 @@
   </div>
 
   <script>
-    /* Audio Engine */
     let audioCtx = null;
 
     function initAudio() {
@@ -373,12 +363,12 @@
 
       if (type === 'zap') {
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(900, now);
-        osc.frequency.exponentialRampToValueAtTime(100, now + 0.18);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+        osc.frequency.setValueAtTime(950, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.22);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
         osc.start(now);
-        osc.stop(now + 0.18);
+        osc.stop(now + 0.22);
       } else if (type === 'hit') {
         osc.type = 'square';
         osc.frequency.setValueAtTime(140, now);
@@ -414,7 +404,6 @@
       }
     }
 
-    /* Canvas Setup & Image Preloader */
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
@@ -434,7 +423,6 @@
     ASSETS.boss.src = "chrono-lock.png";
     ASSETS.luetta.src = "mother-luta.png";
 
-    /* Game State */
     let currentHero = "marcus";
     let playerX = 60;
     let playerY = 0;
@@ -454,13 +442,12 @@
     let gameActive = true;
     let isSpawning = false;
 
-    // Active FX Arrays
     let lightningBolts = [];
     let daggers = [];
     let particles = [];
+    let bullets = [];
     let luettaState = { active: false, timer: 0 };
 
-    /* Progressive Stages */
     const STAGES = {
       1: { name: "Wave 1: Scout Droids", total: 3, hp: 1, speed: 1.2, power: 6 },
       2: { name: "Wave 2: Syndicate Squad", total: 4, hp: 2, speed: 1.7, power: 10 },
@@ -506,12 +493,11 @@
         screenShake = 6;
         const warpBehind = Math.random() > 0.5;
         boss.x = warpBehind ? Math.max(30, playerX - 70) : playerX + 90;
-        createBurstParticles(boss.x + 30, 210, "#10b981", 12);
+        createBurstParticles(boss.x + 30, 210, "#10b981", 14);
         log("Chrono-Lock time-warped positions!");
       }, 3500);
     }
 
-    /* Input Commands */
     function playerMove(dx) {
       if (!gameActive) return;
       initAudio();
@@ -524,8 +510,8 @@
       playerVy = -13;
       isGrounded = false;
       if (currentHero === "xochitl") {
-        createBurstParticles(playerX + 25, 230, "#f97316", 14);
-        log("Xochitl takes flight with golden wings!");
+        createBurstParticles(playerX + 25, 230, "#f97316", 16);
+        log("Xochitl spreads blazing wings and takes flight!");
       }
     }
 
@@ -552,7 +538,8 @@
 
       if (currentHero === "marcus") {
         playSound('zap');
-        generateLightning(playerX + 40, 205 - playerY, targetX + 30, 205);
+        // Branching, heavy lightning scaled by absorbed voltage
+        generateLightning(playerX + 45, 205 - playerY, targetX + 30, 205, absorbedCharge);
       } else {
         playSound('hit');
       }
@@ -561,13 +548,13 @@
         let dmg = 1;
         if (currentHero === "marcus" && absorbedCharge > 0) {
           dmg += Math.floor(absorbedCharge / 5);
-          log(`REVERSAL! Absorbed voltage returned for ${dmg} damage!`);
+          log(`⚡ REVERSAL DISCHARGE! Voltage beam deals ${dmg} heavy damage!`);
           absorbedCharge = 0;
         } else {
           log(`${currentHero === "marcus" ? "Marcus" : "Xochitl"} strikes target!`);
         }
 
-        screenShake = 7;
+        screenShake = 8;
         playSound('hit');
         createBurstParticles(targetX + 30, 210, "#fbbf24", 15);
 
@@ -591,8 +578,8 @@
       if (currentHero === "marcus") {
         isShieldActive = true;
         playSound('shield');
-        log("Marcus deploys Electrical Ground Dome! Absorbing impacts.");
-        setTimeout(() => isShieldActive = false, 3000);
+        log("Marcus deploys Electrical Dome! Absorbing droid projectile kinetic force.");
+        setTimeout(() => isShieldActive = false, 3500);
 
       } else if (currentHero === "xochitl") {
         playerJump();
@@ -616,11 +603,11 @@
       luettaState.active = true;
       luettaState.timer = 100;
       playSound('celestial');
-      screenShake = 12;
+      screenShake = 14;
 
       playerHp = 100;
       updateHeroHUD();
-      log("✨ Mother Luetta ascends in radiant gold, purging the skyway! ✨");
+      log("✨ Mother Luetta ascends in radiant gold, purging the skyway and restoring all! ✨");
 
       setTimeout(() => {
         if (boss.active) {
@@ -661,22 +648,21 @@
     function onBossDefeated() {
       boss.active = false;
       playSound('hit');
-      screenShake = 18;
+      screenShake = 20;
       log("💥 Chrono-Lock has shattered into broken clocks and watches! 💥");
 
-      // Spawn bouncing clock gear debris
       const icons = ["⏱️", "🕰️", "⚙️", "⌛", "⌚"];
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 32; i++) {
         particles.push({
           type: "clock",
           icon: icons[Math.floor(Math.random() * icons.length)],
           x: boss.x + 30,
           y: 200,
-          vx: (Math.random() - 0.5) * 8,
-          vy: -(Math.random() * 8 + 3),
+          vx: (Math.random() - 0.5) * 8.5,
+          vy: -(Math.random() * 8.5 + 3.5),
           rot: 0,
-          vRot: (Math.random() - 0.5) * 0.2,
-          life: 120
+          vRot: (Math.random() - 0.5) * 0.25,
+          life: 130
         });
       }
 
@@ -686,26 +672,77 @@
       }, 1600);
     }
 
-    /* Procedural Lightning Generator */
-    function generateLightning(x1, y1, x2, y2) {
+    /* Branching Procedural Lightning Generator */
+    function generateLightning(x1, y1, x2, y2, powerBoost = 0) {
       let segments = [];
-      let curX = x1, curY = y1;
-      const steps = 9;
+      const steps = 10;
       const dx = (x2 - x1) / steps;
       const dy = (y2 - y1) / steps;
+      let curX = x1, curY = y1;
 
       for (let i = 0; i < steps; i++) {
         let nxtX = curX + dx;
         let nxtY = curY + dy;
         if (i < steps - 1) {
-          nxtX += (Math.random() - 0.5) * 16;
-          nxtY += (Math.random() - 0.5) * 16;
+          nxtX += (Math.random() - 0.5) * (18 + powerBoost * 0.4);
+          nxtY += (Math.random() - 0.5) * (18 + powerBoost * 0.4);
         }
         segments.push({ x1: curX, y1: curY, x2: nxtX, y2: nxtY });
+
+        // Branching sub-bolts for heavier attacks
+        if (powerBoost > 10 && Math.random() > 0.6) {
+          segments.push({
+            x1: curX,
+            y1: curY,
+            x2: curX + (Math.random() - 0.5) * 35,
+            y2: curY + (Math.random() * 30 - 15)
+          });
+        }
+
         curX = nxtX;
         curY = nxtY;
       }
-      lightningBolts.push({ segments: segments, life: 10 });
+      lightningBolts.push({
+        segments: segments,
+        weight: Math.min(8, 3 + powerBoost * 0.2),
+        life: 10
+      });
+    }
+
+    /* Multi-layered Feathered Aztec Flame Wings */
+    function drawFieryWings(ctx, x, y) {
+      ctx.save();
+      ctx.translate(x + 32, y + 28);
+
+      const wingFeathers = [
+        { angle: -0.75, len: 55, w: 12, col: '#f59e0b' },
+        { angle: -0.52, len: 75, w: 16, col: '#ea580c' },
+        { angle: -0.28, len: 65, w: 14, col: '#fbbf24' },
+        { angle: 0.28, len: 65, w: 14, col: '#fbbf24' },
+        { angle: 0.52, len: 75, w: 16, col: '#ea580c' },
+        { angle: 0.75, len: 55, w: 12, col: '#f59e0b' }
+      ];
+
+      ctx.shadowColor = '#ea580c';
+      ctx.shadowBlur = 24;
+
+      wingFeathers.forEach(f => {
+        ctx.save();
+        ctx.rotate(f.angle + (Math.sin(Date.now() / 90) * 0.05));
+
+        const grad = ctx.createLinearGradient(0, 0, 0, -f.len);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.35, f.col);
+        grad.addColorStop(1, 'rgba(234, 88, 12, 0)');
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(0, -f.len / 2, f.w / 2, f.len / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      ctx.restore();
     }
 
     function createBurstParticles(x, y, color, count) {
@@ -723,10 +760,22 @@
       }
     }
 
-    /* Core Render Loop */
+    /* Periodic Droid Blaster Fire */
+    setInterval(() => {
+      if (!gameActive) return;
+      if (droid.active && !boss.active && droid.x > playerX + 70) {
+        bullets.push({ x: droid.x, y: 205, vx: -4 });
+      }
+      if (boss.active && boss.x > playerX + 60) {
+        bullets.push({ x: boss.x, y: 195, vx: -5 });
+      }
+    }, 2200);
+
+    /* Render Pipeline */
     function render() {
-      // Screen Shake Transform
       ctx.save();
+
+      // Screen Shake
       if (screenShake > 0) {
         const shakeX = (Math.random() - 0.5) * screenShake;
         const shakeY = (Math.random() - 0.5) * screenShake;
@@ -743,7 +792,7 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // Ledge Line
+      // Ledge Baseline
       ctx.strokeStyle = "#38bdf8";
       ctx.lineWidth = 3;
       ctx.shadowColor = "#38bdf8";
@@ -754,10 +803,10 @@
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Player Physics & Jump
+      // Player Physics
       if (!isGrounded) {
         playerY -= playerVy;
-        playerVy += 0.8; // Gravity
+        playerVy += 0.8;
         if (playerY <= 0) {
           playerY = 0;
           playerVy = 0;
@@ -765,13 +814,24 @@
         }
       }
 
+      // Subtle Idle Breathing Rhythm
+      const breathScale = 1 + Math.sin(Date.now() / 320) * 0.025;
       const drawPlayerY = 175 - playerY;
 
-      // Draw Hero
-      const heroImg = currentHero === "marcus" ? ASSETS.marcus : ASSETS.xochitl;
-      if (heroImg.complete && heroImg.naturalWidth > 0) {
-        ctx.drawImage(heroImg, playerX, drawPlayerY, 65, 80);
+      // Render Xochitl Wings Behind Body
+      if (currentHero === "xochitl" && (!isGrounded || daggers.length > 0)) {
+        drawFieryWings(ctx, playerX, drawPlayerY);
       }
+
+      // Draw Hero Sprite with Idle Breathing and Ambient Rim Glow
+      const heroImg = currentHero === "marcus" ? ASSETS.marcus : ASSETS.xochitl;
+      ctx.save();
+      ctx.shadowColor = currentHero === "marcus" ? "#38bdf8" : "#f97316";
+      ctx.shadowBlur = 10;
+      if (heroImg.complete && heroImg.naturalWidth > 0) {
+        ctx.drawImage(heroImg, playerX, drawPlayerY + (80 * (1 - breathScale)), 65, 80 * breathScale);
+      }
+      ctx.restore();
 
       // Hero Tag
       ctx.fillStyle = "#0284c7";
@@ -780,22 +840,30 @@
       ctx.font = "bold 9px monospace";
       ctx.fillText(currentHero === "marcus" ? "MARCUS" : "XOCHITL", playerX + 10, drawPlayerY - 5);
 
-      // Marcus Shield Aura
+      // Marcus Dynamic Kinetic Shield Dome
       if (isShieldActive) {
+        ctx.save();
+        const domeGlow = Math.min(32, 12 + (absorbedCharge * 0.5));
+        const domeWidth = Math.min(8, 3 + (absorbedCharge * 0.15));
         ctx.strokeStyle = "#38bdf8";
-        ctx.lineWidth = 4;
+        ctx.lineWidth = domeWidth;
         ctx.shadowColor = "#38bdf8";
-        ctx.shadowBlur = 18;
-        ctx.beginPath();
-        ctx.arc(playerX + 32, drawPlayerY + 40, 48, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-      }
+        ctx.shadowBlur = domeGlow;
 
-      // Xochitl Hover Wings
-      if (currentHero === "xochitl" && !isGrounded) {
-        ctx.font = "32px sans-serif";
-        ctx.fillText("🪽", playerX + 16, drawPlayerY + 20);
+        const pulseArc = Math.sin(Date.now() / 100) * 3;
+        ctx.beginPath();
+        ctx.arc(playerX + 32, drawPlayerY + 40, 48 + pulseArc, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Crackling electric surface arcs when highly charged
+        if (absorbedCharge > 10) {
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(playerX + 32, drawPlayerY + 40, 46 + pulseArc, Math.random(), Math.random() + 1.2);
+          ctx.stroke();
+        }
+        ctx.restore();
       }
 
       // Droid Update & Render
@@ -803,7 +871,7 @@
         if (droid.x > playerX + 45) {
           droid.x -= droid.speed;
         } else {
-          // Attack Hero
+          // Direct hit
           screenShake = 6;
           playSound('hit');
           if (isShieldActive) {
@@ -812,7 +880,7 @@
           } else {
             playerHp = Math.max(0, playerHp - STAGES[stageNum].power);
             updateHeroHUD();
-            log(`Syndicate Droid hits hero! -${STAGES[stageNum].power} HP`);
+            log(`Syndicate Droid strikes hero! -${STAGES[stageNum].power} HP`);
             if (playerHp <= 0) {
               playerHp = 100;
               updateHeroHUD();
@@ -821,11 +889,14 @@
           droid.x += 45;
         }
 
-        // Droid bob step
         const droidBob = Math.sin(Date.now() / 150) * 3;
+        ctx.save();
+        ctx.shadowColor = "#ef4444";
+        ctx.shadowBlur = 8;
         if (ASSETS.droid.complete && ASSETS.droid.naturalWidth > 0) {
           ctx.drawImage(ASSETS.droid, droid.x, 175 + droidBob, 65, 80);
         }
+        ctx.restore();
 
         ctx.fillStyle = "#dc2626";
         ctx.fillRect(droid.x + 8, 161 + droidBob, 50, 12);
@@ -834,7 +905,7 @@
         ctx.fillText("DROID", droid.x + 18, 170 + droidBob);
       }
 
-      // Boss Chrono-Lock Render
+      // Chrono-Lock Render
       if (boss.active) {
         if (Math.abs(boss.x - playerX) < 45) {
           screenShake = 8;
@@ -855,9 +926,13 @@
         }
 
         const bossFloat = Math.sin(Date.now() / 200) * 4;
+        ctx.save();
+        ctx.shadowColor = "#eab308";
+        ctx.shadowBlur = 14;
         if (ASSETS.boss.complete && ASSETS.boss.naturalWidth > 0) {
           ctx.drawImage(ASSETS.boss, boss.x, 165 + bossFloat, 75, 90);
         }
+        ctx.restore();
 
         ctx.fillStyle = "#eab308";
         ctx.fillRect(boss.x + 5, 151 + bossFloat, 65, 12);
@@ -866,13 +941,45 @@
         ctx.fillText("CHRONO-LOCK", boss.x + 8, 160 + bossFloat);
       }
 
+      // Droid Blaster Projectiles
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.x += b.vx;
+
+        ctx.fillStyle = "#ef4444";
+        ctx.shadowColor = "#ef4444";
+        ctx.shadowBlur = 8;
+        ctx.fillRect(b.x, b.y, 10, 4);
+        ctx.shadowBlur = 0;
+
+        // Collision with Marcus Shield or Hero
+        if (Math.abs(b.x - (playerX + 35)) < 25 && Math.abs(b.y - (drawPlayerY + 35)) < 40) {
+          if (isShieldActive) {
+            absorbedCharge += 5;
+            playSound('shield');
+            createBurstParticles(b.x, b.y, "#38bdf8", 8);
+            log(`Shield absorbed blaster plasma! Current Charge: ${absorbedCharge}`);
+          } else {
+            playerHp = Math.max(0, playerHp - 5);
+            updateHeroHUD();
+            playSound('hit');
+            screenShake = 4;
+            createBurstParticles(b.x, b.y, "#ef4444", 8);
+          }
+          bullets.splice(i, 1);
+          continue;
+        }
+
+        if (b.x < 0) bullets.splice(i, 1);
+      }
+
       // Render Procedural Lightning Bolts
       for (let i = lightningBolts.length - 1; i >= 0; i--) {
         const bolt = lightningBolts[i];
         ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 4;
+        ctx.lineWidth = bolt.weight;
         ctx.shadowColor = "#38bdf8";
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 24;
 
         ctx.beginPath();
         bolt.segments.forEach(seg => {
@@ -882,7 +989,7 @@
         ctx.stroke();
 
         ctx.strokeStyle = "#38bdf8";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = Math.max(1, bolt.weight - 2);
         ctx.stroke();
         ctx.shadowBlur = 0;
 
@@ -890,20 +997,40 @@
         if (bolt.life <= 0) lightningBolts.splice(i, 1);
       }
 
-      // Render Daggers
+      // Render Lava Daggers with Ember Particle Trails
       for (let i = daggers.length - 1; i >= 0; i--) {
         const d = daggers[i];
         d.x += d.vx;
         d.y += d.vy;
 
-        ctx.font = "20px sans-serif";
-        ctx.fillText("🗡️", d.x, d.y);
+        particles.push({
+          type: "spark",
+          x: d.x,
+          y: d.y,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          color: Math.random() > 0.5 ? "#f59e0b" : "#ef4444",
+          size: Math.random() * 3 + 2,
+          life: 14
+        });
+
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        ctx.rotate(Math.atan2(d.vy, d.vx));
+        ctx.shadowColor = "#f97316";
+        ctx.shadowBlur = 12;
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(-12, -2, 24, 4);
+        ctx.fillStyle = "#ea580c";
+        ctx.fillRect(-14, -4, 28, 8);
+        ctx.restore();
 
         const targetX = boss.active ? boss.x : droid.x;
-        if (Math.abs(d.x - targetX) < 30 && d.y > 170) {
+        if (Math.abs(d.x - targetX) < 35 && d.y > 170) {
           screenShake = 6;
           playSound('hit');
-          createBurstParticles(d.x, d.y, "#f97316", 10);
+          createBurstParticles(d.x, d.y, "#f97316", 14);
 
           if (boss.active) {
             boss.hp -= 1;
@@ -921,24 +1048,21 @@
         if (d.x > canvas.width || d.y > 260) daggers.splice(i, 1);
       }
 
-      // Mother Luetta Celestial Ascension
+      // Mother Luetta Ascension
       if (luettaState.active) {
         luettaState.timer--;
 
-        // Expanding Aura Rings
         ctx.strokeStyle = "#fbbf24";
         ctx.lineWidth = 3;
         ctx.shadowColor = "#f59e0b";
-        ctx.shadowBlur = 25;
+        ctx.shadowBlur = 28;
         ctx.beginPath();
-        ctx.arc(canvas.width / 2, 80, (100 - luettaState.timer) * 2, 0, Math.PI * 2);
+        ctx.arc(canvas.width / 2, 80, (100 - luettaState.timer) * 2.2, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Healing Light Pillar
         ctx.fillStyle = "rgba(251, 191, 36, 0.45)";
         ctx.fillRect(playerX + 15, 80, 35, 175);
 
-        // Mother Luetta Figure
         if (ASSETS.luetta.complete && ASSETS.luetta.naturalWidth > 0) {
           ctx.drawImage(ASSETS.luetta, (canvas.width / 2) - 40, 25, 80, 95);
         }
@@ -954,10 +1078,10 @@
         p.y += p.vy;
 
         if (p.type === "clock") {
-          p.vy += 0.35; // Gravity
+          p.vy += 0.35;
           if (p.y > 245) {
             p.y = 245;
-            p.vy *= -0.55; // Bounce
+            p.vy *= -0.55;
             p.vx *= 0.8;
           }
           p.rot += p.vRot;
@@ -982,7 +1106,6 @@
       requestAnimationFrame(render);
     }
 
-    /* HUD Helpers */
     function updateHeroHUD() {
       document.getElementById("heroHpText").innerText = `${playerHp}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
@@ -998,7 +1121,6 @@
       document.getElementById("combatLog").innerText = msg;
     }
 
-    // Initialize Game
     window.onload = () => {
       startStage(1);
       requestAnimationFrame(render);
