@@ -827,7 +827,7 @@
         </div>
       </div>
 
-      <div class="canvas-container">
+      <div class="canvas-container" id="canvasContainer">
         <canvas id="gameCanvas" width="540" height="290"></canvas>
         <div class="chapter-banner" id="chapterBanner">
           <h3 id="bannerTitle">CHAPTER 1 COMPLETED</h3>
@@ -919,9 +919,18 @@
     loadSavedProgress();
 
     /* =========================================================================
-       2. TAB NAVIGATION
+       2. TAB NAVIGATION & RESPONSIVE CANVAS SIZING
        ========================================================================= */
     let brawlerInitialized = false;
+
+    function resizeBrawlerCanvas() {
+      if (!canvas) return;
+      const container = document.getElementById("canvasContainer");
+      if (container && container.clientWidth > 0) {
+        canvas.width = 540;
+        canvas.height = 290;
+      }
+    }
 
     function openTab(tabName, btn) {
       document.querySelectorAll('.portal-section').forEach(sec => sec.classList.remove('active'));
@@ -929,8 +938,15 @@
       document.getElementById('tab-' + tabName).classList.add('active');
       btn.classList.add('active');
 
-      if (tabName === 'brawler' && !brawlerInitialized) {
-        initBrawler();
+      if (tabName === 'brawler') {
+        if (!brawlerInitialized) {
+          initBrawler();
+        } else {
+          resizeBrawlerCanvas();
+          if (!animationFrameId) {
+            animationFrameId = requestAnimationFrame(renderBrawler);
+          }
+        }
       }
     }
 
@@ -1132,6 +1148,8 @@
        5. BRAWLER ENGINE VARIABLES & ASSETS
        ========================================================================= */
     let canvas, ctx;
+    let animationFrameId = null;
+
     const ASSETS = {
       bg: new Image(),
       marcus: new Image(),
@@ -1232,6 +1250,8 @@
       canvas = document.getElementById("gameCanvas");
       ctx = canvas.getContext("2d");
 
+      resizeBrawlerCanvas();
+
       ASSETS.bg.src = "bg-detroit.jpg";
       ASSETS.marcus.src = "marcus.png";
       ASSETS.xochitl.src = "xochitl.png";
@@ -1247,7 +1267,10 @@
       if (playerProgress.highestStageUnlocked === 4) launchWave = 8;
 
       startWave(launchWave);
-      requestAnimationFrame(renderBrawler);
+      
+      if (!animationFrameId) {
+        animationFrameId = requestAnimationFrame(renderBrawler);
+      }
 
       setInterval(() => {
         if (!gameActive) return;
@@ -2655,7 +2678,7 @@
       }
 
       ctx.restore();
-      requestAnimationFrame(renderBrawler);
+      animationFrameId = requestAnimationFrame(renderBrawler);
     }
 
     function handlePlayerDefeat() {
@@ -2692,6 +2715,30 @@
     function logBrawler(msg) {
       document.getElementById("combatLog").innerText = msg;
     }
+
+    /* =========================================================================
+       9. LIFECYCLE LISTENERS (IMMEDIATE BOOT & TAB RESUME)
+       ========================================================================= */
+    document.addEventListener("DOMContentLoaded", () => {
+      initBrawler();
+    });
+
+    window.addEventListener("load", () => {
+      resizeBrawlerCanvas();
+    });
+
+    window.addEventListener("resize", () => {
+      resizeBrawlerCanvas();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && brawlerInitialized) {
+        resizeBrawlerCanvas();
+        if (!animationFrameId) {
+          animationFrameId = requestAnimationFrame(renderBrawler);
+        }
+      }
+    });
   </script>
 </body>
 </html>
