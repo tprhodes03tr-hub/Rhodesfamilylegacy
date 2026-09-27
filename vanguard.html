@@ -223,6 +223,7 @@
     .worth-plat { background: #475569; color: #f8fafc; }
     .worth-cosmic { background: #581c87; color: #f3e8ff; }
 
+    /* CARD CLASH */
     .clash-board {
       width: 100%;
       display: flex;
@@ -298,6 +299,7 @@
       border-color: #a855f7;
     }
 
+    /* BRAWLER */
     .brawler-wrapper {
       width: 100%;
       max-width: 540px;
@@ -815,6 +817,19 @@
     </div>
   </section>
 
+  <div class="modal-overlay" id="trial-modal">
+    <div class="modal-content">
+      <div style="font-size: 32px; margin-bottom: 6px;">🌍</div>
+      <h2 id="modalTitle">SAHEL NEXUS PRESERVED!</h2>
+      <p id="modalBody">
+        You destroyed the Ouroboros Drilling Dreadnought and anchored the Living Codex in Timbuktu! Unlock the complete 54-card physical deck, foil operatives, and the complete comic book series on Payhip[span_3](start_span)[span_3](end_span).
+      </p>
+      <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="payhip-btn">
+        UNLOCK COMPLETE SERIES & DECK ON PAYHIP[span_4](start_span)[span_4](end_span)
+      </a>
+    </div>
+  </div>
+
   <script>
     let brawlerInitialized = false;
 
@@ -972,6 +987,14 @@
         gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
         osc.start(now);
         osc.stop(now + 0.45);
+      } else if (type === 'drill') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.linearRampToValueAtTime(320, now + 0.35);
+        gain.gain.setValueAtTime(0.45, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+        osc.start(now);
+        osc.stop(now + 0.35);
       }
     }
 
@@ -1014,7 +1037,7 @@
 
     let currentWave = 1, mobsRemaining = 6, mobsTotal = 6;
     let enemies = [];
-    let boss = { x: 380, hp: 8, maxHp: 8, active: false };
+    let boss = { x: 380, hp: 8, maxHp: 8, active: false, type: "chrono" };
     let screenShake = 0, gameActive = true;
     let bossWarpTimer = null;
 
@@ -1100,13 +1123,16 @@
         logBrawler("Wave 2: Heavy Syndicate Enforcers breaching rooftop!");
       } else if (num === 3) {
         document.getElementById("waveDisplay").innerText = "BOSS: Chrono-Lock Arrival";
-        startBossFight();
+        startBossFight("chrono");
       } else if (num === 4) {
         document.getElementById("waveDisplay").innerText = "Wave 4: Ouroboros Drilling Unit";
         mobsRemaining = 9; mobsTotal = 9;
         boss.active = false;
         spawnEnemyWave("ouroboros");
         logBrawler("Sector 4: Ouroboros mechanized drill units advancing!");
+      } else if (num === 5) {
+        document.getElementById("waveDisplay").innerText = "BOSS: Ouroboros Dreadnought";
+        startBossFight("dreadnought");
       }
       updateHUD();
     }
@@ -1148,58 +1174,95 @@
       }
     }
 
-    function startBossFight() {
+    function startBossFight(bossType) {
       boss.active = true;
+      boss.type = bossType;
       boss.x = 380;
-      boss.hp = 8;
-      boss.maxHp = 8;
+      boss.hp = bossType === "chrono" ? 8 : 12;
+      boss.maxHp = boss.hp;
       enemies = [];
       mobsRemaining = 0;
       updateHUD();
-      logBrawler("⚠️ WARNING: Chrono-Lock has entered the skyway!");
 
       if (bossWarpTimer) clearInterval(bossWarpTimer);
-      bossWarpTimer = setInterval(() => {
-        if (!boss.active || !gameActive) {
-          clearInterval(bossWarpTimer);
-          return;
-        }
-        playSound('warp');
-        screenShake = 7;
-        boss.x = Math.random() > 0.5 ? Math.max(30, leadX - 70) : leadX + 85;
-        createBurstParticles(boss.x + 30, 210, "#10b981", 14);
-        logBrawler("Chrono-Lock time-warped positions!");
-      }, 3500);
+
+      if (bossType === "chrono") {
+        logBrawler("⚠️ WARNING: Chrono-Lock has entered the skyway!");
+        bossWarpTimer = setInterval(() => {
+          if (!boss.active || !gameActive) {
+            clearInterval(bossWarpTimer);
+            return;
+          }
+          playSound('warp');
+          screenShake = 7;
+          boss.x = Math.random() > 0.5 ? Math.max(30, leadX - 70) : leadX + 85;
+          createBurstParticles(boss.x + 30, 210, "#10b981", 14);
+          logBrawler("Chrono-Lock time-warped positions!");
+        }, 3500);
+      } else {
+        logBrawler("⚠️ SECTOR CRISIS: Ouroboros Heavy Drill Dreadnought emerges!");
+        playSound('drill');
+        bossWarpTimer = setInterval(() => {
+          if (!boss.active || !gameActive) {
+            clearInterval(bossWarpTimer);
+            return;
+          }
+          playSound('drill');
+          screenShake = 12;
+          boss.x -= 35;
+          if (boss.x < 180) boss.x = 420;
+          logBrawler("Dreadnought carbide drill surging forward!");
+        }, 4000);
+      }
     }
 
     function onBossDefeated() {
       boss.active = false;
       if (bossWarpTimer) clearInterval(bossWarpTimer);
       playSound('hit');
-      screenShake = 22;
-      logBrawler("💥 Chrono-Lock has shattered! Detroit Grid Secured!");
+      screenShake = 24;
 
-      const icons = ["⏱️", "🕰️", "⚙️", "⌛", "⌚"];
-      for (let i = 0; i < 35; i++) {
-        particles.push({
-          type: "clock",
-          icon: icons[Math.floor(Math.random() * icons.length)],
-          x: boss.x + 30,
-          y: 200,
-          vx: (Math.random() - 0.5) * 8.5,
-          vy: -(Math.random() * 8.5 + 3.5),
-          rot: 0,
-          vRot: (Math.random() - 0.5) * 0.25,
-          life: 130
-        });
-      }
-
-      setTimeout(() => {
-        if (!unlockedRoster.includes("sundiata")) {
-          unlockedRoster.push("sundiata");
+      if (boss.type === "chrono") {
+        logBrawler("💥 Chrono-Lock has shattered into broken clocks and watches! 💥");
+        const icons = ["⏱️", "🕰️", "⚙️", "⌛", "⌚"];
+        for (let i = 0; i < 40; i++) {
+          particles.push({
+            type: "clock",
+            icon: icons[Math.floor(Math.random() * icons.length)],
+            x: boss.x + 30,
+            y: 200,
+            vx: (Math.random() - 0.5) * 9,
+            vy: -(Math.random() * 8.5 + 4),
+            rot: 0,
+            vRot: (Math.random() - 0.5) * 0.3,
+            life: 140
+          });
         }
-        document.getElementById("chapterBanner").style.display = "block";
-      }, 1500);
+
+        setTimeout(() => {
+          if (!unlockedRoster.includes("sundiata")) {
+            unlockedRoster.push("sundiata");
+          }
+          document.getElementById("chapterBanner").style.display = "block";
+        }, 2200);
+      } else {
+        logBrawler("💥 Ouroboros Dreadnought destroyed! The Sahel Nexus is secure!");
+        for (let i = 0; i < 50; i++) {
+          particles.push({
+            type: "spark",
+            x: boss.x + 40,
+            y: 210,
+            vx: (Math.random() - 0.5) * 11,
+            vy: -(Math.random() * 10 + 3),
+            color: "#f59e0b",
+            size: Math.random() * 6 + 2,
+            life: 90
+          });
+        }
+        setTimeout(() => {
+          document.getElementById("trial-modal").style.display = "flex";
+        }, 2000);
+      }
     }
 
     function dismissChapterBanner() {
@@ -1491,10 +1554,8 @@
           logBrawler("Wave 2 Cleared! Chrono-Lock approaching the rooftop!");
           setTimeout(() => startWave(3), 1400);
         } else if (currentWave === 4) {
-          logBrawler("Sahel Excavation Secured! The Living Codex resonates true.");
-          setTimeout(() => {
-            alert("STAGE 2 CLEARED: Niani / Timbuktu Nexus Preserved!");
-          }, 1000);
+          logBrawler("Crawlers eliminated! Heavy drilling vibrations detected...");
+          setTimeout(() => startWave(5), 1400);
         }
       }
     }
@@ -1612,6 +1673,10 @@
       ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(16, 9, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(15.5, 8.5, 1, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
 
@@ -1750,8 +1815,10 @@
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        ctx.strokeStyle = "rgba(148, 163, 184, 0.25)";
-        ctx.lineWidth = 1.2;
+        const weather = STAGE_WEATHER[currentWave] || STAGE_WEATHER[1];
+        ctx.save();
+        ctx.strokeStyle = weather.rain ? "rgba(148, 163, 184, 0.45)" : "rgba(226, 232, 240, 0.20)";
+        ctx.lineWidth = weather.rain ? 1.5 : 1.1;
         windLines.forEach(w => {
           w.x -= w.speed;
           if (w.x + w.len < 0) {
@@ -1763,6 +1830,15 @@
           ctx.lineTo(w.x + w.len, w.y);
           ctx.stroke();
         });
+        ctx.restore();
+
+        ctx.fillStyle = weather.skyTint;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const time = Date.now();
+        const isRed = Math.floor(time / 260) % 2 === 0;
+        ctx.fillStyle = isRed ? "rgba(239, 68, 68, 0.08)" : "rgba(59, 130, 246, 0.08)";
+        ctx.fillRect(0, 220, 540, 35);
 
         drawDetailedHelicopter(ctx);
         drawBystanders(ctx);
@@ -2062,9 +2138,34 @@
 
       // BOSS
       if (boss.active) {
-        drawDropShadow(ctx, boss.x + 36, 256, 28, 8, 0.55);
-        if (ASSETS.boss.complete && ASSETS.boss.naturalWidth > 0) {
-          ctx.drawImage(ASSETS.boss, boss.x, 165, 75, 90);
+        drawDropShadow(ctx, boss.x + 36, 256, 32, 10, 0.6);
+        if (boss.type === "chrono") {
+          if (ASSETS.boss.complete && ASSETS.boss.naturalWidth > 0) {
+            ctx.drawImage(ASSETS.boss, boss.x, 165, 75, 90);
+          }
+        } else {
+          // OUROBOROS DRILL DREADNOUGHT MECH
+          ctx.save();
+          ctx.fillStyle = "#1e293b";
+          ctx.fillRect(boss.x, 160, 85, 70);
+          ctx.fillStyle = "#475569";
+          ctx.fillRect(boss.x + 10, 150, 60, 20);
+
+          // Spinning carbide drill
+          const drillPhase = Math.sin(Date.now() / 60) * 8;
+          ctx.fillStyle = "#d97706";
+          ctx.beginPath();
+          ctx.moveTo(boss.x - 28, 195 + drillPhase);
+          ctx.lineTo(boss.x, 165);
+          ctx.lineTo(boss.x, 225);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = "#ef4444";
+          ctx.shadowColor = "#ef4444";
+          ctx.shadowBlur = 10;
+          ctx.fillRect(boss.x + 25, 172, 35, 6);
+          ctx.restore();
         }
       }
 
@@ -2080,7 +2181,7 @@
         ctx.fill();
         ctx.restore();
 
-        if (boss.active && Math.abs(po.x - boss.x) < 32 && Math.abs(po.y - 200) < 45) {
+        if (boss.active && Math.abs(po.x - boss.x) < 35 && Math.abs(po.y - 200) < 45) {
           boss.hp -= 2;
           playSound('hit');
           updateHUD();
@@ -2181,11 +2282,19 @@
 
       drawCelestialLightCone(ctx);
 
+      // PARTICLES (TIME-WARP CLOCKS AND DRILL SPARKS)
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
         p.y += p.vy;
+
         if (p.type === "clock") {
+          p.vy += 0.35;
+          if (p.y > 245) {
+            p.y = 245;
+            p.vy *= -0.55;
+            p.vx *= 0.8;
+          }
           p.rot += p.vRot;
           ctx.save();
           ctx.translate(p.x, p.y);
@@ -2199,6 +2308,7 @@
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           ctx.fill();
         }
+
         p.life--;
         if (p.life <= 0) particles.splice(i, 1);
       }
@@ -2212,7 +2322,7 @@
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
 
       if (boss.active) {
-        document.getElementById("enemyTypeLabel").innerText = "Chrono-Lock";
+        document.getElementById("enemyTypeLabel").innerText = boss.type === "chrono" ? "Chrono-Lock" : "Ouroboros Dreadnought";
         document.getElementById("enemyHpText").innerText = `${Math.max(0, boss.hp)}/${boss.maxHp}`;
         document.getElementById("enemyHpBar").style.width = `${(Math.max(0, boss.hp) / boss.maxHp) * 100}%`;
       } else {
