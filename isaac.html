@@ -343,7 +343,7 @@
       <div class="chapter-banner" id="chapterBanner">
         <h3 id="bannerTitle">CHAPTER 1 COMPLETED</h3>
         <p id="bannerDesc">Detroit 313 Grid Secured! Transmitting resonance beacon to West Africa. Sundiata Prime has awakened!</p>
-        <button onclick="dismissChapterBanner()">ENTER STAGE 2: SAHEL</button>
+        <button id="bannerBtn" onclick="dismissChapterBanner()">ENTER STAGE 2: SAHEL</button>
       </div>
     </div>
 
@@ -370,13 +370,13 @@
 
   <div class="modal-overlay" id="trial-modal">
     <div class="modal-content">
-      <div style="font-size: 32px; margin-bottom: 6px;">🌍</div>
-      <h2 id="modalTitle">SAHEL NEXUS PRESERVED!</h2>
+      <div style="font-size: 32px; margin-bottom: 6px;">✨</div>
+      <h2 id="modalTitle">KUMASI FORGE SECURED!</h2>
       <p id="modalBody">
-        You destroyed the Ouroboros Drilling Dreadnought and anchored the Living Codex in Timbuktu! Unlock the complete 54-card physical deck, foil operatives, and the complete comic book series on Payhip[span_1](start_span)[span_1](end_span).
+        You crushed Baron Krieg's Ironclad legion! The Ashanti ancestral forge burns bright, anchoring the Living Codex. Unlock the complete 54-card deck, foil operatives, and all 5 graphic novel issues on Payhip[span_2](start_span)[span_2](end_span)!
       </p>
       <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="payhip-btn">
-        UNLOCK COMPLETE SERIES & DECK ON PAYHIP[span_2](start_span)[span_2](end_span)
+        UNLOCK COMPLETE SERIES & DECK ON PAYHIP[span_3](start_span)[span_3](end_span)[span_4](start_span)[span_4](end_span)
       </a>
     </div>
   </div>
@@ -461,6 +461,14 @@
         gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
         osc.start(now);
         osc.stop(now + 0.35);
+      } else if (type === 'anvil') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.exponentialRampToValueAtTime(240, now + 0.4);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
       }
     }
 
@@ -470,7 +478,9 @@
       marcus: new Image(),
       xochitl: new Image(),
       sundiata: new Image(),
+      kofi: new Image(),
       boss: new Image(),
+      ironclad: new Image(),
       luetta: new Image()
     };
 
@@ -507,7 +517,7 @@
     let bossWarpTimer = null;
 
     let lightningBolts = [], daggers = [], particles = [], enemyBullets = [], plasmaOrbs = [];
-    let celestialParticles = [], sahelDust = [];
+    let celestialParticles = [], sahelDust = [], forgeEmbers = [];
     let luettaState = { active: false, timer: 0 };
 
     const bystanders = [
@@ -542,6 +552,17 @@
       });
     }
 
+    for (let i = 0; i < 35; i++) {
+      forgeEmbers.push({
+        x: Math.random() * 540,
+        y: Math.random() * 260,
+        radius: Math.random() * 2.2 + 0.8,
+        speedX: (Math.random() - 0.5) * 1.5,
+        speedY: -(Math.random() * 2.2 + 1.0),
+        alpha: Math.random() * 0.8 + 0.2
+      });
+    }
+
     let chopper = { x: -120, y: 42, speed: 1.4, rotorAngle: 0, spotSweep: 0 };
 
     function initBrawler() {
@@ -552,7 +573,9 @@
       ASSETS.marcus.src = "marcus.png";
       ASSETS.xochitl.src = "xochitl.png";
       ASSETS.sundiata.src = "sundiata-prime.png";
+      ASSETS.kofi.src = "kofi.png";
       ASSETS.boss.src = "chrono-lock.png";
+      ASSETS.ironclad.src = "ironclad.png";
       ASSETS.luetta.src = "mother-luta.png";
 
       startWave(1);
@@ -597,6 +620,15 @@
       } else if (num === 5) {
         document.getElementById("waveDisplay").innerText = "BOSS: Ouroboros Dreadnought";
         startBossFight("dreadnought");
+      } else if (num === 6) {
+        document.getElementById("waveDisplay").innerText = "Wave 6: Forge Breakers";
+        mobsRemaining = 10; mobsTotal = 10;
+        boss.active = false;
+        spawnEnemyWave("forge");
+        logBrawler("Sector 6: Baron Krieg's vanguard breaching the Kumasi kilns!");
+      } else if (num === 7) {
+        document.getElementById("waveDisplay").innerText = "BOSS: Baron Krieg / Ironclad";
+        startBossFight("ironclad");
       }
       updateHUD();
     }
@@ -618,6 +650,11 @@
           hp = type === "crawler" ? 4 : 2;
           spawnY = type === "crawler" ? 212 : 202;
           speed = type === "crawler" ? 0.75 : 1.1;
+        } else if (profile === "forge") {
+          type = (i % 2 === 0) ? "enforcer" : "crawler";
+          hp = type === "enforcer" ? 4 : 3;
+          spawnY = type === "enforcer" ? 202 : 212;
+          speed = 0.95;
         } else {
           type = (i % 3 === 0) ? "drone" : (i % 3 === 1 ? "spider" : "enforcer");
           hp = type === "enforcer" ? 2 : 1;
@@ -642,7 +679,7 @@
       boss.active = true;
       boss.type = bossType;
       boss.x = 380;
-      boss.hp = bossType === "chrono" ? 8 : 12;
+      boss.hp = bossType === "chrono" ? 8 : (bossType === "dreadnought" ? 12 : 16);
       boss.maxHp = boss.hp;
       enemies = [];
       mobsRemaining = 0;
@@ -663,7 +700,7 @@
           createBurstParticles(boss.x + 30, 210, "#10b981", 14);
           logBrawler("Chrono-Lock time-warped positions!");
         }, 3500);
-      } else {
+      } else if (bossType === "dreadnought") {
         logBrawler("⚠️ SECTOR CRISIS: Ouroboros Heavy Drill Dreadnought emerges!");
         playSound('drill');
         bossWarpTimer = setInterval(() => {
@@ -677,6 +714,20 @@
           if (boss.x < 180) boss.x = 420;
           logBrawler("Dreadnought carbide drill surging forward!");
         }, 4000);
+      } else if (bossType === "ironclad") {
+        logBrawler("⚠️ SECTOR CRISIS: Baron Krieg / Ironclad enters the Forge!");
+        playSound('anvil');
+        bossWarpTimer = setInterval(() => {
+          if (!boss.active || !gameActive) {
+            clearInterval(bossWarpTimer);
+            return;
+          }
+          playSound('hit');
+          screenShake = 14;
+          boss.x = Math.max(70, leadX + 40);
+          createBurstParticles(boss.x + 25, 210, "#d97706", 18);
+          logBrawler("Ironclad executes Heavy Rotary Ground Slam!");
+        }, 3600);
       }
     }
 
@@ -707,10 +758,13 @@
           if (!unlockedRoster.includes("sundiata")) {
             unlockedRoster.push("sundiata");
           }
+          document.getElementById("bannerTitle").innerText = "CHAPTER 1 COMPLETED";
+          document.getElementById("bannerDesc").innerText = "Detroit 313 Grid Secured! Transmitting resonance beacon to West Africa. Sundiata Prime has awakened!";
+          document.getElementById("bannerBtn").innerText = "ENTER STAGE 2: SAHEL";
           document.getElementById("chapterBanner").style.display = "block";
         }, 2200);
-      } else {
-        logBrawler("💥 Ouroboros Dreadnought destroyed! The Sahel Nexus is secure!");
+      } else if (boss.type === "dreadnought") {
+        logBrawler("💥 Ouroboros Dreadnought destroyed! Transit to Kumasi Forge authorized!");
         for (let i = 0; i < 50; i++) {
           particles.push({
             type: "spark",
@@ -724,6 +778,29 @@
           });
         }
         setTimeout(() => {
+          if (!unlockedRoster.includes("kofi")) {
+            unlockedRoster.push("kofi");
+          }
+          document.getElementById("bannerTitle").innerText = "CHAPTER 2 COMPLETED";
+          document.getElementById("bannerDesc").innerText = "Sahel Nexus Preserved! Reaching Ashanti borders. Kofi Osei (The Gold-Smith) has joined the Vanguard!";
+          document.getElementById("bannerBtn").innerText = "ENTER STAGE 3: KUMASI FORGE";
+          document.getElementById("chapterBanner").style.display = "block";
+        }, 2000);
+      } else {
+        logBrawler("💥 Baron Krieg defeated! The Ashanti Ancestral Forge is secured!");
+        for (let i = 0; i < 60; i++) {
+          particles.push({
+            type: "spark",
+            x: boss.x + 35,
+            y: 200,
+            vx: (Math.random() - 0.5) * 12,
+            vy: -(Math.random() * 11 + 4),
+            color: "#fbbf24",
+            size: Math.random() * 6 + 3,
+            life: 110
+          });
+        }
+        setTimeout(() => {
           document.getElementById("trial-modal").style.display = "flex";
         }, 2000);
       }
@@ -731,12 +808,21 @@
 
     function dismissChapterBanner() {
       document.getElementById("chapterBanner").style.display = "none";
-      activeZone = "sahel";
-      activeLead = "sundiata";
-      rosterIdx = unlockedRoster.indexOf("sundiata");
-      updateControlsUI();
-      startWave(4);
-      logBrawler("TRANSIT COMPLETE: Sector 4 Niani/Timbuktu. Sundiata Prime ready!");
+      if (currentWave === 3) {
+        activeZone = "sahel";
+        activeLead = "sundiata";
+        rosterIdx = unlockedRoster.indexOf("sundiata");
+        updateControlsUI();
+        startWave(4);
+        logBrawler("TRANSIT COMPLETE: Sector 4 Niani/Timbuktu. Sundiata Prime ready!");
+      } else if (currentWave === 5) {
+        activeZone = "kumasi";
+        activeLead = "kofi";
+        rosterIdx = unlockedRoster.indexOf("kofi");
+        updateControlsUI();
+        startWave(6);
+        logBrawler("TRANSIT COMPLETE: Sector 6 Kumasi Forge. Kofi Osei the Gold-Smith is ready!");
+      }
     }
 
     function playerMove(dx) {
@@ -757,6 +843,8 @@
       leadLean = 0.04;
       if (activeLead === "xochitl") {
         createBurstParticles(leadX + 25, 230, "#f97316", 16);
+      } else if (activeLead === "kofi") {
+        createBurstParticles(leadX + 25, 230, "#fbbf24", 16);
       }
     }
 
@@ -773,7 +861,13 @@
 
       playSound('shield');
       screenShake = 5;
-      createBurstParticles(leadX + 25, 210, activeLead === "marcus" ? "#38bdf8" : (activeLead === "xochitl" ? "#f97316" : "#f59e0b"), 18);
+      const glowMap = {
+        marcus: "#38bdf8",
+        xochitl: "#f97316",
+        sundiata: "#f59e0b",
+        kofi: "#eab308"
+      };
+      createBurstParticles(leadX + 25, 210, glowMap[activeLead] || "#f59e0b", 18);
       updateControlsUI();
       logBrawler(`Tag Swap! Active Lead: ${activeLead.toUpperCase()}`);
     }
@@ -788,7 +882,8 @@
       const nameMap = {
         marcus: "Marcus Prime",
         xochitl: "Xochitl",
-        sundiata: "Sundiata Prime"
+        sundiata: "Sundiata Prime",
+        kofi: "Kofi Osei (Gold-Smith)"
       };
 
       document.getElementById("heroNameLabel").innerText = `${nameMap[activeLead]} (Lead) & ${nameMap[partner]} (AI)`;
@@ -805,6 +900,10 @@
         document.getElementById("btnStrike").innerText = "🔨 Drum Tremor";
         document.getElementById("btnOrb").innerText = "🦁 Bronze Pulse";
         document.getElementById("btnBurst").innerText = "🛡️ Lion Bastion";
+      } else if (activeLead === "kofi") {
+        document.getElementById("btnStrike").innerText = "🔨 Anvil Sledge";
+        document.getElementById("btnOrb").innerText = "✨ Molten Shards";
+        document.getElementById("btnBurst").innerText = "🛡️ Crucible Bastion";
       }
 
       let nextHero = unlockedRoster[(rosterIdx + 1) % unlockedRoster.length];
@@ -830,10 +929,14 @@
         sundiataShockwave.active = true;
         sundiataShockwave.x = leadX + 35;
         sundiataShockwave.radius = 10;
+      } else if (activeLead === "kofi") {
+        playSound('anvil');
+        screenShake = 12;
+        createBurstParticles(targetX, 205, "#fbbf24", 16);
       }
 
       if (boss.active && Math.abs(boss.x - leadX) < 260) {
-        let dmg = (activeLead === "sundiata") ? 2 : 1;
+        let dmg = (activeLead === "sundiata" || activeLead === "kofi") ? 2 : 1;
         boss.hp -= dmg;
         screenShake = 8;
         playSound('hit');
@@ -841,7 +944,7 @@
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
       } else if (target && Math.abs(target.x - leadX) < 220) {
-        let dmg = (activeLead === "sundiata") ? 2 : 1;
+        let dmg = (activeLead === "sundiata" || activeLead === "kofi") ? 2 : 1;
         if (activeLead === "marcus" && absorbedCharge > 0) {
           dmg += Math.floor(absorbedCharge / 5);
           absorbedCharge = 0;
@@ -870,6 +973,10 @@
         playSound('drum');
         plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 5.5, radius: 16, life: 90, color: "#f59e0b" });
         logBrawler("Sundiata releases a heavy Bronze Resonance Pulse!");
+      } else if (activeLead === "kofi") {
+        playSound('anvil');
+        plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 6.8, radius: 14, life: 85, color: "#fbbf24" });
+        logBrawler("Kofi hurls molten gold shards that solidify on impact!");
       }
     }
 
@@ -877,10 +984,12 @@
       if (!gameActive) return;
       initAudio();
 
-      if (activeLead === "marcus" || activeLead === "sundiata") {
+      if (activeLead === "marcus" || activeLead === "sundiata" || activeLead === "kofi") {
         isShieldActive = true;
         playSound('shield');
-        logBrawler(activeLead === "marcus" ? "Marcus Electrical Dome online!" : "Sundiata projects Solar Lion Bastion!");
+        if (activeLead === "marcus") logBrawler("Marcus Electrical Dome online!");
+        else if (activeLead === "sundiata") logBrawler("Sundiata projects Solar Lion Bastion!");
+        else logBrawler("Kofi raises the Thermal Crucible Bastion!");
         setTimeout(() => isShieldActive = false, 3500);
       } else if (activeLead === "xochitl") {
         playSound('celestial');
@@ -977,13 +1086,19 @@
             closestMob.hp -= 1;
             if (closestMob.hp <= 0 && closestMob !== boss) onEnemyDestroyed(closestMob);
             logBrawler("Co-Op: Marcus provides cover voltage!");
-          } else {
+          } else if (partnerRole === "sundiata") {
             playSound('drum');
             closestMob.hp -= 1;
             closestMob.x += 35;
             createBurstParticles(closestMob.x, closestMob.y || 205, "#f59e0b", 10);
             if (closestMob.hp <= 0 && closestMob !== boss) onEnemyDestroyed(closestMob);
             logBrawler("Co-Op: Sundiata anchors the frontline!");
+          } else if (partnerRole === "kofi") {
+            playSound('anvil');
+            closestMob.hp -= 2;
+            createBurstParticles(closestMob.x, closestMob.y || 205, "#fbbf24", 12);
+            if (closestMob.hp <= 0 && closestMob !== boss) onEnemyDestroyed(closestMob);
+            logBrawler("Co-Op: Kofi reinforces the anvil perimeter!");
           }
         }
       }
@@ -1020,6 +1135,9 @@
         } else if (currentWave === 4) {
           logBrawler("Crawlers eliminated! Heavy drilling vibrations detected...");
           setTimeout(() => startWave(5), 1400);
+        } else if (currentWave === 6) {
+          logBrawler("Forge Breakers repelled! Baron Krieg / Ironclad approaches!");
+          setTimeout(() => startWave(7), 1400);
         }
       }
     }
@@ -1294,10 +1412,19 @@
           ctx.lineTo(w.x + w.len, w.y);
           ctx.stroke();
         });
+        ctx.restore();
+
+        ctx.fillStyle = weather.skyTint;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const time = Date.now();
+        const isRed = Math.floor(time / 260) % 2 === 0;
+        ctx.fillStyle = isRed ? "rgba(239, 68, 68, 0.08)" : "rgba(59, 130, 246, 0.08)";
+        ctx.fillRect(0, 220, 540, 35);
 
         drawDetailedHelicopter(ctx);
         drawBystanders(ctx);
-      } else {
+      } else if (activeZone === "sahel") {
         const sahelSky = ctx.createLinearGradient(0, 0, 0, 255);
         sahelSky.addColorStop(0, "#451a03");
         sahelSky.addColorStop(0.5, "#78350f");
@@ -1326,6 +1453,47 @@
           ctx.fill();
         });
         ctx.restore();
+      } else {
+        // KUMASI ARTISAN FORGE ENVIRONMENT
+        const forgeSky = ctx.createLinearGradient(0, 0, 0, 255);
+        forgeSky.addColorStop(0, "#1f0902");
+        forgeSky.addColorStop(0.4, "#451203");
+        forgeSky.addColorStop(0.8, "#7c2d12");
+        forgeSky.addColorStop(1, "#b45309");
+        ctx.fillStyle = forgeSky;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Ancient Earthen Kilns & Forge Silhouette
+        ctx.fillStyle = "#290d05";
+        ctx.beginPath();
+        ctx.moveTo(0, 170);
+        ctx.lineTo(80, 140);
+        ctx.lineTo(130, 180);
+        ctx.lineTo(260, 130);
+        ctx.lineTo(390, 190);
+        ctx.lineTo(540, 145);
+        ctx.lineTo(540, 255);
+        ctx.lineTo(0, 255);
+        ctx.closePath();
+        ctx.fill();
+
+        // Rising Gold Forge Embers
+        ctx.save();
+        forgeEmbers.forEach(em => {
+          em.x += em.speedX;
+          em.y += em.speedY;
+          if (em.y < 20) {
+            em.y = 250;
+            em.x = Math.random() * 540;
+          }
+          ctx.fillStyle = `rgba(251, 191, 36, ${em.alpha})`;
+          ctx.shadowColor = "#f59e0b";
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(em.x, em.y, em.radius, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
       }
 
       ctx.save();
@@ -1333,14 +1501,18 @@
       if (activeZone === "detroit") {
         deckGrad.addColorStop(0, "#0b1220");
         deckGrad.addColorStop(1, "#030712");
-      } else {
+      } else if (activeZone === "sahel") {
         deckGrad.addColorStop(0, "#451a03");
         deckGrad.addColorStop(1, "#1c0a00");
+      } else {
+        deckGrad.addColorStop(0, "#290d05");
+        deckGrad.addColorStop(1, "#0f0401");
       }
       ctx.fillStyle = deckGrad;
       ctx.fillRect(0, 255, canvas.width, canvas.height - 255);
 
-      ctx.strokeStyle = activeZone === "detroit" ? "#38bdf8" : "#f59e0b";
+      const railColor = activeZone === "detroit" ? "#38bdf8" : (activeZone === "sahel" ? "#f59e0b" : "#fbbf24");
+      ctx.strokeStyle = railColor;
       ctx.lineWidth = 3;
       ctx.shadowColor = ctx.strokeStyle;
       ctx.shadowBlur = 12;
@@ -1533,7 +1705,7 @@
       // ACTIVE SHIELD
       if (isShieldActive) {
         ctx.save();
-        ctx.strokeStyle = activeLead === "marcus" ? "#38bdf8" : "#f59e0b";
+        ctx.strokeStyle = activeLead === "marcus" ? "#38bdf8" : (activeLead === "kofi" ? "#fbbf24" : "#f59e0b");
         ctx.lineWidth = 5;
         ctx.shadowColor = ctx.strokeStyle;
         ctx.shadowBlur = 18;
@@ -1568,7 +1740,7 @@
         if (e.type === "crawler") {
           ctx.fillStyle = "#1e293b";
           ctx.fillRect(e.x, e.y, 36, 18);
-          ctx.fillStyle = "#d97706";
+          ctx.fillStyle = activeZone === "kumasi" ? "#fbbf24" : "#d97706";
           ctx.beginPath();
           ctx.moveTo(e.x - 8, e.y + 9);
           ctx.lineTo(e.x, e.y);
@@ -1592,22 +1764,20 @@
         ctx.restore();
       });
 
-      // BOSS
+      // BOSS RENDER
       if (boss.active) {
         drawDropShadow(ctx, boss.x + 36, 256, 32, 10, 0.6);
         if (boss.type === "chrono") {
           if (ASSETS.boss.complete && ASSETS.boss.naturalWidth > 0) {
             ctx.drawImage(ASSETS.boss, boss.x, 165, 75, 90);
           }
-        } else {
-          // OUROBOROS DRILL DREADNOUGHT MECH
+        } else if (boss.type === "dreadnought") {
           ctx.save();
           ctx.fillStyle = "#1e293b";
           ctx.fillRect(boss.x, 160, 85, 70);
           ctx.fillStyle = "#475569";
           ctx.fillRect(boss.x + 10, 150, 60, 20);
 
-          // Spinning carbide drill
           const drillPhase = Math.sin(Date.now() / 60) * 8;
           ctx.fillStyle = "#d97706";
           ctx.beginPath();
@@ -1622,10 +1792,23 @@
           ctx.shadowBlur = 10;
           ctx.fillRect(boss.x + 25, 172, 35, 6);
           ctx.restore();
+        } else if (boss.type === "ironclad") {
+          if (ASSETS.ironclad.complete && ASSETS.ironclad.naturalWidth > 0) {
+            ctx.drawImage(ASSETS.ironclad, boss.x, 155, 85, 100);
+          } else {
+            ctx.save();
+            ctx.fillStyle = "#334155";
+            ctx.fillRect(boss.x, 160, 80, 80);
+            ctx.fillStyle = "#e2e8f0";
+            ctx.fillRect(boss.x + 15, 170, 50, 25);
+            ctx.fillStyle = "#ef4444";
+            ctx.fillRect(boss.x + 30, 175, 20, 6);
+            ctx.restore();
+          }
         }
       }
 
-      // PROJECTILES: ORBS
+      // PROJECTILES: ORBS & MOLTEN SHARDS
       for (let i = plasmaOrbs.length - 1; i >= 0; i--) {
         const po = plasmaOrbs[i];
         po.x += po.vx;
@@ -1641,7 +1824,7 @@
           boss.hp -= 2;
           playSound('hit');
           updateHUD();
-          createBurstParticles(po.x, po.y, "#38bdf8", 16);
+          createBurstParticles(po.x, po.y, po.color || "#38bdf8", 16);
           if (boss.hp <= 0) onBossDefeated();
           plasmaOrbs.splice(i, 1);
           continue;
@@ -1778,11 +1961,19 @@
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
 
       if (boss.active) {
-        document.getElementById("enemyTypeLabel").innerText = boss.type === "chrono" ? "Chrono-Lock" : "Ouroboros Dreadnought";
+        let bossName = "Chrono-Lock";
+        if (boss.type === "dreadnought") bossName = "Ouroboros Dreadnought";
+        else if (boss.type === "ironclad") bossName = "Baron Krieg / Ironclad";
+
+        document.getElementById("enemyTypeLabel").innerText = bossName;
         document.getElementById("enemyHpText").innerText = `${Math.max(0, boss.hp)}/${boss.maxHp}`;
         document.getElementById("enemyHpBar").style.width = `${(Math.max(0, boss.hp) / boss.maxHp) * 100}%`;
       } else {
-        document.getElementById("enemyTypeLabel").innerText = activeZone === "detroit" ? "Syndicate Swarm" : "Ouroboros Drills";
+        let mobLabel = "Syndicate Swarm";
+        if (activeZone === "sahel") mobLabel = "Ouroboros Drills";
+        else if (activeZone === "kumasi") mobLabel = "Forge Breakers";
+
+        document.getElementById("enemyTypeLabel").innerText = mobLabel;
         document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units Remaining`;
         document.getElementById("enemyHpBar").style.width = `${(mobsRemaining / mobsTotal) * 100}%`;
       }
