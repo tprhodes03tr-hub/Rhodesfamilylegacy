@@ -1050,7 +1050,7 @@
     let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
     let bgScrollOffset = 0, groundScrollOffset = 0;
 
-    let xochitlFlight = { active: false, step: 0, x: 0, y: 0, targetX: 0, targetY: 0, targetEntity: null };
+    let xochitlFlight = { active: false, step: 0, x: 0, y: 0, targetX: 0, targetY: 0 };
     let sundiataShockwave = { active: false, x: 0, radius: 0, maxRadius: 180 };
 
     let currentWave = 1, mobsRemaining = 6, mobsTotal = 6;
@@ -1566,6 +1566,7 @@
       }
     }
 
+    // RESTORED 3-POINT AERIAL ZIGZAG SWEEP
     function executeBurst() {
       if (!gameActive) return;
       initAudio();
@@ -1579,17 +1580,13 @@
         setTimeout(() => isShieldActive = false, 3500);
       } else if (activeLead === "xochitl") {
         playSound('celestial');
-        let currentTarget = getClosestTarget(leadX);
         xochitlFlight.active = true;
         xochitlFlight.step = 0;
         xochitlFlight.x = leadX;
         xochitlFlight.y = 175 - leadY;
-        xochitlFlight.targetEntity = currentTarget;
-
-        let strikeAnchorX = currentTarget ? currentTarget.x : 350;
-        xochitlFlight.targetX = Math.max(60, Math.min(480, strikeAnchorX));
-        xochitlFlight.targetY = 55;
-        logBrawler("Xochitl locks radar onto target! Aerial dive engaged.");
+        xochitlFlight.targetX = 420;
+        xochitlFlight.targetY = 100;
+        logBrawler("Xochitl takes flight! 3-Point aerial zigzag sweep engaged!");
       }
     }
 
@@ -2496,7 +2493,7 @@
         ctx.restore();
       }
 
-      // XOCHITL TARGETED OMNIDIRECTIONAL FLIGHT BOMBARDMENT
+      // XOCHITL 3-POINT AERIAL ZIGZAG SWEEP & DIRECT TARGETED BOMBARDMENT
       if (xochitlFlight.active) {
         const speed = 8.5;
         const dx = xochitlFlight.targetX - xochitlFlight.x;
@@ -2509,28 +2506,36 @@
         } else {
           xochitlFlight.step++;
           if (xochitlFlight.step === 1) {
-            let targetAimX = xochitlFlight.targetEntity ? xochitlFlight.targetEntity.x : 400;
-            let baseDirX = targetAimX > xochitlFlight.x ? 1 : -1;
-
+            // Apex Reached (Upper Right: 420, 100) -> Unleash targeted downward spread of feather daggers
             playSound('zap');
+            let targetBossOrMob = boss.active ? boss : getClosestTarget(xochitlFlight.x);
+            let aimTargetX = targetBossOrMob ? (targetBossOrMob.x + 35) : 380;
+            let aimTargetY = targetBossOrMob ? (targetBossOrMob.y || 205) : 205;
+
             for (let k = -2; k <= 2; k++) {
-              let angleSpread = k * 0.15;
-              let shootVx = (baseDirX * 7.5) + (angleSpread * 3);
-              let shootVy = 6.2 + Math.abs(k) * 0.8;
+              let angleSpread = k * 0.18;
+              let toTargetDx = (aimTargetX - xochitlFlight.x) / 30;
               daggers.push({
-                x: xochitlFlight.x + 20,
-                y: xochitlFlight.y + 35,
-                vx: shootVx,
-                vy: shootVy,
+                x: xochitlFlight.x + (k * 10),
+                y: xochitlFlight.y + 25,
+                vx: toTargetDx + (angleSpread * 3.5),
+                vy: 7.6 + (Math.abs(k) * 0.4),
                 length: 22,
                 width: 5
               });
             }
+
+            // Pivot flight path to upper left
+            xochitlFlight.targetX = 140;
+            xochitlFlight.targetY = 40;
+          } else if (xochitlFlight.step === 2) {
+            // Upper Left (140, 40) reached -> Bank down toward partner
             xochitlFlight.targetX = leadX;
             xochitlFlight.targetY = 175;
           } else {
+            // Touchdown complete
             xochitlFlight.active = false;
-            logBrawler("Xochitl touches down beside her partner!");
+            logBrawler("Xochitl completes aerial sweep and touches down!");
           }
         }
 
@@ -2674,7 +2679,7 @@
         ctx.fill();
         ctx.restore();
 
-        if (boss.active && Math.abs(po.x - boss.x) < 40 && Math.abs(po.y - 200) < 55) {
+        if (boss.active && Math.abs(po.x - (boss.x + 40)) < 45 && Math.abs(po.y - 200) < 55) {
           boss.hp -= 2;
           boss.hitFlash = 6;
           playSound('hit');
@@ -2696,7 +2701,7 @@
         if (po.x > canvas.width || po.life <= 0) plasmaOrbs.splice(i, 1);
       }
 
-      // PROJECTILES: DAGGERS
+      // PROJECTILES: OBSIDIAN DAGGERS (RELIABLE COLLISION CHECK)
       for (let i = daggers.length - 1; i >= 0; i--) {
         const d = daggers[i];
         d.x += d.vx;
@@ -2708,19 +2713,21 @@
         ctx.fillRect(-d.length / 2, -d.width / 2, d.length, d.width);
         ctx.restore();
 
-        if (boss.active && Math.abs(d.x - boss.x) < 40 && Math.abs(d.y - 200) < 55) {
+        // Hit detection on boss
+        if (boss.active && Math.abs(d.x - (boss.x + 35)) < 45 && Math.abs(d.y - 205) < 55) {
           boss.hp -= 1;
-          boss.hitFlash = 5;
+          boss.hitFlash = 6;
           playSound('hit');
           updateHUD();
-          createBurstParticles(d.x, d.y, "#f59e0b", 8);
+          createBurstParticles(d.x, d.y, "#f59e0b", 10);
           if (boss.hp <= 0) onBossDefeated();
           daggers.splice(i, 1);
           continue;
         }
 
+        // Hit detection on mob targets
         let target = getClosestTarget(d.x);
-        if (target && target !== boss && Math.abs(d.x - target.x) < 30 && Math.abs(d.y - target.y) < 30) {
+        if (target && target !== boss && Math.abs(d.x - target.x) < 30 && Math.abs(d.y - target.y) < 35) {
           target.hp -= 1;
           playSound('hit');
           if (target.hp <= 0) onEnemyDestroyed(target);
