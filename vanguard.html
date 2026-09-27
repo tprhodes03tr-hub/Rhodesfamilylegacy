@@ -988,7 +988,6 @@
       document.getElementById('enemy-hp-' + selectedTargetIndex).style.width = (target.hp / target.maxHp * 100) + '%';
       document.getElementById('clash-status').innerText = `${hero.name} executed ${actionType.toUpperCase()} on ${target.name} for ${baseDamage} damage!`;
 
-      // Check if all enemies defeated
       if (clashEnemies.every(e => e.hp <= 0)) {
         setTimeout(() => {
           document.getElementById('clash-status').innerText = "🏆 Victory! Ashen Syndicate line dismantled. Reinforcements incoming...";
@@ -1141,7 +1140,6 @@
       kofi: new Image(),
       boss: new Image(),
       ironclad: new Image(),
-      syndicate: new Image(),
       luetta: new Image()
     };
 
@@ -1189,7 +1187,7 @@
     let bossActionTimer = null;
 
     let lightningBolts = [], daggers = [], particles = [], enemyBullets = [], plasmaOrbs = [];
-    let celestialParticles = [], sahelDust = [], groundShockwaves = [];
+    let celestialParticles = [], sahelDust = [];
     let luettaState = { active: false, timer: 0 };
 
     const bystanders = [
@@ -1241,10 +1239,8 @@
       ASSETS.kofi.src = "kofi.png";
       ASSETS.boss.src = "chrono-lock.png";
       ASSETS.ironclad.src = "ironclad.png";
-      ASSETS.syndicate.src = "syndicate.png";
       ASSETS.luetta.src = "mother-luta.png";
 
-      // Resume from highest unlocked stage
       let launchWave = 1;
       if (playerProgress.highestStageUnlocked === 2) launchWave = 4;
       if (playerProgress.highestStageUnlocked === 3) launchWave = 6;
@@ -1352,10 +1348,10 @@
           spawnY = type === "crawler" ? 212 : 202;
           speed = type === "crawler" ? 0.85 : 1.15;
         } else if (profile === "forge") {
-          type = (pendingSpawns % 2 === 0) ? "iron_droid" : "syndicate_droid";
+          type = (pendingSpawns % 2 === 0) ? "enforcer" : "drone";
           hp = 4;
-          spawnY = 195;
-          speed = 0.95;
+          spawnY = type === "enforcer" ? 202 : 145;
+          speed = 1.0;
         }
 
         enemies.push({
@@ -2308,7 +2304,7 @@
     }
 
     /* =========================================================================
-       8. MAIN RENDER LOOP (WITH REAL SPRITES FOR FORGE DROIDS & BOSSES)
+       8. MAIN RENDER LOOP (WITH CLEAN HUMAN/DRONE SPRITES FOR GRUNTS)
        ========================================================================= */
     function renderBrawler() {
       ctx.save();
@@ -2449,7 +2445,7 @@
         ctx.restore();
       }
 
-      // ENEMIES: USING SPRITE IMAGES INSTEAD OF BLUE BOXES
+      // ENEMIES: USING ANIMATED ENFORCER & DRONE SPRITES
       enemies.forEach(e => {
         if (!e.active) return;
         const frontDefender = Math.max(leadX, aiPartner.x);
@@ -2471,21 +2467,7 @@
         }
 
         ctx.save();
-        if (e.type === "iron_droid") {
-          drawDropShadow(ctx, e.x + 22, 256, 18, 5, 0.6);
-          if (ASSETS.ironclad.complete && ASSETS.ironclad.naturalWidth > 0) {
-            ctx.drawImage(ASSETS.ironclad, e.x, 180, 48, 72);
-          } else {
-            drawHumanoidEnforcer(ctx, e);
-          }
-        } else if (e.type === "syndicate_droid") {
-          drawDropShadow(ctx, e.x + 20, 256, 16, 5, 0.6);
-          if (ASSETS.syndicate.complete && ASSETS.syndicate.naturalWidth > 0) {
-            ctx.drawImage(ASSETS.syndicate, e.x, 185, 44, 68);
-          } else {
-            drawHumanoidEnforcer(ctx, e);
-          }
-        } else if (e.type === "crawler") {
+        if (e.type === "crawler") {
           ctx.fillStyle = "#1e293b";
           ctx.fillRect(e.x, e.y, 36, 18);
           ctx.fillStyle = "#d97706";
@@ -2499,11 +2481,13 @@
           drawHumanoidEnforcer(ctx, e);
         } else if (e.type === "drone") {
           drawVolumetricDrone(ctx, e);
+        } else {
+          drawHumanoidEnforcer(ctx, e);
         }
         ctx.restore();
       });
 
-      // BOSS RENDER
+      // BOSS RENDER: IRONCLAD SPRITE RESERVED EXCLUSIVELY FOR BOSSES
       if (boss.active) {
         if (boss.type === "chrono") {
           drawDropShadow(ctx, boss.x + 36, 256, 32, 10, 0.6);
