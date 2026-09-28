@@ -1,386 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Vanguard Universe: Side Brawler Arena</title>
-  <style>
-    :root {
-      --bg-dark: #07090e;
-      --panel-bg: rgba(15, 23, 42, 0.95);
-      --gold-border: #d4af37;
-      --gold-glow: rgba(212, 175, 55, 0.45);
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-
-    body {
-      background-color: var(--bg-dark);
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 12px;
-      overflow-x: hidden;
-    }
-
-    .brawler-wrapper {
-      width: 100%;
-      max-width: 540px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      position: relative;
-    }
-
-    .hud-header {
-      background: #0d1322;
-      border: 1px solid #1e293b;
-      border-radius: 8px;
-      padding: 8px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      width: 100%;
-    }
-
-    .hud-top-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .hero-title {
-      font-size: 13px;
-      font-weight: 800;
-      color: #38bdf8;
-    }
-
-    .wave-badge {
-      font-size: 11px;
-      color: #f59e0b;
-      font-weight: 800;
-      background: rgba(245, 158, 11, 0.15);
-      padding: 3px 8px;
-      border-radius: 4px;
-      border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-
-    .bars-container {
-      display: flex;
-      gap: 10px;
-    }
-
-    .bar-group {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .bar-label {
-      font-size: 10px;
-      color: #94a3b8;
-      display: flex;
-      justify-content: space-between;
-      font-weight: 700;
-    }
-
-    .bar-track {
-      width: 100%;
-      height: 8px;
-      background: #1e293b;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .bar-fill-hero {
-      width: 100%;
-      height: 100%;
-      background: #10b981;
-      transition: width 0.1s ease;
-    }
-
-    .bar-fill-enemy {
-      width: 100%;
-      height: 100%;
-      background: #ef4444;
-      transition: width 0.1s ease;
-    }
-
-    .canvas-container {
-      position: relative;
-      width: 100%;
-      height: 290px;
-      background: #000;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
-    }
-
-    #gameCanvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    .combat-log {
-      font-family: monospace;
-      font-size: 11px;
-      background: #090e18;
-      border: 1px solid #1e293b;
-      padding: 6px 10px;
-      border-radius: 6px;
-      color: #38bdf8;
-      min-height: 28px;
-      display: flex;
-      align-items: center;
-      width: 100%;
-    }
-
-    .controls-grid {
-      display: grid;
-      grid-template-columns: 1fr 1.35fr;
-      gap: 6px;
-      width: 100%;
-    }
-
-    .dpad-cluster, .action-cluster {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 6px;
-    }
-
-    .btn {
-      background: #1e293b;
-      color: #f8fafc;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 800;
-      min-height: 48px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      padding: 6px 3px;
-      transition: background 0.1s, transform 0.05s;
-    }
-
-    .btn:active {
-      transform: scale(0.96);
-      background: #334155;
-    }
-
-    .btn-action {
-      background: linear-gradient(180deg, #1e293b, #0f172a);
-      border-color: #38bdf8;
-      color: #38bdf8;
-    }
-
-    .btn-orb {
-      background: linear-gradient(180deg, #0369a1, #0c4a6e);
-      border-color: #38bdf8;
-      color: #bae6fd;
-    }
-
-    .btn-tag {
-      grid-column: span 1;
-      background: linear-gradient(180deg, #7c3aed, #5b21b6);
-      border-color: #a78bfa;
-      color: #fff;
-    }
-
-    .btn-ultimate {
-      grid-column: span 3;
-      background: linear-gradient(180deg, #f59e0b, #b45309);
-      border-color: #fbbf24;
-      color: #fff;
-      font-size: 11px;
-      min-height: 38px;
-      box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
-    }
-
-    .chapter-banner {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 90%;
-      background: rgba(15, 23, 42, 0.96);
-      border: 2px solid var(--gold-border);
-      box-shadow: 0 0 35px var(--gold-glow);
-      border-radius: 10px;
-      padding: 18px 14px;
-      text-align: center;
-      display: none;
-      z-index: 50;
-    }
-
-    .chapter-banner h3 {
-      color: #facc15;
-      font-size: 1.1rem;
-      margin-bottom: 6px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-
-    .chapter-banner p {
-      font-size: 0.82rem;
-      color: #cbd5e1;
-      margin-bottom: 14px;
-      line-height: 1.4;
-    }
-
-    .chapter-banner button {
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      color: #000;
-      border: none;
-      font-weight: 800;
-      font-size: 0.9rem;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
-    }
-
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.88);
-      z-index: 100;
-      justify-content: center;
-      align-items: center;
-      padding: 16px;
-    }
-
-    .modal-content {
-      background: #111827;
-      border: 2px solid var(--gold-border);
-      box-shadow: 0 0 25px var(--gold-glow);
-      border-radius: 12px;
-      max-width: 480px;
-      width: 100%;
-      padding: 24px;
-      text-align: center;
-    }
-
-    .modal-content h2 {
-      font-size: 1.4rem;
-      color: #facc15;
-      margin-bottom: 10px;
-    }
-
-    .modal-content p {
-      color: #cbd5e1;
-      font-size: 0.88rem;
-      line-height: 1.5;
-      margin-bottom: 20px;
-    }
-
-    .payhip-btn {
-      display: inline-block;
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-      color: #000;
-      font-weight: 800;
-      font-size: 0.95rem;
-      padding: 12px 22px;
-      border-radius: 6px;
-      text-decoration: none;
-      text-transform: uppercase;
-      box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
-    }
-
-    @media (max-width: 600px) {
-      .controls-grid { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body onload="initBrawler()">
-
-  <div class="brawler-wrapper">
-    <div class="hud-header">
-      <div class="hud-top-row">
-        <span id="heroNameLabel" class="hero-title">Marcus Prime (Lead) & Xochitl (Tactical AI)</span>
-        <span id="waveDisplay" class="wave-badge">Wave 1: Scout Swarm</span>
-      </div>
-      <div class="bars-container">
-        <div class="bar-group">
-          <div class="bar-label">
-            <span>Team Health</span>
-            <span id="heroHpText">100/100</span>
-          </div>
-          <div class="bar-track">
-            <div id="heroHpBar" class="bar-fill-hero"></div>
-          </div>
-        </div>
-        <div class="bar-group">
-          <div class="bar-label">
-            <span id="enemyTypeLabel">Syndicate Swarm</span>
-            <span id="enemyHpText">6 Units Remaining</span>
-          </div>
-          <div class="bar-track">
-            <div id="enemyHpBar" class="bar-fill-enemy"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="canvas-container">
-      <canvas id="gameCanvas" width="540" height="290"></canvas>
-      <div class="chapter-banner" id="chapterBanner">
-        <h3 id="bannerTitle">CHAPTER 1 COMPLETED</h3>
-        <p id="bannerDesc">Detroit 313 Grid Secured! Transmitting resonance beacon to West Africa. Sundiata Prime has awakened!</p>
-        <button id="bannerBtn" onclick="dismissChapterBanner()">ENTER STAGE 2: SAHEL</button>
-      </div>
-    </div>
-
-    <div class="combat-log" id="combatLog">
-      Tactical Co-Op active! Your partner maneuvers and fights autonomously.
-    </div>
-
-    <div class="controls-grid">
-      <div class="dpad-cluster">
-        <button class="btn" onclick="playerMove(-25)">◄ LEFT</button>
-        <button class="btn" onclick="playerJump()">▲ JUMP</button>
-        <button class="btn" onclick="playerMove(25)">RIGHT ►</button>
-      </div>
-
-      <div class="action-cluster">
-        <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">⚡ Volt Beam</button>
-        <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">🔵 Plasma Orb</button>
-        <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Deflect</button>
-        <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: XOCHITL</button>
-        <button id="btnLuetta" class="btn btn-ultimate" onclick="executeLuettaAid()">★ SUMMON MOTHER LUETTA ★</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="trial-modal">
-    <div class="modal-content">
-      <div style="font-size: 32px; margin-bottom: 6px;">✨</div>
-      <h2 id="modalTitle">KUMASI FORGE SECURED!</h2>
-      <p id="modalBody">
-        You crushed Baron Krieg's Ironclad legion! The Ashanti ancestral forge burns bright, anchoring the Living Codex. Unlock the complete 54-card deck, foil operatives, and all 5 graphic novel issues on Payhip[span_2](start_span)[span_2](end_span)!
-      </p>
-      <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="payhip-btn">
-        UNLOCK COMPLETE SERIES & DECK ON PAYHIP[span_3](start_span)[span_3](end_span)[span_4](start_span)[span_4](end_span)
-      </a>
-    </div>
-  </div>
-
   <script>
     let audioCtx = null;
     function initAudio() {
@@ -449,7 +66,7 @@
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(180, now);
         osc.frequency.exponentialRampToValueAtTime(35, now + 0.45);
-        gain.gain.setValueAtTime(0.65, now);
+        gain.gain.setValueAtTime(0.75, now);
         gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
         osc.start(now);
         osc.stop(now + 0.45);
@@ -489,7 +106,8 @@
       kofi: new Image(),
       boss: new Image(),
       ironclad: new Image(),
-      luetta: new Image()
+      luetta: new Image(),
+      apex: new Image()
     };
 
     let activeZone = "detroit"; 
@@ -517,6 +135,7 @@
 
     let xochitlFlight = { active: false, step: 0, x: 0, y: 0, targetX: 0, targetY: 0, targetEntity: null };
     let sundiataShockwave = { active: false, x: 0, radius: 0, maxRadius: 180 };
+    let lionBastionState = { active: false, radius: 85, timer: 0, maxTimer: 240 };
 
     let currentWave = 1, mobsRemaining = 6, mobsTotal = 6;
     let enemies = [];
@@ -529,7 +148,8 @@
       active: false,
       type: "chrono",
       isAttacking: false,
-      hitFlash: 0
+      hitFlash: 0,
+      phase: 1
     };
     let screenShake = 0, gameActive = true;
     let bossActionTimer = null;
@@ -647,6 +267,15 @@
       } else if (num === 7) {
         document.getElementById("waveDisplay").innerText = "BOSS: Baron Krieg / Ironclad";
         startBossFight("ironclad");
+      } else if (num === 8) {
+        document.getElementById("waveDisplay").innerText = "Wave 8: Deep Vault Drone Swarm";
+        mobsRemaining = 12; mobsTotal = 12;
+        boss.active = false;
+        spawnEnemyWave("ouroboros");
+        logBrawler("Stage 5: Deep Sahel extraction drones swarming the Niani bedrock!");
+      } else if (num === 9) {
+        document.getElementById("waveDisplay").innerText = "STAGE 5 CLIMAX: Apex Volt";
+        startBossFight("apex");
       }
       updateHUD();
     }
@@ -699,9 +328,10 @@
       boss.x = 380;
       boss.y = 0;
       boss.vy = 0;
-      boss.hp = bossType === "chrono" ? 8 : (bossType === "dreadnought" ? 12 : 16);
+      boss.hp = bossType === "chrono" ? 8 : (bossType === "dreadnought" ? 12 : (bossType === "ironclad" ? 16 : 22));
       boss.maxHp = boss.hp;
       boss.hitFlash = 0;
+      boss.phase = 1;
       enemies = [];
       mobsRemaining = 0;
       updateHUD();
@@ -777,6 +407,39 @@
             setTimeout(() => { boss.isAttacking = false; }, 800);
           }
         }, 3500);
+      } else if (bossType === "apex") {
+        logBrawler("⚠️ CRITICAL ALERT: Apex Volt (The Overcharge Striker) arrives!");
+        playSound('zap');
+        boss.y = -85; // Starts in elevated Catwalk phase
+        bossActionTimer = setInterval(() => {
+          if (!boss.active || !gameActive) return;
+          if (boss.hp <= 11 && boss.phase === 1) {
+            boss.phase = 2;
+            boss.y = 0;
+            logBrawler("⚡ OVERDRIVE! Apex Volt drops to the ground: Arc-Grid Detonation engaged!");
+            playSound('zap');
+            screenShake = 14;
+          }
+
+          if (boss.phase === 1) {
+            // High elevated catwalk barrage
+            playSound('zap');
+            logBrawler("Apex Volt fires high-yield synthetic plasma from catwalk!");
+            for (let p = 0; p < 3; p++) {
+              setTimeout(() => {
+                if (boss.active) {
+                  enemyBullets.push({ x: boss.x - 10, y: 145 + (p * 18), vx: -7.5, heavy: true });
+                }
+              }, p * 150);
+            }
+          } else {
+            // Phase 2 Ground Overdrive slam
+            playSound('anvil');
+            screenShake = 18;
+            groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#38bdf8" });
+            logBrawler("⚡ ARC-GRID DETONATION! Activate Solar Lion or JUMP!");
+          }
+        }, 3400);
       }
     }
 
@@ -802,11 +465,8 @@
             life: 140
           });
         }
-
         setTimeout(() => {
-          if (!unlockedRoster.includes("sundiata")) {
-            unlockedRoster.push("sundiata");
-          }
+          if (!unlockedRoster.includes("sundiata")) unlockedRoster.push("sundiata");
           document.getElementById("bannerTitle").innerText = "CHAPTER 1 COMPLETED";
           document.getElementById("bannerDesc").innerText = "Detroit 313 Grid Secured! Transmitting resonance beacon to West Africa. Sundiata Prime has awakened!";
           document.getElementById("bannerBtn").innerText = "ENTER STAGE 2: SAHEL";
@@ -827,16 +487,14 @@
           });
         }
         setTimeout(() => {
-          if (!unlockedRoster.includes("kofi")) {
-            unlockedRoster.push("kofi");
-          }
+          if (!unlockedRoster.includes("kofi")) unlockedRoster.push("kofi");
           document.getElementById("bannerTitle").innerText = "CHAPTER 2 COMPLETED";
           document.getElementById("bannerDesc").innerText = "Sahel Nexus Preserved! Reaching Ashanti borders. Kofi Osei (The Gold-Smith) has joined the Vanguard!";
           document.getElementById("bannerBtn").innerText = "ENTER STAGE 3: KUMASI FORGE";
           document.getElementById("chapterBanner").style.display = "block";
         }, 2000);
-      } else {
-        logBrawler("💥 Baron Krieg defeated! The Ashanti Ancestral Forge is secured!");
+      } else if (boss.type === "ironclad") {
+        logBrawler("💥 Baron Krieg repelled! The Subterranean Vaults of Niani are rupturing!");
         for (let i = 0; i < 60; i++) {
           particles.push({
             type: "spark",
@@ -850,8 +508,30 @@
           });
         }
         setTimeout(() => {
-          document.getElementById("trial-modal").style.display = "flex";
+          document.getElementById("bannerTitle").innerText = "STAGE 4 COMPLETED";
+          document.getElementById("bannerDesc").innerText = "Baron Krieg fallen! Temporal rift at Niani redlining. Sundiata Prime must unleash the Solar Lion!";
+          document.getElementById("bannerBtn").innerText = "ENTER STAGE 5: THE SAHEL AWAKENING";
+          document.getElementById("chapterBanner").style.display = "block";
         }, 2000);
+      } else if (boss.type === "apex") {
+        logBrawler("💥 Apex Volt neutralized! The Living Codex anchors the sovereign timeline!");
+        for (let i = 0; i < 80; i++) {
+          particles.push({
+            type: "spark",
+            x: boss.x + 35,
+            y: 200,
+            vx: (Math.random() - 0.5) * 14,
+            vy: -(Math.random() * 12 + 4),
+            color: "#38bdf8",
+            size: Math.random() * 7 + 3,
+            life: 130
+          });
+        }
+        setTimeout(() => {
+          document.getElementById("modalTitle").innerText = "MARROW RESONANCE RESTORED!";
+          document.getElementById("modalBody").innerText = "Sundiata Prime's Solar Lion shattered the Syndicate's temporal siege! The complete 54-card deck and comic issues are available on Payhip.";
+          document.getElementById("trial-modal").style.display = "flex";
+        }, 2200);
       }
     }
 
@@ -871,6 +551,13 @@
         updateControlsUI();
         startWave(6);
         logBrawler("TRANSIT COMPLETE: Sector 6 Kumasi Forge. Kofi Osei the Gold-Smith is ready!");
+      } else if (currentWave === 7) {
+        activeZone = "sahel_rift";
+        activeLead = "sundiata";
+        rosterIdx = unlockedRoster.indexOf("sundiata");
+        updateControlsUI();
+        startWave(8);
+        logBrawler("STAGE 5 UNLOCKED: Deep Sahel Excavation Vaults! Sundiata Prime anchors the front!");
       }
     }
 
@@ -948,7 +635,7 @@
       } else if (activeLead === "sundiata") {
         document.getElementById("btnStrike").innerText = "🔨 Drum Tremor";
         document.getElementById("btnOrb").innerText = "🦁 Bronze Pulse";
-        document.getElementById("btnBurst").innerText = "🛡️ Lion Bastion";
+        document.getElementById("btnBurst").innerText = "🛡️ Solar Lion Bastion";
       } else if (activeLead === "kofi") {
         document.getElementById("btnStrike").innerText = "🔨 Anvil Sledge";
         document.getElementById("btnOrb").innerText = "✨ Molten Shards";
@@ -1034,11 +721,17 @@
       if (!gameActive) return;
       initAudio();
 
-      if (activeLead === "marcus" || activeLead === "sundiata" || activeLead === "kofi") {
+      if (activeLead === "sundiata") {
+        lionBastionState.active = true;
+        lionBastionState.timer = lionBastionState.maxTimer;
+        playSound('drum');
+        screenShake = 10;
+        logBrawler("THUUUUMMMMM! Sundiata unleashes the 20-foot Solar Lion Bastion!");
+        createBurstParticles(leadX + 32, 215, "#fbbf24", 25);
+      } else if (activeLead === "marcus" || activeLead === "kofi") {
         isShieldActive = true;
         playSound('shield');
         if (activeLead === "marcus") logBrawler("Marcus Electrical Dome online!");
-        else if (activeLead === "sundiata") logBrawler("Sundiata projects Solar Lion Bastion!");
         else logBrawler("Kofi raises the Thermal Crucible Bastion!");
         setTimeout(() => isShieldActive = false, 3500);
       } else if (activeLead === "xochitl") {
@@ -1194,6 +887,9 @@
         } else if (currentWave === 6) {
           logBrawler("Forge Breakers repelled! Baron Krieg / Ironclad approaches!");
           setTimeout(() => startWave(7), 1400);
+        } else if (currentWave === 8) {
+          logBrawler("Extraction Drones eliminated! High voltage detected on scaffolding!");
+          setTimeout(() => startWave(9), 1400);
         }
       }
     }
@@ -1270,6 +966,106 @@
           life: 25
         });
       }
+    }
+
+    // DRAW PROCEDURAL SOLAR LION AURA FOR SUNDIATA
+    function drawSolarLionAura(ctx, cx, cy) {
+      lionBastionState.timer--;
+      const pulse = Math.sin(Date.now() / 70) * 8;
+      const currentRadius = lionBastionState.radius + pulse;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      // Translucent Solar Corona
+      const lionGrad = ctx.createRadialGradient(0, 0, 15, 0, 0, currentRadius);
+      lionGrad.addColorStop(0, "rgba(254, 240, 138, 0.85)");
+      lionGrad.addColorStop(0.4, "rgba(245, 158, 11, 0.45)");
+      lionGrad.addColorStop(0.85, "rgba(217, 119, 6, 0.20)");
+      lionGrad.addColorStop(1, "rgba(217, 119, 6, 0.0)");
+
+      ctx.fillStyle = lionGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Stylized Radiant Lion Outlines
+      ctx.strokeStyle = "#fffbeb";
+      ctx.lineWidth = 3;
+      ctx.shadowColor = "#f59e0b";
+      ctx.shadowBlur = 20;
+
+      // Crown / Ears
+      ctx.beginPath();
+      ctx.moveTo(-40, -35); ctx.lineTo(-20, -65); ctx.lineTo(0, -45);
+      ctx.lineTo(20, -65); ctx.lineTo(40, -35);
+      // Muzzle & Jaws
+      ctx.moveTo(-25, -5); ctx.lineTo(0, 22); ctx.lineTo(25, -5);
+      // Whiskers / Calligraphy
+      ctx.moveTo(-20, 8); ctx.lineTo(-55, 15);
+      ctx.moveTo(20, 8); ctx.lineTo(55, 15);
+      ctx.stroke();
+
+      // Glowing Solar Eyes
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(-18, -20, 5, 0, Math.PI * 2);
+      ctx.arc(18, -20, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+
+      if (lionBastionState.timer <= 0) {
+        lionBastionState.active = false;
+        logBrawler("Solar Lion Bastion harmonized with the earth.");
+      }
+    }
+
+    // DRAW APEX VOLT (STAGE 5 BOSS)
+    function drawApexVolt(ctx, b) {
+      const time = Date.now();
+      const voltPulse = Math.sin(time / 80) * 0.4 + 0.6;
+      drawDropShadow(ctx, b.x + 30, 256, 26, 8, 0.6);
+
+      ctx.save();
+      ctx.translate(b.x + 30, 235 + b.y);
+
+      if (b.hitFlash > 0) {
+        ctx.filter = "brightness(2.2)";
+        b.hitFlash--;
+      }
+
+      // High Scaffolding Platform when in Phase 1
+      if (b.phase === 1) {
+        ctx.fillStyle = "#334155";
+        ctx.fillRect(-45, 55, 90, 8);
+        ctx.strokeStyle = "#0284c7";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-45, 55, 90, 8);
+      }
+
+      // Body Armor
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(-20, -55, 40, 55);
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-20, -55, 40, 55);
+
+      // Kinetic Capacitance Gauntlets
+      ctx.fillStyle = `rgba(56, 189, 248, ${voltPulse})`;
+      ctx.shadowColor = "#38bdf8";
+      ctx.shadowBlur = 14;
+      ctx.fillRect(-34, -38, 14, 25);
+      ctx.fillRect(20, -38, 14, 25);
+      ctx.shadowBlur = 0;
+
+      // Visor
+      ctx.fillStyle = "#00f0ff";
+      ctx.fillRect(-12, -48, 24, 6);
+
+      ctx.restore();
     }
 
     // REALISTIC PROCEDURAL OUROBOROS DRILLING DREADNOUGHT
@@ -1698,15 +1494,34 @@
 
         drawDetailedHelicopter(ctx);
         drawBystanders(ctx);
-      } else if (activeZone === "sahel") {
+      } else if (activeZone === "sahel" || activeZone === "sahel_rift") {
         const sahelSky = ctx.createLinearGradient(0, 0, 0, 255);
-        sahelSky.addColorStop(0, "#451a03");
-        sahelSky.addColorStop(0.5, "#78350f");
-        sahelSky.addColorStop(1, "#b45309");
+        if (activeZone === "sahel_rift") {
+          sahelSky.addColorStop(0, "#190826");
+          sahelSky.addColorStop(0.5, "#4a1240");
+          sahelSky.addColorStop(1, "#831843");
+        } else {
+          sahelSky.addColorStop(0, "#451a03");
+          sahelSky.addColorStop(0.5, "#78350f");
+          sahelSky.addColorStop(1, "#b45309");
+        }
         ctx.fillStyle = sahelSky;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = "#9a3412";
+        // Violet Temporal Rift for Stage 5
+        if (activeZone === "sahel_rift") {
+          ctx.save();
+          ctx.strokeStyle = "rgba(192, 132, 252, 0.65)";
+          ctx.lineWidth = 12;
+          ctx.shadowColor = "#a855f7";
+          ctx.shadowBlur = 20;
+          ctx.beginPath();
+          ctx.moveTo(270, 0); ctx.lineTo(310, 110); ctx.lineTo(290, 230);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.fillStyle = activeZone === "sahel_rift" ? "#7c2d12" : "#9a3412";
         ctx.beginPath();
         ctx.moveTo(0, 210);
         ctx.bezierCurveTo(140, 185, 360, 230, 540, 195);
@@ -1716,7 +1531,7 @@
         ctx.fill();
 
         ctx.save();
-        ctx.fillStyle = "rgba(254, 215, 170, 0.4)";
+        ctx.fillStyle = activeZone === "sahel_rift" ? "rgba(251, 191, 36, 0.45)" : "rgba(254, 215, 170, 0.4)";
         sahelDust.forEach(d => {
           d.x -= d.speedX;
           d.y += d.speedY;
@@ -1728,7 +1543,6 @@
         });
         ctx.restore();
       } else {
-        // ENHANCED KUMASI ARTISAN FORGE (COMIC LORE FIDELITY)
         const forgeSky = ctx.createLinearGradient(0, 0, 0, 255);
         forgeSky.addColorStop(0, "#120300");
         forgeSky.addColorStop(0.35, "#380d02");
@@ -1737,19 +1551,14 @@
         ctx.fillStyle = forgeSky;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Distant Ashanti Earthen Kilns & Furnace Stacks
         ctx.fillStyle = "#1c0601";
-        // Chimney 1
         ctx.fillRect(40, 95, 28, 90);
         ctx.beginPath(); ctx.arc(54, 95, 14, Math.PI, 0); ctx.fill();
-        // Chimney 2
         ctx.fillRect(195, 75, 34, 110);
         ctx.beginPath(); ctx.arc(212, 75, 17, Math.PI, 0); ctx.fill();
-        // Chimney 3
         ctx.fillRect(440, 85, 30, 100);
         ctx.beginPath(); ctx.arc(455, 85, 15, Math.PI, 0); ctx.fill();
 
-        // Kiln Smoke plumes
         ctx.fillStyle = "rgba(67, 20, 7, 0.45)";
         ctx.beginPath();
         ctx.arc(54, 65, 20, 0, Math.PI * 2);
@@ -1757,7 +1566,6 @@
         ctx.arc(455, 55, 22, 0, Math.PI * 2);
         ctx.fill();
 
-        // Midground Crucible Pillars and Clay Arches
         ctx.fillStyle = "#2d0c04";
         ctx.beginPath();
         ctx.moveTo(0, 170);
@@ -1772,7 +1580,6 @@
         ctx.closePath();
         ctx.fill();
 
-        // Glowing molten gold furnace mouth in background
         const heatGaze = Math.sin(Date.now() / 180) * 0.2 + 0.8;
         ctx.fillStyle = `rgba(245, 158, 11, ${heatGaze * 0.35})`;
         ctx.shadowColor = "#f59e0b";
@@ -1782,7 +1589,6 @@
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // Rising Gold Forge Embers
         ctx.save();
         forgeEmbers.forEach(em => {
           em.x += em.speedX;
@@ -1806,7 +1612,7 @@
       if (activeZone === "detroit") {
         deckGrad.addColorStop(0, "#0b1220");
         deckGrad.addColorStop(1, "#030712");
-      } else if (activeZone === "sahel") {
+      } else if (activeZone === "sahel" || activeZone === "sahel_rift") {
         deckGrad.addColorStop(0, "#451a03");
         deckGrad.addColorStop(1, "#1c0a00");
       } else {
@@ -1816,7 +1622,7 @@
       ctx.fillStyle = deckGrad;
       ctx.fillRect(0, 255, canvas.width, canvas.height - 255);
 
-      const railColor = activeZone === "detroit" ? "#38bdf8" : (activeZone === "sahel" ? "#f59e0b" : "#fbbf24");
+      const railColor = activeZone === "detroit" ? "#38bdf8" : "#f59e0b";
       ctx.strokeStyle = railColor;
       ctx.lineWidth = 3;
       ctx.shadowColor = ctx.strokeStyle;
@@ -1827,8 +1633,7 @@
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Molten gold trenches running in Stage 3 ground
-      if (activeZone === "kumasi") {
+      if (activeZone === "kumasi" || activeZone === "sahel_rift") {
         ctx.strokeStyle = "rgba(251, 191, 36, 0.75)";
         ctx.lineWidth = 2.5;
         ctx.shadowColor = "#f59e0b";
@@ -1923,10 +1728,6 @@
       walkCadence *= 0.84;
 
       const currentTime = Date.now();
-      const marcusBreathY = 1 + Math.sin(currentTime / 260) * 0.045;
-      const marcusBreathX = 1 - Math.sin(currentTime / 260) * 0.024;
-      const xochitlBreathY = 1 + Math.sin((currentTime / 290) + 1.9) * 0.048;
-      const xochitlBreathX = 1 - Math.sin((currentTime / 290) + 1.9) * 0.026;
       const xochitlWingWave = Math.sin(currentTime / 180) * 0.12;
 
       const leadStepBob = Math.sin(walkCadence) * 3;
@@ -1963,7 +1764,12 @@
         ctx.restore();
       }
 
-      // XOCHITL TARGETED OMNIDIRECTIONAL FLIGHT BOMBARDMENT
+      // SOLAR LION BASTION AURA RENDER
+      if (lionBastionState.active) {
+        drawSolarLionAura(ctx, leadX + 32, drawLeadY + 40);
+      }
+
+      // XOCHITL FLIGHT BOMBARDMENT
       if (xochitlFlight.active) {
         const speed = 8.5;
         const dx = xochitlFlight.targetX - xochitlFlight.x;
@@ -1976,11 +1782,8 @@
         } else {
           xochitlFlight.step++;
           if (xochitlFlight.step === 1) {
-            // Target locked - Calculate directional vectors toward enemy position
             let targetAimX = xochitlFlight.targetEntity ? xochitlFlight.targetEntity.x : 400;
-            let targetAimY = xochitlFlight.targetEntity ? (xochitlFlight.targetEntity.y || 205) : 205;
             let baseDirX = targetAimX > xochitlFlight.x ? 1 : -1;
-
             playSound('zap');
             for (let k = -2; k <= 2; k++) {
               let angleSpread = k * 0.15;
@@ -1995,7 +1798,6 @@
                 width: 5
               });
             }
-            // Transition back toward partner/lead position
             xochitlFlight.targetX = leadX;
             xochitlFlight.targetY = 175;
           } else {
@@ -2010,7 +1812,7 @@
         }
       }
 
-      // SHOCKWAVE FROM SUNDIATA
+      // SUNDIATA SHOCKWAVE
       if (sundiataShockwave.active) {
         sundiataShockwave.radius += 9;
         ctx.save();
@@ -2023,7 +1825,7 @@
         if (sundiataShockwave.radius >= sundiataShockwave.maxRadius) sundiataShockwave.active = false;
       }
 
-      // BARON KRIEG GROUND QUAKE SHOCKWAVES
+      // GROUND SHOCKWAVES
       for (let g = groundShockwaves.length - 1; g >= 0; g--) {
         const sw = groundShockwaves[g];
         sw.x += sw.vx;
@@ -2038,16 +1840,16 @@
         ctx.restore();
 
         if (Math.abs(sw.x - (leadX + 30)) < 24 && isGrounded) {
-          if (isShieldActive) {
+          if (lionBastionState.active || isShieldActive) {
             absorbedCharge += 10;
             playSound('shield');
-            logBrawler(`Shield absorbed Krieg's Quake wave! Stored: ${absorbedCharge}`);
+            logBrawler(`Bastion absorbed Quake wave! Stored: ${absorbedCharge}`);
           } else {
             playerHp = Math.max(0, playerHp - 12);
             updateHUD();
             playSound('hit');
             screenShake = 10;
-            logBrawler("Direct hit from Krieg's Ground Quake! -12 HP (JUMP to dodge!)");
+            logBrawler("Direct hit from Quake Wave! -12 HP (JUMP to dodge!)");
           }
           groundShockwaves.splice(g, 1);
           continue;
@@ -2056,8 +1858,8 @@
         if (sw.x < 0) groundShockwaves.splice(g, 1);
       }
 
-      // ACTIVE SHIELD
-      if (isShieldActive) {
+      // STANDARD SHIELD
+      if (isShieldActive && !lionBastionState.active) {
         ctx.save();
         ctx.strokeStyle = activeLead === "marcus" ? "#38bdf8" : (activeLead === "kofi" ? "#fbbf24" : "#f59e0b");
         ctx.lineWidth = 5;
@@ -2079,9 +1881,9 @@
         } else {
           screenShake = 5;
           playSound('hit');
-          if (isShieldActive) {
+          if (lionBastionState.active || isShieldActive) {
             absorbedCharge += 6;
-            logBrawler(`Shield reflected attack! Stored Charge: ${absorbedCharge}`);
+            logBrawler(`Bastion reflected enemy strike! Stored Charge: ${absorbedCharge}`);
           } else {
             playerHp = Math.max(0, playerHp - 5);
             updateHUD();
@@ -2129,10 +1931,12 @@
           drawDetailedDreadnought(ctx, boss);
         } else if (boss.type === "ironclad") {
           drawAnimatedBaronKrieg(ctx, boss);
+        } else if (boss.type === "apex") {
+          drawApexVolt(ctx, boss);
         }
       }
 
-      // PROJECTILES: ORBS & MOLTEN SHARDS
+      // PROJECTILES: ORBS
       for (let i = plasmaOrbs.length - 1; i >= 0; i--) {
         const po = plasmaOrbs[i];
         po.x += po.vx;
@@ -2144,7 +1948,7 @@
         ctx.fill();
         ctx.restore();
 
-        if (boss.active && Math.abs(po.x - boss.x) < 40 && Math.abs(po.y - 200) < 55) {
+        if (boss.active && Math.abs(po.x - boss.x) < 40 && Math.abs(po.y - (200 + boss.y)) < 55) {
           boss.hp -= 2;
           boss.hitFlash = 6;
           playSound('hit');
@@ -2178,7 +1982,7 @@
         ctx.fillRect(-d.length / 2, -d.width / 2, d.length, d.width);
         ctx.restore();
 
-        if (boss.active && Math.abs(d.x - boss.x) < 40 && Math.abs(d.y - 200) < 55) {
+        if (boss.active && Math.abs(d.x - boss.x) < 40 && Math.abs(d.y - (200 + boss.y)) < 55) {
           boss.hp -= 1;
           boss.hitFlash = 5;
           playSound('hit');
@@ -2200,7 +2004,7 @@
         if (d.x > canvas.width || d.x < 0 || d.y > 260) daggers.splice(i, 1);
       }
 
-      // PROJECTILES: ENEMY BULLETS
+      // PROJECTILES: ENEMY BULLETS (WITH SOLAR LION VAPORIZATION)
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const b = enemyBullets[i];
         b.x += b.vx;
@@ -2209,6 +2013,16 @@
         ctx.shadowBlur = b.heavy ? 10 : 4;
         ctx.fillRect(b.x, b.y, b.heavy ? 12 : 8, b.heavy ? 6 : 3);
         ctx.shadowBlur = 0;
+
+        // If Solar Lion Bastion is up, incinerate Syndicate plasma completely
+        if (lionBastionState.active) {
+          const distToLion = Math.hypot(b.x - (leadX + 32), b.y - (drawLeadY + 40));
+          if (distToLion <= lionBastionState.radius) {
+            createBurstParticles(b.x, b.y, "#fbbf24", 8);
+            enemyBullets.splice(i, 1);
+            continue;
+          }
+        }
 
         const hitLead = Math.abs(b.x - (leadX + 30)) < 22 && Math.abs(b.y - (drawLeadY + 35)) < 35;
         if (hitLead) {
@@ -2226,7 +2040,7 @@
         if (b.x < 0) enemyBullets.splice(i, 1);
       }
 
-      // LIGHTNING BOLTS (MARCUS VOLT BEAM)
+      // MARCUS VOLT BEAM
       for (let i = lightningBolts.length - 1; i >= 0; i--) {
         const bolt = lightningBolts[i];
         ctx.strokeStyle = "#ffffff";
@@ -2250,7 +2064,7 @@
 
       drawCelestialLightCone(ctx);
 
-      // PARTICLES (SMOKE, SPARKS, CLOCKS)
+      // PARTICLES
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
@@ -2299,13 +2113,14 @@
         let bossName = "Chrono-Lock";
         if (boss.type === "dreadnought") bossName = "Ouroboros Dreadnought";
         else if (boss.type === "ironclad") bossName = "Baron Krieg / Ironclad";
+        else if (boss.type === "apex") bossName = "Apex Volt (Overcharge Striker)";
 
         document.getElementById("enemyTypeLabel").innerText = bossName;
         document.getElementById("enemyHpText").innerText = `${Math.max(0, boss.hp)}/${boss.maxHp}`;
         document.getElementById("enemyHpBar").style.width = `${(Math.max(0, boss.hp) / boss.maxHp) * 100}%`;
       } else {
         let mobLabel = "Syndicate Swarm";
-        if (activeZone === "sahel") mobLabel = "Ouroboros Drills";
+        if (activeZone === "sahel" || activeZone === "sahel_rift") mobLabel = "Ouroboros Drills";
         else if (activeZone === "kumasi") mobLabel = "Forge Breakers";
 
         document.getElementById("enemyTypeLabel").innerText = mobLabel;
@@ -2318,5 +2133,3 @@
       document.getElementById("combatLog").innerText = msg;
     }
   </script>
-</body>
-</html>
