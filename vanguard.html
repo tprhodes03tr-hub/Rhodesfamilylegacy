@@ -1392,6 +1392,13 @@
     let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
     let bgScrollOffset = 0, groundScrollOffset = 0;
 
+    // KOFI OSEI CRUCIBLE ANVIL SLEDGE TRACKER
+    let kofiHammerSwing = {
+      active: false,
+      timer: 0,
+      maxTimer: 14
+    };
+
     // XOCHITL ADVANCED FLIGHT ENGINE (RIGHT -> LEFT STRAFE -> ARROW BARRAGE)
     let xochitlFlight = {
       active: false,
@@ -1471,7 +1478,6 @@
 
       resizeBrawlerCanvas();
 
-      // ALL ASSETS LOADED DIRECTLY FROM REPOSITORY ROOT
       ASSETS.bg.src = "bg-detroit.jpg";
       ASSETS.ouroborosSkyline.src = "ouroboros-skyline.png";
       ASSETS.groundPlate.src = "niani-ground-plate.png";
@@ -1655,11 +1661,19 @@
         bossActionTimer = setInterval(() => {
           if (!boss.active || !gameActive) return;
           playSound('warp');
-          screenShake = 9;
+          screenShake = 10;
           boss.x = Math.random() > 0.5 ? Math.max(30, leadX - 70) : leadX + 85;
-          createBurstParticles(boss.x + 30, 210, "#10b981", 16);
-          logBrawler("Chrono-Lock time-warped positions!");
-        }, 3000);
+          createBurstParticles(boss.x + 30, 210, "#10b981", 18);
+          
+          // Enhanced: Release Temporal Distortion Dials that slow and damage
+          enemyBullets.push({
+            x: boss.x + 20,
+            y: 195,
+            vx: -5.2,
+            isTemporalClock: true
+          });
+          logBrawler("Chrono-Lock time-warps and launches a Temporal Clock Distortion!");
+        }, 2800);
       } else if (bossType === "dreadnought") {
         logBrawler("⚠️ SECTOR CRISIS: Ouroboros Heavy Drill Dreadnought emerges!");
         playSound('drill');
@@ -1691,7 +1705,14 @@
           if (!boss.active || !gameActive) return;
           playSound('hit');
           screenShake = 16;
-          logBrawler(`${bossType === "krieg" ? "Baron Krieg" : "Ironclad Prime"} rears back for an Iron Quake Slam! (JUMP to dodge!)`);
+          logBrawler(`${bossType === "krieg" ? "Baron Krieg" : "Ironclad Prime"} executes Molten Iron Quake! (JUMP to dodge!)`);
+          
+          // Enhanced: Launches twin molten ground shockwaves
+          groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#f97316" });
+          setTimeout(() => {
+            if (boss.active) groundShockwaves.push({ x: boss.x, vx: -7.5, radius: 24, color: "#ef4444" });
+          }, 350);
+
           setTimeout(() => {
             if (!isGrounded && !isShieldActive) {
               logBrawler("Dodge successful! Jumped over the shockwave!");
@@ -1702,7 +1723,7 @@
               if (playerHp <= 0) handlePlayerDefeat();
             }
           }, 650);
-        }, 3800);
+        }, 3600);
       } else if (bossType === "apex") {
         logBrawler("⚠️ CRITICAL ALERT: Apex Volt (The Overcharge Striker) arrives!");
         playSound('zap');
@@ -1738,7 +1759,16 @@
             playSound('cannon');
             screenShake = 18;
             groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#38bdf8" });
-            logBrawler("⚡ ARC-GRID DETONATION! Unleash Solar Lion Roar or JUMP!");
+            
+            // Enhanced: Tesla Lightning Strike down directly above the player
+            setTimeout(() => {
+              if (boss.active) {
+                generateLightning(leadX + 30, 0, leadX + 30, 255, 6);
+                playSound('zap');
+              }
+            }, 450);
+
+            logBrawler("⚡ ARC-GRID DETONATION! JUMP or activate Shield!");
           }
         }, 3200);
       }
@@ -1751,7 +1781,25 @@
       screenShake = 26;
 
       if (boss.type === "chrono") {
-        logBrawler("💥 Chrono-Lock shattered! Stage 1 Secured.");
+        logBrawler("💥 Chrono-Lock shattered into a cascade of temporal clockwork gears!");
+        playSound('warp');
+        
+        // RESTORED: EXPLODE INTO BOUNCING WATCHES, CLOCKS, AND GEARS
+        const clockSymbols = ['⏱️', '⏳', '🕒', '⌛', '⏰', '⚙️', 'XII', 'VI'];
+        for (let i = 0; i < 35; i++) {
+          particles.push({
+            type: "clock",
+            x: boss.x + 35,
+            y: 200,
+            vx: (Math.random() - 0.5) * 11,
+            vy: -(Math.random() * 9 + 4),
+            rot: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 0.35,
+            icon: clockSymbols[Math.floor(Math.random() * clockSymbols.length)],
+            life: 140
+          });
+        }
+
         saveGameProgress(1, "sundiata");
         setTimeout(() => {
           document.getElementById("bannerTitle").innerText = "STAGE 1 COMPLETED";
@@ -1973,9 +2021,13 @@
         sundiataShockwave.x = leadX + 35;
         sundiataShockwave.radius = 10;
       } else if (activeLead === "kofi") {
+        // TRIGGER CRUCIBLE ANVIL SLEDGE ANIMATION
         playSound('hit');
-        screenShake = 12;
-        createBurstParticles(leadX + 45, 215, "#eab308", 14);
+        screenShake = 14;
+        kofiHammerSwing.active = true;
+        kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
+        createBurstParticles(leadX + 55, 220, "#eab308", 18);
+        logBrawler("⚒️ CRUCIBLE ANVIL SLEDGE slams with molten kinetic force!");
       }
 
       if (boss.active && Math.abs(boss.x - leadX) < 280) {
@@ -2014,7 +2066,6 @@
         playSound('orb');
         plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 7.5, vy: aimVy, radius: 12, life: 80, color: "#38bdf8" });
       } else if (activeLead === "xochitl") {
-        // TRIGGER XOCHITL'S FULL 4-STAGE AERIAL BOMBARDMENT
         if (!xochitlFlight.active) {
           playSound('celestial');
           xochitlFlight.active = true;
@@ -2054,15 +2105,14 @@
         screenShake = 18;
         logBrawler("🦁 ROAAAAR! The Solar Lion charges forward, pulverizing enemy ranks!");
         
-        // SPAWN SPRITE-DRIVEN ASTRAL SOLAR LION CHARGE
         lionRoars.push({
-          x: leadX + 40,
+          x: leadX + 25,
           y: 195 - leadY,
           vx: 9.0,
           width: 175,
           height: 125,
-          scale: 0.65,
-          alpha: 0.1,
+          scale: 0.70,
+          alpha: 0.85,
           life: 85,
           maxLife: 85
         });
@@ -2074,7 +2124,6 @@
           }
         }
       } else if (activeLead === "xochitl") {
-        // XOCHITL WING COCOON SHIELD
         isShieldActive = true;
         playSound('shield');
         logBrawler("Xochitl folds her flaming wings into an impenetrable Obsidian Cocoon!");
@@ -2283,14 +2332,12 @@
       ctx.restore();
     }
 
-    // DRAW XOCHITL'S WING SHIELD (COCOON ENVELOPMENT)
     function drawXochitlWingCocoon(ctx, x, y) {
       ctx.save();
       ctx.translate(x + 30, y + 35);
       
       const shieldPulse = Math.sin(Date.now() / 100) * 0.12 + 0.88;
       
-      // Radiant golden-orange energy shell
       ctx.save();
       ctx.beginPath();
       ctx.ellipse(0, 0, 44, 58, 0, 0, Math.PI * 2);
@@ -2303,7 +2350,6 @@
       ctx.stroke();
       ctx.restore();
 
-      // Wing feathers curled inwards over torso
       for (let side = -1; side <= 1; side += 2) {
         ctx.save();
         ctx.scale(side, 1);
@@ -2325,6 +2371,60 @@
       }
 
       ctx.restore();
+    }
+
+    // DRAW KOFI OSEI'S CRUCIBLE ANVIL SLEDGE (ANIMATED COMBAT SWING)
+    function drawKofiAnvilHammer(ctx, originX, originY) {
+      if (!kofiHammerSwing.active) return;
+
+      const progress = 1 - (kofiHammerSwing.timer / kofiHammerSwing.maxTimer);
+      const swingAngle = -1.1 + (progress * 1.9);
+
+      ctx.save();
+      ctx.translate(originX + 38, originY + 30);
+      ctx.rotate(swingAngle);
+
+      // Shaft
+      ctx.fillStyle = "#451a03";
+      ctx.fillRect(-3, -52, 6, 68);
+      ctx.strokeStyle = "#d97706";
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(-3, -52, 6, 68);
+
+      // Dark-Iron Sledge Head
+      const ironGrad = ctx.createLinearGradient(-26, -74, 26, -48);
+      ironGrad.addColorStop(0, "#0f172a");
+      ironGrad.addColorStop(0.5, "#334155");
+      ironGrad.addColorStop(1, "#1e293b");
+      ctx.fillStyle = ironGrad;
+      ctx.fillRect(-22, -74, 44, 26);
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-22, -74, 44, 26);
+
+      // Molten Gold Conduits & Anvil Striking Face
+      ctx.fillStyle = "#fbbf24";
+      ctx.shadowColor = "#f59e0b";
+      ctx.shadowBlur = 16;
+      ctx.fillRect(-20, -64, 40, 5);
+      ctx.fillRect(16, -72, 6, 22);
+
+      // Ground Slam Particle Flash
+      if (progress > 0.6) {
+        ctx.shadowColor = "#facc15";
+        ctx.shadowBlur = 24;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(20, -60, 9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+      kofiHammerSwing.timer--;
+      if (kofiHammerSwing.timer <= 0) {
+        kofiHammerSwing.active = false;
+      }
     }
 
     function drawDropShadow(ctx, x, y, radiusX = 22, radiusY = 7, alpha = 0.55) {
@@ -2350,7 +2450,6 @@
       }
     }
 
-    // ADVANCING SPRITE-BASED SOLAR LION ROAR
     function drawAdvancingSolarLionRoar(ctx, lr) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
@@ -2364,14 +2463,13 @@
       if (ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
         ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - (drawH / 2), drawW, drawH);
       } else {
-        // Fallback procedural aura if asset still loading
-        const lionGrad = ctx.createRadialGradient(lr.x, lr.y, 10, lr.x, lr.y, lr.radius);
+        const lionGrad = ctx.createRadialGradient(lr.x, lr.y, 10, lr.x, lr.y, 60);
         lionGrad.addColorStop(0, "rgba(255, 255, 255, 0.95)");
         lionGrad.addColorStop(0.4, "rgba(251, 191, 36, 0.75)");
         lionGrad.addColorStop(1, "rgba(217, 119, 6, 0.0)");
         ctx.fillStyle = lionGrad;
         ctx.beginPath();
-        ctx.arc(lr.x, lr.y, lr.radius, 0, Math.PI * 2);
+        ctx.arc(lr.x, lr.y, 60, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -2760,7 +2858,6 @@
       ctx.restore();
     }
 
-    // MULTI-STAGE PARALLAX ENVIRONMENT (DETROIT VS SAHEL NIANI BEDROCK)
     function drawEnvironment(ctx) {
       if (activeZone === "detroit") {
         if (ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
@@ -2794,7 +2891,6 @@
         drawDetailedHelicopter(ctx);
         drawBystanders(ctx);
 
-        // Detroit Asphalt Floor
         const deckGrad = ctx.createLinearGradient(0, 255, 0, canvas.height);
         deckGrad.addColorStop(0, "#0b1220");
         deckGrad.addColorStop(1, "#030712");
@@ -2812,13 +2908,11 @@
         ctx.shadowBlur = 0;
 
       } else if (activeZone === "sahel" || activeZone === "sahel_rift") {
-        // PARALLAX LAYER 0: OUROBOROS INDUSTRIAL SKYLINE & VORTEX
         if (ASSETS.ouroborosSkyline.complete && ASSETS.ouroborosSkyline.naturalWidth > 0) {
           const skyScroll = (bgScrollOffset * 0.35) % canvas.width;
           ctx.drawImage(ASSETS.ouroborosSkyline, skyScroll, 0, canvas.width, 255);
           ctx.drawImage(ASSETS.ouroborosSkyline, skyScroll + canvas.width, 0, canvas.width, 255);
         } else {
-          // Dynamic procedural gradient fallback
           const sahelSky = ctx.createLinearGradient(0, 0, 0, 255);
           sahelSky.addColorStop(0, "#120520");
           sahelSky.addColorStop(0.5, "#300c36");
@@ -2827,7 +2921,6 @@
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // PARALLAX LAYER 1: BEDROCK DUST PARTICLES
         ctx.save();
         ctx.fillStyle = activeZone === "sahel_rift" ? "rgba(251, 191, 36, 0.45)" : "rgba(254, 215, 170, 0.4)";
         sahelDust.forEach(d => {
@@ -2841,7 +2934,6 @@
         });
         ctx.restore();
 
-        // PARALLAX LAYER 2: NIANI CRACKED BEDROCK GROUND SPRITE
         if (ASSETS.groundPlate.complete && ASSETS.groundPlate.naturalWidth > 0) {
           const groundX = (groundScrollOffset) % canvas.width;
           ctx.drawImage(ASSETS.groundPlate, groundX, 238, canvas.width, 52);
@@ -2993,7 +3085,7 @@
       }
       ctx.restore();
 
-      // LEAD HERO RENDER (OR WING COCOON SHIELD IF ACTIVE)
+      // LEAD HERO RENDER
       let shouldDrawLead = !xochitlFlight.active;
       if (shouldDrawLead) {
         let leadImg = ASSETS[activeLead];
@@ -3013,6 +3105,11 @@
           ctx.drawImage(leadImg, -32, -80, 65, 80);
         }
         ctx.restore();
+
+        // KOFI OSEI ANVIL SLEDGE ATTACK OVERLAY
+        if (activeLead === "kofi") {
+          drawKofiAnvilHammer(ctx, leadX, drawLeadY);
+        }
       }
 
       // XOCHITL 4-STAGE AERIAL ASSAULT (ASCENT -> STRAFE -> ARROW BARRAGE -> LAND)
@@ -3020,7 +3117,6 @@
         xochitlFlight.timer++;
 
         if (xochitlFlight.state === 'ASCENT') {
-          // 1. Vault smoothly to top right corner
           const targetX = canvas.width * 0.82;
           const targetY = 45;
           xochitlFlight.x += (targetX - xochitlFlight.x) * 0.12;
@@ -3032,7 +3128,6 @@
             logBrawler("Xochitl strafes left dropping fire daggers!");
           }
         } else if (xochitlFlight.state === 'STRAFE') {
-          // 2. Slow horizontal glide from right to left while dropping daggers
           xochitlFlight.x -= 3.8;
           xochitlFlight.y = 45 + Math.sin(xochitlFlight.timer / 8) * 6;
 
@@ -3059,7 +3154,6 @@
             logBrawler("Xochitl folds wings into an arrow dive! Releasing volley!");
           }
         } else if (xochitlFlight.state === 'BARRAGE') {
-          // 3. Hover in place, tilt sharply forward into arrow dive, launch concentrated arrow barrage
           xochitlFlight.diveAngle = 0.55;
 
           if (xochitlFlight.timer % 3 === 0 && xochitlFlight.timer < 36) {
@@ -3080,7 +3174,6 @@
             xochitlFlight.state = 'TOUCHDOWN';
           }
         } else if (xochitlFlight.state === 'TOUCHDOWN') {
-          // 4. Return to active position beside partner
           xochitlFlight.diveAngle *= 0.85;
           const landX = leadX;
           const landY = 175 - leadY;
@@ -3094,7 +3187,6 @@
           }
         }
 
-        // Render Flying Xochitl
         ctx.save();
         ctx.translate(xochitlFlight.x + 30, xochitlFlight.y + 37);
         ctx.rotate(xochitlFlight.diveAngle);
@@ -3118,19 +3210,15 @@
         if (sundiataShockwave.radius >= sundiataShockwave.maxRadius) sundiataShockwave.active = false;
       }
 
-      // FORWARD CHARGING SOLAR LION ROAR ATTACK
+      // ADVANCING SOLAR LION ROAR PROJECTILE
       for (let r = lionRoars.length - 1; r >= 0; r--) {
         const lr = lionRoars[r];
         lr.x += lr.vx;
         lr.life--;
         
-        // Grow to full comic scale as it surges forward
         if (lr.scale < 1.1) lr.scale += 0.03;
-        if (lr.alpha < 1.0) lr.alpha += 0.12;
-
         drawAdvancingSolarLionRoar(ctx, lr);
 
-        // Erase opposing projectiles
         for (let b = enemyBullets.length - 1; b >= 0; b--) {
           if (Math.hypot(enemyBullets[b].x - lr.x, enemyBullets[b].y - lr.y) < 70) {
             createBurstParticles(enemyBullets[b].x, enemyBullets[b].y, "#fbbf24", 6);
@@ -3138,7 +3226,6 @@
           }
         }
 
-        // Damage Boss
         if (boss.active && Math.abs(lr.x - (boss.x + 35)) < 70 && Math.abs(lr.y - (205 + boss.y)) < 70) {
           boss.hp -= 4;
           boss.hitFlash = 10;
@@ -3149,7 +3236,6 @@
           if (boss.hp <= 0) onBossDefeated();
         }
 
-        // Obliterate syndicate mobs
         enemies.forEach(mob => {
           if (mob.active && Math.abs(mob.x - lr.x) < 75) {
             mob.hp = 0;
@@ -3353,12 +3439,19 @@
         if (d.x > canvas.width || d.x < 0 || d.y > 260) daggers.splice(i, 1);
       }
 
-      // PROJECTILES: ENEMY BULLETS
+      // PROJECTILES: ENEMY BULLETS & CHRONO CLOCKS
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const b = enemyBullets[i];
         b.x += b.vx;
 
-        if (b.isLightningArc) {
+        if (b.isTemporalClock) {
+          ctx.save();
+          ctx.font = "18px sans-serif";
+          ctx.shadowColor = "#10b981";
+          ctx.shadowBlur = 12;
+          ctx.fillText("⏱️", b.x, b.y);
+          ctx.restore();
+        } else if (b.isLightningArc) {
           ctx.save();
           ctx.strokeStyle = "#38bdf8";
           ctx.lineWidth = 2.5;
@@ -3381,10 +3474,10 @@
         const hitLead = Math.abs(b.x - (leadX + 30)) < 22 && Math.abs(b.y - (drawLeadY + 35)) < 35;
         if (hitLead) {
           if (isShieldActive) {
-            absorbedCharge += b.heavy ? 8 : 5;
+            absorbedCharge += b.heavy ? 8 : (b.isTemporalClock ? 10 : 5);
             playSound('shield');
           } else {
-            playerHp = Math.max(0, playerHp - (b.heavy ? 9 : 6));
+            playerHp = Math.max(0, playerHp - (b.heavy ? 9 : (b.isTemporalClock ? 12 : 6)));
             updateHUD();
             playSound('hit');
             if (playerHp <= 0) handlePlayerDefeat();
@@ -3395,7 +3488,7 @@
         if (b.x < 0) enemyBullets.splice(i, 1);
       }
 
-      // LIGHTNING BOLTS (MARCUS VOLT BEAM)
+      // LIGHTNING BOLTS (MARCUS VOLT BEAM & APEX DETONATIONS)
       for (let i = lightningBolts.length - 1; i >= 0; i--) {
         const bolt = lightningBolts[i];
         ctx.strokeStyle = "#ffffff";
@@ -3419,7 +3512,7 @@
 
       drawCelestialLightCone(ctx);
 
-      // PARTICLES
+      // PARTICLES (INCLUDING CHRONO-LOCK SHATTER PIECES)
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
@@ -3436,8 +3529,10 @@
           ctx.save();
           ctx.translate(p.x, p.y);
           ctx.rotate(p.rot);
-          ctx.font = "20px sans-serif";
-          ctx.fillText(p.icon, -10, 5);
+          ctx.shadowColor = "#10b981";
+          ctx.shadowBlur = 10;
+          ctx.font = "18px sans-serif";
+          ctx.fillText(p.icon, -9, 5);
           ctx.restore();
         } else {
           ctx.fillStyle = p.color;
