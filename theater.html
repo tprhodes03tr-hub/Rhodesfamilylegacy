@@ -86,6 +86,7 @@
       border: 2px solid #f59e0b;
       background: #000000;
       box-shadow: 0 0 30px rgba(245, 158, 11, 0.25);
+      position: relative;
       transition: all 0.3s ease;
     }
     .video-viewport {
@@ -99,6 +100,63 @@
       height: 100%;
       object-fit: cover;
       display: block;
+    }
+    /* Slow-Motion Card Bumper Overlay */
+    #card-bumper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(9, 13, 22, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1s ease;
+      z-index: 10;
+      padding: 20px;
+      text-align: center;
+    }
+    #card-bumper.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .bumper-card-box {
+      background: #141622;
+      border: 2px solid #f59e0b;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
+      animation: slowMotionFloat 6s ease-in-out infinite;
+    }
+    @keyframes slowMotionFloat {
+      0% { transform: scale(0.95) translateY(10px); }
+      50% { transform: scale(1.02) translateY(-5px); }
+      100% { transform: scale(0.95) translateY(10px); }
+    }
+    .bumper-watermark {
+      font-size: 0.75rem;
+      color: #f59e0b;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+    .bumper-title {
+      font-size: 1.2rem;
+      color: #f1f5f9;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .bumper-stats {
+      font-size: 0.85rem;
+      color: #38bdf8;
+      margin-bottom: 12px;
     }
     .hud-meta {
       display: flex;
@@ -212,6 +270,15 @@
         <video id="vanguardTheaterPlayer" controls playsinline autoplay muted>
           Your browser does not support the video tag.
         </video>
+        <!-- Slow-Motion Card Bumper Overlay -->
+        <div id="card-bumper">
+          <div class="bumper-card-box">
+            <div class="bumper-watermark">⚡ Rhodes Family Legacy • Packed in the Marrow</div>
+            <div class="bumper-title" id="bumper-char-title">Operative Spotlight</div>
+            <div class="bumper-stats" id="bumper-char-stats">Loading Dossier Data...</div>
+            <p style="font-size: 0.75rem; color: #94a3b8;">Official Character Dossier & Live Codex Preview</p>
+          </div>
+        </div>
       </div>
       <div class="hud-meta">
         <span class="hud-title" id="now-playing">NOW PLAYING: Initializing Stream...</span>
@@ -239,7 +306,18 @@
   </div>
 
   <script>
-    // Define Playlists for each channel using your uploaded MP4 files
+    // Dossier Bumpers featuring the character roster (Tommy Rhodes removed)
+    const DOSSIER_BUMPERS = [
+      { title: "Marcus Prime // Detroit '313 Grid'", stats: "PWR: 96 | DEF: 92 | 200 TW Peak Output" },
+      { title: "Kenjiro // Iron Ronin Vanguard", stats: "Marrow Peak: 94/100 | Tectonic Pulse Active" },
+      { title: "Kaele // Forest-Heart Sentinel", stats: "Ledger of Resonance | Nature's Conduit Active" },
+      { title: "Guacan // Storm-Tide Sentinel", stats: "Caribbean Nexus | Larimar Consecration Stone" },
+      { title: "Mateo // The Andean Juggernaut", stats: "Seismic Power: 100+ GT | Granite Skin 90%" },
+      { title: "Mother Luta // Living Codex Nexus", stats: "Detroit-Sahel Tether | Stabilizing Lineages" },
+      { title: "Baron Krieg // The Siege Sovereign", stats: "Syndicate Heavy Artillery | Depleted-Core Stacks" }
+    ];
+
+    // Define Playlists for each channel using your uploaded MP4 files & cinematic visuals
     const CHANNELS = {
       heritage: {
         borderColor: '#f59e0b',
@@ -286,31 +364,61 @@
           { title: "Secret in the Bloodlines", src: "10057.mp4" },
           { title: "Cyber-Infiltration Matrix", src: "12721.mp4" },
           { title: "The Siege of Detroit", src: "12727.mp4" },
-          { title: "Side Brawler Combat Showcase", src: "7289.mp4" }
+          { title: "Side Brawler Combat Showcase", src: "7289.mp4" },
+          { title: "Cinematic Alliance Teaser", src: "11167.mp4" },
+          { title: "Medical & Bio-Data Grid", src: "11172.mp4" }
         ]
       }
     };
 
     let currentChannel = 'heritage';
     let currentIndex = 0;
+    let isBumperActive = false;
     const videoPlayer = document.getElementById('vanguardTheaterPlayer');
     const nowPlaying = document.getElementById('now-playing');
     const playPauseBtn = document.getElementById('playPauseBtn');
+    const cardBumper = document.getElementById('card-bumper');
 
     function initTheater() {
       loadChannel(currentChannel, 0);
 
-      // Automatically advance to the next video in the channel queue without overlapping
+      // Automatically trigger slow-motion card bumper between video clips without overlapping
       videoPlayer.onended = () => {
-        const activeList = CHANNELS[currentChannel].playlist;
-        currentIndex = (currentIndex + 1) % activeList.length;
-        loadVideo(currentIndex);
-        videoPlayer.play();
+        if (currentChannel === 'vanguard' && !isBumperActive) {
+          triggerCardBumper();
+        } else {
+          advancePlaylist();
+        }
       };
+    }
+
+    function triggerCardBumper() {
+      isBumperActive = true;
+      const randomCard = DOSSIER_BUMPERS[Math.floor(Math.random() * DOSSIER_BUMPERS.length)];
+      document.getElementById('bumper-char-title').textContent = randomCard.title;
+      document.getElementById('bumper-char-stats').textContent = randomCard.stats;
+
+      cardBumper.classList.add('active');
+      nowPlaying.textContent = "BROADCAST COMMERCIAL: Operative Dossier Spotlight";
+
+      setTimeout(() => {
+        cardBumper.classList.remove('active');
+        isBumperActive = false;
+        advancePlaylist();
+      }, 6000);
+    }
+
+    function advancePlaylist() {
+      const activeList = CHANNELS[currentChannel].playlist;
+      currentIndex = (currentIndex + 1) % activeList.length;
+      loadVideo(currentIndex);
+      videoPlayer.play().catch(e => console.log("Auto-play error:", e));
     }
 
     function setChannel(chan) {
       currentChannel = chan;
+      cardBumper.classList.remove('active');
+      isBumperActive = false;
       loadChannel(chan, 0);
     }
 
@@ -318,7 +426,6 @@
       const data = CHANNELS[chan];
       currentIndex = index;
 
-      // Update UI Frame & Theme Styling
       const frame = document.getElementById('cinema-frame');
       const badge = document.getElementById('theater-badge');
       const label = document.getElementById('cta-label');
@@ -376,6 +483,8 @@
     }
 
     function playNext() {
+      cardBumper.classList.remove('active');
+      isBumperActive = false;
       const activeList = CHANNELS[currentChannel].playlist;
       currentIndex = (currentIndex + 1) % activeList.length;
       loadVideo(currentIndex);
@@ -383,13 +492,14 @@
     }
 
     function playPrevious() {
+      cardBumper.classList.remove('active');
+      isBumperActive = false;
       const activeList = CHANNELS[currentChannel].playlist;
       currentIndex = (currentIndex - 1 + activeList.length) % activeList.length;
       loadVideo(currentIndex);
       videoPlayer.play().catch(e => console.log(e));
     }
 
-    // Initialize on window load
     window.onload = initTheater;
   </script>
 </body>
