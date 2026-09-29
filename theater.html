@@ -92,11 +92,12 @@
       position: relative;
       width: 100%;
       aspect-ratio: 16/9;
+      background: #000;
     }
-    .video-viewport iframe {
+    .video-viewport video {
       width: 100%;
       height: 100%;
-      border: none;
+      object-fit: cover;
       display: block;
     }
     .hud-meta {
@@ -112,11 +113,23 @@
       font-weight: 700;
       color: #f59e0b;
     }
-    .hud-status {
-      font-size: 0.7rem;
-      letter-spacing: 0.05em;
-      color: #64748b;
+    .hud-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .ctrl-btn {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 4px 10px;
+      font-size: 0.75rem;
       font-weight: 700;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .ctrl-btn:hover {
+      background: #475569;
     }
     .action-gate {
       background: #111827;
@@ -196,16 +209,17 @@
     <!-- CINEMATIC SCREEN FRAME -->
     <main class="screen-frame" id="cinema-frame">
       <div class="video-viewport">
-        <iframe id="cinema-player"
-                src="https://drive.google.com/file/d/1hoVf2QBC7ibLFLmJdqFfXK0Kj57k6S-9/preview"
-                title="Rhodes Family Legacy Cinema Hub"
-                allow="autoplay; encrypted-media"
-                allowfullscreen>
-        </iframe>
+        <video id="vanguardTheaterPlayer" controls playsinline autoplay muted>
+          Your browser does not support the video tag.
+        </video>
       </div>
       <div class="hud-meta">
-        <span class="hud-title" id="now-playing">NOW PLAYING: The Adventures of Little Fannie May & Her Brothers</span>
-        <span class="hud-status" id="track-count">CLOUD STREAM ACTIVE</span>
+        <span class="hud-title" id="now-playing">NOW PLAYING: Initializing Stream...</span>
+        <div class="hud-controls">
+          <button class="ctrl-btn" onclick="playPrevious()">⏮ Prev</button>
+          <button class="ctrl-btn" id="playPauseBtn" onclick="togglePlayPause()">⏸ Pause</button>
+          <button class="ctrl-btn" onclick="playNext()">Next ⏭</button>
+        </div>
       </div>
     </main>
 
@@ -225,12 +239,12 @@
   </div>
 
   <script>
+    // Define Playlists for each channel using your uploaded MP4 files
     const CHANNELS = {
       heritage: {
         borderColor: '#f59e0b',
         glow: 'rgba(245, 158, 11, 0.25)',
         badge: 'UNIVERSE: HERITAGE STORYBOOKS',
-        title: 'NOW PLAYING: The Adventures of Little Fannie May & Her Brothers',
         titleColor: '#f59e0b',
         label: 'Explore the roots of the family lineage.',
         mainText: 'OPEN E-READER',
@@ -241,13 +255,15 @@
         altLink: 'storybooks.html',
         altColor: '#8b5cf6',
         altBorder: '#7c3aed',
-        src: 'https://drive.google.com/file/d/1hoVf2QBC7ibLFLmJdqFfXK0Kj57k6S-9/preview'
+        playlist: [
+          { title: "The Adventures of Little Fannie May & Her Brothers", src: "14433.mp4" },
+          { title: "Rhodes Family Legacy Storybooks Teaser", src: "13148.mp4" }
+        ]
       },
       vanguard: {
         borderColor: '#a855f7',
         glow: 'rgba(168, 85, 247, 0.25)',
         badge: 'UNIVERSE: ANCESTRAL VANGUARD',
-        title: 'NOW PLAYING: Ancestral Vanguard Origins Chronicle',
         titleColor: '#c084fc',
         label: 'Ready for battle? Enter the Vanguard arena.',
         mainText: 'PLAY COMBAT ENGINE',
@@ -258,28 +274,62 @@
         altLink: 'vanguard-battle.html',
         altColor: '#2563eb',
         altBorder: '#1d4ed8',
-        src: 'https://drive.google.com/file/d/1cwR4LHvfxyT6mV_oNCznkKX-bipBg9dM/preview'
+        playlist: [
+          { title: "Vanguard Action Sequence 01", src: "12992.mp4" },
+          { title: "Vanguard Tactical Grounding", src: "12993.mp4" },
+          { title: "Vanguard Team Assemble", src: "12994.mp4" },
+          { title: "Packed in the Marrow & Book Lore", src: "13136.mp4" },
+          { title: "Vanguard Skyline Breach", src: "12998.mp4" },
+          { title: "Cosmic Continuum Clash", src: "12728.mp4" },
+          { title: "Ancestral Awakening", src: "12740.mp4" },
+          { title: "Siege Defense Protocol", src: "12725.mp4" },
+          { title: "Secret in the Bloodlines", src: "10057.mp4" },
+          { title: "Cyber-Infiltration Matrix", src: "12721.mp4" },
+          { title: "The Siege of Detroit", src: "12727.mp4" },
+          { title: "Side Brawler Combat Showcase", src: "7289.mp4" }
+        ]
       }
     };
 
+    let currentChannel = 'heritage';
+    let currentIndex = 0;
+    const videoPlayer = document.getElementById('vanguardTheaterPlayer');
+    const nowPlaying = document.getElementById('now-playing');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+
+    function initTheater() {
+      loadChannel(currentChannel, 0);
+
+      // Automatically advance to the next video in the channel queue without overlapping
+      videoPlayer.onended = () => {
+        const activeList = CHANNELS[currentChannel].playlist;
+        currentIndex = (currentIndex + 1) % activeList.length;
+        loadVideo(currentIndex);
+        videoPlayer.play();
+      };
+    }
+
     function setChannel(chan) {
+      currentChannel = chan;
+      loadChannel(chan, 0);
+    }
+
+    function loadChannel(chan, index) {
       const data = CHANNELS[chan];
-      const player = document.getElementById('cinema-player');
+      currentIndex = index;
+
+      // Update UI Frame & Theme Styling
       const frame = document.getElementById('cinema-frame');
       const badge = document.getElementById('theater-badge');
       const label = document.getElementById('cta-label');
       const mainBtn = document.getElementById('cta-main');
       const altBtn = document.getElementById('cta-alt');
-      const nowPlaying = document.getElementById('now-playing');
       const btnVan = document.getElementById('btn-vanguard');
       const btnHer = document.getElementById('btn-heritage');
 
-      player.src = data.src;
       frame.style.borderColor = data.borderColor;
       frame.style.boxShadow = `0 0 30px ${data.glow}`;
       badge.textContent = data.badge;
-      nowPlaying.textContent = data.title;
-      nowPlaying.style.color = data.titleColor;
 
       label.textContent = data.label;
       mainBtn.textContent = data.mainText;
@@ -299,7 +349,48 @@
         btnVan.className = 'chan-btn active-vanguard';
         btnHer.className = 'chan-btn';
       }
+
+      loadVideo(currentIndex);
+      videoPlayer.play().catch(e => console.log("Autoplay constrained, awaiting user interaction:", e));
     }
+
+    function loadVideo(index) {
+      currentIndex = index;
+      const activeList = CHANNELS[currentChannel].playlist;
+      const currentItem = activeList[currentIndex];
+
+      videoPlayer.src = currentItem.src;
+      nowPlaying.textContent = `NOW PLAYING: ${currentItem.title} (${currentIndex + 1}/${activeList.length})`;
+      nowPlaying.style.color = CHANNELS[currentChannel].titleColor;
+      videoPlayer.load();
+    }
+
+    function togglePlayPause() {
+      if (videoPlayer.paused) {
+        videoPlayer.play();
+        playPauseBtn.textContent = "⏸ Pause";
+      } else {
+        videoPlayer.pause();
+        playPauseBtn.textContent = "▶ Play";
+      }
+    }
+
+    function playNext() {
+      const activeList = CHANNELS[currentChannel].playlist;
+      currentIndex = (currentIndex + 1) % activeList.length;
+      loadVideo(currentIndex);
+      videoPlayer.play().catch(e => console.log(e));
+    }
+
+    function playPrevious() {
+      const activeList = CHANNELS[currentChannel].playlist;
+      currentIndex = (currentIndex - 1 + activeList.length) % activeList.length;
+      loadVideo(currentIndex);
+      videoPlayer.play().catch(e => console.log(e));
+    }
+
+    // Initialize on window load
+    window.onload = initTheater;
   </script>
 </body>
 </html>
