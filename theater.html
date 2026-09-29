@@ -101,7 +101,7 @@
       border: none;
       display: block;
     }
-    /* Slow-Motion Card Bumper Overlay */
+    /* Front-and-Back Flipping Card Bumper Overlay */
     #card-bumper {
       position: absolute;
       top: 0;
@@ -115,10 +115,11 @@
       justify-content: center;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 1s ease;
+      transition: opacity 0.5s ease;
       z-index: 10;
       padding: 20px;
       text-align: center;
+      perspective: 1000px;
     }
     #card-bumper.active {
       opacity: 1;
@@ -132,12 +133,11 @@
       max-width: 400px;
       width: 100%;
       box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
-      animation: slowMotionFloat 6s ease-in-out infinite;
+      transform-style: preserve-3d;
+      transition: transform 0.8s ease;
     }
-    @keyframes slowMotionFloat {
-      0% { transform: scale(0.95) translateY(10px); }
-      50% { transform: scale(1.02) translateY(-5px); }
-      100% { transform: scale(0.95) translateY(10px); }
+    .bumper-card-box.flipped {
+      transform: rotateY(180deg);
     }
     .bumper-watermark {
       font-size: 0.75rem;
@@ -273,9 +273,9 @@
                 allow="autoplay; encrypted-media"
                 allowfullscreen>
         </iframe>
-        <!-- Slow-Motion Card Bumper Overlay -->
+        <!-- Flipping Card Bumper Overlay -->
         <div id="card-bumper">
-          <div class="bumper-card-box">
+          <div class="bumper-card-box" id="bumper-card-box">
             <div class="bumper-watermark">⚡ Rhodes Family Legacy • Packed in the Marrow</div>
             <div class="bumper-title" id="bumper-char-title">Operative Spotlight</div>
             <div class="bumper-stats" id="bumper-char-stats">Loading Dossier Data...</div>
@@ -309,15 +309,43 @@
   </div>
 
   <script>
-    // Dossier Commercial Bumpers featuring the Golden Double-Helix Tree Watermark Theme & International Units
+    // Dossier Commercial Bumpers featuring Front & Back Card Data
     const DOSSIER_BUMPERS = [
-      { title: "Guacan // Storm-Tide Sentinel (DR)", stats: "Caribbean Nexus | Larimar Consecration Stone" },
-      { title: "Xochitl // Obsidian Sun Operative (MX)", stats: "Mesoamerican Guard | Solar Shield Active" },
-      { title: "Marcus Prime // Detroit '313 Grid'", stats: "PWR: 96 | DEF: 92 | 200 TW Peak Output" },
-      { title: "Kenjiro // Iron Ronin Vanguard", stats: "Marrow Peak: 94/100 | Tectonic Pulse Active" },
-      { title: "Kaele // Forest-Heart Sentinel", stats: "Ledger of Resonance | Nature's Conduit Active" },
-      { title: "Mateo // The Andean Juggernaut", stats: "Seismic Power: 100+ GT | Granite Skin 90%" },
-      { title: "Mother Luta // Living Codex Nexus", stats: "Detroit-Sahel Tether | Stabilizing Lineages" }
+      { 
+        title: "Guacan // Storm-Tide Sentinel (DR)", 
+        frontStats: "PWR: 88 | DEF: 95 | Caribbean Nexus", 
+        backStats: "Lore: Larimar Consecration Stone & Guamo War Shell Activation." 
+      },
+      { 
+        title: "Xochitl // Obsidian Sun Operative (MX)", 
+        frontStats: "PWR: 90 | DEF: 91 | Mesoamerican Guard", 
+        backStats: "Lore: Solar Shield Ritual & Obsidian Code Synchronization." 
+      },
+      { 
+        title: "Marcus Prime // Detroit '313 Grid'", 
+        frontStats: "PWR: 96 | DEF: 92 | 200 TW Peak Output", 
+        backStats: "Lore: Industrial Grid Core & Detroit Marrow Foundation." 
+      },
+      { 
+        title: "Kenjiro // Iron Ronin Vanguard", 
+        frontStats: "Marrow Peak: 94/100 | Tectonic Pulse", 
+        backStats: "Lore: Steel Katana Synchrony & Ancestral Blade Lineage." 
+      },
+      { 
+        title: "Kaele // Forest-Heart Sentinel", 
+        frontStats: "Ledger of Resonance | Nature's Conduit", 
+        backStats: "Lore: Canopy Grid Tether & Botanical Energy Weaving." 
+      },
+      { 
+        title: "Mateo // The Andean Juggernaut", 
+        frontStats: "Seismic Power: 100+ GT | Granite Skin", 
+        backStats: "Lore: High-Altitude Ridge Fortification & Tectonic Armor." 
+      },
+      { 
+        title: "Mother Luta // Living Codex Nexus", 
+        frontStats: "Detroit-Sahel Tether | Stabilizer", 
+        backStats: "Lore: Master Lineage Archives & Intercontinental Anchor." 
+      }
     ];
 
     // Complete Playlists for each channel with multi-video queues
@@ -372,6 +400,7 @@
     const nowPlaying = document.getElementById('now-playing');
     const playPauseBtn = document.getElementById('playPauseBtn');
     const cardBumper = document.getElementById('card-bumper');
+    const cardBox = document.getElementById('bumper-card-box');
 
     function initTheater() {
       loadChannel(currentChannel, 0);
@@ -380,6 +409,7 @@
     function setChannel(chan) {
       currentChannel = chan;
       cardBumper.classList.remove('active');
+      cardBox.classList.remove('flipped');
       isBumperActive = false;
       loadChannel(chan, 0);
     }
@@ -435,14 +465,25 @@
     function triggerCardBumper() {
       isBumperActive = true;
       const randomCard = DOSSIER_BUMPERS[Math.floor(Math.random() * DOSSIER_BUMPERS.length)];
+      
+      // Step 1: Display Front of Card
       document.getElementById('bumper-char-title').textContent = randomCard.title;
-      document.getElementById('bumper-char-stats').textContent = randomCard.stats;
-
+      document.getElementById('bumper-char-stats').textContent = randomCard.frontStats;
+      cardBox.classList.remove('flipped');
       cardBumper.classList.add('active');
-      nowPlaying.textContent = "BROADCAST COMMERCIAL: Operative Dossier Spotlight";
+      nowPlaying.textContent = "COMMERCIAL BREAK: Operative Dossier (Front)";
 
+      // Step 2: Flip to Back of Card after 3 seconds
+      setTimeout(() => {
+        document.getElementById('bumper-char-stats').textContent = randomCard.backStats;
+        cardBox.classList.add('flipped');
+        nowPlaying.textContent = "COMMERCIAL BREAK: Operative Dossier (Back Lore)";
+      }, 3000);
+
+      // Step 3: Resume Video Queue after 6 seconds total
       setTimeout(() => {
         cardBumper.classList.remove('active');
+        cardBox.classList.remove('flipped');
         isBumperActive = false;
         playNext();
       }, 6000);
@@ -450,10 +491,11 @@
 
     function playNext() {
       cardBumper.classList.remove('active');
+      cardBox.classList.remove('flipped');
       isBumperActive = false;
       const activeList = CHANNELS[currentChannel].playlist;
       
-      // Trigger dossier commercial bumper smoothly in Vanguard mode
+      // Trigger front-and-back trading card commercial break smoothly in Vanguard mode
       if (currentChannel === 'vanguard' && !isBumperActive) {
         triggerCardBumper();
         return;
@@ -465,6 +507,7 @@
 
     function playPrevious() {
       cardBumper.classList.remove('active');
+      cardBox.classList.remove('flipped');
       isBumperActive = false;
       const activeList = CHANNELS[currentChannel].playlist;
       currentIndex = (currentIndex - 1 + activeList.length) % activeList.length;
