@@ -181,13 +181,12 @@
 
     let car = {
       x: 80,
-      y: 230,
+      y: 215,
       vy: 0,
-      width: 70,
-      height: 36,
+      width: 78,
+      height: 38,
       isGrounded: true,
-      turboTimer: 0,
-      color: '#ea580c'
+      turboTimer: 0
     };
 
     let traffic = [];
@@ -198,7 +197,7 @@
 
     function jumpCar() {
       if (car.isGrounded) {
-        car.vy = -12;
+        car.vy = -13;
         car.isGrounded = false;
       }
     }
@@ -208,14 +207,20 @@
     }
 
     function spawnTrafficCar() {
-      const colors = ['#38bdf8', '#10b981', '#a855f7', '#eab308'];
+      const types = [
+        { color: '#38bdf8', roof: '#0284c7', w: 72, h: 36 },
+        { color: '#10b981', roof: '#047857', w: 75, h: 35 },
+        { color: '#eab308', roof: '#ca8a04', w: 80, h: 38 }
+      ];
+      let tType = types[Math.floor(Math.random() * types.length)];
       traffic.push({
-        x: canvas.width + 50,
-        y: 232,
-        width: 65,
-        height: 34,
-        speed: 3.5 + Math.random() * 2,
-        color: colors[Math.floor(Math.random() * colors.length)]
+        x: canvas.width + 60,
+        y: 218,
+        width: tType.w,
+        height: tType.h,
+        speed: 3 + Math.random() * 2,
+        color: tType.color,
+        roofColor: tType.roof
       });
     }
 
@@ -223,41 +228,38 @@
       car.y += car.vy;
       car.vy += 0.65;
 
-      if (car.y > 230) {
-        car.y = 230;
+      // Ground level adjusted for wider road
+      if (car.y > 215) {
+        car.y = 215;
         car.vy = 0;
         car.isGrounded = true;
       }
 
       let currentSpeed = speed;
       if (car.turboTimer > 0) {
-        currentSpeed = 14;
+        currentSpeed = 15;
         car.turboTimer--;
       }
 
       worldScroll += currentSpeed;
       distance += Math.floor(currentSpeed);
 
-      // Spawn traffic obstacles
       spawnTimer++;
-      if (spawnTimer > 95) {
+      if (spawnTimer > 90) {
         spawnTimer = 0;
         spawnTrafficCar();
       }
 
-      // Move traffic
       for (let i = traffic.length - 1; i >= 0; i--) {
         traffic[i].x -= (currentSpeed + traffic[i].speed);
         
-        // Collision check
         if (
-          car.x < traffic[i].x + traffic[i].width &&
-          car.x + car.width > traffic[i].x &&
+          car.x < traffic[i].x + traffic[i].width - 8 &&
+          car.x + car.width - 8 > traffic[i].x &&
           car.y < traffic[i].y + traffic[i].height &&
           car.y + car.height > traffic[i].y
         ) {
-          // Hit traffic car! Reset distance penalty or bounce
-          distance = Math.max(0, distance - 50);
+          distance = Math.max(0, distance - 60);
           traffic.splice(i, 1);
         } else if (traffic[i].x < -100) {
           traffic.splice(i, 1);
@@ -269,108 +271,175 @@
     }
 
     function draw() {
-      // 1. Detroit Night Sky & Skyline Backdrop
-      ctx.fillStyle = '#060913';
+      // 1. Detroit Night Sky Gradient
+      let skyGrad = ctx.createLinearGradient(0, 0, 0, 200);
+      skyGrad.addColorStop(0, '#030712');
+      skyGrad.addColorStop(0.6, '#0f172a');
+      skyGrad.addColorStop(1, '#1e1b4b');
+      ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      let skylineOffset = (worldScroll * 0.25) % canvas.width;
+      // 2. Overhead Transit Rail / People Mover Structure across skyline
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(0, 75);
+      ctx.lineTo(canvas.width, 75);
+      ctx.moveTo(0, 85);
+      ctx.lineTo(canvas.width, 85);
+      ctx.stroke();
+
+      for (let px = -(worldScroll % 120); px < canvas.width; px += 120) {
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(px, 75, 12, 130);
+      }
+
+      // 3. Multi-Layer Detroit Skyline Backdrops
+      let skylineOffset = (worldScroll * 0.2) % canvas.width;
       ctx.fillStyle = '#111827';
       for (let i = -1; i < 3; i++) {
-        let bx = i * 160 - skylineOffset;
-        ctx.fillRect(bx, 80, 45, 170);
-        ctx.fillRect(bx + 50, 40, 60, 210);
-        ctx.fillRect(bx + 115, 100, 45, 150);
+        let bx = i * 180 - skylineOffset;
+        ctx.fillRect(bx, 100, 50, 140);
+        ctx.fillRect(bx + 55, 60, 65, 180);
+        ctx.fillRect(bx + 125, 120, 50, 120);
 
+        // Glowing Windows
         ctx.fillStyle = '#f59e0b';
-        ctx.fillRect(bx + 10, 100, 5, 8);
-        ctx.fillRect(bx + 65, 60, 6, 10);
-        ctx.fillRect(bx + 95, 120, 6, 10);
+        ctx.fillRect(bx + 12, 120, 4, 8);
+        ctx.fillRect(bx + 24, 150, 4, 8);
+        ctx.fillRect(bx + 70, 80, 5, 10);
+        ctx.fillRect(bx + 85, 110, 5, 10);
         ctx.fillStyle = '#111827';
       }
 
-      // 2. Roadway
+      // 4. Wider Highway Roadway (Taller, Immersive Asphalt)
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(0, 230, canvas.width, 90);
+
+      // Asphalt Surface
       ctx.fillStyle = '#1e293b';
-      ctx.fillRect(0, 260, canvas.width, 60);
+      ctx.fillRect(0, 238, canvas.width, 74);
 
-      ctx.strokeStyle = '#f8fafc';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(0, 260);
-      ctx.lineTo(canvas.width, 260);
-      ctx.stroke();
+      // Top Safety Barrier Rail & Posts
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(0, 232, canvas.width, 6);
+      ctx.fillStyle = '#cbd5e1';
+      for (let rx = -(worldScroll % 50); rx < canvas.width; rx += 50) {
+        ctx.fillRect(rx, 232, 24, 6);
+      }
 
+      // Glowing Lane Markers
       ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = 4;
-      ctx.setLineDash([30, 30]);
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 8;
+      ctx.setLineDash([40, 30]);
       ctx.lineDashOffset = -worldScroll;
       ctx.beginPath();
-      ctx.moveTo(0, 290);
-      ctx.lineTo(canvas.width, 290);
+      ctx.moveTo(0, 275);
+      ctx.lineTo(canvas.width, 275);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
 
-      // 3. Draw Traffic Cars
+      // 5. Draw Traffic Cars
       traffic.forEach(t => {
         ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 10;
+        
         ctx.fillStyle = t.color;
         ctx.beginPath();
-        ctx.roundRect(t.x, t.y - t.height, t.width, t.height, [8, 12, 4, 4]);
+        ctx.roundRect(t.x, t.y - t.height + 6, t.width, t.height - 6, [8, 14, 4, 4]);
         ctx.fill();
 
-        ctx.fillStyle = '#020617';
-        ctx.fillRect(t.x + 12, t.y - t.height + 4, 20, 12);
-
-        // Traffic wheels
-        ctx.fillStyle = '#0f172a';
+        ctx.fillStyle = t.roofColor;
         ctx.beginPath();
-        ctx.arc(t.x + 14, t.y, 8, 0, Math.PI * 2);
-        ctx.arc(t.x + t.width - 14, t.y, 8, 0, Math.PI * 2);
+        ctx.roundRect(t.x + 18, t.y - t.height - 10, t.width - 34, 16, [6, 6, 0, 0]);
         ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(t.x + 22, t.y - t.height - 7, t.width - 42, 10);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(t.x, t.y - 12, 4, 8);
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#020617';
+        ctx.beginPath();
+        ctx.arc(t.x + 16, t.y + 6, 9, 0, Math.PI * 2);
+        ctx.arc(t.x + t.width - 16, t.y + 6, 9, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.arc(t.x + 16, t.y + 6, 4, 0, Math.PI * 2);
+        ctx.arc(t.x + t.width - 16, t.y + 6, 4, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.restore();
       });
 
-      // 4. Draw Player Sports Car
+      // 6. Draw Player Sports Car (Isaac's Custom Racer)
       ctx.save();
       ctx.translate(car.x, car.y);
 
       if (car.turboTimer > 0) {
-        ctx.fillStyle = '#ef4444';
-        ctx.shadowColor = '#f97316';
-        ctx.shadowBlur = 20;
-        ctx.fillRect(-22 + Math.random() * -10, 12, 22, 14);
+        ctx.fillStyle = '#f97316';
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 25;
+        ctx.beginPath();
+        ctx.moveTo(-4, 12);
+        ctx.lineTo(-32 - Math.random() * 18, 18);
+        ctx.lineTo(-4, 26);
+        ctx.closePath();
+        ctx.fill();
       }
 
-      ctx.shadowColor = '#38bdf8';
+      ctx.shadowColor = '#000';
       ctx.shadowBlur = 12;
-      ctx.fillStyle = car.color;
+
+      let carGrad = ctx.createLinearGradient(0, 0, 0, car.height);
+      carGrad.addColorStop(0, '#fb923c');
+      carGrad.addColorStop(0.5, '#ea580c');
+      carGrad.addColorStop(1, '#9a3412');
+      ctx.fillStyle = carGrad;
       ctx.beginPath();
-      ctx.roundRect(0, 0, car.width, car.height, [12, 18, 6, 6]);
+      ctx.roundRect(0, 6, car.width, car.height - 6, [10, 20, 6, 6]);
       ctx.fill();
 
       ctx.fillStyle = '#020617';
       ctx.beginPath();
-      ctx.moveTo(14, 4);
-      ctx.lineTo(26, 4);
-      ctx.lineTo(44, 18);
-      ctx.lineTo(14, 18);
+      ctx.moveTo(18, 6);
+      ctx.lineTo(32, -6);
+      ctx.lineTo(58, -6);
+      ctx.lineTo(64, 6);
       ctx.closePath();
       ctx.fill();
 
       ctx.fillStyle = '#facc15';
+      ctx.shadowColor = '#facc15';
+      ctx.shadowBlur = 12;
       ctx.fillRect(car.width - 6, 14, 6, 8);
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(2, 14, 4, 8);
 
-      ctx.fillStyle = '#0f172a';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(10, car.height + 2, car.width - 20, 3);
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#020617';
       ctx.beginPath();
-      ctx.arc(16, car.height, 10, 0, Math.PI * 2);
-      ctx.arc(car.width - 16, car.height, 10, 0, Math.PI * 2);
+      ctx.arc(18, car.height, 10, 0, Math.PI * 2);
+      ctx.arc(car.width - 18, car.height, 10, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.fillStyle = car.turboTimer > 0 ? '#ef4444' : '#38bdf8';
       ctx.beginPath();
-      ctx.arc(16, car.height, 4, 0, Math.PI * 2);
-      ctx.arc(car.width - 16, car.height, 4, 0, Math.PI * 2);
+      ctx.arc(18, car.height, 4.5, 0, Math.PI * 2);
+      ctx.arc(car.width - 18, car.height, 4.5, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.restore();
