@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Cinema Hub | Rhodes Family Legacy</title>
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
     }
     body {
       background: #090d16;
@@ -95,11 +97,12 @@
       aspect-ratio: 16/9;
       background: #000;
     }
-    .video-viewport iframe {
+    .video-viewport iframe, .video-viewport video {
       width: 100%;
       height: 100%;
       border: none;
       display: block;
+      object-fit: cover;
     }
     /* Front-and-Back Flipping Card Bumper Overlay */
     #card-bumper {
@@ -129,18 +132,40 @@
       background: #141622;
       border: 2px solid #f59e0b;
       border-radius: 12px;
-      padding: 20px;
-      max-width: 400px;
+      padding: 24px;
+      max-width: 380px;
       width: 100%;
+      height: 240px;
       box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
       transform-style: preserve-3d;
-      transition: transform 0.8s ease;
+      transition: transform 0.8s cubic-bezier(0.4, 0.2, 0.2, 1);
+      position: relative;
     }
     .bumper-card-box.flipped {
       transform: rotateY(180deg);
     }
+    .card-face {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      border-radius: 10px;
+    }
+    .card-back {
+      transform: rotateY(180deg);
+      background: #1e1b4b;
+      border: 1px solid #4338ca;
+    }
     .bumper-watermark {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: #f59e0b;
       font-weight: 800;
       text-transform: uppercase;
@@ -148,7 +173,7 @@
       margin-bottom: 8px;
     }
     .bumper-title {
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       color: #f1f5f9;
       font-weight: 800;
       margin-bottom: 6px;
@@ -156,7 +181,8 @@
     .bumper-stats {
       font-size: 0.85rem;
       color: #38bdf8;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
+      line-height: 1.3;
     }
     .hud-meta {
       display: flex;
@@ -179,10 +205,10 @@
       background: #334155;
       color: #fff;
       border: none;
-      padding: 4px 10px;
+      padding: 6px 12px;
       font-size: 0.75rem;
       font-weight: 700;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       transition: background 0.2s;
     }
@@ -268,7 +294,7 @@
     <main class="screen-frame" id="cinema-frame">
       <div class="video-viewport">
         <iframe id="cinema-player"
-                src="https://drive.google.com/file/d/1hoVf2QBC7ibLFLmJdqFfXK0Kj57k6S-9/preview"
+                src=""
                 title="Rhodes Family Legacy Cinema Hub"
                 allow="autoplay; encrypted-media"
                 allowfullscreen>
@@ -276,10 +302,19 @@
         <!-- Flipping Card Bumper Overlay -->
         <div id="card-bumper">
           <div class="bumper-card-box" id="bumper-card-box">
-            <div class="bumper-watermark">⚡ Rhodes Family Legacy • Packed in the Marrow</div>
-            <div class="bumper-title" id="bumper-char-title">Operative Spotlight</div>
-            <div class="bumper-stats" id="bumper-char-stats">Loading Dossier Data...</div>
-            <p style="font-size: 0.75rem; color: #94a3b8;">Official Character Dossier & Live Codex Preview</p>
+            <!-- Front Face -->
+            <div class="card-face card-front">
+              <div class="bumper-watermark">⚡ RHODES FAMILY LEGACY</div>
+              <div class="bumper-title" id="bumper-char-title">Operative Spotlight</div>
+              <div class="bumper-stats" id="bumper-front-stats">Loading Stats...</div>
+              <div style="font-size: 0.655rem; color: #94a3b8;">Official Commercial Dossier</div>
+            </div>
+            <!-- Back Face -->
+            <div class="card-face card-back">
+              <div class="bumper-watermark" style="color: #a855f7;">ARCHIVAL LORE DOSSIER</div>
+              <div class="bumper-title" id="bumper-back-title" style="font-size: 1rem;">Lineage Anchor</div>
+              <div class="bumper-stats" id="bumper-back-stats" style="font-size: 0.8rem; color: #e2e8f0;">Loading Lore...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -287,8 +322,7 @@
         <span class="hud-title" id="now-playing">NOW PLAYING: Initializing Stream...</span>
         <div class="hud-controls">
           <button class="ctrl-btn" onclick="playPrevious()">⏮ Prev</button>
-          <button class="ctrl-btn" id="playPauseBtn" onclick="togglePlayPause()">⏸ Pause</button>
-          <button class="ctrl-btn" onclick="playNext()">Next ⏭</button>
+          <button class="ctrl-btn" id="playPauseBtn" onclick="playNext()">Next ⏭</button>
         </div>
       </div>
     </main>
@@ -313,42 +347,42 @@
     const DOSSIER_BUMPERS = [
       { 
         title: "Guacan // Storm-Tide Sentinel (DR)", 
-        frontStats: "PWR: 88 | DEF: 95 | Caribbean Nexus", 
-        backStats: "Lore: Larimar Consecration Stone & Guamo War Shell Activation." 
+        front: "PWR: 88 | DEF: 95 | Caribbean Nexus", 
+        back: "Lore: Larimar Consecration Stone & Guamo War Shell Activation." 
       },
       { 
         title: "Xochitl // Obsidian Sun Operative (MX)", 
-        frontStats: "PWR: 90 | DEF: 91 | Mesoamerican Guard", 
-        backStats: "Lore: Solar Shield Ritual & Obsidian Code Synchronization." 
+        front: "PWR: 90 | DEF: 91 | Mesoamerican Guard", 
+        back: "Lore: Solar Shield Ritual & Obsidian Code Synchronization." 
       },
       { 
         title: "Marcus Prime // Detroit '313 Grid'", 
-        frontStats: "PWR: 96 | DEF: 92 | 200 TW Peak Output", 
-        backStats: "Lore: Industrial Grid Core & Detroit Marrow Foundation." 
+        front: "PWR: 96 | DEF: 92 | 200 TW Peak Output", 
+        back: "Lore: Industrial Grid Core & Detroit Marrow Foundation." 
       },
       { 
         title: "Kenjiro // Iron Ronin Vanguard", 
-        frontStats: "Marrow Peak: 94/100 | Tectonic Pulse", 
-        backStats: "Lore: Steel Katana Synchrony & Ancestral Blade Lineage." 
+        front: "Marrow Peak: 94/100 | Tectonic Pulse", 
+        back: "Lore: Steel Katana Synchrony & Ancestral Blade Lineage." 
       },
       { 
         title: "Kaele // Forest-Heart Sentinel", 
-        frontStats: "Ledger of Resonance | Nature's Conduit", 
-        backStats: "Lore: Canopy Grid Tether & Botanical Energy Weaving." 
+        front: "Ledger of Resonance | Nature's Conduit", 
+        back: "Lore: Canopy Grid Tether & Botanical Energy Weaving." 
       },
       { 
         title: "Mateo // The Andean Juggernaut", 
-        frontStats: "Seismic Power: 100+ GT | Granite Skin", 
-        backStats: "Lore: High-Altitude Ridge Fortification & Tectonic Armor." 
+        front: "Seismic Power: 100+ GT | Granite Skin", 
+        back: "Lore: High-Altitude Ridge Fortification & Tectonic Armor." 
       },
       { 
         title: "Mother Luta // Living Codex Nexus", 
-        frontStats: "Detroit-Sahel Tether | Stabilizer", 
-        backStats: "Lore: Master Lineage Archives & Intercontinental Anchor." 
+        front: "Detroit-Sahel Tether | Stabilizer", 
+        back: "Lore: Master Lineage Archives & Intercontinental Anchor." 
       }
     ];
 
-    // Complete Playlists for each channel with multi-video queues
+    // Complete Playlists for each channel
     const CHANNELS = {
       heritage: {
         borderColor: '#f59e0b',
@@ -398,7 +432,6 @@
     let isBumperActive = false;
     const videoPlayer = document.getElementById('cinema-player');
     const nowPlaying = document.getElementById('now-playing');
-    const playPauseBtn = document.getElementById('playPauseBtn');
     const cardBumper = document.getElementById('card-bumper');
     const cardBox = document.getElementById('bumper-card-box');
 
@@ -466,37 +499,42 @@
       isBumperActive = true;
       const randomCard = DOSSIER_BUMPERS[Math.floor(Math.random() * DOSSIER_BUMPERS.length)];
       
-      // Step 1: Display Front of Card
+      // Populate Card Faces
       document.getElementById('bumper-char-title').textContent = randomCard.title;
-      document.getElementById('bumper-char-stats').textContent = randomCard.frontStats;
+      document.getElementById('bumper-front-stats').textContent = randomCard.front;
+      document.getElementById('bumper-back-title').textContent = randomCard.title;
+      document.getElementById('bumper-back-stats').textContent = randomCard.back;
+
+      // Step 1: Show Front Face
       cardBox.classList.remove('flipped');
       cardBumper.classList.add('active');
-      nowPlaying.textContent = "COMMERCIAL BREAK: Operative Dossier (Front)";
+      nowPlaying.textContent = "COMMERCIAL BREAK: Operative Spotlight (Front)";
 
-      // Step 2: Flip to Back of Card after 3 seconds
+      // Step 2: Flip to Back Face after 3 seconds
       setTimeout(() => {
-        document.getElementById('bumper-char-stats').textContent = randomCard.backStats;
         cardBox.classList.add('flipped');
-        nowPlaying.textContent = "COMMERCIAL BREAK: Operative Dossier (Back Lore)";
+        nowPlaying.textContent = "COMMERCIAL BREAK: Archival Dossier (Back Lore)";
       }, 3000);
 
-      // Step 3: Resume Video Queue after 6 seconds total
+      // Step 3: Dismiss Bumper and Resume Next Video after 6 seconds total
       setTimeout(() => {
         cardBumper.classList.remove('active');
         cardBox.classList.remove('flipped');
+        isBouncerActive = false;
+        const activeList = CHANNELS[currentChannel].playlist;
+        currentIndex = (currentIndex + 1) % activeList.length;
+        loadVideo(currentIndex);
         isBumperActive = false;
-        playNext();
       }, 6000);
     }
 
     function playNext() {
-      cardBumper.classList.remove('active');
-      cardBox.classList.remove('flipped');
-      isBumperActive = false;
+      if (isBumperActive) return;
+      
       const activeList = CHANNELS[currentChannel].playlist;
       
-      // Trigger front-and-back trading card commercial break smoothly in Vanguard mode
-      if (currentChannel === 'vanguard' && !isBumperActive) {
+      // Trigger card commercial bumper between video segments in Vanguard mode
+      if (currentChannel === 'vanguard') {
         triggerCardBumper();
         return;
       }
@@ -506,16 +544,10 @@
     }
 
     function playPrevious() {
-      cardBumper.classList.remove('active');
-      cardBox.classList.remove('flipped');
-      isBumperActive = false;
+      if (isBumperActive) return;
       const activeList = CHANNELS[currentChannel].playlist;
       currentIndex = (currentIndex - 1 + activeList.length) % activeList.length;
       loadVideo(currentIndex);
-    }
-
-    function togglePlayPause() {
-      playNext();
     }
 
     window.onload = initTheater;
