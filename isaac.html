@@ -3,13 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Isaac's Street Racer - Rhodes Family Legacy</title>
+  <title>Isaac's Detroit Street Racer - Rhodes Family Legacy</title>
   <style>
     :root {
       --bg-dark: #07090e;
       --panel-bg: rgba(15, 23, 42, 0.95);
-      --gold-border: #d4af37;
-      --gold-glow: rgba(212, 175, 55, 0.45);
     }
 
     * {
@@ -121,10 +119,11 @@
       background: #334155;
     }
 
-    .btn-action {
-      background: linear-gradient(180deg, #ea580c, #c2410c);
-      border-color: #f97316;
+    .btn-turbo {
+      background: linear-gradient(180deg, #f59e0b, #b45309);
+      border-color: #fbbf24;
       color: #fff;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
     }
 
     .btn-steer {
@@ -155,7 +154,7 @@
 <body>
 
   <header>
-    <div class="portal-title">Isaac's Street Racer</div>
+    <div class="portal-title">Isaac's Detroit Street Racer</div>
   </header>
 
   <div class="game-wrapper">
@@ -171,8 +170,8 @@
     <div class="controls-grid">
       <button class="btn btn-steer" ontouchstart="steerLeft()" onmousedown="steerLeft()">◀ STEER LEFT</button>
       <button class="btn btn-steer" ontouchstart="steerRight()" onmousedown="steerRight()">STEER RIGHT ▶</button>
+      <button class="btn btn-turbo" ontouchstart="activateTurbo()" onmousedown="activateTurbo()">TURBO BOOST 🔥</button>
       <button class="btn" ontouchstart="brakeCar()" onmousedown="brakeCar()">BRAKE</button>
-      <button class="btn btn-action" ontouchstart="accelerateCar()" onmousedown="accelerateCar()">ACCELERATE ⚡</button>
     </div>
 
     <a href="index.html" class="btn-back">← Back to Legacy Hub</a>
@@ -188,7 +187,8 @@
       width: 44,
       height: 80,
       speed: 4,
-      maxSpeed: 12,
+      maxSpeed: 10,
+      turboTimer: 0,
       color: '#ea580c'
     };
 
@@ -199,63 +199,118 @@
     window.addEventListener('keydown', e => keys[e.key] = true);
     window.addEventListener('keyup', e => keys[e.key] = false);
 
-    function steerLeft() { car.x = Math.max(90, car.x - 25); }
-    function steerRight() { car.x = Math.min(410, car.x + 25); }
-    function accelerateCar() { car.speed = Math.min(car.maxSpeed, car.speed + 2); }
+    function steerLeft() { car.x = Math.max(100, car.x - 22); }
+    function steerRight() { car.x = Math.min(390, car.x + 22); }
+    function activateTurbo() { car.turboTimer = 90; }
     function brakeCar() { car.speed = Math.max(2, car.speed - 3); }
 
     function update() {
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) steerLeft();
       if (keys['ArrowRight'] || keys['d'] || keys['D']) steerRight();
-      if (keys['ArrowUp'] || keys['w'] || keys['W']) accelerateCar();
-      if (keys['ArrowDown'] || keys['s'] || keys['S']) brakeCar();
+
+      let currentMax = car.maxSpeed;
+      if (car.turboTimer > 0) {
+        currentMax = 18;
+        car.turboTimer--;
+        car.speed = Math.min(currentMax, car.speed + 0.5);
+      } else {
+        if (car.speed > 6) car.speed -= 0.1;
+      }
 
       roadScroll += car.speed;
-      distance += Math.floor(car.speed / 2);
+      distance += Math.floor(car.speed);
 
       document.getElementById('scoreText').textContent = `Distance: ${distance}m`;
-      document.getElementById('speedText').textContent = `Speed: ${Math.floor(car.speed * 12)} MPH`;
+      document.getElementById('speedText').textContent = `Speed: ${Math.floor(car.speed * 15)} MPH`;
     }
 
     function draw() {
-      // Background / City Night Skyline
-      ctx.fillStyle = '#090d16';
+      // 1. Detroit Night Sky & Skyline Backdrop
+      ctx.fillStyle = '#060913';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // City Sidewalks / Buildings
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(40, 0, 40, canvas.height);
-      ctx.fillRect(460, 0, 40, canvas.height);
+      // Detroit Skyscraper Silhouettes (Scrolling parallax)
+      ctx.fillStyle = '#111827';
+      let skylineOffset = (roadScroll * 0.2) % canvas.width;
+      for (let i = -1; i < 3; i++) {
+        let bx = i * 180 - skylineOffset;
+        ctx.fillRect(bx, 60, 50, 140);
+        ctx.fillRect(bx + 55, 30, 65, 170);
+        ctx.fillRect(bx + 125, 80, 50, 120);
 
-      // Main Street Road Surface
+        // Lit Skyscraper Windows
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(bx + 10, 80, 6, 12);
+        ctx.fillRect(bx + 25, 110, 6, 12);
+        ctx.fillRect(bx + 70, 50, 8, 16);
+        ctx.fillRect(bx + 90, 90, 8, 16);
+        ctx.fillStyle = '#111827';
+      }
+
+      // 2. Curved Street Offset (Sine wave track)
+      let curveOffset = Math.sin(roadScroll / 120) * 80;
+      let roadCenterX = canvas.width / 2 + curveOffset;
+      let roadWidth = 300;
+
+      // Road Surface
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.moveTo(roadCenterX - roadWidth / 2 - 20, 0);
+      ctx.lineTo(roadCenterX + roadWidth / 2 + 20, 0);
+      ctx.lineTo(roadCenterX + roadWidth / 2 + 60, canvas.height);
+      ctx.lineTo(roadCenterX - roadWidth / 2 - 60, canvas.height);
+      ctx.closePath();
+      ctx.fill();
+
+      // Asphalt Road
       ctx.fillStyle = '#334155';
-      ctx.fillRect(80, 0, 380, canvas.height);
+      ctx.beginPath();
+      ctx.moveTo(roadCenterX - roadWidth / 2, 0);
+      ctx.lineTo(roadCenterX + roadWidth / 2, 0);
+      ctx.lineTo(roadCenterX + roadWidth / 2, canvas.height);
+      ctx.lineTo(roadCenterX - roadWidth / 2, canvas.height);
+      ctx.closePath();
+      ctx.fill();
 
       // Road Curb Edges
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(76, 0, 6, canvas.height);
-      ctx.fillRect(458, 0, 6, canvas.height);
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(roadCenterX - roadWidth / 2, 0);
+      ctx.lineTo(roadCenterX - roadWidth / 2, canvas.height);
+      ctx.moveTo(roadCenterX + roadWidth / 2, 0);
+      ctx.lineTo(roadCenterX + roadWidth / 2, canvas.height);
+      ctx.stroke();
 
-      // Center Dashed Dividing Lines (Scrolling)
+      // Center Dashed Line (Curved)
       ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 5;
-      ctx.setLineDash([30, 30]);
+      ctx.lineWidth = 4;
+      ctx.setLineDash([25, 25]);
       ctx.lineDashOffset = -roadScroll;
       ctx.beginPath();
-      ctx.moveTo(canvas.width / 2, 0);
-      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.moveTo(roadCenterX, 0);
+      ctx.lineTo(roadCenterX, canvas.height);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Draw Custom Street Car with Rims
-      ctx.save();
-      ctx.translate(car.x, car.y);
+      // Keep car tethered near road center with driver steering bounds
+      let targetCarX = roadCenterX + (car.x - 245);
 
-      // Car Body Shadow & Glow
-      ctx.shadowColor = '#38bdf8';
-      ctx.shadowBlur = 12;
+      // 3. Draw Custom Street Car with Turbo Flame & Glowing Rims
+      ctx.save();
+      ctx.translate(targetCarX, car.y);
+
+      if (car.turboTimer > 0) {
+        ctx.fillStyle = '#ef4444';
+        ctx.shadowColor = '#f97316';
+        ctx.shadowBlur = 20;
+        ctx.fillRect(8, car.height, 10, 18 + Math.random() * 14);
+        ctx.fillRect(car.width - 18, car.height, 10, 18 + Math.random() * 14);
+      }
 
       // Main Chassis
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
       ctx.fillStyle = car.color;
       ctx.beginPath();
       ctx.roundRect(0, 0, car.width, car.height, 12);
@@ -271,15 +326,14 @@
       ctx.fillRect(2, 2, 8, 5);
       ctx.fillRect(car.width - 10, 2, 8, 5);
 
-      // Custom Rims & Tires
+      // Tires & Glowing Rims
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(-6, 12, 6, 18);
       ctx.fillRect(car.width, 12, 6, 18);
       ctx.fillRect(-6, car.height - 24, 6, 18);
       ctx.fillRect(car.width, car.height - 24, 6, 18);
 
-      // Glowing Rim Spokes
-      ctx.fillStyle = '#38bdf8';
+      ctx.fillStyle = car.turboTimer > 0 ? '#ef4444' : '#38bdf8';
       ctx.fillRect(-4, 16, 2, 10);
       ctx.fillRect(car.width + 2, 16, 2, 10);
       ctx.fillRect(-4, car.height - 20, 2, 10);
