@@ -105,6 +105,38 @@
       object-fit: cover;
       filter: brightness(1.25) contrast(1.15);
     }
+    /* Play Overlay for Mobile Browsers */
+    #play-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      cursor: pointer;
+      transition: opacity 0.3s ease;
+    }
+    #play-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .play-icon-btn {
+      background: #f59e0b;
+      color: #000;
+      font-weight: 800;
+      font-size: 1.1rem;
+      padding: 14px 28px;
+      border-radius: 50px;
+      border: none;
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+      cursor: pointer;
+      text-transform: uppercase;
+    }
     /* Front-and-Back Flipping Card Bumper Overlay */
     #card-bumper {
       position: absolute;
@@ -294,12 +326,20 @@
     <!-- CINEMATIC SCREEN FRAME -->
     <main class="screen-frame" id="cinema-frame">
       <div class="video-viewport">
+        <!-- Interactive Play Overlay to bypass mobile browser restrictions -->
+        <div id="play-overlay" onclick="startStream()">
+          <button class="play-icon-btn">▶ START STREAM</button>
+        </div>
+
         <video id="cinema-player"
                controls
                playsinline
+               muted
                preload="auto">
+          <source src="Origins & The Tree of Lineage.mp4" type="video/mp4">
           Your browser does not support the video tag.
         </video>
+
         <!-- Flipping Card Bumper Overlay -->
         <div id="card-bumper">
           <div class="bumper-card-box" id="bumper-card-box">
@@ -437,9 +477,16 @@
     const nowPlaying = document.getElementById('now-playing');
     const cardBumper = document.getElementById('card-bumper');
     const cardBox = document.getElementById('bumper-card-box');
+    const playOverlay = document.getElementById('play-overlay');
 
     function initTheater() {
       loadChannel(currentChannel, 0);
+    }
+
+    function startStream() {
+      playOverlay.classList.add('hidden');
+      videoPlayer.muted = false;
+      videoPlayer.play().catch(e => console.log("Playback error:", e));
     }
 
     function setChannel(chan) {
@@ -497,7 +544,12 @@
       videoPlayer.src = currentItem.src;
       videoPlayer.load();
       
-      videoPlayer.play().catch(e => console.log("Autoplay waiting for user interaction:", e));
+      videoPlayer.play().then(() => {
+        playOverlay.classList.add('hidden');
+      }).catch(e => {
+        // If browser blocks autoplay, show the interactive start stream overlay
+        playOverlay.classList.remove('hidden');
+      });
       
       nowPlaying.textContent = `NOW PLAYING: ${currentItem.title} (${currentIndex + 1}/${activeList.length})`;
       nowPlaying.style.color = CHANNELS[currentChannel].titleColor;
