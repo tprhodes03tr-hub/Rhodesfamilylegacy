@@ -194,6 +194,7 @@
     let distance = 0;
     let speed = 6;
     let spawnTimer = 0;
+    let crashFlash = 0;
 
     function jumpCar() {
       if (car.isGrounded) {
@@ -215,10 +216,10 @@
       let tType = types[Math.floor(Math.random() * types.length)];
       traffic.push({
         x: canvas.width + 60,
-        y: 218,
+        y: 215, // Aligned precisely with road surface
         width: tType.w,
         height: tType.h,
-        speed: 3 + Math.random() * 2,
+        speed: 2.5 + Math.random() * 1.5,
         color: tType.color,
         roofColor: tType.roof
       });
@@ -228,7 +229,6 @@
       car.y += car.vy;
       car.vy += 0.65;
 
-      // Ground level adjusted for wider road
       if (car.y > 215) {
         car.y = 215;
         car.vy = 0;
@@ -245,23 +245,31 @@
       distance += Math.floor(currentSpeed);
 
       spawnTimer++;
-      if (spawnTimer > 90) {
+      if (spawnTimer > 85) {
         spawnTimer = 0;
         spawnTrafficCar();
       }
 
+      if (crashFlash > 0) crashFlash--;
+
+      // Precise bounding-box collision detection
       for (let i = traffic.length - 1; i >= 0; i--) {
         traffic[i].x -= (currentSpeed + traffic[i].speed);
         
+        let t = traffic[i];
+        // Check if car overlaps traffic horizontally and vertically (must jump over them!)
         if (
-          car.x < traffic[i].x + traffic[i].width - 8 &&
-          car.x + car.width - 8 > traffic[i].x &&
-          car.y < traffic[i].y + traffic[i].height &&
-          car.y + car.height > traffic[i].y
+          car.x < t.x + t.width - 10 &&
+          car.x + car.width - 10 > t.x &&
+          car.y + car.height > t.y + 4
         ) {
-          distance = Math.max(0, distance - 60);
+          // CRASH DETECTED!
+          crashFlash = 25;
+          speed = 3; // Slow down penalty
+          setTimeout(() => { speed = 6; }, 1000);
+          distance = Math.max(0, distance - 100); // Distance penalty
           traffic.splice(i, 1);
-        } else if (traffic[i].x < -100) {
+        } else if (t.x < -100) {
           traffic.splice(i, 1);
         }
       }
@@ -279,7 +287,12 @@
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 2. Overhead Transit Rail / People Mover Structure across skyline
+      if (crashFlash > 0) {
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // 2. Overhead Transit Rail
       ctx.strokeStyle = '#334155';
       ctx.lineWidth = 4;
       ctx.beginPath();
@@ -294,7 +307,7 @@
         ctx.fillRect(px, 75, 12, 130);
       }
 
-      // 3. Multi-Layer Detroit Skyline Backdrops
+      // 3. Detroit Skyline
       let skylineOffset = (worldScroll * 0.2) % canvas.width;
       ctx.fillStyle = '#111827';
       for (let i = -1; i < 3; i++) {
@@ -303,7 +316,6 @@
         ctx.fillRect(bx + 55, 60, 65, 180);
         ctx.fillRect(bx + 125, 120, 50, 120);
 
-        // Glowing Windows
         ctx.fillStyle = '#f59e0b';
         ctx.fillRect(bx + 12, 120, 4, 8);
         ctx.fillRect(bx + 24, 150, 4, 8);
@@ -312,15 +324,13 @@
         ctx.fillStyle = '#111827';
       }
 
-      // 4. Wider Highway Roadway (Taller, Immersive Asphalt)
+      // 4. Highway Roadway
       ctx.fillStyle = '#090d16';
       ctx.fillRect(0, 230, canvas.width, 90);
 
-      // Asphalt Surface
       ctx.fillStyle = '#1e293b';
       ctx.fillRect(0, 238, canvas.width, 74);
 
-      // Top Safety Barrier Rail & Posts
       ctx.fillStyle = '#64748b';
       ctx.fillRect(0, 232, canvas.width, 6);
       ctx.fillStyle = '#cbd5e1';
@@ -328,11 +338,8 @@
         ctx.fillRect(rx, 232, 24, 6);
       }
 
-      // Glowing Lane Markers
       ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = 4;
-      ctx.shadowColor = '#f59e0b';
-      ctx.shadowBlur = 8;
       ctx.setLineDash([40, 30]);
       ctx.lineDashOffset = -worldScroll;
       ctx.beginPath();
@@ -340,14 +347,10 @@
       ctx.lineTo(canvas.width, 275);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.shadowBlur = 0;
 
       // 5. Draw Traffic Cars
       traffic.forEach(t => {
         ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 10;
-        
         ctx.fillStyle = t.color;
         ctx.beginPath();
         ctx.roundRect(t.x, t.y - t.height + 6, t.width, t.height - 6, [8, 14, 4, 4]);
@@ -362,27 +365,17 @@
         ctx.fillRect(t.x + 22, t.y - t.height - 7, t.width - 42, 10);
 
         ctx.fillStyle = '#ef4444';
-        ctx.shadowColor = '#ef4444';
-        ctx.shadowBlur = 8;
         ctx.fillRect(t.x, t.y - 12, 4, 8);
 
-        ctx.shadowBlur = 0;
         ctx.fillStyle = '#020617';
         ctx.beginPath();
         ctx.arc(t.x + 16, t.y + 6, 9, 0, Math.PI * 2);
         ctx.arc(t.x + t.width - 16, t.y + 6, 9, 0, Math.PI * 2);
         ctx.fill();
-
-        ctx.fillStyle = '#94a3b8';
-        ctx.beginPath();
-        ctx.arc(t.x + 16, t.y + 6, 4, 0, Math.PI * 2);
-        ctx.arc(t.x + t.width - 16, t.y + 6, 4, 0, Math.PI * 2);
-        ctx.fill();
-
         ctx.restore();
       });
 
-      // 6. Draw Player Sports Car (Isaac's Custom Racer)
+      // 6. Draw Player Sports Car
       ctx.save();
       ctx.translate(car.x, car.y);
 
@@ -397,9 +390,6 @@
         ctx.closePath();
         ctx.fill();
       }
-
-      ctx.shadowColor = '#000';
-      ctx.shadowBlur = 12;
 
       let carGrad = ctx.createLinearGradient(0, 0, 0, car.height);
       carGrad.addColorStop(0, '#fb923c');
@@ -420,16 +410,11 @@
       ctx.fill();
 
       ctx.fillStyle = '#facc15';
-      ctx.shadowColor = '#facc15';
-      ctx.shadowBlur = 12;
       ctx.fillRect(car.width - 6, 14, 6, 8);
 
-      ctx.shadowColor = '#38bdf8';
-      ctx.shadowBlur = 15;
       ctx.fillStyle = '#38bdf8';
       ctx.fillRect(10, car.height + 2, car.width - 20, 3);
 
-      ctx.shadowBlur = 0;
       ctx.fillStyle = '#020617';
       ctx.beginPath();
       ctx.arc(18, car.height, 10, 0, Math.PI * 2);
