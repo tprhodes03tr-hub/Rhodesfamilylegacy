@@ -34,7 +34,7 @@
     .hud {
       width: 100%;
       background: #0f172a;
-      border: 2px solid #f59e0b;
+      border: 2px solid #22c55e;
       border-radius: 8px;
       padding: 6px 12px;
       display: flex;
@@ -42,13 +42,13 @@
       align-items: center;
       font-weight: 800;
       font-size: 0.85rem;
-      color: #38bdf8;
+      color: #4ade80;
     }
     .alert-banner {
       width: 100%;
-      background: linear-gradient(90deg, rgba(239, 68, 68, 0.2), rgba(245, 158, 11, 0.2));
-      border: 1px solid #f59e0b;
-      color: #fef08a;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid #22c55e;
+      color: #bbf7d0;
       padding: 5px;
       text-align: center;
       font-size: 0.75rem;
@@ -61,10 +61,10 @@
       width: 100%;
       max-width: 600px;
       height: 310px;
-      background: #1e293b;
-      border: 3px solid #3b82f6;
+      background: #166534;
+      border: 3px solid #22c55e;
       border-radius: 10px;
-      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
       display: block;
     }
     .controls {
@@ -75,7 +75,7 @@
       max-width: 380px;
     }
     .ctrl-btn {
-      background: #2563eb;
+      background: #15803d;
       color: #fff;
       border: none;
       padding: 10px;
@@ -84,7 +84,7 @@
       border-radius: 8px;
       cursor: pointer;
       text-align: center;
-      box-shadow: 0 3px 0 #1d4ed8;
+      box-shadow: 0 3px 0 #166534;
       transition: transform 0.1s;
     }
     .ctrl-btn:active {
@@ -92,8 +92,8 @@
       box-shadow: none;
     }
     .btn-action {
-      background: #059669;
-      box-shadow: 0 3px 0 #047857;
+      background: #2563eb;
+      box-shadow: 0 3px 0 #1d4ed8;
       grid-column: span 3;
       padding: 12px;
       font-size: 1.05rem;
@@ -117,17 +117,17 @@
       <span id="timer-display">TIME: 45s</span>
     </div>
 
-    <div class="alert-banner" id="alert-text">🚨 EMERGENCY: DRIVE TO THE FIRE & BLAST WATER!</div>
+    <div class="alert-banner" id="alert-text">🚨 DETROIT EMERGENCY: DRIVE UP THE STREET TO THE FIRE!</div>
 
     <canvas id="gameCanvas" width="600" height="290"></canvas>
 
     <div class="controls">
       <div></div>
-      <button class="ctrl-btn" ontouchstart="moveTruck(0, -12)" onclick="moveTruck(0, -12)">⬆️ UP</button>
+      <button class="ctrl-btn" ontouchstart="moveVehicle(0, -12)" onclick="moveVehicle(0, -12)">⬆️ UP</button>
       <div></div>
-      <button class="ctrl-btn" ontouchstart="moveTruck(-14, 0)" onclick="moveTruck(-14, 0)">⬅ LEFT</button>
-      <button class="ctrl-btn" ontouchstart="moveTruck(0, 12)" onclick="moveTruck(0, 12)">⬇️ DOWN</button>
-      <button class="ctrl-btn" ontouchstart="moveTruck(14, 0)" onclick="moveTruck(14, 0)">RIGHT ➡️</button>
+      <button class="ctrl-btn" ontouchstart="moveVehicle(-12, 0)" onclick="moveVehicle(-12, 0)">⬅ LEFT</button>
+      <button class="ctrl-btn" ontouchstart="moveVehicle(0, 12)" onclick="moveVehicle(0, 12)">⬇️ DOWN</button>
+      <button class="ctrl-btn" ontouchstart="moveVehicle(12, 0)" onclick="moveVehicle(12, 0)">RIGHT ➡️</button>
       <button class="ctrl-btn btn-action" ontouchstart="triggerAction()" onclick="triggerAction()">💦 BLAST WATER / RESCUE 🚨</button>
     </div>
 
@@ -141,56 +141,91 @@
     let score = 0;
     let timeLeft = 45;
     let gameActive = true;
-    let missionType = "fire"; 
+    let missionType = "fire"; // 'fire' or 'rescue'
     let waterParticles = [];
 
-    // Fire Engine Truck Object
-    let truck = {
-      x: 260,
+    // Web Audio API Sound Generator
+    let audioCtx = null;
+    function playSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'siren') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+          osc.frequency.linearRampToValueAtTime(900, audioCtx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'water') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+          osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 0.2);
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.2);
+        }
+      } catch (e) {
+        // Audio context handles browser policy smoothly
+      }
+    }
+
+    // Vehicle (Facing Forward Up the Street)
+    let vehicle = {
+      x: 275,
       y: 210,
-      width: 72,
-      height: 42
+      width: 40,
+      height: 65
     };
 
-    // Target Building / Citizen
+    // Emergency Target (House on Grass Lot or Citizen on Sidewalk)
     let target = {
-      x: 250,
-      y: 25,
-      width: 95,
-      height: 65,
+      x: 420, // Built on grass lot beside the street
+      y: 35,
+      width: 100,
+      height: 70,
       active: true,
       health: 100
     };
 
-    function moveTruck(dx, dy) {
+    function moveVehicle(dx, dy) {
       if (!gameActive) return;
-      truck.x += dx;
-      truck.y += dy;
+      vehicle.x += dx;
+      vehicle.y += dy;
 
-      // Keep truck on the asphalt road between Detroit storefronts
-      if (truck.x < 70) truck.x = 70;
-      if (truck.x > canvas.width - truck.width - 70) truck.x = canvas.width - truck.width - 70;
-      if (truck.y < 95) truck.y = 95; 
-      if (truck.y > canvas.height - truck.height - 8) truck.y = canvas.height - truck.height - 8;
+      playSound('siren');
+
+      // Keep vehicle within road bounds (Asphalt is from x: 130 to x: 470)
+      if (vehicle.x < 135) vehicle.x = 135;
+      if (vehicle.x > 470 - vehicle.width) vehicle.x = 470 - vehicle.width;
+      if (vehicle.y < 20) vehicle.y = 20;
+      if (vehicle.y > canvas.height - vehicle.height - 10) vehicle.y = canvas.height - vehicle.height - 10;
     }
 
     function triggerAction() {
       if (!gameActive) return;
+      playSound('water');
 
-      // Sprays water stream particles
+      // Water spray animation toward target
       for (let i = 0; i < 10; i++) {
         waterParticles.push({
-          x: truck.x + truck.width / 2,
-          y: truck.y,
-          vx: (Math.random() - 0.5) * 5,
-          vy: -7 - Math.random() * 4,
-          life: 18
+          x: vehicle.x + vehicle.width / 2,
+          y: vehicle.y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: -6 - Math.random() * 4,
+          life: 20
         });
       }
 
-      let distance = Math.hypot((truck.x + truck.width/2) - (target.x + target.width/2), truck.y - (target.y + target.height));
+      let distance = Math.hypot((vehicle.x + vehicle.width/2) - (target.x + target.width/2), vehicle.y - target.y);
       
-      if (distance < 120 && target.active) {
+      if (distance < 130 && target.active) {
         if (missionType === "fire") {
           target.health -= 34;
           if (target.health <= 0) {
@@ -207,16 +242,19 @@
     }
 
     function spawnNewTarget() {
-      target.x = Math.random() * 350 + 85;
+      // Alternate target side: Left grass lot or Right grass lot
+      let side = Math.random() > 0.5 ? 'left' : 'right';
+      target.x = side === 'left' ? 40 : 420;
+      target.y = Math.random() * 80 + 20;
       target.active = true;
       target.health = 100;
       missionType = Math.random() > 0.5 ? "fire" : "rescue";
       
       const alertEl = document.getElementById('alert-text');
       if (missionType === "fire") {
-        alertEl.textContent = "🚨 EMERGENCY: HOUSE ON FIRE! Drive close & BLAST WATER!";
+        alertEl.textContent = "🚨 HOUSE ON FIRE ON THE GRASS LOT! Drive up and BLAST WATER!";
       } else {
-        alertEl.textContent = "🆘 EMERGENCY: CITIZEN NEEDS RESCUE! Drive close & HELP!";
+        alertEl.textContent = "🆘 CITIZEN NEEDS HELP ON THE SIDEWALK! Drive up and RESCUE!";
       }
     }
 
@@ -233,65 +271,73 @@
     function update() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. DETROIT STREET BACKGROUND & SIDEWALKS
-      ctx.fillStyle = '#0b0f19';
+      // 1. GRASS LAWNS (Left and Right)
+      ctx.fillStyle = '#166534';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Sidewalks
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(0, 0, 70, canvas.height);
-      ctx.fillRect(canvas.width - 70, 0, 70, canvas.height);
+      // 2. SIDEWALKS
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(110, 0, 25, canvas.height);
+      ctx.fillRect(465, 0, 25, canvas.height);
 
-      // Asphalt Road
+      // 3. ASPHALT ROADWAY DOWN THE CENTER
       ctx.fillStyle = '#1e293b';
-      ctx.fillRect(70, 0, canvas.width - 140, canvas.height);
+      ctx.fillRect(135, 0, 330, canvas.height);
 
-      // Road Center Striping
+      // Yellow Center Road Stripes
       ctx.strokeStyle = '#eab308';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([14, 14]);
+      ctx.lineWidth = 4;
+      ctx.setLineDash([16, 16]);
       ctx.beginPath();
-      ctx.moveTo(canvas.width / 2, 0);
-      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.moveTo(300, 0);
+      ctx.lineTo(300, canvas.height);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // 2. TARGET BUILDING / STOREFRONT
+      // 4. HOUSE / BUILDING ON THE GRASS LOT
       if (target.active) {
         if (missionType === "fire") {
-          // Brick Building
+          // Brick House on Grass
           ctx.fillStyle = '#991b1b';
           ctx.fillRect(target.x, target.y, target.width, target.height);
           
-          // Lit Windows & Storefront Glass
-          ctx.fillStyle = '#fde047';
-          ctx.fillRect(target.x + 10, target.y + 12, 18, 24);
-          ctx.fillRect(target.x + 65, target.y + 12, 18, 24);
+          // House Roof
+          ctx.fillStyle = '#450a0a';
+          ctx.beginPath();
+          ctx.moveTo(target.x - 10, target.y);
+          ctx.lineTo(target.x + target.width / 2, target.y - 25);
+          ctx.lineTo(target.x + target.width + 10, target.y);
+          ctx.fill();
 
-          // Animated Fire Flames
+          // Windows
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(target.x + 15, target.y + 15, 20, 25);
+          ctx.fillRect(target.x + 65, target.y + 15, 20, 25);
+
+          // Blazing Fire
           ctx.fillStyle = '#ea580c';
           ctx.beginPath();
-          ctx.arc(target.x + target.width / 2, target.y - 6, 22, 0, Math.PI * 2);
+          ctx.arc(target.x + target.width / 2, target.y - 30, 24, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#facc15';
           ctx.beginPath();
-          ctx.arc(target.x + target.width / 2, target.y - 8, 12, 0, Math.PI * 2);
+          ctx.arc(target.x + target.width / 2, target.y - 32, 14, 0, Math.PI * 2);
           ctx.fill();
 
           ctx.fillStyle = '#ffffff';
           ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(`🔥 FIRE: ${target.health}%`, target.x + 8, target.y - 30);
+          ctx.fillText(`🔥 FIRE: ${target.health}%`, target.x, target.y - 45);
         } else {
-          // Citizen In Need on Sidewalk
+          // Citizen In Need on Sidewalk/Lawn
           ctx.fillStyle = '#047857';
-          ctx.fillRect(target.x + 15, target.y + 15, 65, 45);
+          ctx.fillRect(target.x + 20, target.y + 10, 60, 50);
           ctx.fillStyle = '#ffffff';
           ctx.font = 'bold 12px sans-serif';
-          ctx.fillText("🆘 RESCUE ME!", target.x + 5, target.y + 5);
+          ctx.fillText("🆘 HELP!", target.x + 22, target.y);
         }
       }
 
-      // 3. WATER SPRAY PARTICLES
+      // 5. WATER PARTICLES
       for (let i = waterParticles.length - 1; i >= 0; i--) {
         let p = waterParticles[i];
         p.x += p.vx;
@@ -306,39 +352,35 @@
         if (p.life <= 0) waterParticles.splice(i, 1);
       }
 
-      // 4. DETAILED FIRE ENGINE TRUCK
-      ctx.fillStyle = '#dc2626';
-      ctx.fillRect(truck.x, truck.y + 10, truck.width, truck.height - 10);
-      
-      // Fire Truck Cab
-      ctx.fillStyle = '#b91c1c';
-      ctx.fillRect(truck.x + 46, truck.y, 26, 24);
+      // 6. VEHICLE (Facing Forward Up the Street)
+      let isAmbulance = missionType === "rescue";
+      ctx.fillStyle = isAmbulance ? '#ffffff' : '#dc2626';
+      ctx.fillRect(vehicle.x, vehicle.y, vehicle.width, vehicle.height);
+
+      // Cab & Windshield
+      ctx.fillStyle = isAmbulance ? '#dc2626' : '#991b1b';
+      ctx.fillRect(vehicle.x + 4, vehicle.y + 6, vehicle.width - 8, 20);
       ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(truck.x + 52, truck.y + 5, 16, 12);
+      ctx.fillRect(vehicle.x + 8, vehicle.y + 10, vehicle.width - 16, 12);
 
-      // Ladder & Equipment Rack
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(truck.x + 6, truck.y + 6, 36, 8);
-
-      // Detailed Wheels
+      // Wheels
       ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.arc(truck.x + 18, truck.y + truck.height, 9, 0, Math.PI * 2);
-      ctx.arc(truck.x + 56, truck.y + truck.height, 9, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(vehicle.x - 4, vehicle.y + 10, 4, 12);
+      ctx.fillRect(vehicle.x + vehicle.width, vehicle.y + 10, 4, 12);
+      ctx.fillRect(vehicle.x - 4, vehicle.y + vehicle.height - 16, 4, 12);
+      ctx.fillRect(vehicle.x + vehicle.width, vehicle.y + vehicle.height - 16, 4, 12);
 
-      // Flashing Siren Light
+      // Flashing Emergency Strobe
       ctx.fillStyle = Math.floor(Date.now() / 180) % 2 === 0 ? '#38bdf8' : '#ef4444';
-      ctx.fillRect(truck.x + 54, truck.y - 7, 8, 7);
+      ctx.fillRect(vehicle.x + vehicle.width / 2 - 5, vehicle.y - 6, 10, 6);
 
-      // 5. UPDATE HUD
+      // 7. HUD
       document.getElementById('score-display').textContent = `SCORE: ${score}`;
 
       if (!gameActive) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#f59e0b';
+        ctx.fillStyle = '#4ade80';
         ctx.font = 'bold 22px sans-serif';
         ctx.fillText("MISSION COMPLETE!", 140, 130);
         ctx.fillStyle = '#38bdf8';
