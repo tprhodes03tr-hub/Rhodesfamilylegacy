@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Isaac's Run Adventures - Rhodes Family Legacy</title>
+  <title>Isaac's Street Racer - Rhodes Family Legacy</title>
   <style>
     :root {
       --bg-dark: #07090e;
@@ -80,7 +80,7 @@
     .canvas-container {
       position: relative;
       width: 100%;
-      height: 290px;
+      height: 320px;
       background: #000;
       border: 1px solid #334155;
       border-radius: 8px;
@@ -122,6 +122,12 @@
     }
 
     .btn-action {
+      background: linear-gradient(180deg, #ea580c, #c2410c);
+      border-color: #f97316;
+      color: #fff;
+    }
+
+    .btn-steer {
       background: linear-gradient(180deg, #0369a1, #0c4a6e);
       border-color: #38bdf8;
       color: #bae6fd;
@@ -149,22 +155,24 @@
 <body>
 
   <header>
-    <div class="portal-title">Isaac's Run Adventures</div>
+    <div class="portal-title">Isaac's Street Racer</div>
   </header>
 
   <div class="game-wrapper">
     <div class="hud-header">
       <span id="scoreText">Distance: 0m</span>
-      <span id="speedText">Speed: 6 MPH</span>
+      <span id="speedText">Speed: 0 MPH</span>
     </div>
 
     <div class="canvas-container">
-      <canvas id="gameCanvas" width="540" height="290"></canvas>
+      <canvas id="gameCanvas" width="540" height="320"></canvas>
     </div>
 
     <div class="controls-grid">
-      <button class="btn" onclick="playerJump()">▲ JUMP / FLY</button>
-      <button class="btn btn-action" onclick="playerBoost()">⚡ SPEED BOOST</button>
+      <button class="btn btn-steer" ontouchstart="steerLeft()" onmousedown="steerLeft()">◀ STEER LEFT</button>
+      <button class="btn btn-steer" ontouchstart="steerRight()" onmousedown="steerRight()">STEER RIGHT ▶</button>
+      <button class="btn" ontouchstart="brakeCar()" onmousedown="brakeCar()">BRAKE</button>
+      <button class="btn btn-action" ontouchstart="accelerateCar()" onmousedown="accelerateCar()">ACCELERATE ⚡</button>
     </div>
 
     <a href="index.html" class="btn-back">← Back to Legacy Hub</a>
@@ -174,74 +182,116 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    let isaac = {
-      x: 80,
-      y: 200,
-      vy: 0,
-      width: 28,
-      height: 45,
-      isGrounded: true
+    let car = {
+      x: 235,
+      y: 220,
+      width: 44,
+      height: 80,
+      speed: 4,
+      maxSpeed: 12,
+      color: '#ea580c'
     };
 
-    let score = 0;
-    let obstacles = [];
-    let gameActive = true;
+    let roadScroll = 0;
+    let distance = 0;
+    let keys = {};
 
-    function playerJump() {
-      if (isaac.isGrounded) {
-        isaac.vy = -12;
-        isaac.isGrounded = false;
-      }
-    }
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
 
-    function playerBoost() {
-      score += 25;
-    }
+    function steerLeft() { car.x = Math.max(90, car.x - 25); }
+    function steerRight() { car.x = Math.min(410, car.x + 25); }
+    function accelerateCar() { car.speed = Math.min(car.maxSpeed, car.speed + 2); }
+    function brakeCar() { car.speed = Math.max(2, car.speed - 3); }
 
     function update() {
-      if (!gameActive) return;
+      if (keys['ArrowLeft'] || keys['a'] || keys['A']) steerLeft();
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) steerRight();
+      if (keys['ArrowUp'] || keys['w'] || keys['W']) accelerateCar();
+      if (keys['ArrowDown'] || keys['s'] || keys['S']) brakeCar();
 
-      // Gravity
-      isaac.y += isaac.vy;
-      isaac.vy += 0.65;
+      roadScroll += car.speed;
+      distance += Math.floor(car.speed / 2);
 
-      if (isaac.y > 200) {
-        isaac.y = 200;
-        isaac.vy = 0;
-        isaac.isGrounded = true;
-      }
-
-      score++;
-      document.getElementById('scoreText').textContent = `Distance: ${score}m`;
+      document.getElementById('scoreText').textContent = `Distance: ${distance}m`;
+      document.getElementById('speedText').textContent = `Speed: ${Math.floor(car.speed * 12)} MPH`;
     }
 
     function draw() {
-      ctx.fillStyle = '#0f172a';
+      // Background / City Night Skyline
+      ctx.fillStyle = '#090d16';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Ground
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(0, 245, canvas.width, 45);
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, 245);
-      ctx.lineTo(canvas.width, 245);
-      ctx.stroke();
+      // City Sidewalks / Buildings
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(40, 0, 40, canvas.height);
+      ctx.fillRect(460, 0, 40, canvas.height);
 
-      // Draw Isaac (Platformer Runner)
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(isaac.x, isaac.y, isaac.width, isaac.height);
-      
-      // Details
+      // Main Street Road Surface
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(80, 0, 380, canvas.height);
+
+      // Road Curb Edges
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(76, 0, 6, canvas.height);
+      ctx.fillRect(458, 0, 6, canvas.height);
+
+      // Center Dashed Dividing Lines (Scrolling)
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 5;
+      ctx.setLineDash([30, 30]);
+      ctx.lineDashOffset = -roadScroll;
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2, 0);
+      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw Custom Street Car with Rims
+      ctx.save();
+      ctx.translate(car.x, car.y);
+
+      // Car Body Shadow & Glow
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+
+      // Main Chassis
+      ctx.fillStyle = car.color;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, car.width, car.height, 12);
+      ctx.fill();
+
+      // Windshield & Windows
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(6, 18, car.width - 12, 22);
+      ctx.fillRect(8, 48, car.width - 16, 16);
+
+      // Headlights
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(2, 2, 8, 5);
+      ctx.fillRect(car.width - 10, 2, 8, 5);
+
+      // Custom Rims & Tires
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-6, 12, 6, 18);
+      ctx.fillRect(car.width, 12, 6, 18);
+      ctx.fillRect(-6, car.height - 24, 6, 18);
+      ctx.fillRect(car.width, car.height - 24, 6, 18);
+
+      // Glowing Rim Spokes
       ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(isaac.x + 6, isaac.y + 8, 8, 8);
+      ctx.fillRect(-4, 16, 2, 10);
+      ctx.fillRect(car.width + 2, 16, 2, 10);
+      ctx.fillRect(-4, car.height - 20, 2, 10);
+      ctx.fillRect(car.width + 2, car.height - 20, 2, 10);
+
+      ctx.restore();
     }
 
     function loop() {
       update();
       draw();
-      if (gameActive) requestAnimationFrame(loop);
+      requestAnimationFrame(loop);
     }
 
     loop();
