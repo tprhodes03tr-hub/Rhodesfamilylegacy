@@ -47,7 +47,7 @@
     canvas {
       width: 100%;
       max-width: 600px;
-      height: 400px;
+      height: 380px;
       background: #1e293b;
       border: 3px solid #3b82f6;
       border-radius: 12px;
@@ -66,7 +66,7 @@
       color: #fff;
       border: none;
       padding: 16px;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       font-weight: 800;
       border-radius: 10px;
       cursor: pointer;
@@ -88,7 +88,7 @@
       text-decoration: none;
       font-size: 0.8rem;
       font-weight: 700;
-      margin-top: 4px;
+      margin-top: 2px;
     }
     .back-link:hover {
       color: #f8fafc;
@@ -104,12 +104,12 @@
       <span id="timer-display">TIME: 45s</span>
     </div>
 
-    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <canvas id="gameCanvas" width="600" height="360"></canvas>
 
     <div class="controls">
-      <button class="ctrl-btn" ontouchstart="moveTruck(-15)" onclick="moveTruck(-15)">⬅️ LEFT</button>
+      <button class="ctrl-btn" ontouchstart="moveTruck(-18)" onclick="moveTruck(-18)">⬅️ LEFT</button>
       <button class="ctrl-btn btn-action" ontouchstart="triggerAction()" onclick="triggerAction()">💦 WATER BLAST / RESCUE 🚨</button>
-      <button class="ctrl-btn" ontouchstart="moveTruck(15)" onclick="moveTruck(15)">RIGHT ➡️</button>
+      <button class="ctrl-btn" ontouchstart="moveTruck(18)" onclick="moveTruck(18)">RIGHT ➡️</button>
     </div>
 
     <a href="index.html" class="back-link">← RETURN TO MAIN PORTAL</a>
@@ -124,21 +124,21 @@
     let gameActive = true;
     let missionType = "fire"; // 'fire' or 'rescue'
 
-    // Truck object
+    // Fire Engine Truck Object
     let truck = {
-      x: 270,
-      y: 320,
-      width: 60,
-      height: 50,
+      x: 260,
+      y: 275,
+      width: 80,
+      height: 45,
       speed: 20
     };
 
-    // Target object (Burning House or Citizen in Need)
+    // Emergency Target (Building Fire or Citizen)
     let target = {
-      x: Math.random() * 500 + 50,
-      y: 60,
-      width: 50,
-      height: 50,
+      x: Math.random() * 400 + 100,
+      y: 40,
+      width: 70,
+      height: 75,
       active: true,
       health: 100
     };
@@ -146,15 +146,15 @@
     function moveTruck(dir) {
       if (!gameActive) return;
       truck.x += dir;
-      if (truck.x < 10) truck.x = 10;
-      if (truck.x > canvas.width - truck.width - 10) truck.x = canvas.width - truck.width - 10;
+      // Keep truck on the road between sidewalks (sidewalks are 70px wide each)
+      if (truck.x < 75) truck.x = 75;
+      if (truck.x > canvas.width - truck.width - 75) truck.x = canvas.width - truck.width - 75;
     }
 
     function triggerAction() {
       if (!gameActive) return;
       
-      // Check proximity to target
-      if (Math.abs(truck.x - target.x) < 50 && target.active) {
+      if (Math.abs(truck.x - target.x) < 70 && target.active) {
         if (missionType === "fire") {
           target.health -= 34;
           if (target.health <= 0) {
@@ -171,14 +171,13 @@
     }
 
     function spawnNewTarget() {
-      target.x = Math.random() * 480 + 40;
+      target.x = Math.random() * 380 + 90;
       target.active = true;
       target.health = 100;
       missionType = Math.random() > 0.5 ? "fire" : "rescue";
       document.getElementById('mission-display').textContent = missionType === "fire" ? "MISSION: PUT OUT FIRE! 🔥" : "MISSION: RESCUE CITIZEN! 🦸🏾‍♂️";
     }
 
-    // Game Timer Loop
     const timerInterval = setInterval(() => {
       if (!gameActive) return;
       timeLeft--;
@@ -192,45 +191,122 @@
     function update() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw Detroit City Road Background
-      ctx.fillStyle = '#1e293b';
+      // 1. BACKGROUND SKY & HORIZON
+      ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(0, 250);
-      ctx.lineTo(canvas.width, 250);
-      ctx.stroke();
 
-      // Draw Target (House Fire or Citizen)
-      if (target.active) {
-        ctx.fillStyle = missionType === "fire" ? '#ef4444' : '#10b981';
-        ctx.fillRect(target.x, target.y, target.width, target.height);
-        
-        ctx.fillStyle = '#fff';
-        ctx.font = '12px sans-serif';
-        ctx.fillText(missionType === "fire" ? `🔥 ${target.health}%` : "🆘 HELP", target.x - 5, target.y - 10);
+      // 2. SIDEWALKS (Left & Right)
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(0, 0, 70, canvas.height);
+      ctx.fillRect(canvas.width - 70, 0, 70, canvas.height);
+
+      // Sidewalk concrete lines
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < canvas.height; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, i); ctx.lineTo(70, i);
+        ctx.moveTo(canvas.width - 70, i); ctx.lineTo(canvas.width, i);
+        ctx.stroke();
       }
 
-      // Draw Emergency Rescue Vehicle
-      ctx.fillStyle = missionType === "fire" ? '#dc2626' : '#2563eb';
-      ctx.fillRect(truck.x, truck.y, truck.width, truck.height);
-      ctx.fillStyle = '#fbbf24';
-      ctx.fillRect(truck.x + 15, truck.y + 10, 30, 20); // windshield / lights
+      // 3. CITY ROADWAY
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(70, 0, canvas.width - 140, canvas.height);
 
-      // Update HUD
+      // Dashed road centerlines
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([15, 15]);
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2, 0);
+      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.stroke();
+      ctx.setLineDash([]); // Reset line dash
+
+      // 4. TARGET BUILDING / CITIZEN RENDERING
+      if (target.active) {
+        if (missionType === "fire") {
+          // Brick Building Facade
+          ctx.fillStyle = '#b91c1c';
+          ctx.fillRect(target.x, target.y, target.width, target.height);
+          
+          // Building Windows
+          ctx.fillStyle = '#fde047';
+          ctx.fillRect(target.x + 10, target.y + 15, 15, 20);
+          ctx.fillRect(target.x + 45, target.y + 15, 15, 20);
+
+          // Blazing Fire Effect
+          ctx.fillStyle = '#f97316';
+          ctx.beginPath();
+          ctx.arc(target.x + target.width / 2, target.y - 10, 18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.arc(target.x + target.width / 2, target.y - 12, 10, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillText(`🔥 ${target.health}%`, target.x + 10, target.y - 25);
+        } else {
+          // Citizen Rescue Marker on Sidewalk/Street
+          ctx.fillStyle = '#059669';
+          ctx.fillRect(target.x + 15, target.y + 20, 40, 40);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.fillText("🆘 HELP", target.x + 10, target.y + 10);
+        }
+      }
+
+      // 5. DETAILED FIRE ENGINE TRUCK
+      // Chassis & Main Body
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(truck.x, truck.y + 12, truck.width, truck.height - 12);
+      
+      // Truck Cab (Front)
+      ctx.fillStyle = '#b91c1c';
+      ctx.fillRect(truck.x + 50, truck.y, 26, 25);
+      
+      // Windshield
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(truck.x + 58, truck.y + 4, 15, 12);
+
+      // Ladder Rack on Top
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(truck.x + 8, truck.y + 6, 38, 8);
+
+      // Wheels
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(truck.x + 18, truck.y + truck.height, 9, 0, Math.PI * 2);
+      ctx.arc(truck.x + 62, truck.y + truck.height, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hubcaps
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(truck.x + 18, truck.y + truck.height, 3, 0, Math.PI * 2);
+      ctx.arc(truck.x + 62, truck.y + truck.height, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Emergency Strobe Light Flashing
+      ctx.fillStyle = Math.floor(Date.now() / 200) % 2 === 0 ? '#38bdf8' : '#ef4444';
+      ctx.fillRect(truck.x + 60, truck.y - 6, 8, 6);
+
+      // 6. UPDATE HUD SCORE
       document.getElementById('score-display').textContent = `SCORE: ${score}`;
 
       if (!gameActive) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#f59e0b';
-        ctx.font = '28px sans-serif';
-        ctx.fillText("MISSION COMPLETE!", 140, 180);
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillText("MISSION COMPLETE!", 140, 160);
         ctx.fillStyle = '#38bdf8';
-        ctx.font = '20px sans-serif';
-        ctx.fillText(`Final Score: ${score}`, 210, 225);
+        ctx.font = '18px sans-serif';
+        ctx.fillText(`Final Detroit Score: ${score}`, 180, 200);
       }
 
       requestAnimationFrame(update);
