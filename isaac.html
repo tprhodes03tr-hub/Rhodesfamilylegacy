@@ -20,7 +20,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 12px;
+      padding: 10px;
       overflow: hidden;
     }
     .game-container {
@@ -28,70 +28,89 @@
       max-width: 600px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
     }
     .hud {
       width: 100%;
       background: #111827;
       border: 2px solid #f59e0b;
-      border-radius: 10px;
-      padding: 10px 16px;
+      border-radius: 8px;
+      padding: 8px 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-weight: 800;
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       color: #38bdf8;
+    }
+    .alert-banner {
+      width: 100%;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      padding: 6px;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 800;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      animation: pulseAlert 1s infinite alternate;
+    }
+    @keyframes pulseAlert {
+      0% { background: rgba(239, 68, 68, 0.1); }
+      100% { background: rgba(239, 68, 68, 0.35); }
     }
     canvas {
       width: 100%;
       max-width: 600px;
-      height: 380px;
+      height: 320px;
       background: #1e293b;
       border: 3px solid #3b82f6;
-      border-radius: 12px;
-      box-shadow: 0 0 25px rgba(59, 130, 246, 0.3);
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
       display: block;
     }
     .controls {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      gap: 8px;
       width: 100%;
-      max-width: 400px;
+      max-width: 380px;
     }
     .ctrl-btn {
       background: #3b82f6;
       color: #fff;
       border: none;
-      padding: 16px;
-      font-size: 1.1rem;
+      padding: 12px;
+      font-size: 1rem;
       font-weight: 800;
-      border-radius: 10px;
+      border-radius: 8px;
       cursor: pointer;
       text-align: center;
-      box-shadow: 0 4px 0 #1d4ed8;
+      box-shadow: 0 3px 0 #1d4ed8;
       transition: transform 0.1s;
     }
     .ctrl-btn:active {
-      transform: translateY(4px);
+      transform: translateY(3px);
       box-shadow: none;
     }
     .btn-action {
       background: #10b981;
-      box-shadow: 0 4px 0 #047857;
+      box-shadow: 0 3px 0 #047857;
       grid-column: span 3;
+      padding: 14px;
+      font-size: 1.1rem;
     }
     .back-link {
-      color: #94a3b8;
+      color: #64748b;
       text-decoration: none;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      margin-top: 2px;
     }
     .back-link:hover {
-      color: #f8fafc;
+      color: #94a3b8;
     }
   </style>
 </head>
@@ -100,16 +119,21 @@
   <div class="game-container">
     <div class="hud">
       <span id="score-display">SCORE: 0</span>
-      <span id="mission-display">MISSION: PUT OUT FIRES!</span>
       <span id="timer-display">TIME: 45s</span>
     </div>
 
-    <canvas id="gameCanvas" width="600" height="360"></canvas>
+    <div class="alert-banner" id="alert-text">🚨 EMERGENCY: DRIVE UP TO THE BURNING HOUSE!</div>
+
+    <canvas id="gameCanvas" width="600" height="300"></canvas>
 
     <div class="controls">
-      <button class="ctrl-btn" ontouchstart="moveTruck(-18)" onclick="moveTruck(-18)">⬅️ LEFT</button>
-      <button class="ctrl-btn btn-action" ontouchstart="triggerAction()" onclick="triggerAction()">💦 WATER BLAST / RESCUE 🚨</button>
-      <button class="ctrl-btn" ontouchstart="moveTruck(18)" onclick="moveTruck(18)">RIGHT ➡️</button>
+      <div></div>
+      <button class="ctrl-btn" ontouchstart="moveTruck(0, -10)" onclick="moveTruck(0, -10)">⬆️ UP</button>
+      <div></div>
+      <button class="ctrl-btn" ontouchstart="moveTruck(-12, 0)" onclick="moveTruck(-12, 0)">⬅️️ LEFT</button>
+      <button class="ctrl-btn" ontouchstart="moveTruck(0, 10)" onclick="moveTruck(0, 10)">⬇️ DOWN</button>
+      <button class="ctrl-btn" ontouchstart="moveTruck(12, 0)" onclick="moveTruck(12, 0)">RIGHT ➡️</button>
+      <button class="ctrl-btn btn-action" ontouchstart="triggerAction()" onclick="triggerAction()">💦 BLAST WATER / RESCUE 🚨</button>
     </div>
 
     <a href="index.html" class="back-link">← RETURN TO MAIN PORTAL</a>
@@ -123,38 +147,56 @@
     let timeLeft = 45;
     let gameActive = true;
     let missionType = "fire"; // 'fire' or 'rescue'
+    let waterParticles = [];
 
-    // Fire Engine Truck Object
+    // Fire Engine Truck Object (Can move anywhere on the road)
     let truck = {
       x: 260,
-      y: 275,
-      width: 80,
-      height: 45,
-      speed: 20
+      y: 220,
+      width: 70,
+      height: 40
     };
 
-    // Emergency Target (Building Fire or Citizen)
+    // Emergency Target Building / Citizen
     let target = {
-      x: Math.random() * 400 + 100,
-      y: 40,
-      width: 70,
-      height: 75,
+      x: 250,
+      y: 30,
+      width: 90,
+      height: 60,
       active: true,
       health: 100
     };
 
-    function moveTruck(dir) {
+    function moveTruck(dx, dy) {
       if (!gameActive) return;
-      truck.x += dir;
-      // Keep truck on the road between sidewalks (sidewalks are 70px wide each)
-      if (truck.x < 75) truck.x = 75;
-      if (truck.x > canvas.width - truck.width - 75) truck.x = canvas.width - truck.width - 75;
+      truck.x += dx;
+      truck.y += dy;
+
+      // Keep truck inside the city street bounds (sidewalks are 65px wide)
+      if (truck.x < 65) truck.x = 65;
+      if (truck.x > canvas.width - truck.width - 65) truck.x = canvas.width - truck.width - 65;
+      if (truck.y < 100) truck.y = 100; // Can't drive into buildings
+      if (truck.y > canvas.height - truck.height - 10) truck.y = canvas.height - truck.height - 10;
     }
 
     function triggerAction() {
       if (!gameActive) return;
+
+      // Create water spray particle effect towards target
+      for (let i = 0; i < 8; i++) {
+        waterParticles.push({
+          x: truck.x + truck.width / 2,
+          y: truck.y,
+          vx: (Math.random() - 0.5) * 4,
+          vy: -6 - Math.random() * 4,
+          life: 15
+        });
+      }
+
+      // Check if truck is close enough to the target to put out fire or rescue
+      let distance = Math.hypot((truck.x + truck.width/2) - (target.x + target.width/2), truck.y - (target.y + target.height));
       
-      if (Math.abs(truck.x - target.x) < 70 && target.active) {
+      if (distance < 110 && target.active) {
         if (missionType === "fire") {
           target.health -= 34;
           if (target.health <= 0) {
@@ -171,11 +213,19 @@
     }
 
     function spawnNewTarget() {
-      target.x = Math.random() * 380 + 90;
+      target.x = Math.random() * 360 + 80;
       target.active = true;
       target.health = 100;
       missionType = Math.random() > 0.5 ? "fire" : "rescue";
-      document.getElementById('mission-display').textContent = missionType === "fire" ? "MISSION: PUT OUT FIRE! 🔥" : "MISSION: RESCUE CITIZEN! 🦸🏾‍♂️";
+      
+      const alertEl = document.getElementById('alert-text');
+      if (missionType === "fire") {
+        alertEl.textContent = "🚨 EMERGENCY: HOUSE ON FIRE! Drive close and BLAST WATER!";
+        alertEl.style.borderColor = "#ef4444";
+      } else {
+        alertEl.textContent = "🆘 EMERGENCY: CITIZEN NEEDS HELP! Drive close and RESCUE!";
+        alertEl.style.borderColor = "#10b981";
+      }
     }
 
     const timerInterval = setInterval(() => {
@@ -191,122 +241,111 @@
     function update() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. BACKGROUND SKY & HORIZON
+      // 1. SIDEWALKS & CITY BACKGROUND
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 2. SIDEWALKS (Left & Right)
       ctx.fillStyle = '#475569';
-      ctx.fillRect(0, 0, 70, canvas.height);
-      ctx.fillRect(canvas.width - 70, 0, 70, canvas.height);
+      ctx.fillRect(0, 0, 65, canvas.height);
+      ctx.fillRect(canvas.width - 65, 0, 65, canvas.height);
 
-      // Sidewalk concrete lines
-      ctx.strokeStyle = '#64748b';
-      ctx.lineWidth = 2;
-      for (let i = 0; i < canvas.height; i += 40) {
-        ctx.beginPath();
-        ctx.moveTo(0, i); ctx.lineTo(70, i);
-        ctx.moveTo(canvas.width - 70, i); ctx.lineTo(canvas.width, i);
-        ctx.stroke();
-      }
-
-      // 3. CITY ROADWAY
+      // 2. DETROIT CITY ROADWAY
       ctx.fillStyle = '#1e293b';
-      ctx.fillRect(70, 0, canvas.width - 140, canvas.height);
+      ctx.fillRect(65, 0, canvas.width - 130, canvas.height);
 
-      // Dashed road centerlines
+      // Road Centerlines
       ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 4;
-      ctx.setLineDash([15, 15]);
+      ctx.lineWidth = 3;
+      ctx.setLineDash([12, 12]);
       ctx.beginPath();
       ctx.moveTo(canvas.width / 2, 0);
       ctx.lineTo(canvas.width / 2, canvas.height);
       ctx.stroke();
-      ctx.setLineDash([]); // Reset line dash
+      ctx.setLineDash([]);
 
-      // 4. TARGET BUILDING / CITIZEN RENDERING
+      // 3. TARGET BUILDING / RESCUE ZONE
       if (target.active) {
         if (missionType === "fire") {
-          // Brick Building Facade
+          // Detailed Building Facade
           ctx.fillStyle = '#b91c1c';
           ctx.fillRect(target.x, target.y, target.width, target.height);
           
-          // Building Windows
+          // Windows
           ctx.fillStyle = '#fde047';
-          ctx.fillRect(target.x + 10, target.y + 15, 15, 20);
-          ctx.fillRect(target.x + 45, target.y + 15, 15, 20);
+          ctx.fillRect(target.x + 12, target.y + 12, 18, 22);
+          ctx.fillRect(target.x + 60, target.y + 12, 18, 22);
 
-          // Blazing Fire Effect
+          // Blazing Fire Animation
           ctx.fillStyle = '#f97316';
           ctx.beginPath();
-          ctx.arc(target.x + target.width / 2, target.y - 10, 18, 0, Math.PI * 2);
+          ctx.arc(target.x + target.width / 2, target.y - 8, 20, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#facc15';
           ctx.beginPath();
-          ctx.arc(target.x + target.width / 2, target.y - 12, 10, 0, Math.PI * 2);
+          ctx.arc(target.x + target.width / 2, target.y - 10, 11, 0, Math.PI * 2);
           ctx.fill();
 
           ctx.fillStyle = '#fff';
           ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(`🔥 ${target.health}%`, target.x + 10, target.y - 25);
+          ctx.fillText(`🔥 FIRE: ${target.health}%`, target.x + 10, target.y - 25);
         } else {
-          // Citizen Rescue Marker on Sidewalk/Street
+          // Citizen In Need
           ctx.fillStyle = '#059669';
-          ctx.fillRect(target.x + 15, target.y + 20, 40, 40);
+          ctx.fillRect(target.x + 20, target.y + 15, 50, 45);
           ctx.fillStyle = '#ffffff';
           ctx.font = 'bold 12px sans-serif';
-          ctx.fillText("🆘 HELP", target.x + 10, target.y + 10);
+          ctx.fillText("🆘 HELP ME!", target.x + 10, target.y + 5);
         }
       }
 
-      // 5. DETAILED FIRE ENGINE TRUCK
-      // Chassis & Main Body
-      ctx.fillStyle = '#dc2626';
-      ctx.fillRect(truck.x, truck.y + 12, truck.width, truck.height - 12);
-      
-      // Truck Cab (Front)
-      ctx.fillStyle = '#b91c1c';
-      ctx.fillRect(truck.x + 50, truck.y, 26, 25);
-      
-      // Windshield
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(truck.x + 58, truck.y + 4, 15, 12);
+      // 4. WATER SPRAY PARTICLES ANIMATION
+      for (let i = waterParticles.length - 1; i >= 0; i--) {
+        let p = waterParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
 
-      // Ladder Rack on Top
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(truck.x + 8, truck.y + 6, 38, 8);
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (p.life <= 0) waterParticles.splice(i, 1);
+      }
+
+      // 5. DETAILED FIRE ENGINE TRUCK
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(truck.x, truck.y + 10, truck.width, truck.height - 10);
+      
+      // Cab
+      ctx.fillStyle = '#b91c1c';
+      ctx.fillRect(truck.x + 44, truck.y, 24, 22);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(truck.x + 50, truck.y + 4, 14, 10);
 
       // Wheels
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.arc(truck.x + 18, truck.y + truck.height, 9, 0, Math.PI * 2);
-      ctx.arc(truck.x + 62, truck.y + truck.height, 9, 0, Math.PI * 2);
+      ctx.arc(truck.x + 16, truck.y + truck.height, 8, 0, Math.PI * 2);
+      ctx.arc(truck.x + 54, truck.y + truck.height, 8, 0, Math.PI * 2);
       ctx.fill();
 
-      // Hubcaps
-      ctx.fillStyle = '#94a3b8';
-      ctx.beginPath();
-      ctx.arc(truck.x + 18, truck.y + truck.height, 3, 0, Math.PI * 2);
-      ctx.arc(truck.x + 62, truck.y + truck.height, 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Emergency Strobe Light Flashing
+      // Flashing Siren Light
       ctx.fillStyle = Math.floor(Date.now() / 200) % 2 === 0 ? '#38bdf8' : '#ef4444';
-      ctx.fillRect(truck.x + 60, truck.y - 6, 8, 6);
+      ctx.fillRect(truck.x + 52, truck.y - 6, 8, 6);
 
-      // 6. UPDATE HUD SCORE
+      // 6. UPDATE HUD
       document.getElementById('score-display').textContent = `SCORE: ${score}`;
 
       if (!gameActive) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#f59e0b';
-        ctx.font = 'bold 24px sans-serif';
-        ctx.fillText("MISSION COMPLETE!", 140, 160);
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillText("MISSION COMPLETE!", 140, 140);
         ctx.fillStyle = '#38bdf8';
-        ctx.font = '18px sans-serif';
-        ctx.fillText(`Final Detroit Score: ${score}`, 180, 200);
+        ctx.font = '16px sans-serif';
+        ctx.fillText(`Final Detroit Score: ${score}`, 190, 180);
       }
 
       requestAnimationFrame(update);
