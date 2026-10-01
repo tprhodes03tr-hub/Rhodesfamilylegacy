@@ -1,34 +1,144 @@
-<a-scene embedded mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: yes; uiScanning: yes;" renderer="colorManagement: true, physicallyCorrectLights; alpha: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: true">
-    <a-assets>
-        <!-- Preload your illustrated video -->
-        <video id="book-video" src="./ancestral-lineage-origin.mp4" preload="auto" response-type="arraybuffer" loop crossorigin webkit-playsinline playsinline></video>
-    </a-assets>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rhodes Family Legacy - AR Experience</title>
+    
+    <!-- A-Frame and MindAR Libraries -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-    <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: sans-serif;
+            background: transparent;
+        }
 
-    <!-- First Book Cover Target (*Little Fannie May*) -->
-    <a-entity mindar-image-target="targetIndex: 0" id="target-0">
-        <!-- Video plane that sits on top of the book cover -->
-        <a-video src="#book-video" position="0 0 0" width="1" height="1.4" rotation="0 0 0"></a-video>
-    </a-entity>
+        /* Ensure A-Frame canvas allows the camera video stream to show through */
+        .a-canvas {
+            background: transparent !important;
+        }
 
-    <!-- Second Book Cover Target (*The Sisters of the Golden Clock*) -->
-    <a-entity mindar-image-target="targetIndex: 1" id="target-1">
-        <!-- Placeholder or secondary video asset -->
-        <a-plane position="0 0 0" height="1" width="1" material="color: #1e293b; transparent: true; opacity: 0.8"></a-plane>
-    </a-entity>
-</a-scene>
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
 
-<script>
-    // Automatically play the video when the target is found, pause when lost
-    const target0 = document.querySelector('#target-0');
-    const videoEl = document.querySelector('#book-video');
+        .instruction-text {
+            background: rgba(13, 13, 13, 0.85);
+            color: #ffffff;
+            padding: 12px 20px;
+            text-align: center;
+            font-size: 1rem;
+            border-radius: 8px;
+            pointer-events: auto;
+            max-width: 400px;
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
 
-    target0.addEventListener('targetFound', () => {
-        videoEl.play();
-    });
+        .btn-container {
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
 
-    target0.addEventListener('targetLost', () => {
-        videoEl.pause();
-    });
-</script>
+        .legacy-btn {
+            background-color: #8b0000;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-weight: bold;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            text-decoration: none;
+            text-align: center;
+            min-width: 200px;
+        }
+
+        .legacy-btn:active {
+            background-color: #5c0000;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- UI Overlay for Instructions and Controls -->
+    <div id="ui-overlay">
+        <div class="instruction-text">
+            Point your camera at either book cover to view the AR experience.
+        </div>
+        <div class="btn-container">
+            <button class="legacy-btn" id="retry-camera">Grant Camera / Retry</button>
+            <a href="index.html" class="legacy-btn" style="background-color: #1e293b;">Back to Hub</a>
+        </div>
+    </div>
+
+    <!-- A-Frame AR Scene with multi-target support and alpha transparency -->
+    <a-scene embedded mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: yes; uiScanning: yes;" renderer="colorManagement: true, physicallyCorrectLights; alpha: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: true">
+        <a-assets>
+            <video id="book-video" src="./ancestral-lineage-origin.mp4" preload="auto" response-type="arraybuffer" loop crossorigin webkit-playsinline playsinline></video>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
+
+        <!-- First Book Cover Target (Triggers verified video test) -->
+        <a-entity mindar-image-target="targetIndex: 0" id="target-0">
+            <a-video src="#book-video" position="0 0 0" width="1" height="1.4" rotation="0 0 0"></a-video>
+        </a-entity>
+
+        <!-- Second Book Cover Target (Placeholder plane) -->
+        <a-entity mindar-image-target="targetIndex: 1">
+            <a-plane position="0 0 0" height="1" width="1" rotation="0 0 0" material="color: #8b0000; transparent: true; opacity: 0.8"></a-plane>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        document.getElementById('retry-camera').addEventListener('click', () => {
+            const sceneEl = document.querySelector('a-scene');
+            if (sceneEl && sceneEl.systems['mindar-image-system']) {
+                sceneEl.systems['mindar-image-system'].stop();
+                setTimeout(() => {
+                    sceneEl.systems['mindar-image-system'].start();
+                }, 300);
+            } else {
+                location.reload();
+            }
+        });
+
+        // Video playback control tied to target tracking
+        const target0 = document.querySelector('#target-0');
+        const videoEl = document.querySelector('#book-video');
+
+        if (target0 && videoEl) {
+            target0.addEventListener('targetFound', () => {
+                videoEl.play();
+            });
+            target0.addEventListener('targetLost', () => {
+                videoEl.pause();
+            });
+        }
+    </script>
+</body>
+</html>
