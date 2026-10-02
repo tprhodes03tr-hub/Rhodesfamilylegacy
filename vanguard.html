@@ -209,14 +209,14 @@
     </div>
   </section>
 
-  <!-- TAB 3: SIDE BRAWLER (CANONICAL ABILITIES: AQUILA, SEMIONICS PRIME, SOLAR LION) -->
+  <!-- TAB 3: SIDE BRAWLER (CANONICAL UNLOCKED ROSTER) -->
   <section id="tab-brawler" class="portal-section">
     <div class="brawler-wrapper">
       <div id="activeBrawlerContainer" style="display:flex; width: 100%; flex-direction: column; gap: 8px;">
         <div class="hud-header">
           <div class="hud-top-row">
             <span id="heroNameLabel" class="hero-title">Aquila (Lead Active)</span>
-            <span id="waveDisplay" class="wave-badge">Wave 6: Forge Breakers</span>
+            <span id="waveDisplay" class="wave-badge">Wave 7: Sector Defense</span>
           </div>
           <div class="bars-container">
             <div class="bar-group">
@@ -224,7 +224,7 @@
               <div class="bar-track"><div id="heroHpBar" class="bar-fill-hero"></div></div>
             </div>
             <div class="bar-group">
-              <div class="bar-label"><span id="enemyTypeLabel">Forge Breakers</span><span id="enemyHpText">10 Units Remaining</span></div>
+              <div class="bar-label"><span id="enemyTypeLabel">Forge Breakers</span><span id="enemyHpText">5 Units Remaining</span></div>
               <div class="bar-track"><div id="enemyHpBar" class="bar-fill-enemy"></div></div>
             </div>
           </div>
@@ -234,12 +234,12 @@
           <canvas id="gameCanvas" width="540" height="290"></canvas>
           <div class="chapter-banner" id="chapterBanner">
             <h3 id="bannerTitle">WAVE COMPLETED</h3>
-            <p id="bannerDesc">Forge Zone Secured! Next wave incoming.</p>
+            <p id="bannerDesc">Sector Secured! Next canon wave incoming.</p>
             <button id="bannerBtn" onclick="advanceToNextWave()">NEXT WAVE</button>
           </div>
         </div>
 
-        <div class="combat-log" id="combatLog">Aquila engaged: Jump right, glide left, fire feather daggers!</div>
+        <div class="combat-log" id="combatLog">Aquila: Jump to activate wings, arc right, glide left &amp; fire feather daggers!</div>
 
         <div class="controls-grid">
           <div class="dpad-cluster">
@@ -289,7 +289,14 @@
 
   <!-- MODALS -->
   <div class="modal-overlay" id="trial-modal"><div class="modal-content"><h2>MARROW RESONANCE RESTORED!</h2><a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="payhip-btn">GET THE GRAPHIC NOVELS &amp; DECK ON PAYHIP</a></div></div>
-  <div class="modal-overlay" id="defeat-modal"><div class="modal-content"><h2 style="color: #ef4444;">RESONANCE SEVERED!</h2><button class="defeat-btn" onclick="retryCurrentWave()">⚔️ RETRY CHECKPOINT</button><button class="replay-btn" onclick="resetCampaignToStage1()">🔄 RESTART</button></div></div>
+  <div class="modal-overlay" id="defeat-modal">
+    <div class="modal-content">
+      <h2 style="color: #ef4444;">RESONANCE SEVERED!</h2>
+      <p style="color: #cbd5e1; font-size: 0.85rem; margin-bottom: 12px;">Your team health reached zero. Restart from checkpoint to restore the legacy!</p>
+      <button class="defeat-btn" onclick="retryCurrentWave()" style="background:#f59e0b; color:#000; font-weight:800; padding:10px 16px; border:none; border-radius:6px; cursor:pointer; width:100%; margin-bottom:6px;">⚔️️ RETRY CHECKPOINT</button>
+      <button class="replay-btn" onclick="resetCampaignToStage1()" style="background:#334155; color:#fff; font-weight:800; padding:10px 16px; border:none; border-radius:6px; cursor:pointer; width:100%;">🔄 RESTART CAMPAIGN</button>
+    </div>
+  </div>
 
   <script>
     const strings = {
@@ -341,7 +348,6 @@
       arCtx.clearRect(0, 0, arCanvas.width, arCanvas.height);
       arAngle += 0.025;
 
-      // Scanning Grid
       arCtx.strokeStyle = "rgba(56, 189, 248, 0.2)";
       arCtx.lineWidth = 1;
       for (let x = 0; x < arCanvas.width; x += 20) {
@@ -355,7 +361,6 @@
       arCtx.shadowColor = "#38bdf8";
       arCtx.shadowBlur = 15;
 
-      // True 3D Rotating Wireframe Cube
       const size = 35;
       const vertices = [
         [-size, -size, -size], [size, -size, -size], [size, size, -size], [-size, size, -size],
@@ -454,7 +459,7 @@
       document.getElementById('clash-status').innerText = "Tap an enemy card to target, or press any hero action below!";
     }
 
-    /* BRAWLER GAME ENGINE (DISTINCT CANONICAL ABILITIES) */
+    /* BRAWLER GAME ENGINE (CANONICAL ISOLATED ABILITIES & SPRITES) */
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -470,6 +475,9 @@
       if (type === 'feather') {
         osc.type = 'triangle'; osc.frequency.setValueAtTime(1200, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
         gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+      } else if (type === 'neural') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(150, now + 0.2);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
       } else if (type === 'lion') {
         osc.type = 'sawtooth'; osc.frequency.setValueAtTime(90, now); osc.frequency.linearRampToValueAtTime(40, now + 0.3);
         gain.gain.setValueAtTime(0.25, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
@@ -487,7 +495,8 @@
     let enemies = [], projectiles = [], shockwaves = [], shieldActive = false, shieldTimer = 0;
     let luettaAscending = false, luettaTimer = 0;
     
-    let aquilaGlideTimer = 0;
+    let aquilaJumping = false;
+    let aquilaGlideDirection = 0; // 1 = right, -1 = left
 
     const spriteImages = {
       aquila: new Image(),
@@ -513,23 +522,27 @@
 
     function startWave(waveNum) {
       currentWave = waveNum;
-      mobsRemaining = 10;
+      mobsRemaining = 5;
       enemies = [];
-      for (let i = 0; i < 5; i++) {
-        enemies.push({ x: 380 + (i * 45), y: 215, hp: 2, active: true, speed: 1.1 + (waveNum * 0.05) });
+      for (let i = 0; i < 4; i++) {
+        enemies.push({ x: 390 + (i * 40), y: 215, hp: 2, active: true, speed: 1.0 + (waveNum * 0.05) });
       }
       updateHUD();
     }
 
-    function playerMove(dx) { leadX = Math.max(50, Math.min(380, leadX + dx)); }
+    function playerMove(dx) { 
+      if (activeLead === "aquila" && !isGrounded) return; // Locked during aerial glide sequence
+      leadX = Math.max(50, Math.min(380, leadX + dx)); 
+    }
+
     function playerJump() {
       if (!isGrounded) return;
+      isGrounded = false;
+      leadVy = -13;
       if (activeLead === "aquila") {
-        leadVy = -13; isGrounded = false;
-        aquilaGlideTimer = 45;
-        logBrawler("🪶 Aquila springs rightward into aerial glide!");
-      } else {
-        leadVy = -12; isGrounded = false;
+        aquilaJumping = true;
+        aquilaGlideDirection = 1; // Start by arcing right
+        logBrawler("🪶 Aquila springs upward, wings deployed to arc right!");
       }
     }
 
@@ -559,26 +572,25 @@
         document.getElementById("btnBurst").innerText = "🛡️ Pride Bastion";
         document.getElementById("btnTag").innerText = "TAG: AQUILA";
       }
-      logBrawler(`Switched lead operative to ${names[activeLead]}! Distinct canonical powers engaged.`);
+      logBrawler(`Switched lead operative to ${names[activeLead]}! Distinct canonical powers active.`);
     }
 
     function executeStrike() {
       if (activeLead === "aquila") {
         playSound('feather');
-        logBrawler("🪶 Aquila fires precision feather daggers at target droids!");
+        logBrawler("🪶 Aquila fires rapid feather daggers!");
         for (let p = 0; p < 3; p++) {
-          projectiles.push({ x: leadX + 30, y: 190 - (p*15), vx: 9.0, vy: -0.5, life: 50, type: "feather" });
+          projectiles.push({ x: leadX + 30, y: 190 - (p*12), vx: 8.5, vy: 0, life: 55, type: "feather" });
         }
       } else if (activeLead === "semionics") {
-        playSound('zap');
-        logBrawler("⚡ Semionics Prime discharges a targeted neural pulse!");
-        shockwaves.push({ x: leadX + 35, radius: 10, maxRadius: 130, life: 30 });
-        enemies.forEach(e => { if (e.active && Math.abs(e.x - leadX) < 85) { e.hp -= 2; if(e.hp<=0) {e.active=false; mobsRemaining=Math.max(0, mobsRemaining-1);} } });
+        playSound('neural');
+        logBrawler("⚡ Semionics Prime discharges an electric neural bolt!");
+        projectiles.push({ x: leadX + 30, y: 210, vx: 10.0, vy: 0, life: 50, type: "neural" });
       } else if (activeLead === "solarlion") {
         playSound('lion');
-        logBrawler("🦁 Solar Lion strikes with devastating solar claws!");
-        shockwaves.push({ x: leadX + 35, radius: 15, maxRadius: 140, life: 35 });
-        enemies.forEach(e => { if (e.active && Math.abs(e.x - leadX) < 90) { e.hp -= 3; if(e.hp<=0) {e.active=false; mobsRemaining=Math.max(0, mobsRemaining-1);} } });
+        logBrawler("🦁 Solar Lion unleashes a fierce solar claw swipe!");
+        shockwaves.push({ x: leadX + 35, radius: 10, maxRadius: 130, life: 30 });
+        enemies.forEach(e => { if(e.active && Math.abs(e.x - leadX) < 80) { e.hp -= 2; if(e.hp<=0){e.active=false; mobsRemaining=Math.max(0, mobsRemaining-1);} } });
       }
       updateHUD();
       if (mobsRemaining === 0) triggerWaveClear();
@@ -587,17 +599,17 @@
     function executePlasmaOrb() {
       if (activeLead === "aquila") {
         playSound('feather');
-        logBrawler("✨ Aquila initiates Solar Glide across the combat arena!");
-        leadX = Math.min(380, leadX + 110);
+        logBrawler("✨ Aquila initiates Solar Glide maneuver across the front line!");
+        leadX = Math.min(390, leadX + 100);
       } else if (activeLead === "semionics") {
-        playSound('zap');
-        logBrawler("🔵 Semionics Prime projects a grid-lock shield!");
+        playSound('neural');
+        logBrawler("🔵 Semionics Prime activates electric grid containment!");
         shieldActive = true; shieldTimer = 100;
       } else if (activeLead === "solarlion") {
         playSound('lion');
-        logBrawler("🔥 Solar Lion Roar unleashes a massive sonic shockwave!");
-        shockwaves.push({ x: leadX + 35, radius: 20, maxRadius: 210, life: 50 });
-        enemies.forEach(e => { if(e.active) { e.hp -= 3; if(e.hp<=0){e.active=false; mobsRemaining=Math.max(0, mobsRemaining-1);} } });
+        logBrawler("🔥 Solar Lion Roar echoes across the sector with massive sonic force!");
+        shockwaves.push({ x: leadX + 35, radius: 15, maxRadius: 190, life: 45 });
+        enemies.forEach(e => { if(e.active){ e.hp -= 3; if(e.hp<=0){e.active=false; mobsRemaining=Math.max(0, mobsRemaining-1);} } });
       }
       updateHUD();
       if (mobsRemaining === 0) triggerWaveClear();
@@ -607,9 +619,9 @@
       playSound('shield');
       shieldActive = true;
       shieldTimer = 90;
-      playerHp = Math.min(100, playerHp + 20);
+      playerHp = Math.min(100, playerHp + 25);
       updateHUD();
-      logBrawler(`🛡️ ${activeLead.toUpperCase()} activated distinct defensive barrier! +20 HP restored.`);
+      logBrawler(`🛡️ ${activeLead.toUpperCase()} engaged distinct defensive barrier! +25 HP restored.`);
     }
 
     function executeLuettaAid() {
@@ -617,7 +629,7 @@
       luettaAscending = true;
       luettaTimer = 90;
       updateHUD();
-      logBrawler("✨ Mother Luetta descends in radiant healing grace, wiping out all active units! ✨");
+      logBrawler("✨ Mother Luetta descends in radiant healing grace, restoring team health and sanitizing the zone! ✨");
       enemies.forEach(e => { e.active = false; });
       mobsRemaining = 0;
       setTimeout(() => { triggerWaveClear(); }, 1500);
@@ -639,11 +651,27 @@
       document.getElementById("heroHpText").innerText = `${playerHp}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
       document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units Remaining`;
-      document.getElementById("enemyHpBar").style.width = `${(mobsRemaining / 10) * 100}%`;
+      document.getElementById("enemyHpBar").style.width = `${(mobsRemaining / 5) * 100}%`;
     }
     function logBrawler(msg) { document.getElementById("combatLog").innerText = msg; }
-    function retryCurrentWave() { document.getElementById("defeat-modal").style.display = "none"; playerHp = 100; updateHUD(); }
-    function resetCampaignToStage1() { document.getElementById("trial-modal").style.display = "none"; document.getElementById("defeat-modal").style.display = "none"; playerHp = 100; currentWave = 6; startWave(6); updateHUD(); }
+    
+    function retryCurrentWave() {
+      document.getElementById("defeat-modal").style.display = "none";
+      playerHp = 100;
+      startWave(currentWave);
+      updateHUD();
+      logBrawler("🔄 Checkpoint reloaded! Resonance restored.");
+    }
+
+    function resetCampaignToStage1() {
+      document.getElementById("trial-modal").style.display = "none";
+      document.getElementById("defeat-modal").style.display = "none";
+      playerHp = 100;
+      currentWave = 6;
+      startWave(6);
+      updateHUD();
+      logBrawler("🔄 Campaign restarted from Wave 6!");
+    }
 
     function renderBrawler() {
       if (!canvas || !ctx) return;
@@ -664,6 +692,7 @@
       ctx.beginPath(); ctx.arc(150, 140, 50, 0, Math.PI*2); ctx.fill();
       ctx.beginPath(); ctx.arc(430, 120, 60, 0, Math.PI*2); ctx.fill();
 
+      // Ground Road Deck
       ctx.fillStyle = "#110401";
       ctx.fillRect(0, 255, canvas.width, 35);
       ctx.strokeStyle = "#f59e0b";
@@ -673,20 +702,22 @@
       ctx.beginPath(); ctx.moveTo(0, 255); ctx.lineTo(canvas.width, 255); ctx.stroke();
       ctx.shadowBlur = 0;
 
+      // Physics & Canon Jump/Glide Sequences
       if (!isGrounded) {
-        if (activeLead === "aquila" && aquilaGlideTimer > 0) {
-          aquilaGlideTimer--;
-          if (aquilaGlideTimer > 22) {
-            leadX = Math.min(390, leadX + 2.5);
+        if (activeLead === "aquila" && aquilaJumping) {
+          // Aquila jumps up and arcs right first, then glides slowly to the left while firing daggers
+          if (leadVy < 0) {
+            leadX = Math.min(410, leadX + 2.8); // arc right during upward jump
           } else {
-            leadX = Math.max(50, leadX - 2.0);
-            if (aquilaGlideTimer === 20) {
-              projectiles.push({ x: leadX + 30, y: (255 - leadY) - 40, vx: 8.0, vy: 0, life: 40, type: "feather" });
+            aquilaGlideDirection = -1; // Switch to left glide on descent
+            leadX = Math.max(50, leadX - 1.8);  // slow glide left
+            if (Math.floor(leadY) % 25 === 0) {
+              projectiles.push({ x: leadX, y: (255 - leadY) - 30, vx: -7.0, vy: 0.5, life: 45, type: "feather" });
             }
           }
         }
         leadY -= leadVy; leadVy += 0.75;
-        if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
+        if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; aquilaJumping = false; }
       }
       let drawLeadY = 255 - leadY;
 
@@ -713,12 +744,13 @@
         if (luettaTimer <= 0) luettaAscending = false;
       }
 
+      // Render Fiery Wings exclusively for Aquila when airborne or active
       if (activeLead === "aquila") {
         ctx.fillStyle = "#f97316";
         ctx.shadowColor = "#f59e0b";
         ctx.shadowBlur = 22;
-        ctx.beginPath(); ctx.moveTo(leadX - 5, drawLeadY - 35); ctx.quadraticCurveTo(leadX - 55, leadY > 20 ? drawLeadY - 85 : drawLeadY - 55, leadX - 25, drawLeadY - 15); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(leadX + 45, drawLeadY - 35); ctx.quadraticCurveTo(leadX + 95, leadY > 20 ? drawLeadY - 85 : drawLeadY - 55, leadX + 65, drawLeadY - 15); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(leadX - 5, drawLeadY - 35); ctx.quadraticCurveTo(leadX - 55, drawLeadY - 75, leadX - 25, drawLeadY - 15); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(leadX + 45, drawLeadY - 35); ctx.quadraticCurveTo(leadX + 95, drawLeadY - 75, leadX + 65, drawLeadY - 15); ctx.fill();
         ctx.shadowBlur = 0;
       }
 
@@ -745,6 +777,7 @@
       ctx.font = "bold 11px sans-serif";
       ctx.fillText(activeLead.toUpperCase(), leadX - 2, drawLeadY - 74);
 
+      // Render Authentic Syndicate Droids (Dark Chassis, Blue Visors, Side Blaster)
       enemies.forEach(e => {
         if (!e.active) return;
         e.x -= e.speed;
@@ -752,12 +785,16 @@
           if (!shieldActive) {
             playerHp = Math.max(0, playerHp - 1);
             updateHUD();
-            if (playerHp <= 0) document.getElementById("defeat-modal").style.display = "flex";
+            if (playerHp <= 0) {
+              document.getElementById("defeat-modal").style.display = "flex";
+            }
           }
           e.x = 520;
         }
+        // Droid Chassis
         ctx.fillStyle = "#1e293b";
         ctx.fillRect(e.x, 210, 24, 45);
+        // Droid Head & Glowing Blue Visor
         ctx.fillStyle = "#334155";
         ctx.fillRect(e.x + 2, 201, 20, 10);
         ctx.fillStyle = "#38bdf8";
@@ -765,6 +802,7 @@
         ctx.shadowBlur = 8;
         ctx.fillRect(e.x + 5, 203, 14, 4);
         ctx.shadowBlur = 0;
+        // Side Blaster
         ctx.fillStyle = "#64748b";
         ctx.fillRect(e.x - 6, 218, 8, 4);
       });
@@ -772,7 +810,7 @@
       for (let i = projectiles.length - 1; i >= 0; i--) {
         let pr = projectiles[i];
         pr.x += pr.vx; pr.y += pr.vy; pr.life--;
-        ctx.fillStyle = pr.type === "feather" ? "#ffffff" : "#fbbf24";
+        ctx.fillStyle = pr.type === "feather" ? "#ffffff" : (pr.type === "neural" ? "#38bdf8" : "#fbbf24");
         ctx.shadowColor = ctx.fillStyle;
         ctx.shadowBlur = 10;
         ctx.beginPath(); ctx.arc(pr.x, pr.y, pr.type === "feather" ? 4 : 6, 0, Math.PI * 2); ctx.fill();
