@@ -210,7 +210,7 @@
     </div>
   </section>
 
-  <!-- TAB 3: SIDE BRAWLER (RESTORED FIERY WINGS & SOLAR LION ROAR) -->
+  <!-- TAB 3: SIDE BRAWLER -->
   <section id="tab-brawler" class="portal-section">
     <div class="brawler-wrapper">
       <div id="activeBrawlerContainer" style="display:flex; width: 100%; flex-direction: column; gap: 8px;">
@@ -294,7 +294,7 @@
 
   <script>
     const strings = {
-      en: { title: "Vanguard Universe: Unified Combat Portal", codex: "🎴 Codex", clash: "⚔️️ Clash", brawler: "🕹️ Brawler", ranks: "🏆 Ranks" },
+      en: { title: "Vanguard Universe: Unified Combat Portal", codex: "🎴 Codex", clash: "⚔️ Clash", brawler: "🕹️ Brawler", ranks: "🏆 Ranks" },
       es: { title: "Universo Vanguard: Portal de Combate Unificado", codex: "🎴 Códice", clash: "⚔️ Choque", brawler: "🕹️ Peleador", ranks: "🏆 Rangos" }
     };
     function setLanguage(lang) {
@@ -432,7 +432,7 @@
       document.getElementById('clash-status').innerText = "Tap an enemy card to target, or press any hero action below!";
     }
 
-    /* BRAWLER GAME ENGINE (RESTORED FIERY WINGS, SOLAR LION ROAR & COMPANIONS) */
+    /* BRAWLER GAME ENGINE (WITH MOTHER LUETTA DIVINE ASCENSION & ALL SUPERPOWERS) */
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -461,6 +461,7 @@
     let currentStage = 1, mobsRemaining = 14;
     let enemies = [], plasmaOrbs = [], lightningBolts = [], arrows = [], shockwaves = [], shieldActive = false, shieldTimer = 0;
     let solarLionActive = false, solarLionTimer = 0;
+    let luettaAscending = false, luettaTimer = 0;
     const bgImage = new Image();
     bgImage.src = "bg-detroit.jpg";
 
@@ -509,7 +510,7 @@
       if (activeLead === "marcus") {
         document.getElementById("btnStrike").innerText = "⚡ Volt Beam";
         document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
-        document.getElementById("btnBurst").innerText = "🛡️ Kinetic Dome";
+        document.getElementById("btnBurst").innerText = "🛡️️ Kinetic Dome";
         document.getElementById("btnTag").innerText = "TAG: XOCHITL";
       } else if (activeLead === "xochitl") {
         document.getElementById("btnStrike").innerText = "🔥 Magma Strike";
@@ -550,18 +551,19 @@
     function executePlasmaOrb() {
       playSound('zap');
       if (activeLead === "xochitl") {
-        logBrawler("🪶 Xochitl manifests Majestic Fiery Wings for Solar Strafe & Arrow Barrage!");
+        logBrawler("🪶 Xochitl manifests Majestic Fiery Wings for Aerial Solar Strafe & Arrow Barrage!");
         let startX = leadX;
         leadX = 420;
-        for (let a = 0; a < 6; a++) {
-          arrows.push({ x: 420 - (a * 25), y: 140 + (a * 12), vx: -9.0, vy: 2.5, life: 60 });
+        leadY = 80;
+        for (let a = 0; a < 8; a++) {
+          arrows.push({ x: 420 - (a * 25), y: 120 + (a * 12), vx: -10.0, vy: 3.0, life: 70 });
         }
-        setTimeout(() => { leadX = startX; }, 1200);
+        setTimeout(() => { leadX = startX; leadY = 0; }, 1400);
       } else if (activeLead === "sundiata") {
-        logBrawler("🦁 Sundiata summons the Solar Lion Companion & Solar Lion Roar shockwave!");
+        logBrawler("🦁 Sundiata summons the golden Solar Lion Companion & Solar Lion Roar shockwave!");
         solarLionActive = true;
-        solarLionTimer = 120;
-        shockwaves.push({ x: leadX + 35, radius: 10, maxRadius: 200, life: 55 });
+        solarLionTimer = 140;
+        shockwaves.push({ x: leadX + 35, radius: 10, maxRadius: 220, life: 60 });
         enemies.forEach(e => {
           if (e.active) { e.hp -= 3; if (e.hp <= 0) { e.active = false; mobsRemaining = Math.max(0, mobsRemaining - 1); } }
         });
@@ -582,8 +584,13 @@
 
     function executeLuettaAid() {
       playerHp = 100;
+      luettaAscending = true;
+      luettaTimer = 90;
       updateHUD();
-      logBrawler("✨ Mother Luetta descends in radiant celestial light, restoring team HP to maximum! ✨");
+      logBrawler("✨ Mother Luetta descends in radiant divine ascension, healing team HP to max and wiping out all Syndicate droids! ✨");
+      enemies.forEach(e => { e.active = false; });
+      mobsRemaining = 0;
+      setTimeout(() => { triggerStageClear(); }, 1500);
     }
 
     function triggerStageClear() {
@@ -641,33 +648,44 @@
       }
       let drawLeadY = 255 - leadY;
 
-      // Render Majestic Fiery Wings for Xochitl (Always present or active during jumps/attacks)
+      // Render Mother Luetta Divine Ascension Pillar when summoned
+      if (luettaAscending) {
+        luettaTimer--;
+        ctx.fillStyle = "rgba(245, 158, 11, 0.35)";
+        ctx.shadowColor = "#f59e0b";
+        ctx.shadowBlur = 30;
+        ctx.fillRect(180, 0, 180, 255);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillText("✨ MOTHER LUETTA ASCENSION ✨", 110, 100);
+        ctx.shadowBlur = 0;
+        if (luettaTimer <= 0) luettaAscending = false;
+      }
+
+      // Render Majestic Fiery Wings for Xochitl
       if (activeLead === "xochitl") {
         ctx.fillStyle = "#f97316";
         ctx.shadowColor = "#f59e0b";
-        ctx.shadowBlur = 20;
-        // Left Wing
+        ctx.shadowBlur = 25;
         ctx.beginPath();
-        ctx.moveTo(leadX - 5, drawLeadY - 30);
-        ctx.quadraticCurveTo(leadX - 45, drawLeadY - 70, leadX - 25, drawLeadY - 15);
+        ctx.moveTo(leadX - 5, drawLeadY - 35);
+        ctx.quadraticCurveTo(leadX - 55, drawLeadY - 80, leadX - 30, drawLeadY - 15);
         ctx.fill();
-        // Right Wing
         ctx.beginPath();
-        ctx.moveTo(leadX + 45, drawLeadY - 30);
-        ctx.quadraticCurveTo(leadX + 85, drawLeadY - 70, leadX + 65, drawLeadY - 15);
+        ctx.moveTo(leadX + 45, drawLeadY - 35);
+        ctx.quadraticCurveTo(leadX + 95, drawLeadY - 80, leadX + 70, drawLeadY - 15);
         ctx.fill();
         ctx.shadowBlur = 0;
       }
 
-      // Render Solar Lion Companion if active for Sundiata
+      // Render Solar Lion Companion for Sundiata
       if (activeLead === "sundiata" && solarLionActive) {
         solarLionTimer--;
         ctx.fillStyle = "#f59e0b";
         ctx.shadowColor = "#fbbf24";
-        ctx.shadowBlur = 18;
-        // Golden Lion Sprite Shape
-        ctx.fillRect(leadX - 45, drawLeadY - 40, 36, 26);
-        ctx.beginPath(); ctx.arc(leadX - 50, drawLeadY - 30, 14, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 20;
+        ctx.fillRect(leadX - 55, drawLeadY - 45, 42, 30);
+        ctx.beginPath(); ctx.arc(leadX - 60, drawLeadY - 32, 16, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
         if (solarLionTimer <= 0) solarLionActive = false;
       }
@@ -698,6 +716,7 @@
       ctx.font = "bold 11px sans-serif";
       ctx.fillText(activeLead.toUpperCase(), leadX - 2, drawLeadY - 74);
 
+      // Render Syndicate Droid Sprites
       enemies.forEach(e => {
         if (!e.active) return;
         e.x -= e.speed;
@@ -709,10 +728,12 @@
           }
           e.x = 520;
         }
+        ctx.fillStyle = "#dc2626";
+        ctx.fillRect(e.x, 205, 32, 50);
         ctx.fillStyle = "#ef4444";
-        ctx.fillRect(e.x, 208, 30, 47);
-        ctx.fillStyle = "#f87171";
-        ctx.fillRect(e.x + 7, 199, 16, 5);
+        ctx.fillRect(e.x + 4, 197, 24, 12);
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillRect(e.x + 8, 201, 16, 4);
       });
 
       for (let i = plasmaOrbs.length - 1; i >= 0; i--) {
