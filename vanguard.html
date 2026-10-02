@@ -41,7 +41,7 @@
     .portal-section { display: none; width: 96%; max-width: 1100px; margin: 16px auto; }
     .portal-section.active { display: flex; flex-direction: column; align-items: center; }
 
-    /* CODEX & AR VIEWER STYLES */
+    /* CODEX STYLES */
     .card-flipper-container { perspective: 1000px; width: 100%; min-height: 315px; }
     .card-flipper-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); cursor: pointer; }
     .card-flipper-inner.is-flipped { transform: rotateY(180deg); }
@@ -146,7 +146,7 @@
     </div>
   </header>
 
-  <!-- TAB 1: CARD CODEX (WITH WORKING AR HOLOGRAM MODAL) -->
+  <!-- TAB 1: CARD CODEX -->
   <section id="tab-codex" class="portal-section active">
     <div class="codex-grid">
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
@@ -209,7 +209,7 @@
     </div>
   </section>
 
-  <!-- TAB 3: SIDE BRAWLER (STAGE & CHARACTER SELECTION RESTORED) -->
+  <!-- TAB 3: SIDE BRAWLER (RESTORED SPRITE AVATARS & FULL POWERS) -->
   <section id="tab-brawler" class="portal-section">
     <div class="brawler-wrapper">
       <div id="activeBrawlerContainer" style="display:flex; width: 100%; flex-direction: column; gap: 8px;">
@@ -291,7 +291,7 @@
 
   <script>
     const strings = {
-      en: { title: "Vanguard Universe: Unified Combat Portal", codex: "🎴 Codex", clash: "⚔️ Clash", brawler: "🕹️ Brawler", ranks: "🏆 Ranks" },
+      en: { title: "Vanguard Universe: Unified Combat Portal", codex: "🎴 Codex", clash: "⚔️️ Clash", brawler: "🕹️ Brawler", ranks: "🏆 Ranks" },
       es: { title: "Universo Vanguard: Portal de Combate Unificado", codex: "🎴 Códice", clash: "⚔️ Choque", brawler: "🕹️ Peleador", ranks: "🏆 Rangos" }
     };
     function setLanguage(lang) {
@@ -374,7 +374,7 @@
       document.getElementById('clash-status').innerText = "Tap an enemy card to target, or press any hero action below!";
     }
 
-    /* BRAWLER GAME ENGINE (WITH ROSTER, STAGE PROGRESSION & SPRITES) */
+    /* BRAWLER GAME ENGINE (WITH FULL CHARACTER SPRITES, POWERS & STAGES) */
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -401,9 +401,19 @@
     let unlockedRoster = ["marcus", "xochitl", "sundiata"], rosterIdx = 0, activeLead = "marcus";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true, playerHp = 100;
     let currentStage = 1, mobsRemaining = 14;
-    let enemies = [], plasmaOrbs = [];
+    let enemies = [], plasmaOrbs = [], lightningBolts = [];
     const bgImage = new Image();
     bgImage.src = "bg-detroit.jpg";
+
+    // Preload Character Sprite Assets
+    const spriteImages = {
+      marcus: new Image(),
+      xochitl: new Image(),
+      sundiata: new Image()
+    };
+    spriteImages.marcus.src = "marcus.png";
+    spriteImages.xochitl.src = "xochitl.png";
+    spriteImages.sundiata.src = "sundiata-prime.png";
 
     function resizeAndStartBrawler() {
       canvas = document.getElementById("gameCanvas");
@@ -437,14 +447,36 @@
       activeLead = unlockedRoster[rosterIdx];
       const names = { marcus: "Marcus Prime", xochitl: "Xochitl", sundiata: "Sundiata Prime" };
       document.getElementById("heroNameLabel").innerText = `${names[activeLead]} (Lead Active)`;
-      logBrawler(`Switched lead operative to ${names[activeLead]}!`);
+      
+      // Update UI Action Button labels based on active character powers
+      if (activeLead === "marcus") {
+        document.getElementById("btnStrike").innerText = "⚡ Volt Beam";
+        document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
+        document.getElementById("btnBurst").innerText = "🛡️ Deflect";
+        document.getElementById("btnTag").innerText = "TAG: XOCHITL";
+      } else if (activeLead === "xochitl") {
+        document.getElementById("btnStrike").innerText = "🔥 Magma Strike";
+        document.getElementById("btnOrb").innerText = "🪶 Solar Strafe";
+        document.getElementById("btnBurst").innerText = "🛡️ Wing Shield";
+        document.getElementById("btnTag").innerText = "TAG: SUNDIATA";
+      } else if (activeLead === "sundiata") {
+        document.getElementById("btnStrike").innerText = "🔨 Drum Tremor";
+        document.getElementById("btnOrb").innerText = "🦁 Bronze Pulse";
+        document.getElementById("btnBurst").innerText = "🦁 Solar Roar";
+        document.getElementById("btnTag").innerText = "TAG: MARCUS";
+      }
+      logBrawler(`Switched lead operative to ${names[activeLead]}! Powers engaged.`);
     }
 
     function executeStrike() {
       playSound('hit');
       let powerMultiplier = activeLead === "sundiata" ? 2 : 1;
+      
+      // Trigger visual lightning / strike effect
+      lightningBolts.push({ x1: leadX + 25, y1: 200, x2: leadX + 90, y2: 200, life: 8 });
+
       enemies.forEach(e => {
-        if (e.active && Math.abs(e.x - leadX) < 65) {
+        if (e.active && Math.abs(e.x - leadX) < 75) {
           e.hp -= powerMultiplier;
           if (e.hp <= 0) {
             e.active = false;
@@ -458,11 +490,21 @@
 
     function executePlasmaOrb() {
       playSound('zap');
-      plasmaOrbs.push({ x: leadX + 35, y: 195, vx: 7.0, radius: 10, life: 60, lead: activeLead });
+      plasmaOrbs.push({ x: leadX + 35, y: 195, vx: 7.0, radius: 12, life: 60, lead: activeLead });
     }
 
-    function executeBurst() { playSound('zap'); logBrawler("Shield energy deployed!"); }
-    function executeLuettaAid() { playerHp = 100; updateHUD(); logBrawler("✨ Mother Luetta restored team HP to maximum!"); }
+    function executeBurst() {
+      playSound('shield');
+      playerHp = Math.min(100, playerHp + 10);
+      updateHUD();
+      logBrawler(`${activeLead.toUpperCase()} activated defensive barrier! +10 HP restored.`);
+    }
+
+    function executeLuettaAid() {
+      playerHp = 100;
+      updateHUD();
+      logBrawler("✨ Mother Luetta descends in radiant celestial light, restoring team HP to maximum! ✨");
+    }
 
     function triggerStageClear() {
       if (currentStage === 1) {
@@ -519,13 +561,20 @@
       }
       let drawLeadY = 205 - leadY;
 
-      // Draw Character Operative Sprite / Box with Power Colors
-      ctx.fillStyle = activeLead === "sundiata" ? "#f59e0b" : (activeLead === "xochitl" ? "#f97316" : "#38bdf8");
-      ctx.fillRect(leadX, drawLeadY - 45, 34, 52);
+      // Render Full Character Sprite Image if loaded, otherwise fallback to styled hero box
+      let curSprite = spriteImages[activeLead];
+      if (curSprite && curSprite.complete && curSprite.naturalWidth > 0) {
+        ctx.drawImage(curSprite, leadX, drawLeadY - 55, 45, 55);
+      } else {
+        ctx.fillStyle = activeLead === "sundiata" ? "#f59e0b" : (activeLead === "xochitl" ? "#f97316" : "#38bdf8");
+        ctx.fillRect(leadX, drawLeadY - 45, 34, 52);
+      }
+
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 10px sans-serif";
-      ctx.fillText(activeLead.toUpperCase(), leadX - 2, drawLeadY - 52);
+      ctx.fillText(activeLead.toUpperCase(), leadX - 2, drawLeadY - 60);
 
+      // Render Enemies
       enemies.forEach(e => {
         if (!e.active) return;
         e.x -= e.speed;
@@ -541,10 +590,11 @@
         ctx.fillRect(e.x + 6, 202, 14, 5);
       });
 
+      // Render Projectiles & Orbs
       for (let i = plasmaOrbs.length - 1; i >= 0; i--) {
         let po = plasmaOrbs[i];
         po.x += po.vx; po.life--;
-        ctx.fillStyle = po.lead === "sundiata" ? "#f59e0b" : "#38bdf8";
+        ctx.fillStyle = po.lead === "sundiata" ? "#f59e0b" : (po.lead === "xochitl" ? "#f97316" : "#38bdf8");
         ctx.shadowColor = ctx.fillStyle;
         ctx.shadowBlur = 12;
         ctx.beginPath(); ctx.arc(po.x, po.y, po.radius, 0, Math.PI * 2); ctx.fill();
@@ -559,6 +609,22 @@
           }
         });
         if (po.life <= 0 && i < plasmaOrbs.length) plasmaOrbs.splice(i, 1);
+      }
+
+      // Render Strike Lightning Effects
+      for (let i = lightningBolts.length - 1; i >= 0; i--) {
+        let lb = lightningBolts[i];
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#38bdf8";
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.moveTo(lb.x1, lb.y1);
+        ctx.lineTo(lb.x2, lb.y2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        lb.life--;
+        if (lb.life <= 0) lightningBolts.splice(i, 1);
       }
 
       animationFrameId = requestAnimationFrame(renderBrawler);
