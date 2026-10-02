@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rhodes Family Legacy - AR Experience</title>
+    <title>Rhodes Family Legacy - AR Cinematic Experience</title>
     
     <!-- A-Frame and MindAR Libraries -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -73,61 +73,90 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.5);
             text-decoration: none;
             text-align: center;
-            min-width: 200px;
+            min-width: 220px;
         }
 
         .legacy-btn:active {
             background-color: #5c0000;
         }
+
+        /* Fullscreen Video Modal Overlay */
+        #video-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #video-modal video {
+            width: 100%;
+            max-width: 800px;
+            max-height: 70vh;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .close-modal {
+            margin-top: 20px;
+            background-color: #b91c1c;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
+    <!-- UI Overlay for Instructions and Controls -->
     <div id="ui-overlay">
         <div class="instruction-text" id="status-text">
-            Point your camera at either book cover to view the AR experience.
+            Point your camera at either book cover to unlock the cinematic experience.
         </div>
         <div class="btn-container">
+            <!-- Dynamic Action Button (Hidden until target is found) -->
+            <button class="legacy-btn" id="launch-trailer" style="display: none; background-color: #15803d;">▶ Watch Trailer</button>
             <button class="legacy-btn" id="retry-camera">Grant Camera / Retry</button>
             <a href="index.html" class="legacy-btn" style="background-color: #1e293b;">Back to Hub</a>
         </div>
     </div>
 
-    <a-scene embedded mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: yes; uiScanning: yes;" renderer="colorManagement: true, physicallyCorrectLights; alpha: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: true">
-        <a-assets>
-            <video id="book-video" src="./ancestral-lineage-origin.mp4" preload="auto" crossorigin webkit-playsinline playsinline></video>
-        </a-assets>
+    <!-- Fullscreen Video Modal Player -->
+    <div id="video-modal">
+        <video id="popup-video" src="./ancestral-lineage-origin.mp4" controls playsinline webkit-playsinline></video>
+        <button class="close-modal" id="close-modal-btn">Close Trailer</button>
+    </div>
 
+    <!-- A-Frame AR Scene -->
+    <a-scene embedded mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: yes; uiScanning: yes;" renderer="colorManagement: true, physicallyCorrectLights; alpha: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: true">
         <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
 
-        <!-- First Book Cover Target with hidden initial state to prevent white box -->
-        <a-entity mindar-image-target="targetIndex: 0" id="target-0">
-            <a-plane id="video-plane" position="0 0 0" width="1" height="1.4" rotation="0 0 0" material="shader: flat; transparent: true; opacity: 0;"></a-plane>
-        </a-entity>
+        <!-- First Book Cover Target -->
+        <a-entity mindar-image-target="targetIndex: 0" id="target-0"></a-entity>
 
         <!-- Second Book Cover Target -->
-        <a-entity mindar-image-target="targetIndex: 1">
-            <a-plane position="0 0 0" height="1" width="1" rotation="0 0 0" material="color: #8b0000; transparent: true; opacity: 0.8"></a-plane>
-        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 1"></a-entity>
     </a-scene>
 
     <script>
-        const videoEl = document.querySelector('#book-video');
         const target0 = document.querySelector('#target-0');
-        const videoPlane = document.querySelector('#video-plane');
         const statusText = document.querySelector('#status-text');
-
-        let videoUnlocked = false;
-        document.body.addEventListener('click', () => {
-            if (!videoUnlocked) {
-                videoEl.play().then(() => {
-                    videoEl.pause();
-                    videoEl.currentTime = 0;
-                    videoUnlocked = true;
-                    statusText.innerText = "Video unlocked! Point at book cover.";
-                }).catch(e => console.log("Unlock error:", e));
-            }
-        });
+        const launchBtn = document.querySelector('#launch-trailer');
+        const videoModal = document.querySelector('#video-modal');
+        const popupVideo = document.querySelector('#popup-video');
+        const closeModalBtn = document.querySelector('#close-modal-btn');
 
         document.getElementById('retry-camera').addEventListener('click', () => {
             const sceneEl = document.querySelector('a-scene');
@@ -141,23 +170,31 @@
             }
         });
 
-        if (target0 && videoEl) {
+        // Trigger action button when book cover is detected in camera view
+        if (target0) {
             target0.addEventListener('targetFound', () => {
-                statusText.innerText = "Target Found! Playing video...";
-                videoEl.play().then(() => {
-                    videoPlane.setAttribute('material', 'src', '#book-video');
-                    videoPlane.setAttribute('material', 'opacity', '1');
-                }).catch(e => {
-                    statusText.innerText = "Tap screen to start video playback.";
-                });
+                statusText.innerText = "Book Cover Locked! Tap below to watch trailer.";
+                launchBtn.style.display = "block";
             });
             
             target0.addEventListener('targetLost', () => {
-                statusText.innerText = "Point your camera at either book cover to view the AR experience.";
-                videoEl.pause();
-                videoPlane.setAttribute('material', 'opacity', '0');
+                statusText.innerText = "Point your camera at either book cover to unlock the cinematic experience.";
+                // Keep button visible or hide based on preference; leaving visible makes it easy to click
             });
         }
+
+        // Open cinematic video modal
+        launchBtn.addEventListener('click', () => {
+            videoModal.style.display = "flex";
+            popupVideo.play().catch(e => console.log("Modal play error:", e));
+        });
+
+        // Close cinematic video modal
+        closeModalBtn.addEventListener('click', () => {
+            popupVideo.pause();
+            popupVideo.currentTime = 0;
+            videoModal.style.display = "none";
+        });
     </script>
 </body>
 </html>
