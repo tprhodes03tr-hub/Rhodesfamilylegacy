@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rhodes Family Legacy - Vanguard AR Experience</title>
+    <title>Rhodes Family Legacy - Animated AR Experience</title>
     
     <!-- A-Frame and MindAR Libraries -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -85,7 +85,7 @@
 
     <div id="ui-overlay">
         <div class="instruction-text" id="status-text">
-            Point your camera at the book cover to project the Vanguard character.
+            Point your camera at the book cover to view character motion.
         </div>
         <div class="btn-container">
             <button class="legacy-btn" id="retry-camera">Grant Camera / Retry</button>
@@ -93,23 +93,20 @@
         </div>
     </div>
 
-    <!-- A-Frame AR Scene with Image Target & Audio -->
+    <!-- A-Frame AR Scene configured for Video Texture Mapping -->
     <a-scene embedded mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: yes; uiScanning: yes;" renderer="colorManagement: true, physicallyCorrectLights; alpha: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: true">
         <a-assets>
-            <!-- Vanguard Character Graphic Asset -->
-            <img id="char-img" src="./akecheta.png" crossorigin="anonymous">
-            <!-- Voice Line Audio -->
-            <audio id="char-audio" src="./mother-luetta-welcome.mp3" preload="auto"></audio>
+            <!-- Animated character video asset (Looping speaking/motion video) -->
+            <video id="char-motion-video" src="./character-motion.mp4" preload="auto" crossorigin webkit-playsinline playsinline loop muted></video>
         </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
 
-        <!-- Book Cover Target with Floating Holographic Graphic -->
+        <!-- Book Cover Target mapping the video dynamically -->
         <a-entity mindar-image-target="targetIndex: 0" id="target-0">
-            <a-plane position="0 0.2 0.1" width="1.2" height="1.6" rotation="0 0 0" material="src: #char-img; shader: flat; transparent: true; alphaTest: 0.5;" animation="property: position; to: 0 0.25 0.1; dir: alternate; dur: 2000; loop: true"></a-plane>
+            <a-plane id="video-plane" position="0 0.2 0.1" width="1.2" height="1.6" rotation="0 0 0" material="shader: flat; transparent: true; opacity: 0;"></a-plane>
         </a-entity>
 
-        <!-- Second Book Cover Target -->
         <a-entity mindar-image-target="targetIndex: 1">
             <a-plane position="0 0 0" height="1" width="1" rotation="0 0 0" material="color: #8b0000; transparent: true; opacity: 0.8"></a-plane>
         </a-entity>
@@ -118,7 +115,8 @@
     <script>
         const statusText = document.querySelector('#status-text');
         const target0 = document.querySelector('#target-0');
-        const charAudio = document.querySelector('#char-audio');
+        const motionVideo = document.querySelector('#char-motion-video');
+        const videoPlane = document.querySelector('#video-plane');
 
         document.getElementById('retry-camera').addEventListener('click', () => {
             const sceneEl = document.querySelector('a-scene');
@@ -132,16 +130,19 @@
             }
         });
 
-        if (target0 && charAudio) {
+        if (target0 && motionVideo) {
             target0.addEventListener('targetFound', () => {
-                statusText.innerText = "Vanguard Character: 'Welcome to the Universe!'";
-                charAudio.play().catch(e => console.log("Audio autoplay blocked:", e));
+                statusText.innerText = "Character Motion Active!";
+                motionVideo.play().then(() => {
+                    videoPlane.setAttribute('material', 'src', '#char-motion-video');
+                    videoPlane.setAttribute('material', 'opacity', '1');
+                }).catch(e => console.log("Video play error:", e));
             });
             
             target0.addEventListener('targetLost', () => {
-                statusText.innerText = "Point your camera at the book cover to project the Vanguard character.";
-                charAudio.pause();
-                charAudio.currentTime = 0;
+                statusText.innerText = "Point your camera at the book cover to view character motion.";
+                motionVideo.pause();
+                videoPlane.setAttribute('material', 'opacity', '0');
             });
         }
     </script>
