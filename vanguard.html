@@ -188,10 +188,10 @@
     </div>
   </section>
 
-  <!-- TAB 2: CARD CLASH -->
+  <!-- TAB 2: CARD CLASH (WITH WORKING ENEMY RETALIATION AI) -->
   <section id="tab-clash" class="portal-section">
     <div class="clash-board">
-      <div class="clash-status-box" id="clash-status">Tap an enemy card to target, or press any hero action below to auto-attack!<span class="round-indicator" id="round-display">Round 1</span></div>
+      <div class="clash-status-box" id="clash-status">Select an enemy target card, then press any hero action below!<span class="round-indicator" id="round-display">Round 1</span></div>
       
       <div class="battle-row">
         <div class="card-foil foil-syndicate battle-card targeted" id="enemy-0" onclick="selectTarget(0)"><img src="chrono-lock.png" class="card-img" alt="Chrono-Lock"><div class="card-name">Chrono-Lock</div><div class="stat-row"><span class="stat-badge">PWR: 92</span><span class="stat-badge">DEF: 86</span></div><div class="hp-bar-container"><div class="hp-bar" id="enemy-hp-0"></div></div></div>
@@ -209,7 +209,7 @@
     </div>
   </section>
 
-  <!-- TAB 3: SIDE BRAWLER (RESTORED SPRITE AVATARS & FULL POWERS) -->
+  <!-- TAB 3: SIDE BRAWLER (GROUNDED PHYSICS & XOCHITL SOLAR BARRAGE) -->
   <section id="tab-brawler" class="portal-section">
     <div class="brawler-wrapper">
       <div id="activeBrawlerContainer" style="display:flex; width: 100%; flex-direction: column; gap: 8px;">
@@ -277,7 +277,7 @@
   <!-- AR HOLOGRAM PREVIEW MODAL -->
   <div class="modal-overlay" id="ar-modal">
     <div class="modal-content">
-      <h2 id="arModalTitle">3D Hologram AR Viewer</h2>
+      <h2 id="arModalTitle">3D AR Hologram</h2>
       <div class="ar-preview-box" id="arHologramIcon">🦁</div>
       <p id="arModalDesc">Holographic projection active. Point your camera at any flat surface to materialize this operative in your room!</p>
       <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="payhip-btn">BUY PHYSICAL COLLECTOR DECK ON PAYHIP</a>
@@ -291,7 +291,7 @@
 
   <script>
     const strings = {
-      en: { title: "Vanguard Universe: Unified Combat Portal", codex: "🎴 Codex", clash: "⚔️️ Clash", brawler: "🕹️ Brawler", ranks: "🏆 Ranks" },
+      en: { title: "Vanguard Universe: Unified Combat Portal", codex: "🎴 Codex", clash: "⚔️ Clash", brawler: "🕹️ Brawler", ranks: "🏆 Ranks" },
       es: { title: "Universo Vanguard: Portal de Combate Unificado", codex: "🎴 Códice", clash: "⚔️ Choque", brawler: "🕹️ Peleador", ranks: "🏆 Rangos" }
     };
     function setLanguage(lang) {
@@ -329,7 +329,7 @@
       document.getElementById('ar-modal').style.display = 'none';
     }
 
-    /* CARD CLASH LOGIC */
+    /* CARD CLASH LOGIC (WITH WORKING ENEMY RETALIATION AI) */
     let currentRound = 1, selectedTargetIndex = 0;
     const clashEnemies = [
       { name: "Chrono-Lock", pwr: 92, def: 86, maxHp: 100, hp: 100 },
@@ -359,22 +359,43 @@
       let dmg = act === 'special' ? 35 : 20;
       target.hp = Math.max(0, target.hp - dmg);
       document.getElementById('enemy-hp-' + selectedTargetIndex).style.width = (target.hp / target.maxHp * 100) + '%';
-      document.getElementById('clash-status').innerText = `${hero.name} used ${act === 'special' ? 'Special Ability' : 'Primary Strike'} on ${target.name} for ${dmg} damage!`;
+      document.getElementById('clash-status').innerText = `${hero.name} hit ${target.name} for ${dmg} damage!`;
       
       if (clashEnemies.every(e => e.hp <= 0)) {
         setTimeout(() => { document.getElementById('clash-status').innerText = "🏆 Clash Victory! Resetting round..."; setTimeout(resetCardArena, 1500); }, 600);
+        return;
       }
+
+      // Enemy Retaliation AI Turn
+      setTimeout(() => {
+        let liveHeroes = clashHeroes.filter((_, i) => {
+          let bar = document.getElementById('vanguard-hp-' + i);
+          return bar && parseInt(bar.style.width || "100") > 0;
+        });
+        if (liveHeroes.length === 0) return;
+        let randomHeroIdx = Math.floor(Math.random() * clashHeroes.length);
+        let attackedHero = clashHeroes[randomHeroIdx];
+        let enemyDmg = 15;
+        attackedHero.hp = Math.max(0, attackedHero.hp - enemyDmg);
+        let heroBar = document.getElementById('vanguard-hp-' + randomHeroIdx);
+        if (heroBar) heroBar.style.width = (attackedHero.hp / attackedHero.maxHp * 100) + '%';
+        
+        currentRound++;
+        document.getElementById('round-display').innerText = `Round ${currentRound}`;
+        document.getElementById('clash-status').innerText = `Syndicate retaliated! ${attackedHero.name} took ${enemyDmg} damage. Your turn!`;
+      }, 700);
     }
 
     function resetCardArena() {
       clashEnemies.forEach((e, i) => { e.hp = e.maxHp; document.getElementById('enemy-hp-' + i).style.width = '100%'; });
       clashHeroes.forEach((h, i) => { h.hp = h.maxHp; document.getElementById('vanguard-hp-' + i).style.width = '100%'; });
-      selectedTargetIndex = 0;
+      currentRound = 1; selectedTargetIndex = 0;
       document.getElementById('enemy-0').classList.add('targeted');
+      document.getElementById('round-display').innerText = `Round 1`;
       document.getElementById('clash-status').innerText = "Tap an enemy card to target, or press any hero action below!";
     }
 
-    /* BRAWLER GAME ENGINE (WITH FULL CHARACTER SPRITES, POWERS & STAGES) */
+    /* BRAWLER GAME ENGINE (GROUNDED PHYSICS & XOCHITL SOLAR BARRAGE) */
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -401,11 +422,10 @@
     let unlockedRoster = ["marcus", "xochitl", "sundiata"], rosterIdx = 0, activeLead = "marcus";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true, playerHp = 100;
     let currentStage = 1, mobsRemaining = 14;
-    let enemies = [], plasmaOrbs = [], lightningBolts = [];
+    let enemies = [], plasmaOrbs = [], lightningBolts = [], arrows = [];
     const bgImage = new Image();
     bgImage.src = "bg-detroit.jpg";
 
-    // Preload Character Sprite Assets
     const spriteImages = {
       marcus: new Image(),
       xochitl: new Image(),
@@ -439,7 +459,7 @@
     function playerMove(dx) { leadX = Math.max(50, Math.min(380, leadX + dx)); }
     function playerJump() {
       if (!isGrounded) return;
-      leadVy = -13; isGrounded = false;
+      leadVy = -12; isGrounded = false;
     }
 
     function executeTagSwap() {
@@ -448,7 +468,6 @@
       const names = { marcus: "Marcus Prime", xochitl: "Xochitl", sundiata: "Sundiata Prime" };
       document.getElementById("heroNameLabel").innerText = `${names[activeLead]} (Lead Active)`;
       
-      // Update UI Action Button labels based on active character powers
       if (activeLead === "marcus") {
         document.getElementById("btnStrike").innerText = "⚡ Volt Beam";
         document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
@@ -457,7 +476,7 @@
       } else if (activeLead === "xochitl") {
         document.getElementById("btnStrike").innerText = "🔥 Magma Strike";
         document.getElementById("btnOrb").innerText = "🪶 Solar Strafe";
-        document.getElementById("btnBurst").innerText = "🛡️ Wing Shield";
+        document.getElementById("btnBurst").innerText = "🛡️️ Wing Shield";
         document.getElementById("btnTag").innerText = "TAG: SUNDIATA";
       } else if (activeLead === "sundiata") {
         document.getElementById("btnStrike").innerText = "🔨 Drum Tremor";
@@ -471,8 +490,6 @@
     function executeStrike() {
       playSound('hit');
       let powerMultiplier = activeLead === "sundiata" ? 2 : 1;
-      
-      // Trigger visual lightning / strike effect
       lightningBolts.push({ x1: leadX + 25, y1: 200, x2: leadX + 90, y2: 200, life: 8 });
 
       enemies.forEach(e => {
@@ -490,14 +507,29 @@
 
     function executePlasmaOrb() {
       playSound('zap');
-      plasmaOrbs.push({ x: leadX + 35, y: 195, vx: 7.0, radius: 12, life: 60, lead: activeLead });
+      if (activeLead === "xochitl") {
+        // Xochitl Special Power: Solar Strafe & Arrow Barrage (Vaults right, fires obsidian arrows, returns)
+        logBrawler("🪶 Xochitl initiates Solar Strafe & Arrow Barrage!");
+        let startX = leadX;
+        leadX = 420; // Vault to right of screen
+        for (let a = 0; a < 6; a++) {
+          arrows.push({ x: 420 - (a * 25), y: 150 + (a * 10), vx: -8.0, vy: 2.0, life: 50 });
+        }
+        setTimeout(() => { leadX = startX; }, 1200);
+      } else if (activeLead === "sundiata") {
+        // Sundiata Special Power: Solar Lion Roar shockwave pulse
+        logBrawler("🦁 Sundiata unleashes the Solar Lion Roar!");
+        plasmaOrbs.push({ x: leadX + 35, y: 195, vx: 9.0, radius: 24, life: 75, lead: "sundiata" });
+      } else {
+        plasmaOrbs.push({ x: leadX + 35, y: 195, vx: 7.0, radius: 12, life: 60, lead: activeLead });
+      }
     }
 
     function executeBurst() {
       playSound('shield');
       playerHp = Math.min(100, playerHp + 10);
       updateHUD();
-      logBrawler(`${activeLead.toUpperCase()} activated defensive barrier! +10 HP restored.`);
+      logBrawler(`${activeLead.toUpperCase()} activated barrier! +10 HP restored.`);
     }
 
     function executeLuettaAid() {
@@ -555,13 +587,13 @@
       ctx.beginPath(); ctx.moveTo(0, 255); ctx.lineTo(canvas.width, 255); ctx.stroke();
       ctx.shadowBlur = 0;
 
+      // Grounded Physics Loop (Ensuring feet stay firmly on road deck y = 205)
       if (!isGrounded) {
-        leadY -= leadVy; leadVy += 0.78;
+        leadY -= leadVy; leadVy += 0.75;
         if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
       }
       let drawLeadY = 205 - leadY;
 
-      // Render Full Character Sprite Image if loaded, otherwise fallback to styled hero box
       let curSprite = spriteImages[activeLead];
       if (curSprite && curSprite.complete && curSprite.naturalWidth > 0) {
         ctx.drawImage(curSprite, leadX, drawLeadY - 55, 45, 55);
@@ -574,7 +606,6 @@
       ctx.font = "bold 10px sans-serif";
       ctx.fillText(activeLead.toUpperCase(), leadX - 2, drawLeadY - 60);
 
-      // Render Enemies
       enemies.forEach(e => {
         if (!e.active) return;
         e.x -= e.speed;
@@ -590,7 +621,6 @@
         ctx.fillRect(e.x + 6, 202, 14, 5);
       });
 
-      // Render Projectiles & Orbs
       for (let i = plasmaOrbs.length - 1; i >= 0; i--) {
         let po = plasmaOrbs[i];
         po.x += po.vx; po.life--;
@@ -611,7 +641,22 @@
         if (po.life <= 0 && i < plasmaOrbs.length) plasmaOrbs.splice(i, 1);
       }
 
-      // Render Strike Lightning Effects
+      for (let i = arrows.length - 1; i >= 0; i--) {
+        let ar = arrows[i];
+        ar.x += ar.vx; ar.y += ar.vy; ar.life--;
+        ctx.fillStyle = "#f97316";
+        ctx.fillRect(ar.x, ar.y, 14, 4);
+        
+        enemies.forEach(e => {
+          if (e.active && Math.abs(ar.x - e.x) < 20) {
+            e.hp--; e.active = false; mobsRemaining = Math.max(0, mobsRemaining - 1);
+            updateHUD();
+            if (mobsRemaining === 0) triggerStageClear();
+          }
+        });
+        if (ar.life <= 0) arrows.splice(i, 1);
+      }
+
       for (let i = lightningBolts.length - 1; i >= 0; i--) {
         let lb = lightningBolts[i];
         ctx.strokeStyle = "#ffffff";
