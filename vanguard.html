@@ -209,13 +209,13 @@
     </div>
   </section>
 
-  <!-- TAB 3: SIDE BRAWLER (FULL MULTI-CHARACTER ROSTER & ABILITIES) -->
+  <!-- TAB 3: SIDE BRAWLER (CANONICAL ABILITIES: AQUILA, SEMIONICS PRIME, SOLAR LION) -->
   <section id="tab-brawler" class="portal-section">
     <div class="brawler-wrapper">
       <div id="activeBrawlerContainer" style="display:flex; width: 100%; flex-direction: column; gap: 8px;">
         <div class="hud-header">
           <div class="hud-top-row">
-            <span id="heroNameLabel" class="hero-title">Kofi Osei (Gold-Smith) (Lead) &amp; Marcus Prime (AI)</span>
+            <span id="heroNameLabel" class="hero-title">Aquila (Lead Active)</span>
             <span id="waveDisplay" class="wave-badge">Wave 6: Forge Breakers</span>
           </div>
           <div class="bars-container">
@@ -239,7 +239,7 @@
           </div>
         </div>
 
-        <div class="combat-log" id="combatLog">Co-Op: Marcus provides cover voltage!</div>
+        <div class="combat-log" id="combatLog">Aquila engaged: Jump right, glide left, fire feather daggers!</div>
 
         <div class="controls-grid">
           <div class="dpad-cluster">
@@ -248,10 +248,10 @@
             <button class="btn" onclick="playerMove(25)">RIGHT ►</button>
           </div>
           <div class="action-cluster">
-            <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">⚒️ Anvil Sledge</button>
-            <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">✨ Molten Shards</button>
-            <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Crucible Bastion</button>
-            <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: MARCUS</button>
+            <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">🪶 Feather Dagger</button>
+            <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">✨ Solar Glide</button>
+            <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Wing Bastion</button>
+            <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: SEMIONICS</button>
             <button id="btnLuetta" class="btn btn-ultimate" onclick="executeLuettaAid()">★ SUMMON MOTHER LUETTA ★</button>
           </div>
         </div>
@@ -281,7 +281,7 @@
       <div class="ar-canvas-container">
         <canvas id="arCanvas" width="400" height="170"></canvas>
       </div>
-      <p id="arModalDesc">Interactive 3D wireframe mesh active. Point your camera at any surface to project this rare card in full 3D holographic AR!</p>
+      <p id="arModalDesc">Interactive true 3D wireframe mesh active. Point your camera at any surface to project this rare card in full 3D holographic AR!</p>
       <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="payhip-btn">BUY PHYSICAL COLLECTOR DECK ON PAYHIP</a>
       <button class="close-modal-btn" onclick="closeARViewer()">CLOSE VIEWER</button>
     </div>
@@ -320,10 +320,11 @@
       container.querySelector('.card-flipper-inner').classList.toggle('is-flipped');
     }
 
+    /* TRUE 3D AR HOLOGRAM VIEWER WITH 3D WIREFRAME MATH */
     let arCanvas, arCtx, arAnimId = null, arAngle = 0;
     function launchARViewer(cardName, subtitle) {
-      document.getElementById('arModalTitle').innerText = cardName + " - 3D AR Hologram";
-      document.getElementById('arModalDesc').innerText = subtitle + ". Point your phone camera at your desk to project this rare card in full 3D holographic AR!";
+      document.getElementById('arModalTitle').innerText = cardName + " - True 3D AR Hologram";
+      document.getElementById('arModalDesc').innerText = subtitle + ". True 3D depth wireframe active.";
       document.getElementById('ar-modal').style.display = 'flex';
       setTimeout(startArCanvas, 50);
     }
@@ -338,8 +339,9 @@
     function renderArLoop() {
       if (!arCanvas || !arCtx) return;
       arCtx.clearRect(0, 0, arCanvas.width, arCanvas.height);
-      arAngle += 0.03;
+      arAngle += 0.025;
 
+      // Scanning Grid
       arCtx.strokeStyle = "rgba(56, 189, 248, 0.2)";
       arCtx.lineWidth = 1;
       for (let x = 0; x < arCanvas.width; x += 20) {
@@ -353,14 +355,35 @@
       arCtx.shadowColor = "#38bdf8";
       arCtx.shadowBlur = 15;
 
-      arCtx.beginPath();
-      arCtx.ellipse(0, 25, 70 + Math.sin(arAngle)*10, 22, 0, 0, Math.PI * 2);
-      arCtx.stroke();
+      // True 3D Rotating Wireframe Cube
+      const size = 35;
+      const vertices = [
+        [-size, -size, -size], [size, -size, -size], [size, size, -size], [-size, size, -size],
+        [-size, -size, size], [size, -size, size], [size, size, size], [-size, size, size]
+      ];
+      const edges = [
+        [0,1], [1,2], [2,3], [3,0], [4,5], [5,6], [6,7], [7,4],
+        [0,4], [1,5], [2,6], [3,7]
+      ];
 
-      arCtx.rotate(arAngle);
-      arCtx.strokeRect(-30, -30, 60, 60);
-      arCtx.rotate(-arAngle * 2);
-      arCtx.strokeRect(-20, -20, 40, 40);
+      const projected = vertices.map(([x, y, z]) => {
+        let rad = arAngle;
+        let cos = Math.cos(rad), sin = Math.sin(rad);
+        let x1 = x * cos - z * sin;
+        let z1 = z * cos + x * sin;
+        let y1 = y * Math.cos(rad * 0.5) - z1 * Math.sin(rad * 0.5);
+        
+        let fov = 200;
+        let scale = fov / (fov + z1 + 100);
+        return [x1 * scale, y1 * scale];
+      });
+
+      edges.forEach(([i, j]) => {
+        arCtx.beginPath();
+        arCtx.moveTo(projected[i][0], projected[i][1]);
+        arCtx.lineTo(projected[j][0], projected[j][1]);
+        arCtx.stroke();
+      });
 
       arCtx.restore();
       arAnimId = requestAnimationFrame(renderArLoop);
@@ -380,10 +403,10 @@
       { name: "Apex Volt", pwr: 92, def: 80, maxHp: 110, hp: 110 }
     ];
     const clashHeroes = [
-      { name: "Amina Zazzau", pwr: 88, def: 74, maxHp: 100, hp: 100 },
-      { name: "Marcus Prime", pwr: 91, def: 88, maxHp: 100, hp: 100 },
-      { name: "Xochitl", pwr: 89, def: 78, maxHp: 100, hp: 100 },
-      { name: "Sundiata Prime", pwr: 94, def: 96, maxHp: 110, hp: 110 }
+      { name: "Aquila", pwr: 92, def: 82, maxHp: 100, hp: 100 },
+      { name: "Semionics Prime", pwr: 95, def: 90, maxHp: 105, hp: 105 },
+      { name: "Solar Lion", pwr: 96, def: 94, maxHp: 110, hp: 110 },
+      { name: "Mother Luetta", pwr: 99, def: 99, maxHp: 120, hp: 120 }
     ];
 
     function selectTarget(idx) {
@@ -398,7 +421,7 @@
       if (selectedTargetIndex === null) selectedTargetIndex = 0;
       let hero = clashHeroes[hIdx];
       let target = clashEnemies[selectedTargetIndex];
-      let dmg = act === 'special' ? 35 : 20;
+      let dmg = act === 'special' ? 40 : 25;
       target.hp = Math.max(0, target.hp - dmg);
       document.getElementById('enemy-hp-' + selectedTargetIndex).style.width = (target.hp / target.maxHp * 100) + '%';
       document.getElementById('clash-status').innerText = `${hero.name} hit ${target.name} for ${dmg} damage!`;
@@ -411,7 +434,7 @@
       setTimeout(() => {
         let randomHeroIdx = Math.floor(Math.random() * clashHeroes.length);
         let attackedHero = clashHeroes[randomHeroIdx];
-        let enemyDmg = 15;
+        let enemyDmg = 12;
         attackedHero.hp = Math.max(0, attackedHero.hp - enemyDmg);
         let heroBar = document.getElementById('vanguard-hp-' + randomHeroIdx);
         if (heroBar) heroBar.style.width = (attackedHero.hp / attackedHero.maxHp * 100) + '%';
@@ -431,7 +454,7 @@
       document.getElementById('clash-status').innerText = "Tap an enemy card to target, or press any hero action below!";
     }
 
-    /* BRAWLER GAME ENGINE (FULL ROSTER: KOFI, MARCUS, XOCHITL, SUNDIATA) */
+    /* BRAWLER GAME ENGINE (DISTINCT CANONICAL ABILITIES) */
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -444,34 +467,37 @@
       const gain = audioCtx.createGain();
       osc.connect(gain); gain.connect(audioCtx.destination);
       const now = audioCtx.currentTime;
-      if (type === 'zap') {
-        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(950, now); osc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
-        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+      if (type === 'feather') {
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(1200, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
+        gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+      } else if (type === 'lion') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(90, now); osc.frequency.linearRampToValueAtTime(40, now + 0.3);
+        gain.gain.setValueAtTime(0.25, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
       } else {
-        osc.type = 'square'; osc.frequency.setValueAtTime(140, now);
+        osc.type = 'square'; osc.frequency.setValueAtTime(440, now);
         gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
       }
-      osc.start(now); osc.stop(now + 0.2);
+      osc.start(now); osc.stop(now + 0.3);
     }
 
     let canvas, ctx, animationFrameId = null;
-    let unlockedRoster = ["kofi", "marcus", "xochitl", "sundiata"], rosterIdx = 0, activeLead = "kofi";
+    let unlockedRoster = ["aquila", "semionics", "solarlion"], rosterIdx = 0, activeLead = "aquila";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true, playerHp = 100;
     let currentWave = 6, mobsRemaining = 10;
     let enemies = [], projectiles = [], shockwaves = [], shieldActive = false, shieldTimer = 0;
     let luettaAscending = false, luettaTimer = 0;
+    
+    let aquilaGlideTimer = 0;
 
     const spriteImages = {
-      kofi: new Image(),
-      marcus: new Image(),
-      xochitl: new Image(),
-      sundiata: new Image(),
+      aquila: new Image(),
+      semionics: new Image(),
+      solarlion: new Image(),
       luetta: new Image()
     };
-    spriteImages.kofi.src = "amina-zazzau.png";
-    spriteImages.marcus.src = "marcus.png";
-    spriteImages.xochitl.src = "xochitl.png";
-    spriteImages.sundiata.src = "sundiata-prime.png";
+    spriteImages.aquila.src = "xochitl.png";
+    spriteImages.semionics.src = "marcus.png";
+    spriteImages.solarlion.src = "sundiata-prime.png";
     spriteImages.luetta.src = "mother-luta.png";
 
     function resizeAndStartBrawler() {
@@ -498,88 +524,92 @@
     function playerMove(dx) { leadX = Math.max(50, Math.min(380, leadX + dx)); }
     function playerJump() {
       if (!isGrounded) return;
-      leadVy = -12; isGrounded = false;
+      if (activeLead === "aquila") {
+        leadVy = -13; isGrounded = false;
+        aquilaGlideTimer = 45;
+        logBrawler("🪶 Aquila springs rightward into aerial glide!");
+      } else {
+        leadVy = -12; isGrounded = false;
+      }
     }
 
     function executeTagSwap() {
       rosterIdx = (rosterIdx + 1) % unlockedRoster.length;
       activeLead = unlockedRoster[rosterIdx];
       const names = {
-        kofi: "Kofi Osei (Gold-Smith)",
-        marcus: "Marcus Prime",
-        xochitl: "Xochitl",
-        sundiata: "Sundiata Prime"
+        aquila: "Aquila",
+        semionics: "Semionics Prime",
+        solarlion: "Solar Lion"
       };
       document.getElementById("heroNameLabel").innerText = `${names[activeLead]} (Lead Active)`;
       
-      if (activeLead === "kofi") {
-        document.getElementById("btnStrike").innerText = "⚒️ Anvil Sledge";
-        document.getElementById("btnOrb").innerText = "✨ Molten Shards";
-        document.getElementById("btnBurst").innerText = "🛡️ Crucible Bastion";
-      } else if (activeLead === "marcus") {
-        document.getElementById("btnStrike").innerText = "⚡ Volt Strike";
-        document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
-        document.getElementById("btnBurst").innerText = "🛡️ Kinetic Dome";
-      } else if (activeLead === "xochitl") {
-        document.getElementById("btnStrike").innerText = "🔥 Obsidian Flurry";
-        document.getElementById("btnOrb").innerText = "🪶 Solar Wings / Strafe";
-        document.getElementById("btnBurst").innerText = "🛡️ Wing Shield";
-      } else if (activeLead === "sundiata") {
-        document.getElementById("btnStrike").innerText = "🔨 Dundun Shock";
-        document.getElementById("btnOrb").innerText = "🦁 Solar Lion Roar";
-        document.getElementById("btnBurst").innerText = "🛡️ Solar Bastion";
+      if (activeLead === "aquila") {
+        document.getElementById("btnStrike").innerText = "🪶 Feather Dagger";
+        document.getElementById("btnOrb").innerText = "✨ Solar Glide";
+        document.getElementById("btnBurst").innerText = "🛡️ Wing Bastion";
+        document.getElementById("btnTag").innerText = "TAG: SEMIONICS";
+      } else if (activeLead === "semionics") {
+        document.getElementById("btnStrike").innerText = "⚡ Neural Pulse";
+        document.getElementById("btnOrb").innerText = "🔵 Semionic Grid";
+        document.getElementById("btnBurst").innerText = "🛡️ Bio-Shield";
+        document.getElementById("btnTag").innerText = "TAG: LION";
+      } else if (activeLead === "solarlion") {
+        document.getElementById("btnStrike").innerText = "🦁 Solar Claw";
+        document.getElementById("btnOrb").innerText = "🔥 Lion Roar Pulse";
+        document.getElementById("btnBurst").innerText = "🛡️ Pride Bastion";
+        document.getElementById("btnTag").innerText = "TAG: AQUILA";
       }
-      document.getElementById("btnTag").innerText = `TAG: ${unlockedRoster[(rosterIdx + 1) % unlockedRoster.length].toUpperCase()}`;
-      logBrawler(`Switched lead operative to ${names[activeLead]}! Unique abilities engaged.`);
+      logBrawler(`Switched lead operative to ${names[activeLead]}! Distinct canonical powers engaged.`);
     }
 
     function executeStrike() {
-      playSound('hit');
-      shockwaves.push({ x: leadX + 35, radius: 10, maxRadius: 120, life: 30 });
-      enemies.forEach(e => {
-        if (e.active && Math.abs(e.x - leadX) < 80) {
-          e.hp -= (activeLead === "sundiata" ? 3 : 2);
-          if (e.hp <= 0) {
-            e.active = false;
-            mobsRemaining = Math.max(0, mobsRemaining - 1);
-            if (mobsRemaining === 0) triggerWaveClear();
-          }
+      if (activeLead === "aquila") {
+        playSound('feather');
+        logBrawler("🪶 Aquila fires precision feather daggers at target droids!");
+        for (let p = 0; p < 3; p++) {
+          projectiles.push({ x: leadX + 30, y: 190 - (p*15), vx: 9.0, vy: -0.5, life: 50, type: "feather" });
         }
-      });
+      } else if (activeLead === "semionics") {
+        playSound('zap');
+        logBrawler("⚡ Semionics Prime discharges a targeted neural pulse!");
+        shockwaves.push({ x: leadX + 35, radius: 10, maxRadius: 130, life: 30 });
+        enemies.forEach(e => { if (e.active && Math.abs(e.x - leadX) < 85) { e.hp -= 2; if(e.hp<=0) {e.active=false; mobsRemaining=Math.max(0, mobsRemaining-1);} } });
+      } else if (activeLead === "solarlion") {
+        playSound('lion');
+        logBrawler("🦁 Solar Lion strikes with devastating solar claws!");
+        shockwaves.push({ x: leadX + 35, radius: 15, maxRadius: 140, life: 35 });
+        enemies.forEach(e => { if (e.active && Math.abs(e.x - leadX) < 90) { e.hp -= 3; if(e.hp<=0) {e.active=false; mobsRemaining=Math.max(0, mobsRemaining-1);} } });
+      }
       updateHUD();
+      if (mobsRemaining === 0) triggerWaveClear();
     }
 
     function executePlasmaOrb() {
-      playSound('zap');
-      if (activeLead === "xochitl") {
-        logBrawler("🪶 Xochitl manifests Fiery Wings for Aerial Solar Strafe!");
-        let startX = leadX; leadX = 420; leadY = 70;
-        for (let p = 0; p < 6; p++) {
-          projectiles.push({ x: 420 - (p * 20), y: 130, vx: -8.0, vy: 2.0, life: 60, type: "arrow" });
-        }
-        setTimeout(() => { leadX = startX; leadY = 0; }, 1200);
-      } else if (activeLead === "sundiata") {
-        logBrawler("🦁 Sundiata unleashes the Solar Lion Roar shockwave pulse!");
-        shockwaves.push({ x: leadX + 35, radius: 10, maxRadius: 180, life: 45 });
-        enemies.forEach(e => {
-          if (e.active) { e.hp -= 3; if (e.hp <= 0) { e.active = false; mobsRemaining = Math.max(0, mobsRemaining - 1); } }
-        });
-      } else {
-        log(`✨ ${activeLead.toUpperCase()} unleashes special ability!`);
-        for (let p = 0; p < 4; p++) {
-          projectiles.push({ x: leadX + 30, y: 210, vx: 7.0 + p, vy: -1.0, life: 45, type: "orb" });
-        }
+      if (activeLead === "aquila") {
+        playSound('feather');
+        logBrawler("✨ Aquila initiates Solar Glide across the combat arena!");
+        leadX = Math.min(380, leadX + 110);
+      } else if (activeLead === "semionics") {
+        playSound('zap');
+        logBrawler("🔵 Semionics Prime projects a grid-lock shield!");
+        shieldActive = true; shieldTimer = 100;
+      } else if (activeLead === "solarlion") {
+        playSound('lion');
+        logBrawler("🔥 Solar Lion Roar unleashes a massive sonic shockwave!");
+        shockwaves.push({ x: leadX + 35, radius: 20, maxRadius: 210, life: 50 });
+        enemies.forEach(e => { if(e.active) { e.hp -= 3; if(e.hp<=0){e.active=false; mobsRemaining=Math.max(0, mobsRemaining-1);} } });
       }
       updateHUD();
+      if (mobsRemaining === 0) triggerWaveClear();
     }
 
     function executeBurst() {
       playSound('shield');
       shieldActive = true;
       shieldTimer = 90;
-      playerHp = Math.min(100, playerHp + 15);
+      playerHp = Math.min(100, playerHp + 20);
       updateHUD();
-      logBrawler(`🛡️ ${activeLead.toUpperCase()} activated defensive barrier! +15 HP restored.`);
+      logBrawler(`🛡️ ${activeLead.toUpperCase()} activated distinct defensive barrier! +20 HP restored.`);
     }
 
     function executeLuettaAid() {
@@ -587,7 +617,7 @@
       luettaAscending = true;
       luettaTimer = 90;
       updateHUD();
-      logBrawler("✨ Mother Luetta descends in radiant sprite form, wiping out droids and restoring full health! ✨");
+      logBrawler("✨ Mother Luetta descends in radiant healing grace, wiping out all active units! ✨");
       enemies.forEach(e => { e.active = false; });
       mobsRemaining = 0;
       setTimeout(() => { triggerWaveClear(); }, 1500);
@@ -595,14 +625,14 @@
 
     function triggerWaveClear() {
       document.getElementById("bannerTitle").innerText = `WAVE ${currentWave} COMPLETED`;
-      document.getElementById("bannerDesc").innerText = "Forge Zone Secured! Next wave incoming.";
+      document.getElementById("bannerDesc").innerText = "Sector Secured! Next canon wave incoming.";
       document.getElementById("chapterBanner").style.display = "flex";
     }
 
     function advanceToNextWave() {
       document.getElementById("chapterBanner").style.display = "none";
       startWave(currentWave + 1);
-      document.getElementById("waveDisplay").innerText = `Wave ${currentWave}: Forge Breakers`;
+      document.getElementById("waveDisplay").innerText = `Wave ${currentWave}: Sector Defense`;
     }
 
     function updateHUD() {
@@ -644,6 +674,17 @@
       ctx.shadowBlur = 0;
 
       if (!isGrounded) {
+        if (activeLead === "aquila" && aquilaGlideTimer > 0) {
+          aquilaGlideTimer--;
+          if (aquilaGlideTimer > 22) {
+            leadX = Math.min(390, leadX + 2.5);
+          } else {
+            leadX = Math.max(50, leadX - 2.0);
+            if (aquilaGlideTimer === 20) {
+              projectiles.push({ x: leadX + 30, y: (255 - leadY) - 40, vx: 8.0, vy: 0, life: 40, type: "feather" });
+            }
+          }
+        }
         leadY -= leadVy; leadVy += 0.75;
         if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
       }
@@ -672,7 +713,7 @@
         if (luettaTimer <= 0) luettaAscending = false;
       }
 
-      if (activeLead === "xochitl") {
+      if (activeLead === "aquila") {
         ctx.fillStyle = "#f97316";
         ctx.shadowColor = "#f59e0b";
         ctx.shadowBlur = 22;
@@ -681,7 +722,7 @@
         ctx.shadowBlur = 0;
       }
 
-      let curSprite = spriteImages[activeLead] || spriteImages.kofi;
+      let curSprite = spriteImages[activeLead] || spriteImages.aquila;
       if (curSprite && curSprite.complete && curSprite.naturalWidth > 0) {
         ctx.drawImage(curSprite, leadX, drawLeadY - 68, 54, 68);
       } else {
@@ -731,14 +772,14 @@
       for (let i = projectiles.length - 1; i >= 0; i--) {
         let pr = projectiles[i];
         pr.x += pr.vx; pr.y += pr.vy; pr.life--;
-        ctx.fillStyle = pr.type === "arrow" ? "#f97316" : "#fbbf24";
+        ctx.fillStyle = pr.type === "feather" ? "#ffffff" : "#fbbf24";
         ctx.shadowColor = ctx.fillStyle;
         ctx.shadowBlur = 10;
-        ctx.beginPath(); ctx.arc(pr.x, pr.y, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(pr.x, pr.y, pr.type === "feather" ? 4 : 6, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
 
         enemies.forEach(e => {
-          if (e.active && Math.abs(pr.x - e.x) < 20) {
+          if (e.active && Math.abs(pr.x - e.x) < 25) {
             e.hp--; e.active = false; mobsRemaining = Math.max(0, mobsRemaining - 1);
             updateHUD();
             if (mobsRemaining === 0) triggerWaveClear();
