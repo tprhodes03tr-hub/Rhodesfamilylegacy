@@ -95,14 +95,14 @@
 
     <a-scene embedded mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: yes; uiScanning: yes;" renderer="colorManagement: true, physicallyCorrectLights; alpha: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: true">
         <a-assets>
-            <video id="book-video" src="./ancestral-lineage-origin.mp4" preload="auto" response-type="arraybuffer" loop crossorigin webkit-playsinline playsinline></video>
+            <video id="book-video" src="./ancestral-lineage-origin.mp4" preload="auto" crossorigin webkit-playsinline playsinline></video>
         </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
 
-        <!-- First Book Cover Target -->
+        <!-- First Book Cover Target using a plane with dynamic video texture mapping -->
         <a-entity mindar-image-target="targetIndex: 0" id="target-0">
-            <a-video src="#book-video" position="0 0 0" width="1" height="1.4" rotation="0 0 0"></a-video>
+            <a-plane id="video-plane" position="0 0 0" width="1" height="1.4" rotation="0 0 0" material="shader: flat; transparent: true;"></a-plane>
         </a-entity>
 
         <!-- Second Book Cover Target -->
@@ -114,16 +114,19 @@
     <script>
         const videoEl = document.querySelector('#book-video');
         const target0 = document.querySelector('#target-0');
+        const videoPlane = document.querySelector('#video-plane');
         const statusText = document.querySelector('#status-text');
 
-        // Persistent click listener to force video play on user interaction
+        // Force-load video buffer on first user touch anywhere to bypass mobile browser restrictions
+        let videoUnlocked = false;
         document.body.addEventListener('click', () => {
-            if (videoEl.paused) {
+            if (!videoUnlocked) {
                 videoEl.play().then(() => {
-                    statusText.innerText = "Playing AR Experience...";
-                }).catch(e => {
-                    console.log("Play blocked:", e);
-                });
+                    videoEl.pause();
+                    videoEl.currentTime = 0;
+                    videoUnlocked = true;
+                    statusText.innerText = "Video unlocked! Point at book cover.";
+                }).catch(e => console.log("Unlock error:", e));
             }
         });
 
@@ -141,10 +144,11 @@
 
         if (target0 && videoEl) {
             target0.addEventListener('targetFound', () => {
+                statusText.innerText = "Target Found! Playing video...";
                 videoEl.play().then(() => {
-                    statusText.innerText = "Target Found! Playing AR Experience...";
+                    videoPlane.setAttribute('material', 'src', '#book-video');
                 }).catch(e => {
-                    statusText.innerText = "Tap screen to enable video playback.";
+                    statusText.innerText = "Tap screen to start video playback.";
                 });
             });
             
