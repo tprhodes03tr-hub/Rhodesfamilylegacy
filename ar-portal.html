@@ -20,7 +20,6 @@
             background: transparent;
         }
 
-        /* Ensure A-Frame canvas allows the camera video stream to show through */
         .a-canvas {
             background: transparent !important;
         }
@@ -84,9 +83,8 @@
 </head>
 <body>
 
-    <!-- UI Overlay for Instructions and Controls -->
     <div id="ui-overlay">
-        <div class="instruction-text">
+        <div class="instruction-text" id="status-text">
             Point your camera at either book cover to view the AR experience.
         </div>
         <div class="btn-container">
@@ -95,7 +93,6 @@
         </div>
     </div>
 
-    <!-- A-Frame AR Scene with multi-target support and alpha transparency -->
     <a-scene embedded mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: yes; uiScanning: yes;" renderer="colorManagement: true, physicallyCorrectLights; alpha: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: true">
         <a-assets>
             <video id="book-video" src="./ancestral-lineage-origin.mp4" preload="auto" response-type="arraybuffer" loop crossorigin webkit-playsinline playsinline></video>
@@ -103,9 +100,9 @@
 
         <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"></a-camera>
 
-        <!-- First Book Cover Target with explicit video texture shader fix -->
+        <!-- First Book Cover Target -->
         <a-entity mindar-image-target="targetIndex: 0" id="target-0">
-            <a-video src="#book-video" position="0 0 0" width="1" height="1.4" rotation="0 0 0" material="shader: flat; src: #book-video;"></a-video>
+            <a-video src="#book-video" position="0 0 0" width="1" height="1.4" rotation="0 0 0"></a-video>
         </a-entity>
 
         <!-- Second Book Cover Target -->
@@ -115,6 +112,20 @@
     </a-scene>
 
     <script>
+        const videoEl = document.querySelector('#book-video');
+        const target0 = document.querySelector('#target-0');
+        const statusText = document.querySelector('#status-text');
+
+        // Unlock mobile video autoplay restriction on first user touch anywhere on screen
+        document.body.addEventListener('click', () => {
+            if (videoEl.paused) {
+                videoEl.play().then(() => {
+                    videoEl.pause();
+                    videoEl.currentTime = 0;
+                }).catch(e => console.log("Unlock prevented:", e));
+            }
+        }, { once: true });
+
         document.getElementById('retry-camera').addEventListener('click', () => {
             const sceneEl = document.querySelector('a-scene');
             if (sceneEl && sceneEl.systems['mindar-image-system']) {
@@ -127,15 +138,17 @@
             }
         });
 
-        // Video playback control tied to target tracking
-        const target0 = document.querySelector('#target-0');
-        const videoEl = document.querySelector('#book-video');
-
         if (target0 && videoEl) {
             target0.addEventListener('targetFound', () => {
-                videoEl.play().catch(e => console.log("Autoplay blocked:", e));
+                statusText.innerText = "Target Found! Playing AR Experience...";
+                videoEl.play().catch(e => {
+                    console.log("Autoplay blocked:", e);
+                    statusText.innerText = "Tap screen to enable video playback.";
+                });
             });
+            
             target0.addEventListener('targetLost', () => {
+                statusText.innerText = "Point your camera at either book cover to view the AR experience.";
                 videoEl.pause();
             });
         }
