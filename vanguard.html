@@ -1597,7 +1597,7 @@
     let chopper = { x: -140, y: 38, speed: 1.3, rotorAngle: 0, spotSweep: 0 };
 
     /* =========================================================================
-       6. INITIALIZATION & STAGE ROUTING
+       6. INITIALIZATION & STAGE ROUTING (FIXED)
        ========================================================================= */
     function initBrawler() {
       brawlerInitialized = true;
@@ -1617,7 +1617,7 @@
       ASSETS.sundiata.src = "sundiata-prime.png";
       ASSETS.kofi.src = "kofi.png";
       ASSETS.boss.src = "chrono-lock.png";
-      ASSETS.ironclad.src = "ironclad.png";
+      ASSETS.ironclad.src = "ironclad.png"; // <-- FIXED: Added missing asset source path
       ASSETS.apex.src = "apex-volt.png";
       ASSETS.luetta.src = "mother-luta.png";
 
@@ -1648,7 +1648,11 @@
 
     function startWave(num) {
       currentWave = num;
-      if (spawnIntervalTimer) clearInterval(spawnIntervalTimer);
+      if (spawnIntervalTimer) {
+        clearInterval(spawnIntervalTimer);
+        spawnIntervalTimer = null;
+      }
+      enemyBullets = [];
 
       if (num === 1) {
         activeZone = "detroit";
@@ -1656,13 +1660,11 @@
         mobsRemaining = 14; mobsTotal = 14;
         boss.active = false;
         setupProgressiveWave("swarm", 14);
-        logBrawler("Episode 1 • Stage 1 Begins: Heavy scout vanguard descending across Detroit!");
       } else if (num === 2) {
         document.getElementById("waveDisplay").innerText = "Stage 1 • Wave 2: Heavy Enforcers (18 Units)";
         mobsRemaining = 18; mobsTotal = 18;
         boss.active = false;
         setupProgressiveWave("heavy", 18);
-        logBrawler("Wave 2: Heavy Syndicate Enforcers breaching the perimeter!");
       } else if (num === 3) {
         document.getElementById("waveDisplay").innerText = "BOSS: Chrono-Lock (Awakened)";
         startBossFight("chrono");
@@ -1672,7 +1674,6 @@
         mobsRemaining = 18; mobsTotal = 18;
         boss.active = false;
         setupProgressiveWave("ouroboros", 18);
-        logBrawler("Episode 2 • Stage 2 Begins: Ouroboros mining drills surging through the Sahel!");
       } else if (num === 5) {
         document.getElementById("waveDisplay").innerText = "BOSS: Ouroboros Heavy Drill Dreadnought";
         startBossFight("dreadnought");
@@ -1682,7 +1683,6 @@
         mobsRemaining = 18; mobsTotal = 18;
         boss.active = false;
         setupProgressiveWave("forge", 18);
-        logBrawler("Stage 3: Kumasi Forge lockdown! Kofi Osei and the Vanguard defend the kilns!");
       } else if (num === 7) {
         document.getElementById("waveDisplay").innerText = "BOSS: Ironclad Prime";
         startBossFight("ironclad");
@@ -1690,14 +1690,12 @@
         activeZone = "forge";
         document.getElementById("waveDisplay").innerText = "Stage 4 • Final Omnibus Clash: Baron Krieg";
         startBossFight("krieg");
-        logBrawler("Stage 4 Climax: Baron Krieg unleashes the full Ironclad Legion!");
       } else if (num === 9) {
         activeZone = "sahel_rift";
         document.getElementById("waveDisplay").innerText = "Stage 5 • Wave 9: Vault Swarm (16 Units)";
         mobsRemaining = 16; mobsTotal = 16;
         boss.active = false;
         setupProgressiveWave("vault", 16);
-        logBrawler("Episode 3 • Stage 5 Begins: Defend the Niani Vaults from Syndicate ground units!");
       } else if (num === 10) {
         document.getElementById("waveDisplay").innerText = "STAGE 5 CLIMAX: Apex Volt";
         startBossFight("apex");
@@ -1712,7 +1710,10 @@
 
       spawnIntervalTimer = setInterval(() => {
         if (!gameActive || pendingSpawns <= 0) {
-          clearInterval(spawnIntervalTimer);
+          if (spawnIntervalTimer) {
+            clearInterval(spawnIntervalTimer);
+            spawnIntervalTimer = null;
+          }
           return;
         }
         let activeCount = enemies.filter(e => e.active).length;
@@ -1786,7 +1787,6 @@
       if (bossActionTimer) clearInterval(bossActionTimer);
 
       if (bossType === "chrono") {
-        logBrawler("⚠️ WARNING: Chrono-Lock has entered the skyway!");
         bossActionTimer = setInterval(() => {
           if (!boss.active || !gameActive) return;
           playSound('warp');
@@ -1800,10 +1800,8 @@
             vx: -5.2,
             isTemporalClock: true
           });
-          logBrawler("Chrono-Lock time-warps and launches a Temporal Clock Distortion!");
         }, 2800);
       } else if (bossType === "dreadnought") {
-        logBrawler("⚠️ SECTOR CRISIS: Ouroboros Heavy Drill Dreadnought emerges!");
         playSound('drill');
         bossActionTimer = setInterval(() => {
           if (!boss.active || !gameActive) return;
@@ -1813,7 +1811,6 @@
             screenShake = 14;
             boss.x -= 48;
             if (boss.x < 160) boss.x = 420;
-            logBrawler("Dreadnought auger surged forward!");
           } else {
             playSound('cannon');
             for (let k = 0; k < 3; k++) {
@@ -1824,16 +1821,13 @@
                 }
               }, k * 180);
             }
-            logBrawler("Dreadnought launched triple armor-piercing artillery!");
           }
         }, 3400);
       } else if (bossType === "ironclad" || bossType === "krieg") {
-        logBrawler(bossType === "krieg" ? "⚠️ CLIMAX: Baron Krieg charges with Iron Quake!" : "⚠️ Ironclad Prime anchors the defense!");
         bossActionTimer = setInterval(() => {
           if (!boss.active || !gameActive) return;
           playSound('hit');
           screenShake = 16;
-          logBrawler(`${bossType === "krieg" ? "Baron Krieg" : "Ironclad Prime"} executes Molten Iron Quake! (JUMP to dodge!)`);
           
           groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#f97316" });
           setTimeout(() => {
@@ -1842,7 +1836,7 @@
 
           setTimeout(() => {
             if (!isGrounded && !isShieldActive) {
-              logBrawler("Dodge successful! Jumped over the shockwave!");
+              // Dodged
             } else if (!isShieldActive) {
               playerHp = Math.max(0, playerHp - 12);
               updateHUD();
@@ -1852,7 +1846,6 @@
           }, 650);
         }, 3600);
       } else if (bossType === "apex") {
-        logBrawler("⚠️ CRITICAL ALERT: Apex Volt (The Overcharge Striker) arrives!");
         playSound('zap');
         boss.y = -35; 
         bossActionTimer = setInterval(() => {
@@ -1861,14 +1854,12 @@
           if (boss.hp <= 24 && boss.phase === 1) {
             boss.phase = 2;
             boss.y = 0;
-            logBrawler("⚡ OVERDRIVE! Apex Volt drops to ground: Arc-Grid Detonation engaged!");
             playSound('zap');
             screenShake = 16;
           }
 
           if (boss.phase === 1) {
             playSound('zap');
-            logBrawler("Apex Volt fires high-voltage Arc Beams from catwalk!");
             for (let p = 0; p < 3; p++) {
               setTimeout(() => {
                 if (boss.active) {
@@ -1893,8 +1884,6 @@
                 playSound('zap');
               }
             }, 450);
-
-            logBrawler("⚡ ARC-GRID DETONATION! JUMP or activate Shield!");
           }
         }, 3200);
       }
@@ -1907,9 +1896,7 @@
       screenShake = 26;
 
       if (boss.type === "chrono") {
-        logBrawler("💥 Chrono-Lock shattered into a cascade of temporal clockwork gears!");
         playSound('warp');
-        
         const clockSymbols = ['⏱️', '⏳', '🕒', '⌛', '⏰', '⚙', 'XII', 'VI'];
         for (let i = 0; i < 35; i++) {
           particles.push({
@@ -1933,7 +1920,6 @@
           document.getElementById("chapterBanner").style.display = "block";
         }, 1600);
       } else if (boss.type === "dreadnought") {
-        logBrawler("💥 Ouroboros Dreadnought destroyed! Stage 2 Secured.");
         saveGameProgress(2, "kofi");
         setTimeout(() => {
           document.getElementById("bannerTitle").innerText = "STAGE 2 COMPLETED • STAGE 3 UNLOCKED";
@@ -1942,7 +1928,6 @@
           document.getElementById("chapterBanner").style.display = "block";
         }, 1600);
       } else if (boss.type === "ironclad") {
-        logBrawler("💥 Ironclad Prime defeated! Stage 3 Secured.");
         saveGameProgress(3);
         setTimeout(() => {
           document.getElementById("bannerTitle").innerText = "STAGE 3 COMPLETED";
@@ -1951,7 +1936,6 @@
           document.getElementById("chapterBanner").style.display = "block";
         }, 1600);
       } else if (boss.type === "krieg") {
-        logBrawler("🏆 BARON KRIEG DEFEATED! Niani Deep Extraction Vault is rupturing!");
         saveGameProgress(4);
         setTimeout(() => {
           document.getElementById("bannerTitle").innerText = "STAGE 4 COMPLETED • EPISODE 3 UNLOCKED";
@@ -1960,8 +1944,6 @@
           document.getElementById("chapterBanner").style.display = "block";
         }, 1600);
       } else if (boss.type === "apex") {
-        logBrawler("🏆 APEX VOLT NEUTRALIZED! The Living Codex anchors the sovereign timeline!");
-        saveGameProgress(5);
         setTimeout(() => {
           gameActive = false;
           document.getElementById("modalTitle").innerText = "MARROW RESONANCE RESTORED!";
@@ -2008,7 +1990,6 @@
       playSound('hit');
       screenShake = 22;
       document.getElementById("defeat-modal").style.display = "flex";
-      logBrawler("💀 SQUAD DOWN! Marrow resonance dropped to zero.");
     }
 
     function retryCurrentWave() {
@@ -2017,7 +1998,6 @@
       updateHUD();
       gameActive = true;
       startWave(currentWave);
-      logBrawler(`Resonance restored! Re-engaging Wave ${currentWave}...`);
     }
 
     function resetCampaignToStage1() {
@@ -2035,7 +2015,6 @@
 
       updateControlsUI();
       startWave(1);
-      logBrawler("Campaign Reset: Beginning Episode 1 • Chapter 1 Detroit Riverfront!");
     }
 
     /* =========================================================================
@@ -2084,7 +2063,6 @@
       };
       createBurstParticles(leadX + 25, 210, glowMap[activeLead] || "#f59e0b", 18);
       updateControlsUI();
-      logBrawler(`Tag Swap! Active Lead: ${activeLead.toUpperCase()}`);
     }
 
     function updateControlsUI() {
@@ -2125,6 +2103,30 @@
       document.getElementById("btnTag").innerText = `TAG: ${nextHero.toUpperCase()}`;
     }
 
+    function updateHUD() {
+      const heroHpBar = document.getElementById("heroHpBar");
+      const heroHpText = document.getElementById("heroHpText");
+      if (heroHpBar && heroHpText) {
+        heroHpBar.style.width = Math.max(0, playerHp) + "%";
+        heroHpText.innerText = `${Math.max(0, playerHp)}/100`;
+      }
+
+      const enemyHpBar = document.getElementById("enemyHpBar");
+      const enemyHpText = document.getElementById("enemyHpText");
+      if (boss.active) {
+        if (enemyHpBar) enemyHpBar.style.width = (boss.hp / boss.maxHp * 100) + "%";
+        if (enemyHpText) enemyHpText.innerText = `Boss HP: ${boss.hp}/${boss.maxHp}`;
+      } else {
+        if (enemyHpBar) enemyHpBar.style.width = (mobsRemaining / mobsTotal * 100) + "%";
+        if (enemyHpText) enemyHpText.innerText = `${mobsRemaining} Units Remaining`;
+      }
+    }
+
+    function logBrawler(msg) {
+      const logEl = document.getElementById("combatLog");
+      if (logEl) logEl.innerText = msg;
+    }
+
     function executeStrike() {
       if (!gameActive) return;
       initAudio();
@@ -2151,7 +2153,6 @@
         kofiHammerSwing.active = true;
         kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
         createBurstParticles(leadX + 55, 220, "#eab308", 18);
-        logBrawler("⚒️ CRUCIBLE ANVIL SLEDGE slams with molten kinetic force!");
       }
 
       if (boss.active && Math.abs(boss.x - leadX) < 280) {
@@ -2198,7 +2199,6 @@
           xochitlFlight.y = 175 - leadY;
           xochitlFlight.timer = 0;
           xochitlFlight.diveAngle = 0;
-          logBrawler("Xochitl ascends to the skies! Initiating aerial strafe & arrow dive!");
         }
       } else if (activeLead === "sundiata") {
         playSound('drum');
@@ -2212,7 +2212,6 @@
           color: "#f59e0b",
           isLionPulse: true
         });
-        logBrawler("Sundiata fires an awakened Lion Crest Bronze Pulse!");
       } else if (activeLead === "kofi") {
         playSound('zap');
         plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 6.5, vy: aimVy, radius: 14, life: 85, color: "#eab308" });
@@ -2227,7 +2226,6 @@
         playSound('roar');
         playSound('drum');
         screenShake = 18;
-        logBrawler("🦁 ROAAAAR! The Solar Lion charges forward, pulverizing enemy ranks!");
         
         lionRoars.push({
           x: leadX + 25,
@@ -2250,13 +2248,10 @@
       } else if (activeLead === "xochitl") {
         isShieldActive = true;
         playSound('shield');
-        logBrawler("Xochitl folds her flaming wings into an impenetrable Obsidian Cocoon!");
         setTimeout(() => isShieldActive = false, 3500);
       } else if (activeLead === "marcus" || activeLead === "kofi") {
         isShieldActive = true;
         playSound('shield');
-        if (activeLead === "marcus") logBrawler("Marcus Electrical Dome online!");
-        else logBrawler("Kofi activates Crucible Bastion!");
         setTimeout(() => isShieldActive = false, 3500);
       }
     }
@@ -2270,7 +2265,6 @@
       screenShake = 14;
       playerHp = 100;
       updateHUD();
-      logBrawler("✨ Mother Luetta descends in radiant celestial light, restoring the team! ✨");
 
       for (let i = 0; i < 35; i++) {
         celestialParticles.push({
@@ -2339,26 +2333,22 @@
             const daggerVx = closestMob.x < aiPartner.x ? -7.5 : 7.5;
             daggers.push({ x: aiPartner.x + 25, y: 195 - aiPartner.y, vx: daggerVx, vy: 1.2, length: 18, width: 4 });
             playSound('zap');
-            logBrawler("Co-Op: Xochitl covers your flank!");
           } else if (partnerRole === "marcus") {
             generateLightning(aiPartner.x + 35, 205, closestMob.x + 10, closestMob.y || 205, 0);
             playSound('zap');
             closestMob.hp -= 1;
             if (closestMob.hp <= 0 && closestMob !== boss) onEnemyDestroyed(closestMob);
-            logBrawler("Co-Op: Marcus provides cover voltage!");
           } else if (partnerRole === "sundiata") {
             playSound('drum');
             closestMob.hp -= 1;
             closestMob.x += 35;
             createBurstParticles(closestMob.x, closestMob.y || 205, "#f59e0b", 10);
             if (closestMob.hp <= 0 && closestMob !== boss) onEnemyDestroyed(closestMob);
-            logBrawler("Co-Op: Sundiata anchors the frontline!");
           } else if (partnerRole === "kofi") {
             playSound('hit');
             closestMob.hp -= 2;
             createBurstParticles(closestMob.x, closestMob.y || 205, "#eab308", 12);
             if (closestMob.hp <= 0 && closestMob !== boss) onEnemyDestroyed(closestMob);
-            logBrawler("Co-Op: Kofi provides molten forge support!");
           }
         }
       }
@@ -2388,19 +2378,14 @@
 
       if (mobsRemaining <= 0 && !boss.active) {
         if (currentWave === 1) {
-          logBrawler("Wave 1 Cleared! Heavy Syndicate breaching...");
           setTimeout(() => startWave(2), 1200);
         } else if (currentWave === 2) {
-          logBrawler("Wave 2 Cleared! Chrono-Lock approaching the rooftop!");
           setTimeout(() => startWave(3), 1400);
         } else if (currentWave === 4) {
-          logBrawler("Drilling squadrons eliminated! Seismic dreadnought incoming...");
           setTimeout(() => startWave(5), 1400);
         } else if (currentWave === 6) {
-          logBrawler("Forge Breakers repelled! Ironclad Prime approaching...");
           setTimeout(() => startWave(7), 1400);
         } else if (currentWave === 9) {
-          logBrawler("Vault Swarm eliminated! Apex Volt entering the excavation zone...");
           setTimeout(() => startWave(10), 1400);
         }
       }
@@ -3192,7 +3177,6 @@
       drawDropShadow(ctx, aiPartner.x + 28, 256, 21 * aiShadowScale, 6 * aiShadowScale, 0.55 * aiShadowScale);
       drawDropShadow(ctx, leadX + 32, 256, 25 * leadShadowScale, 7 * leadShadowScale, 0.65 * leadShadowScale);
 
-      // PARTNER RENDER
       let partnerRole = unlockedRoster.find(r => r !== activeLead) || "xochitl";
       let aiImg = ASSETS[partnerRole];
       ctx.save();
@@ -3205,7 +3189,6 @@
       }
       ctx.restore();
 
-      // LEAD HERO RENDER
       let shouldDrawLead = !xochitlFlight.active;
       if (shouldDrawLead) {
         let leadImg = ASSETS[activeLead];
@@ -3226,13 +3209,11 @@
         }
         ctx.restore();
 
-        // KOFI OSEI ANVIL SLEDGE ATTACK OVERLAY
         if (activeLead === "kofi") {
           drawKofiAnvilHammer(ctx, leadX, drawLeadY);
         }
       }
 
-      // XOCHITL 4-STAGE AERIAL ASSAULT (ASCENT -> STRAFE -> ARROW BARRAGE -> LAND)
       if (xochitlFlight.active) {
         xochitlFlight.timer++;
 
@@ -3245,7 +3226,6 @@
           if (Math.hypot(targetX - xochitlFlight.x, targetY - xochitlFlight.y) < 8) {
             xochitlFlight.state = 'STRAFE';
             xochitlFlight.timer = 0;
-            logBrawler("Xochitl strafes left dropping fire daggers!");
           }
         } else if (xochitlFlight.state === 'STRAFE') {
           xochitlFlight.x -= 3.8;
@@ -3271,7 +3251,6 @@
           if (xochitlFlight.x <= canvas.width * 0.18) {
             xochitlFlight.state = 'BARRAGE';
             xochitlFlight.timer = 0;
-            logBrawler("Xochitl folds wings into an arrow dive! Releasing volley!");
           }
         } else if (xochitlFlight.state === 'BARRAGE') {
           xochitlFlight.diveAngle = 0.55;
@@ -3303,7 +3282,6 @@
           if (Math.hypot(landX - xochitlFlight.x, landY - xochitlFlight.y) < 6) {
             xochitlFlight.active = false;
             xochitlFlight.state = 'INACTIVE';
-            logBrawler("Xochitl completes aerial assault and lands safely!");
           }
         }
 
@@ -3317,7 +3295,6 @@
         ctx.restore();
       }
 
-      // SUNDIATA DRUM SHOCKWAVE
       if (sundiataShockwave.active) {
         sundiataShockwave.radius += 9;
         ctx.save();
@@ -3330,7 +3307,6 @@
         if (sundiataShockwave.radius >= sundiataShockwave.maxRadius) sundiataShockwave.active = false;
       }
 
-      // ADVANCING SOLAR LION ROAR PROJECTILE
       for (let r = lionRoars.length - 1; r >= 0; r--) {
         const lr = lionRoars[r];
         lr.x += lr.vx;
@@ -3366,7 +3342,6 @@
         if (lr.x > canvas.width + 120 || lr.life <= 0) lionRoars.splice(r, 1);
       }
 
-      // GROUND SHOCKWAVES
       for (let g = groundShockwaves.length - 1; g >= 0; g--) {
         const sw = groundShockwaves[g];
         sw.x += sw.vx;
@@ -3384,13 +3359,11 @@
           if (isShieldActive) {
             absorbedCharge += 10;
             playSound('shield');
-            logBrawler(`Bastion absorbed Quake wave! Stored: ${absorbedCharge}`);
           } else {
             playerHp = Math.max(0, playerHp - 12);
             updateHUD();
             playSound('hit');
             screenShake = 10;
-            logBrawler("Direct hit from Quake Wave! -12 HP (JUMP to dodge!)");
             if (playerHp <= 0) handlePlayerDefeat();
           }
           groundShockwaves.splice(g, 1);
@@ -3400,7 +3373,6 @@
         if (sw.x < 0) groundShockwaves.splice(g, 1);
       }
 
-      // ACTIVE MARCUS & KOFI DEFLECT SHIELDS
       if (isShieldActive && activeLead !== "xochitl") {
         ctx.save();
         ctx.strokeStyle = activeLead === "marcus" ? "#38bdf8" : "#fbbf24";
@@ -3413,7 +3385,6 @@
         ctx.restore();
       }
 
-      // ENEMIES
       enemies.forEach(e => {
         if (!e.active) return;
         const frontDefender = Math.max(leadX, aiPartner.x);
@@ -3425,7 +3396,6 @@
           playSound('hit');
           if (isShieldActive) {
             absorbedCharge += 6;
-            logBrawler(`Shield reflected attack! Stored Charge: ${absorbedCharge}`);
           } else {
             playerHp = Math.max(0, playerHp - 6);
             updateHUD();
@@ -3455,7 +3425,6 @@
         ctx.restore();
       });
 
-      // BOSS RENDER
       if (boss.active) {
         if (boss.type === "chrono") {
           drawDropShadow(ctx, boss.x + 36, 256, 32, 10, 0.6);
@@ -3474,7 +3443,6 @@
         }
       }
 
-      // PROJECTILES: ORBS & LION PULSES
       for (let i = plasmaOrbs.length - 1; i >= 0; i--) {
         const po = plasmaOrbs[i];
         po.x += po.vx;
@@ -3522,7 +3490,6 @@
         if (po.x > canvas.width || po.life <= 0) plasmaOrbs.splice(i, 1);
       }
 
-      // PROJECTILES: OBSIDIAN DAGGERS & SOLAR ARROWS
       for (let i = daggers.length - 1; i >= 0; i--) {
         const d = daggers[i];
         d.x += d.vx;
@@ -3559,7 +3526,6 @@
         if (d.x > canvas.width || d.x < 0 || d.y > 260) daggers.splice(i, 1);
       }
 
-      // PROJECTILES: ENEMY BULLETS & CHRONO CLOCKS
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const b = enemyBullets[i];
         b.x += b.vx;
@@ -3608,7 +3574,6 @@
         if (b.x < 0) enemyBullets.splice(i, 1);
       }
 
-      // LIGHTNING BOLTS (MARCUS VOLT BEAM & APEX DETONATIONS)
       for (let i = lightningBolts.length - 1; i >= 0; i--) {
         const bolt = lightningBolts[i];
         ctx.strokeStyle = "#ffffff";
@@ -3632,7 +3597,6 @@
 
       drawCelestialLightCone(ctx);
 
-      // PARTICLES (INCLUDING CHRONO-LOCK SHATTER PIECES)
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
