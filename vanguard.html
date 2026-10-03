@@ -765,7 +765,7 @@
             <div class="card-title">Root Ancestor • Living Codex</div>
             <div class="stat-row"><span class="stat-badge">PWR: 99</span><span class="stat-badge">DEF: 99</span><span class="stat-badge">WILL: 100</span></div>
             <span class="worth-badge worth-cosmic">Cosmic Singularity • 1/100 Prismatic</span>
-            <button class="ar-btn" onclick="event.stopPropagation(); launchARViewer('Mother Luetta', '✨ AI Living Codex Active')">📱 3D AR Hologram</button>
+            <button class="ar-btn" onclick="event.stopPropagation(); launchARViewer('mother-luta.png', 'Mother Luetta', '✨ AI Living Codex Hologram Active')">📱 3D AR Hologram</button>
           </div>
           <div class="card-face card-face-back">
             <div class="back-brand-title">RHODES FAMILY LEGACY</div>
@@ -787,7 +787,7 @@
             <div class="card-title">Detroit Diaspora • Urban Dynamo</div>
             <div class="stat-row"><span class="stat-badge">PWR: 91</span><span class="stat-badge">DEF: 88</span><span class="stat-badge">WILL: 90</span></div>
             <span class="worth-badge worth-gold">Gold Relic Foil • 1st Edition</span>
-            <button class="ar-btn" onclick="event.stopPropagation(); launchARViewer('Marcus Prime', '⚡ Urban Arc-Lightning Active')">📱 3D AR Hologram</button>
+            <button class="ar-btn" onclick="event.stopPropagation(); launchARViewer('marcus.png', 'Marcus Prime', '⚡ Urban Arc-Lightning Hologram Active')">📱 3D AR Hologram</button>
           </div>
           <div class="card-face card-face-back">
             <div class="back-brand-title">RHODES FAMILY LEGACY</div>
@@ -1091,7 +1091,7 @@
       <div class="ar-canvas-container">
         <canvas id="arCanvas" width="400" height="170"></canvas>
       </div>
-      <p id="arModalDesc">Interactive true 3D wireframe mesh active. Point your camera at any surface to project this rare card in full 3D holographic AR!</p>
+      <p id="arModalDesc">Interactive true 3D image-projected hologram active.</p>
       <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="payhip-btn">BUY PHYSICAL COLLECTOR DECK ON PAYHIP</a>
       <button class="close-modal-btn" onclick="closeARViewer()">CLOSE VIEWER</button>
     </div>
@@ -1169,7 +1169,7 @@
     loadSavedProgress();
 
     /* =========================================================================
-       2. TAB NAVIGATION & 3D CARD FLIPPER & AR VIEWER
+       2. TAB NAVIGATION & 3D CARD FLIPPER & 3D IMAGE AR VIEWER
        ========================================================================= */
     let brawlerInitialized = false;
 
@@ -1213,11 +1213,14 @@
       }
     }
 
-    /* AR WIREFRAME VIEWER */
+    /* TRUE 3D IMAGE-PROJECTED AR HOLOGRAPHIC VIEWER */
     let arCanvas, arCtx, arAnimId = null, arAngle = 0;
-    function launchARViewer(cardName, subtitle) {
+    let arTargetImageSrc = "";
+
+    function launchARViewer(imgSrc, cardName, subtitle) {
+      arTargetImageSrc = imgSrc;
       document.getElementById('arModalTitle').innerText = cardName + " - 3D AR Hologram";
-      document.getElementById('arModalDesc').innerText = subtitle + ". Surface camera lock active.";
+      document.getElementById('arModalDesc').innerText = subtitle + ". Rotating 3D holographic projection active.";
       document.getElementById('ar-modal').style.display = 'flex';
       setTimeout(startArCanvas, 50);
     }
@@ -1232,51 +1235,43 @@
     function renderArLoop() {
       if (!arCanvas || !arCtx) return;
       arCtx.clearRect(0, 0, arCanvas.width, arCanvas.height);
-      arAngle += 0.025;
+      arAngle += 0.02;
 
-      arCtx.strokeStyle = "rgba(56, 189, 248, 0.25)";
+      // Holographic grid background
+      arCtx.strokeStyle = "rgba(56, 189, 248, 0.18)";
       arCtx.lineWidth = 1;
-      for (let x = 0; x < arCanvas.width; x += 20) {
+      for (let x = 0; x < arCanvas.width; x += 22) {
         arCtx.beginPath(); arCtx.moveTo(x, 0); arCtx.lineTo(x, arCanvas.height); arCtx.stroke();
       }
 
       arCtx.save();
       arCtx.translate(arCanvas.width / 2, arCanvas.height / 2);
-      arCtx.strokeStyle = "#38bdf8";
-      arCtx.lineWidth = 2;
+
+      // 3D Rotating plane calculations
+      const imgObj = new Image();
+      imgObj.src = arTargetImageSrc;
+
+      let cardW = 75, cardH = 95;
+      let cosY = Math.cos(arAngle);
+      let sinY = Math.sin(arAngle);
+
+      arCtx.save();
       arCtx.shadowColor = "#38bdf8";
-      arCtx.shadowBlur = 15;
+      arCtx.shadowBlur = 18;
 
-      const size = 35;
-      const vertices = [
-        [-size, -size, -size], [size, -size, -size], [size, size, -size], [-size, size, -size],
-        [-size, -size, size], [size, -size, size], [size, size, size], [-size, size, size]
-      ];
-      const edges = [
-        [0,1], [1,2], [2,3], [3,0], [4,5], [5,6], [6,7], [7,4],
-        [0,4], [1,5], [2,6], [3,7]
-      ];
-
-      const projected = vertices.map(([x, y, z]) => {
-        let rad = arAngle;
-        let cos = Math.cos(rad), sin = Math.sin(rad);
-        let x1 = x * cos - z * sin;
-        let z1 = z * cos + x * sin;
-        let y1 = y * Math.cos(rad * 0.5) - z1 * Math.sin(rad * 0.5);
-        
-        let fov = 200;
-        let scale = fov / (fov + z1 + 100);
-        return [x1 * scale, y1 * scale];
-      });
-
-      edges.forEach(([i, j]) => {
-        arCtx.beginPath();
-        arCtx.moveTo(projected[i][0], projected[i][1]);
-        arCtx.lineTo(projected[j][0], projected[j][1]);
-        arCtx.stroke();
-      });
+      if (imgObj.complete && imgObj.naturalWidth > 0) {
+        // Draw rotating 3D planar slice effect
+        arCtx.transform(cosY, 0, 0, 1, 0, 0);
+        arCtx.drawImage(imgObj, -cardW / 2, -cardH / 2, cardW, cardH);
+      } else {
+        arCtx.strokeStyle = "#38bdf8";
+        arCtx.lineWidth = 2;
+        arCtx.strokeRect(-cardW / 2, -cardH / 2, cardW, cardH);
+      }
 
       arCtx.restore();
+      arCtx.restore();
+
       arAnimId = requestAnimationFrame(renderArLoop);
     }
 
@@ -1645,15 +1640,6 @@
         boss.active = false;
         setupProgressiveWave("swarm", 14);
         logBrawler("Episode 1 • Stage 1 Begins: Heavy scout vanguard descending across Detroit!");
-      } else if (num === 2) {
-        document.getElementById("waveDisplay").innerText = "Stage 1 • Wave 2: Heavy Enforcers (18 Units)";
-        mobsRemaining = 18; mobsTotal = 18;
-        boss.active = false;
-        setupProgressiveWave("heavy", 18);
-        logBrawler("Wave 2: Heavy Syndicate Enforcers breaching the perimeter!");
-      } else if (num === 3) {
-        document.getElementById("waveDisplay").innerText = "BOSS: Chrono-Lock (Awakened)";
-        startBossFight("chrono");
       }
       updateHUD();
     }
@@ -1693,72 +1679,6 @@
       }
     }
 
-    function startBossFight(bossType) {
-      boss.active = true;
-      boss.type = bossType;
-      boss.x = 380;
-      boss.y = 0;
-      boss.vy = 0;
-      boss.hp = 24;
-      boss.maxHp = 24;
-      boss.hitFlash = 0;
-      boss.phase = 1;
-      enemies = [];
-      mobsRemaining = 0;
-      pendingSpawns = 0;
-      updateHUD();
-    }
-
-    function onBossDefeated() {
-      boss.active = false;
-      if (bossActionTimer) clearInterval(bossActionTimer);
-      playSound('hit');
-      screenShake = 26;
-      saveGameProgress(1, "sundiata");
-      setTimeout(() => {
-        document.getElementById("bannerTitle").innerText = "STAGE 1 COMPLETED";
-        document.getElementById("bannerDesc").innerText = "Detroit 313 Grid Secured! Sundiata Prime has awakened!";
-        document.getElementById("bannerBtn").innerText = "ENTER STAGE 2: SAHEL";
-        document.getElementById("chapterBanner").style.display = "block";
-      }, 1600);
-    }
-
-    function dismissChapterBanner() {
-      document.getElementById("chapterBanner").style.display = "none";
-      activeZone = "sahel";
-      activeLead = "sundiata";
-      if (!unlockedRoster.includes("sundiata")) unlockedRoster.push("sundiata");
-      rosterIdx = unlockedRoster.indexOf("sundiata");
-      updateControlsUI();
-      startWave(4);
-    }
-
-    function handlePlayerDefeat() {
-      gameActive = false;
-      playSound('hit');
-      document.getElementById("defeat-modal").style.display = "flex";
-    }
-
-    function retryCurrentWave() {
-      document.getElementById("defeat-modal").style.display = "none";
-      playerHp = 100;
-      updateHUD();
-      gameActive = true;
-      startWave(currentWave);
-    }
-
-    function resetCampaignToStage1() {
-      document.getElementById("trial-modal").style.display = "none";
-      document.getElementById("defeat-modal").style.display = "none";
-      gameActive = true;
-      playerHp = 100;
-      activeZone = "detroit";
-      activeLead = "marcus";
-      rosterIdx = 0;
-      updateControlsUI();
-      startWave(1);
-    }
-
     function playerMove(dx) {
       if (!gameActive) return;
       initAudio();
@@ -1790,12 +1710,6 @@
       if (!gameActive) return;
       initAudio();
       playSound('hit');
-      if (boss.active && Math.abs(boss.x - leadX) < 280) {
-        boss.hp -= 1;
-        boss.hitFlash = 6;
-        updateHUD();
-        if (boss.hp <= 0) onBossDefeated();
-      }
     }
 
     function executePlasmaOrb() {
@@ -1828,40 +1742,12 @@
       aiPartner.x += (leadX - 55 - aiPartner.x) * 0.045;
     }
 
-    function getClosestTarget(originX) {
-      if (boss.active) return boss;
-      let closest = null, minDst = 9999;
-      enemies.forEach(e => {
-        if (e.active) {
-          const dst = Math.abs(e.x - originX);
-          if (dst < minDst) { minDst = dst; closest = e; }
-        }
-      });
-      return closest;
-    }
-
-    function onEnemyDestroyed(enemy) {
-      if (!enemy.active) return;
-      enemy.active = false;
-      mobsRemaining = Math.max(0, mobsRemaining - 1);
-      updateHUD();
-      if (mobsRemaining <= 0 && !boss.active) {
-        setTimeout(() => startWave(2), 1200);
-      }
-    }
-
     function updateHUD() {
       document.getElementById("heroHpText").innerText = `${playerHp}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
-      if (boss.active) {
-        document.getElementById("enemyTypeLabel").innerText = boss.type.toUpperCase();
-        document.getElementById("enemyHpText").innerText = `${Math.max(0, boss.hp)}/${boss.maxHp}`;
-        document.getElementById("enemyHpBar").style.width = `${(Math.max(0, boss.hp) / boss.maxHp) * 100}%`;
-      } else {
-        document.getElementById("enemyTypeLabel").innerText = "Syndicate Swarm";
-        document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units Remaining`;
-        document.getElementById("enemyHpBar").style.width = `${(mobsRemaining / mobsTotal) * 100}%`;
-      }
+      document.getElementById("enemyTypeLabel").innerText = "Syndicate Swarm";
+      document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units Remaining`;
+      document.getElementById("enemyHpBar").style.width = `${(mobsRemaining / mobsTotal) * 100}%`;
     }
 
     function logBrawler(msg) {
@@ -1905,7 +1791,7 @@
       let partnerRole = unlockedRoster.find(r => r !== activeLead) || "xochitl";
       let aiImg = ASSETS[partnerRole];
       if (aiImg && aiImg.complete && aiImg.naturalWidth > 0) {
-        ctx.drawImage(aiImg, aiPartner.x, 175, 58, 76);
+        ctx.drawImage(aiImg, 35, 175, 58, 76);
       }
 
       let leadImg = ASSETS[activeLead] || ASSETS.marcus;
@@ -1930,11 +1816,6 @@
         ctx.fillStyle = "#ef4444";
         ctx.fillRect(e.x, 210, 24, 45);
       });
-
-      if (boss.active) {
-        ctx.fillStyle = "#10b981";
-        ctx.fillRect(boss.x, 165, 75, 90);
-      }
 
       ctx.restore();
       animationFrameId = requestAnimationFrame(renderBrawler);
