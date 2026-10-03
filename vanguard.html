@@ -155,6 +155,7 @@
       overflow: hidden;
     }
 
+    /* AUTHENTIC 'PACKED IN THE MARROW' TREE DISPLAY */
     .card-emblem-wrap {
       flex: 1;
       width: 100%;
@@ -198,6 +199,7 @@
       text-align: center;
     }
 
+    /* CARD FOIL DESIGN */
     .card-foil {
       position: relative;
       background: #111827;
@@ -744,7 +746,7 @@
 <body>
 
   <header>
-    <div class="portal-title">Vanguard Universe: Unified Combat Portal</div>
+    <div class="portal-title">Vanguard Universe: Unified Combat Portal | Marrow: <span id="marrowScoreDisplay">0</span></div>
     <div class="tab-bar">
       <button class="tab-btn active" onclick="openTab('codex', this)">🎴 Card Codex</button>
       <button class="tab-btn" onclick="openTab('clash', this)">⚔️ Card Clash</button>
@@ -1076,7 +1078,7 @@
         <div class="action-cluster">
           <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">⚡ Volt Beam</button>
           <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">🔵 Plasma Orb</button>
-          <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Deflect</button>
+          <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️️ Deflect</button>
           <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: XOCHITL</button>
           <button id="btnLuetta" class="btn btn-ultimate" onclick="executeLuettaAid()">★ SUMMON MOTHER LUETTA ★</button>
         </div>
@@ -1134,13 +1136,14 @@
 
   <script>
     /* =========================================================================
-       1. SAVE MANAGER (LOCALSTORAGE PERSISTENCE)
+       1. SAVE MANAGER & MARROW LEDGER PERSISTENCE
        ========================================================================= */
     const SAVE_KEY = 'vanguard_universe_save_v1';
     let playerProgress = {
       highestStageUnlocked: 1,
       currentStage: 1,
-      unlockedOperatives: ["marcus", "xochitl"]
+      unlockedOperatives: ["marcus", "xochitl"],
+      marrowScore: 0
     };
 
     function loadSavedProgress() {
@@ -1153,9 +1156,10 @@
           console.warn("Save parse failed, using defaults", e);
         }
       }
+      updateMarrowUI();
     }
 
-    function saveGameProgress(stageCleared, newHero = null) {
+    function saveGameProgress(stageCleared, newHero = null, marrowDelta = 100) {
       if (stageCleared >= playerProgress.highestStageUnlocked) {
         playerProgress.highestStageUnlocked = Math.min(5, stageCleared + 1);
       }
@@ -1163,13 +1167,26 @@
       if (newHero && !playerProgress.unlockedOperatives.includes(newHero)) {
         playerProgress.unlockedOperatives.push(newHero);
       }
+      playerProgress.marrowScore = (playerProgress.marrowScore || 0) + marrowDelta;
       localStorage.setItem(SAVE_KEY, JSON.stringify(playerProgress));
+      updateMarrowUI();
+    }
+
+    function addMarrowPoints(points) {
+      playerProgress.marrowScore = (playerProgress.marrowScore || 0) + points;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(playerProgress));
+      updateMarrowUI();
+    }
+
+    function updateMarrowUI() {
+      const el = document.getElementById("marrowScoreDisplay");
+      if (el) el.innerText = playerProgress.marrowScore || 0;
     }
 
     loadSavedProgress();
 
     /* =========================================================================
-       2. TAB NAVIGATION & 3D CARD FLIPPER & AR VIEWER (FIXED BRAWLER RESTART)
+       2. TAB NAVIGATION & 3D CARD FLIPPER & AR VIEWER
        ========================================================================= */
     let brawlerInitialized = false;
 
@@ -1213,7 +1230,7 @@
       }
     }
 
-    /* AR WIREFRAME VIEWER */
+    /* WORKING 3D AR HOLOGRAPHIC VIEWER */
     let arCanvas, arCtx, arAnimId = null, arAngle = 0;
     let arTargetImageSrc = "";
 
@@ -1280,7 +1297,7 @@
        3. TAB 2: CARD CLASH (4v4 ENGINE)
        ========================================================================= */
     let currentRound = 1;
-    let selectedTargetIndex = 0;
+    let selectedTargetIndex = null;
 
     const clashEnemies = [
       { name: "Chrono-Lock", pwr: 92, def: 86, maxHp: 100, hp: 100 },
@@ -1305,7 +1322,10 @@
     }
 
     function executeHeroAction(heroIndex, actionType) {
-      if (selectedTargetIndex === null) selectedTargetIndex = 0;
+      if (selectedTargetIndex === null) {
+        document.getElementById('clash-status').innerText = "⚠️ Select an enemy target card first!";
+        return;
+      }
 
       const hero = clashHeroes[heroIndex];
       const target = clashEnemies[selectedTargetIndex];
@@ -1319,7 +1339,8 @@
 
       if (clashEnemies.every(e => e.hp <= 0)) {
         setTimeout(() => {
-          document.getElementById('clash-status').innerText = "🏆 Victory! Ashen Syndicate line dismantled. Reinforcements incoming...";
+          document.getElementById('clash-status').innerText = "🏆 Victory! Ashen Syndicate line dismantled. +50 Marrow earned!";
+          addMarrowPoints(50);
           setTimeout(resetCardArena, 2000);
         }, 800);
         return;
@@ -1358,8 +1379,8 @@
         document.getElementById('vanguard-hp-' + i).style.width = '100%';
       });
       currentRound = 1;
-      selectedTargetIndex = 0;
-      document.getElementById('enemy-0').classList.add('targeted');
+      selectedTargetIndex = null;
+      document.querySelectorAll('.battle-row .foil-syndicate').forEach(c => c.classList.remove('targeted'));
       document.getElementById('round-display').innerText = `Round 1`;
       document.getElementById('clash-status').innerText = "New round engaged! Select an enemy target card.";
     }
@@ -1636,6 +1657,15 @@
         boss.active = false;
         setupProgressiveWave("swarm", 14);
         logBrawler("Episode 1 • Stage 1 Begins: Heavy scout vanguard descending across Detroit!");
+      } else if (num === 2) {
+        document.getElementById("waveDisplay").innerText = "Stage 1 • Wave 2: Heavy Enforcers (18 Units)";
+        mobsRemaining = 18; mobsTotal = 18;
+        boss.active = false;
+        setupProgressiveWave("heavy", 18);
+        logBrawler("Wave 2: Heavy Syndicate Enforcers breaching the perimeter!");
+      } else if (num === 3) {
+        document.getElementById("waveDisplay").innerText = "BOSS: Chrono-Lock (Awakened)";
+        startBossFight("chrono");
       }
       updateHUD();
     }
@@ -1675,6 +1705,73 @@
       }
     }
 
+    function startBossFight(bossType) {
+      boss.active = true;
+      boss.type = bossType;
+      boss.x = 380;
+      boss.y = 0;
+      boss.vy = 0;
+      boss.hp = 24;
+      boss.maxHp = 24;
+      boss.hitFlash = 0;
+      boss.phase = 1;
+      enemies = [];
+      mobsRemaining = 0;
+      pendingSpawns = 0;
+      updateHUD();
+    }
+
+    function onBossDefeated() {
+      boss.active = false;
+      if (bossActionTimer) clearInterval(bossActionTimer);
+      playSound('hit');
+      screenShake = 26;
+      addMarrowPoints(100);
+      saveGameProgress(1, "sundiata");
+      setTimeout(() => {
+        document.getElementById("bannerTitle").innerText = "STAGE 1 COMPLETED (+100 Marrow)";
+        document.getElementById("bannerDesc").innerText = "Detroit 313 Grid Secured! Sundiata Prime has awakened!";
+        document.getElementById("bannerBtn").innerText = "ENTER STAGE 2: SAHEL";
+        document.getElementById("chapterBanner").style.display = "block";
+      }, 1600);
+    }
+
+    function dismissChapterBanner() {
+      document.getElementById("chapterBanner").style.display = "none";
+      activeZone = "sahel";
+      activeLead = "sundiata";
+      if (!unlockedRoster.includes("sundiata")) unlockedRoster.push("sundiata");
+      rosterIdx = unlockedRoster.indexOf("sundiata");
+      updateControlsUI();
+      startWave(4);
+    }
+
+    function handlePlayerDefeat() {
+      gameActive = false;
+      playSound('hit');
+      document.getElementById("defeat-modal").style.display = "flex";
+    }
+
+    function retryCurrentWave() {
+      document.getElementById("defeat-modal").style.display = "none";
+      playerHp = 100;
+      updateHUD();
+      gameActive = true;
+      startWave(currentWave);
+    }
+
+    function resetCampaignToStage1() {
+      document.getElementById("trial-modal").style.display = "none";
+      document.getElementById("defeat-modal").style.display = "none";
+      gameActive = true;
+      playerHp = 100;
+      activeZone = "detroit";
+      activeLead = "marcus";
+      rosterIdx = 0;
+      updateControlsUI();
+      startWave(1);
+    }
+
     function playerMove(dx) {
       if (!gameActive) return;
       initAudio();
@@ -1706,6 +1803,12 @@
       if (!gameActive) return;
       initAudio();
       playSound('hit');
+      if (boss.active && Math.abs(boss.x - leadX) < 280) {
+        boss.hp -= 1;
+        boss.hitFlash = 6;
+        updateHUD();
+        if (boss.hp <= 0) onBossDefeated();
+      }
     }
 
     function executePlasmaOrb() {
@@ -1736,6 +1839,17 @@
     function updateAIPartner() {
       if (!gameActive) return;
       aiPartner.x += (leadX - 55 - aiPartner.x) * 0.045;
+    }
+
+    function onEnemyDestroyed(enemy) {
+      if (!enemy.active) return;
+      enemy.active = false;
+      mobsRemaining = Math.max(0, mobsRemaining - 1);
+      addMarrowPoints(10);
+      updateHUD();
+      if (mobsRemaining <= 0 && !boss.active) {
+        setTimeout(() => startWave(2), 1200);
+      }
     }
 
     function updateHUD() {
