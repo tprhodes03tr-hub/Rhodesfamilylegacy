@@ -1120,7 +1120,7 @@
   <!-- DEFEAT / GAME OVER MODAL -->
   <div class="modal-overlay" id="defeat-modal">
     <div class="modal-content">
-      <div style="font-size: 32px; margin-bottom: 6px;">⚠️️</div>
+      <div style="font-size: 32px; margin-bottom: 6px;">⚠️</div>
       <h2 style="color: #ef4444;">RESONANCE SEVERED!</h2>
       <p id="defeatBody">
         Your squad took lethal kinetic damage and the living codex barrier collapsed!
@@ -1666,6 +1666,41 @@
       } else if (num === 3) {
         document.getElementById("waveDisplay").innerText = "BOSS: Chrono-Lock (Awakened)";
         startBossFight("chrono");
+      } else if (num === 4) {
+        activeZone = "sahel";
+        document.getElementById("waveDisplay").innerText = "Stage 2 • Wave 4: Subterranean Drills (18 Units)";
+        mobsRemaining = 18; mobsTotal = 18;
+        boss.active = false;
+        setupProgressiveWave("ouroboros", 18);
+        logBrawler("Episode 2 • Stage 2 Begins: Ouroboros mining drills surging through the Sahel!");
+      } else if (num === 5) {
+        document.getElementById("waveDisplay").innerText = "BOSS: Ouroboros Heavy Drill Dreadnought";
+        startBossFight("dreadnought");
+      } else if (num === 6) {
+        activeZone = "forge";
+        document.getElementById("waveDisplay").innerText = "Stage 3 • Wave 6: Forge Breakers (18 Units)";
+        mobsRemaining = 18; mobsTotal = 18;
+        boss.active = false;
+        setupProgressiveWave("forge", 18);
+        logBrawler("Stage 3: Kumasi Forge lockdown! Kofi Osei and the Vanguard defend the kilns!");
+      } else if (num === 7) {
+        document.getElementById("waveDisplay").innerText = "BOSS: Ironclad Prime";
+        startBossFight("ironclad");
+      } else if (num === 8) {
+        activeZone = "forge";
+        document.getElementById("waveDisplay").innerText = "Stage 4 • Final Omnibus Clash: Baron Krieg";
+        startBossFight("krieg");
+        logBrawler("Stage 4 Climax: Baron Krieg unleashes the full Ironclad Legion!");
+      } else if (num === 9) {
+        activeZone = "sahel_rift";
+        document.getElementById("waveDisplay").innerText = "Stage 5 • Wave 9: Vault Swarm (16 Units)";
+        mobsRemaining = 16; mobsTotal = 16;
+        boss.active = false;
+        setupProgressiveWave("vault", 16);
+        logBrawler("Episode 3 • Stage 5 Begins: Defend the Niani Vaults from Syndicate ground units!");
+      } else if (num === 10) {
+        document.getElementById("waveDisplay").innerText = "STAGE 5 CLIMAX: Apex Volt";
+        startBossFight("apex");
       }
       updateHUD();
     }
@@ -1691,13 +1726,41 @@
       for (let i = 0; i < count; i++) {
         if (pendingSpawns <= 0) break;
         pendingSpawns--;
+
+        let type = "drone";
+        let spawnY = 205;
+        let speed = 1.15;
+        let hp = 2;
+
+        if (profile === "heavy") {
+          type = (pendingSpawns % 2 === 0) ? "enforcer" : "drone";
+          hp = type === "enforcer" ? 4 : 2;
+          spawnY = type === "enforcer" ? 202 : 135;
+          speed = type === "enforcer" ? 1.0 : 1.25;
+        } else if (profile === "ouroboros") {
+          type = (pendingSpawns % 3 === 0) ? "crawler" : (pendingSpawns % 3 === 1 ? "enforcer" : "drone");
+          hp = type === "crawler" ? 5 : 3;
+          spawnY = type === "crawler" ? 212 : 202;
+          speed = type === "crawler" ? 0.85 : 1.15;
+        } else if (profile === "forge") {
+          type = (pendingSpawns % 2 === 0) ? "enforcer" : "drone";
+          hp = 4;
+          spawnY = type === "enforcer" ? 202 : 145;
+          speed = 1.0;
+        } else if (profile === "vault") {
+          type = (pendingSpawns % 2 === 0) ? "crawler" : "drone";
+          hp = 4;
+          spawnY = type === "crawler" ? 212 : 135;
+          speed = 1.2;
+        }
+
         enemies.push({
-          type: "drone",
+          type: type,
           x: 520 + (i * 75) + Math.random() * 30,
-          y: 205,
-          baseY: 205,
-          hp: 2,
-          speed: 1.15,
+          y: spawnY,
+          baseY: spawnY,
+          hp: hp,
+          speed: speed,
           active: true,
           walkCycle: 0,
           rotorPhase: Math.random() * Math.PI * 2
@@ -1711,14 +1774,130 @@
       boss.x = 380;
       boss.y = 0;
       boss.vy = 0;
-      boss.hp = 24;
-      boss.maxHp = 24;
+      boss.hp = (bossType === "chrono") ? 24 : (bossType === "dreadnought" ? 34 : (bossType === "apex" ? 36 : 40));
+      boss.maxHp = boss.hp;
       boss.hitFlash = 0;
       boss.phase = 1;
       enemies = [];
       mobsRemaining = 0;
       pendingSpawns = 0;
       updateHUD();
+
+      if (bossActionTimer) clearInterval(bossActionTimer);
+
+      if (bossType === "chrono") {
+        logBrawler("⚠️ WARNING: Chrono-Lock has entered the skyway!");
+        bossActionTimer = setInterval(() => {
+          if (!boss.active || !gameActive) return;
+          playSound('warp');
+          screenShake = 10;
+          boss.x = Math.random() > 0.5 ? Math.max(30, leadX - 70) : leadX + 85;
+          createBurstParticles(boss.x + 30, 210, "#10b981", 18);
+          
+          enemyBullets.push({
+            x: boss.x + 20,
+            y: 195,
+            vx: -5.2,
+            isTemporalClock: true
+          });
+          logBrawler("Chrono-Lock time-warps and launches a Temporal Clock Distortion!");
+        }, 2800);
+      } else if (bossType === "dreadnought") {
+        logBrawler("⚠️ SECTOR CRISIS: Ouroboros Heavy Drill Dreadnought emerges!");
+        playSound('drill');
+        bossActionTimer = setInterval(() => {
+          if (!boss.active || !gameActive) return;
+          const attackType = Math.random();
+          if (attackType < 0.55) {
+            playSound('drill');
+            screenShake = 14;
+            boss.x -= 48;
+            if (boss.x < 160) boss.x = 420;
+            logBrawler("Dreadnought auger surged forward!");
+          } else {
+            playSound('cannon');
+            for (let k = 0; k < 3; k++) {
+              setTimeout(() => {
+                if (boss.active) {
+                  enemyBullets.push({ x: boss.x - 10, y: 195 + (k * 10), vx: -7.0, heavy: true });
+                  playSound('cannon');
+                }
+              }, k * 180);
+            }
+            logBrawler("Dreadnought launched triple armor-piercing artillery!");
+          }
+        }, 3400);
+      } else if (bossType === "ironclad" || bossType === "krieg") {
+        logBrawler(bossType === "krieg" ? "⚠️ CLIMAX: Baron Krieg charges with Iron Quake!" : "⚠️ Ironclad Prime anchors the defense!");
+        bossActionTimer = setInterval(() => {
+          if (!boss.active || !gameActive) return;
+          playSound('hit');
+          screenShake = 16;
+          logBrawler(`${bossType === "krieg" ? "Baron Krieg" : "Ironclad Prime"} executes Molten Iron Quake! (JUMP to dodge!)`);
+          
+          groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#f97316" });
+          setTimeout(() => {
+            if (boss.active) groundShockwaves.push({ x: boss.x, vx: -7.5, radius: 24, color: "#ef4444" });
+          }, 350);
+
+          setTimeout(() => {
+            if (!isGrounded && !isShieldActive) {
+              logBrawler("Dodge successful! Jumped over the shockwave!");
+            } else if (!isShieldActive) {
+              playerHp = Math.max(0, playerHp - 12);
+              updateHUD();
+              playSound('hit');
+              if (playerHp <= 0) handlePlayerDefeat();
+            }
+          }, 650);
+        }, 3600);
+      } else if (bossType === "apex") {
+        logBrawler("⚠️ CRITICAL ALERT: Apex Volt (The Overcharge Striker) arrives!");
+        playSound('zap');
+        boss.y = -35; 
+        bossActionTimer = setInterval(() => {
+          if (!boss.active || !gameActive) return;
+          
+          if (boss.hp <= 24 && boss.phase === 1) {
+            boss.phase = 2;
+            boss.y = 0;
+            logBrawler("⚡ OVERDRIVE! Apex Volt drops to ground: Arc-Grid Detonation engaged!");
+            playSound('zap');
+            screenShake = 16;
+          }
+
+          if (boss.phase === 1) {
+            playSound('zap');
+            logBrawler("Apex Volt fires high-voltage Arc Beams from catwalk!");
+            for (let p = 0; p < 3; p++) {
+              setTimeout(() => {
+                if (boss.active) {
+                  enemyBullets.push({
+                    x: boss.x - 12,
+                    y: 195 + boss.y + (p * 12),
+                    vx: -7.5,
+                    heavy: true,
+                    isLightningArc: true
+                  });
+                }
+              }, p * 160);
+            }
+          } else {
+            playSound('cannon');
+            screenShake = 18;
+            groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#38bdf8" });
+            
+            setTimeout(() => {
+              if (boss.active) {
+                generateLightning(leadX + 30, 0, leadX + 30, 255, 6);
+                playSound('zap');
+              }
+            }, 450);
+
+            logBrawler("⚡ ARC-GRID DETONATION! JUMP or activate Shield!");
+          }
+        }, 3200);
+      }
     }
 
     function onBossDefeated() {
@@ -1726,30 +1905,110 @@
       if (bossActionTimer) clearInterval(bossActionTimer);
       playSound('hit');
       screenShake = 26;
-      addMarrowPoints(100);
-      saveGameProgress(1, "sundiata");
-      setTimeout(() => {
-        document.getElementById("bannerTitle").innerText = "STAGE 1 COMPLETED (+100 Marrow)";
-        document.getElementById("bannerDesc").innerText = "Detroit 313 Grid Secured! Sundiata Prime has awakened!";
-        document.getElementById("bannerBtn").innerText = "ENTER STAGE 2: SAHEL";
-        document.getElementById("chapterBanner").style.display = "block";
-      }, 1600);
+
+      if (boss.type === "chrono") {
+        logBrawler("💥 Chrono-Lock shattered into a cascade of temporal clockwork gears!");
+        playSound('warp');
+        
+        const clockSymbols = ['⏱️', '⏳', '🕒', '⌛', '⏰', '⚙', 'XII', 'VI'];
+        for (let i = 0; i < 35; i++) {
+          particles.push({
+            type: "clock",
+            x: boss.x + 35,
+            y: 200,
+            vx: (Math.random() - 0.5) * 11,
+            vy: -(Math.random() * 9 + 4),
+            rot: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 0.35,
+            icon: clockSymbols[Math.floor(Math.random() * clockSymbols.length)],
+            life: 140
+          });
+        }
+
+        saveGameProgress(1, "sundiata");
+        setTimeout(() => {
+          document.getElementById("bannerTitle").innerText = "STAGE 1 COMPLETED";
+          document.getElementById("bannerDesc").innerText = "Detroit 313 Grid Secured! Transmitting resonance beacon to West Africa. Sundiata Prime has awakened!";
+          document.getElementById("bannerBtn").innerText = "ENTER STAGE 2: SAHEL";
+          document.getElementById("chapterBanner").style.display = "block";
+        }, 1600);
+      } else if (boss.type === "dreadnought") {
+        logBrawler("💥 Ouroboros Dreadnought destroyed! Stage 2 Secured.");
+        saveGameProgress(2, "kofi");
+        setTimeout(() => {
+          document.getElementById("bannerTitle").innerText = "STAGE 2 COMPLETED • STAGE 3 UNLOCKED";
+          document.getElementById("bannerDesc").innerText = "The Sahel Nexus is preserved! Kofi Osei (The Gold-Smith) joins the frontline at the Ashanti Ancestral Kilns.";
+          document.getElementById("bannerBtn").innerText = "ENTER STAGE 3: KUMASI FORGE";
+          document.getElementById("chapterBanner").style.display = "block";
+        }, 1600);
+      } else if (boss.type === "ironclad") {
+        logBrawler("💥 Ironclad Prime defeated! Stage 3 Secured.");
+        saveGameProgress(3);
+        setTimeout(() => {
+          document.getElementById("bannerTitle").innerText = "STAGE 3 COMPLETED";
+          document.getElementById("bannerDesc").innerText = "Kumasi Forge perimeter stabilized! Baron Krieg enters the arena for the final Episode 2 confrontation!";
+          document.getElementById("bannerBtn").innerText = "ENTER STAGE 4: BARON KRIEG";
+          document.getElementById("chapterBanner").style.display = "block";
+        }, 1600);
+      } else if (boss.type === "krieg") {
+        logBrawler("🏆 BARON KRIEG DEFEATED! Niani Deep Extraction Vault is rupturing!");
+        saveGameProgress(4);
+        setTimeout(() => {
+          document.getElementById("bannerTitle").innerText = "STAGE 4 COMPLETED • EPISODE 3 UNLOCKED";
+          document.getElementById("bannerDesc").innerText = "Baron Krieg is down! Ashen Syndicate forces breach the Sahel bedrock. Sundiata Prime must unleash the Solar Lion!";
+          document.getElementById("bannerBtn").innerText = "ENTER STAGE 5: THE SAHEL AWAKENING";
+          document.getElementById("chapterBanner").style.display = "block";
+        }, 1600);
+      } else if (boss.type === "apex") {
+        logBrawler("🏆 APEX VOLT NEUTRALIZED! The Living Codex anchors the sovereign timeline!");
+        saveGameProgress(5);
+        setTimeout(() => {
+          gameActive = false;
+          document.getElementById("modalTitle").innerText = "MARROW RESONANCE RESTORED!";
+          document.getElementById("modalBody").innerHTML = `
+            <strong>The Sahel Temporal Siege Has Been Broken!</strong><br><br>
+            Sundiata Prime's Translucent Solar Lion Roar has vaporized the Ashen overcharge grid. You have secured the ancestral timeline across Episodes 1, 2, and 3. The living ledger is preserved!
+          `;
+          document.getElementById("trial-modal").style.display = "flex";
+        }, 1800);
+      }
     }
 
     function dismissChapterBanner() {
       document.getElementById("chapterBanner").style.display = "none";
-      activeZone = "sahel";
-      activeLead = "sundiata";
-      if (!unlockedRoster.includes("sundiata")) unlockedRoster.push("sundiata");
-      rosterIdx = unlockedRoster.indexOf("sundiata");
-      updateControlsUI();
-      startWave(4);
+      if (currentWave === 3) {
+        activeZone = "sahel";
+        activeLead = "sundiata";
+        if (!unlockedRoster.includes("sundiata")) unlockedRoster.push("sundiata");
+        rosterIdx = unlockedRoster.indexOf("sundiata");
+        updateControlsUI();
+        startWave(4);
+      } else if (currentWave === 5) {
+        activeZone = "forge";
+        activeLead = "kofi";
+        if (!unlockedRoster.includes("kofi")) unlockedRoster.push("kofi");
+        rosterIdx = unlockedRoster.indexOf("kofi");
+        updateControlsUI();
+        startWave(6);
+      } else if (currentWave === 7) {
+        startWave(8);
+      } else if (currentWave === 8) {
+        activeZone = "sahel_rift";
+        activeLead = "sundiata";
+        rosterIdx = unlockedRoster.indexOf("sundiata");
+        updateControlsUI();
+        startWave(9);
+      }
     }
 
     function handlePlayerDefeat() {
       gameActive = false;
+      if (bossActionTimer) clearInterval(bossActionTimer);
+      if (spawnIntervalTimer) clearInterval(spawnIntervalTimer);
       playSound('hit');
+      screenShake = 22;
       document.getElementById("defeat-modal").style.display = "flex";
+      logBrawler("💀 SQUAD DOWN! Marrow resonance dropped to zero.");
     }
 
     function retryCurrentWave() {
@@ -1758,6 +2017,7 @@
       updateHUD();
       gameActive = true;
       startWave(currentWave);
+      logBrawler(`Resonance restored! Re-engaging Wave ${currentWave}...`);
     }
 
     function resetCampaignToStage1() {
@@ -1768,14 +2028,27 @@
       activeZone = "detroit";
       activeLead = "marcus";
       rosterIdx = 0;
+
+      playerProgress.currentStage = 1;
+      playerProgress.highestStageUnlocked = 1;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(playerProgress));
+
       updateControlsUI();
       startWave(1);
+      logBrawler("Campaign Reset: Beginning Episode 1 • Chapter 1 Detroit Riverfront!");
     }
 
+    /* =========================================================================
+       7. PLAYER CONTROLS & ENHANCED COMBAT
+       ========================================================================= */
     function playerMove(dx) {
       if (!gameActive) return;
       initAudio();
       leadX = Math.max(65, Math.min(330, leadX + dx));
+      bgScrollOffset -= (dx * 0.15);
+      groundScrollOffset -= (dx * 0.6);
+      leadLean = dx > 0 ? 0.08 : -0.08;
+      walkCadence += 1.4;
     }
 
     function playerJump() {
@@ -1783,92 +2056,1101 @@
       initAudio();
       leadVy = -13;
       isGrounded = false;
+      leadLean = 0.04;
+      if (activeLead === "xochitl") {
+        createBurstParticles(leadX + 25, 230, "#f97316", 16);
+      }
     }
 
     function executeTagSwap() {
       if (!gameActive) return;
       initAudio();
+
+      if (xochitlFlight.active) {
+        xochitlFlight.active = false;
+        xochitlFlight.state = 'INACTIVE';
+      }
+
       rosterIdx = (rosterIdx + 1) % unlockedRoster.length;
       activeLead = unlockedRoster[rosterIdx];
+
+      playSound('shield');
+      screenShake = 6;
+      const glowMap = {
+        marcus: "#38bdf8",
+        xochitl: "#f97316",
+        sundiata: "#f59e0b",
+        kofi: "#eab308"
+      };
+      createBurstParticles(leadX + 25, 210, glowMap[activeLead] || "#f59e0b", 18);
       updateControlsUI();
       logBrawler(`Tag Swap! Active Lead: ${activeLead.toUpperCase()}`);
     }
 
     function updateControlsUI() {
-      const partner = unlockedRoster.find(r => r !== activeLead) || "xochitl";
-      document.getElementById("heroNameLabel").innerText = `${activeLead.toUpperCase()} (Lead) & ${partner.toUpperCase()} (AI)`;
+      const getPartner = () => {
+        let others = unlockedRoster.filter(r => r !== activeLead);
+        return others[0] || "xochitl";
+      };
+      const partner = getPartner();
+
+      const nameMap = {
+        marcus: "Marcus Prime",
+        xochitl: "Xochitl",
+        sundiata: "Sundiata Prime",
+        kofi: "Kofi Osei (Gold-Smith)"
+      };
+
+      document.getElementById("heroNameLabel").innerText = `${nameMap[activeLead]} (Lead) & ${nameMap[partner]} (AI)`;
+
+      if (activeLead === "marcus") {
+        document.getElementById("btnStrike").innerText = "⚡ Volt Beam";
+        document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
+        document.getElementById("btnBurst").innerText = "🛡️ Deflect";
+      } else if (activeLead === "xochitl") {
+        document.getElementById("btnStrike").innerText = "🔥 Magma Strike";
+        document.getElementById("btnOrb").innerText = "🪶 Solar Strafe";
+        document.getElementById("btnBurst").innerText = "🛡️ Wing Shield";
+      } else if (activeLead === "sundiata") {
+        document.getElementById("btnStrike").innerText = "🔨 Drum Tremor";
+        document.getElementById("btnOrb").innerText = "🦁 Bronze Pulse";
+        document.getElementById("btnBurst").innerText = "🦁 Solar Lion Roar";
+      } else if (activeLead === "kofi") {
+        document.getElementById("btnStrike").innerText = "⚒️ Anvil Sledge";
+        document.getElementById("btnOrb").innerText = "✨ Molten Shards";
+        document.getElementById("btnBurst").innerText = "🛡️ Crucible Bastion";
+      }
+
+      let nextHero = unlockedRoster[(rosterIdx + 1) % unlockedRoster.length];
+      document.getElementById("btnTag").innerText = `TAG: ${nextHero.toUpperCase()}`;
     }
 
     function executeStrike() {
       if (!gameActive) return;
       initAudio();
-      playSound('hit');
+      let target = getClosestTarget(leadX);
+      let targetX = target ? target.x : (boss.active ? boss.x : 400);
+      let targetY = (boss.active ? (205 + boss.y) : (target ? target.y : 205));
+
+      leadLean = 0.12;
+
+      if (activeLead === "marcus") {
+        playSound('zap');
+        generateLightning(leadX + 45, 205 - leadY, targetX + 15, targetY, absorbedCharge);
+      } else if (activeLead === "xochitl") {
+        playSound('hit');
+      } else if (activeLead === "sundiata") {
+        playSound('drum');
+        screenShake = 11;
+        sundiataShockwave.active = true;
+        sundiataShockwave.x = leadX + 35;
+        sundiataShockwave.radius = 10;
+      } else if (activeLead === "kofi") {
+        playSound('hit');
+        screenShake = 14;
+        kofiHammerSwing.active = true;
+        kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
+        createBurstParticles(leadX + 55, 220, "#eab308", 18);
+        logBrawler("⚒️ CRUCIBLE ANVIL SLEDGE slams with molten kinetic force!");
+      }
+
       if (boss.active && Math.abs(boss.x - leadX) < 280) {
-        boss.hp -= 1;
+        let dmg = (activeLead === "sundiata" || activeLead === "kofi") ? 2 : 1;
+        boss.hp -= dmg;
         boss.hitFlash = 6;
+        screenShake = 8;
+        playSound('hit');
+        createBurstParticles(boss.x + 30, 205 + boss.y, "#fbbf24", 15);
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
+      } else if (target && Math.abs(target.x - leadX) < 220) {
+        let dmg = (activeLead === "sundiata" || activeLead === "kofi") ? 2 : 1;
+        if (activeLead === "marcus" && absorbedCharge > 0) {
+          dmg += Math.floor(absorbedCharge / 5);
+          absorbedCharge = 0;
+        }
+        screenShake = 7;
+        playSound('hit');
+        createBurstParticles(target.x + 15, target.y, "#fbbf24", 12);
+        target.hp -= dmg;
+        target.x += 25;
+        if (target.hp <= 0) onEnemyDestroyed(target);
       }
     }
 
     function executePlasmaOrb() {
       if (!gameActive) return;
       initAudio();
-      playSound('orb');
-      plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 7.5, vy: 0, radius: 12, life: 80, color: "#38bdf8" });
+      leadLean = 0.09;
+
+      let aimVy = 0;
+      if (boss.active && boss.y < -10) aimVy = -1.5;
+
+      if (activeLead === "marcus") {
+        playSound('orb');
+        plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 7.5, vy: aimVy, radius: 12, life: 80, color: "#38bdf8" });
+      } else if (activeLead === "xochitl") {
+        if (!xochitlFlight.active) {
+          playSound('celestial');
+          xochitlFlight.active = true;
+          xochitlFlight.state = 'ASCENT';
+          xochitlFlight.x = leadX;
+          xochitlFlight.y = 175 - leadY;
+          xochitlFlight.timer = 0;
+          xochitlFlight.diveAngle = 0;
+          logBrawler("Xochitl ascends to the skies! Initiating aerial strafe & arrow dive!");
+        }
+      } else if (activeLead === "sundiata") {
+        playSound('drum');
+        plasmaOrbs.push({
+          x: leadX + 45,
+          y: 200 - leadY,
+          vx: 6.8,
+          vy: aimVy,
+          radius: 18,
+          life: 95,
+          color: "#f59e0b",
+          isLionPulse: true
+        });
+        logBrawler("Sundiata fires an awakened Lion Crest Bronze Pulse!");
+      } else if (activeLead === "kofi") {
+        playSound('zap');
+        plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 6.5, vy: aimVy, radius: 14, life: 85, color: "#eab308" });
+      }
     }
 
     function executeBurst() {
       if (!gameActive) return;
       initAudio();
-      isShieldActive = true;
-      playSound('shield');
-      setTimeout(() => isShieldActive = false, 3500);
+
+      if (activeLead === "sundiata") {
+        playSound('roar');
+        playSound('drum');
+        screenShake = 18;
+        logBrawler("🦁 ROAAAAR! The Solar Lion charges forward, pulverizing enemy ranks!");
+        
+        lionRoars.push({
+          x: leadX + 25,
+          y: 195 - leadY,
+          vx: 9.0,
+          width: 175,
+          height: 125,
+          scale: 0.70,
+          alpha: 0.85,
+          life: 85,
+          maxLife: 85
+        });
+
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+          if (Math.abs(enemyBullets[i].x - leadX) < 140) {
+            createBurstParticles(enemyBullets[i].x, enemyBullets[i].y, "#fbbf24", 8);
+            enemyBullets.splice(i, 1);
+          }
+        }
+      } else if (activeLead === "xochitl") {
+        isShieldActive = true;
+        playSound('shield');
+        logBrawler("Xochitl folds her flaming wings into an impenetrable Obsidian Cocoon!");
+        setTimeout(() => isShieldActive = false, 3500);
+      } else if (activeLead === "marcus" || activeLead === "kofi") {
+        isShieldActive = true;
+        playSound('shield');
+        if (activeLead === "marcus") logBrawler("Marcus Electrical Dome online!");
+        else logBrawler("Kofi activates Crucible Bastion!");
+        setTimeout(() => isShieldActive = false, 3500);
+      }
     }
 
     function executeLuettaAid() {
-      if (!gameActive) return;
+      if (!gameActive || luettaState.active) return;
       initAudio();
+      luettaState.active = true;
+      luettaState.timer = 110;
       playSound('celestial');
+      screenShake = 14;
       playerHp = 100;
       updateHUD();
-      enemies.forEach(e => { e.active = false; });
-      mobsRemaining = 0;
+      logBrawler("✨ Mother Luetta descends in radiant celestial light, restoring the team! ✨");
+
+      for (let i = 0; i < 35; i++) {
+        celestialParticles.push({
+          x: leadX - 30 + Math.random() * 110,
+          y: 260,
+          vy: -(Math.random() * 2.8 + 1.2),
+          vx: (Math.random() - 0.5) * 1.5,
+          size: Math.random() * 3.5 + 1.5,
+          alpha: 1.0,
+          life: 90
+        });
+      }
+
+      setTimeout(() => {
+        if (boss.active) {
+          boss.hp -= 4;
+          boss.hitFlash = 10;
+          updateHUD();
+          if (boss.hp <= 0) onBossDefeated();
+        } else {
+          enemies.forEach(e => {
+            if (e.active) onEnemyDestroyed(e);
+          });
+        }
+      }, 900);
     }
 
     function updateAIPartner() {
-      if (!gameActive) return;
-      aiPartner.x += (leadX - 55 - aiPartner.x) * 0.045;
+      if (!gameActive || xochitlFlight.active) return;
+
+      aiPartner.wanderTimer++;
+      if (aiPartner.wanderTimer > 120) {
+        aiPartner.wanderTimer = 0;
+        aiPartner.desiredDistance = 50 + Math.random() * 55;
+      }
+
+      const targetAIX = Math.max(30, leadX - aiPartner.desiredDistance);
+      const diffX = targetAIX - aiPartner.x;
+
+      if (Math.abs(diffX) > 4) {
+        aiPartner.x += diffX * 0.045;
+        aiPartner.lean = diffX > 0 ? 0.05 : -0.05;
+      } else {
+        aiPartner.lean *= 0.85;
+      }
+
+      if (!aiPartner.isGrounded) {
+        aiPartner.y -= aiPartner.vy;
+        aiPartner.vy += 0.8;
+        if (aiPartner.y <= 0) {
+          aiPartner.y = 0;
+          aiPartner.vy = 0;
+          aiPartner.isGrounded = true;
+          aiPartner.landSquash = 1.0;
+        }
+      }
+
+      aiPartner.attackCooldown++;
+      if (aiPartner.attackCooldown > 110) {
+        let closestMob = getClosestTarget(aiPartner.x);
+        if (closestMob && Math.abs(closestMob.x - aiPartner.x) < 240) {
+          aiPartner.attackCooldown = 0;
+          let partnerRole = unlockedRoster.find(r => r !== activeLead) || "xochitl";
+
+          if (partnerRole === "xochitl") {
+            const daggerVx = closestMob.x < aiPartner.x ? -7.5 : 7.5;
+            daggers.push({ x: aiPartner.x + 25, y: 195 - aiPartner.y, vx: daggerVx, vy: 1.2, length: 18, width: 4 });
+            playSound('zap');
+            logBrawler("Co-Op: Xochitl covers your flank!");
+          } else if (partnerRole === "marcus") {
+            generateLightning(aiPartner.x + 35, 205, closestMob.x + 10, closestMob.y || 205, 0);
+            playSound('zap');
+            closestMob.hp -= 1;
+            if (closestMob.hp <= 0 && closestMob !== boss) onEnemyDestroyed(closestMob);
+            logBrawler("Co-Op: Marcus provides cover voltage!");
+          } else if (partnerRole === "sundiata") {
+            playSound('drum');
+            closestMob.hp -= 1;
+            closestMob.x += 35;
+            createBurstParticles(closestMob.x, closestMob.y || 205, "#f59e0b", 10);
+            if (closestMob.hp <= 0 && closestMob !== boss) onEnemyDestroyed(closestMob);
+            logBrawler("Co-Op: Sundiata anchors the frontline!");
+          } else if (partnerRole === "kofi") {
+            playSound('hit');
+            closestMob.hp -= 2;
+            createBurstParticles(closestMob.x, closestMob.y || 205, "#eab308", 12);
+            if (closestMob.hp <= 0 && closestMob !== boss) onEnemyDestroyed(closestMob);
+            logBrawler("Co-Op: Kofi provides molten forge support!");
+          }
+        }
+      }
+    }
+
+    function getClosestTarget(originX) {
+      if (boss.active) return boss;
+      let closest = null, minDst = 9999;
+      enemies.forEach(e => {
+        if (e.active) {
+          const dst = Math.abs(e.x - originX);
+          if (dst < minDst) { minDst = dst; closest = e; }
+        }
+      });
+      return closest;
     }
 
     function onEnemyDestroyed(enemy) {
       if (!enemy.active) return;
       enemy.active = false;
       mobsRemaining = Math.max(0, mobsRemaining - 1);
-      addMarrowPoints(10);
+      playSound('hit');
+      screenShake = 6;
+      createBurstParticles(enemy.x, enemy.y, "#ef4444", 14);
       updateHUD();
+
       if (mobsRemaining <= 0 && !boss.active) {
-        setTimeout(() => startWave(2), 1200);
+        if (currentWave === 1) {
+          logBrawler("Wave 1 Cleared! Heavy Syndicate breaching...");
+          setTimeout(() => startWave(2), 1200);
+        } else if (currentWave === 2) {
+          logBrawler("Wave 2 Cleared! Chrono-Lock approaching the rooftop!");
+          setTimeout(() => startWave(3), 1400);
+        } else if (currentWave === 4) {
+          logBrawler("Drilling squadrons eliminated! Seismic dreadnought incoming...");
+          setTimeout(() => startWave(5), 1400);
+        } else if (currentWave === 6) {
+          logBrawler("Forge Breakers repelled! Ironclad Prime approaching...");
+          setTimeout(() => startWave(7), 1400);
+        } else if (currentWave === 9) {
+          logBrawler("Vault Swarm eliminated! Apex Volt entering the excavation zone...");
+          setTimeout(() => startWave(10), 1400);
+        }
       }
     }
 
-    function updateHUD() {
-      document.getElementById("heroHpText").innerText = `${playerHp}/100`;
-      document.getElementById("heroHpBar").style.width = `${playerHp}%`;
-      document.getElementById("enemyTypeLabel").innerText = "Syndicate Swarm";
-      document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units Remaining`;
-      document.getElementById("enemyHpBar").style.width = `${(mobsRemaining / mobsTotal) * 100}%`;
+    function generateLightning(x1, y1, x2, y2, powerBoost = 0) {
+      let segments = [];
+      const steps = 10;
+      const dx = (x2 - x1) / steps;
+      const dy = (y2 - y1) / steps;
+      let curX = x1, curY = y1;
+
+      for (let i = 0; i < steps; i++) {
+        let nxtX = curX + dx;
+        let nxtY = curY + dy;
+        if (i < steps - 1) {
+          nxtX += (Math.random() - 0.5) * (18 + powerBoost * 0.4);
+          nxtY += (Math.random() - 0.5) * (18 + powerBoost * 0.4);
+        }
+        segments.push({ x1: curX, y1: curY, x2: nxtX, y2: nxtY });
+        curX = nxtX; curY = nxtY;
+      }
+      lightningBolts.push({ segments: segments, weight: Math.min(8, 3 + powerBoost * 0.2), life: 10 });
     }
 
-    function logBrawler(msg) {
-      document.getElementById("combatLog").innerText = msg;
+    function drawFieryWings(ctx, x, y, tiltAngle = 0, wingWave = 0) {
+      ctx.save();
+      ctx.translate(x + 32, y + 28);
+      ctx.rotate(tiltAngle);
+      const wingFeathers = [
+        { angle: -0.75, len: 55 + wingWave * 4, w: 12, col: '#f59e0b' },
+        { angle: -0.52, len: 75 + wingWave * 6, w: 16, col: '#ea580c' },
+        { angle: -0.28, len: 65 + wingWave * 5, w: 14, col: '#fbbf24' },
+        { angle: 0.28, len: 65 + wingWave * 5, w: 14, col: '#fbbf24' },
+        { angle: 0.52, len: 75 + wingWave * 6, w: 16, col: '#ea580c' },
+        { angle: 0.75, len: 55 + wingWave * 4, w: 12, col: '#f59e0b' }
+      ];
+      ctx.shadowColor = '#ea580c';
+      ctx.shadowBlur = 24;
+
+      wingFeathers.forEach(f => {
+        ctx.save();
+        ctx.rotate(f.angle + (Math.sin(Date.now() / 90) * 0.05) + (wingWave * 0.04));
+        const grad = ctx.createLinearGradient(0, 0, 0, -f.len);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.35, f.col);
+        grad.addColorStop(1, 'rgba(234, 88, 12, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(0, -f.len / 2, f.w / 2, f.len / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      ctx.restore();
     }
 
-    /* FULL ORIGINAL BRAWLER RENDER LOOP RESTORED */
+    function drawXochitlWingCocoon(ctx, x, y) {
+      ctx.save();
+      ctx.translate(x + 30, y + 35);
+      
+      const shieldPulse = Math.sin(Date.now() / 100) * 0.12 + 0.88;
+      
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 44, 58, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(249, 115, 22, ${0.30 * shieldPulse})`;
+      ctx.strokeStyle = "#fbbf24";
+      ctx.lineWidth = 3.5;
+      ctx.shadowColor = "#f59e0b";
+      ctx.shadowBlur = 22;
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      for (let side = -1; side <= 1; side += 2) {
+        ctx.save();
+        ctx.scale(side, 1);
+        ctx.rotate(0.35);
+        const wingGrad = ctx.createLinearGradient(0, -45, 30, 45);
+        wingGrad.addColorStop(0, '#ffedd5');
+        wingGrad.addColorStop(0.4, '#f97316');
+        wingGrad.addColorStop(1, '#7c2d12');
+        ctx.fillStyle = wingGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, -45);
+        ctx.bezierCurveTo(35, -20, 35, 30, 5, 48);
+        ctx.bezierCurveTo(15, 15, 10, -20, 0, -45);
+        ctx.fill();
+        ctx.strokeStyle = "#ffd700";
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function drawKofiAnvilHammer(ctx, originX, originY) {
+      if (!kofiHammerSwing.active) return;
+
+      const progress = 1 - (kofiHammerSwing.timer / kofiHammerSwing.maxTimer);
+      const swingAngle = -1.1 + (progress * 1.9);
+
+      ctx.save();
+      ctx.translate(originX + 38, originY + 30);
+      ctx.rotate(swingAngle);
+
+      ctx.fillStyle = "#451a03";
+      ctx.fillRect(-3, -52, 6, 68);
+      ctx.strokeStyle = "#d97706";
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(-3, -52, 6, 68);
+
+      const ironGrad = ctx.createLinearGradient(-26, -74, 26, -48);
+      ironGrad.addColorStop(0, "#0f172a");
+      ironGrad.addColorStop(0.5, "#334155");
+      ironGrad.addColorStop(1, "#1e293b");
+      ctx.fillStyle = ironGrad;
+      ctx.fillRect(-22, -74, 44, 26);
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-22, -74, 44, 26);
+
+      ctx.fillStyle = "#fbbf24";
+      ctx.shadowColor = "#f59e0b";
+      ctx.shadowBlur = 16;
+      ctx.fillRect(-20, -64, 40, 5);
+      ctx.fillRect(16, -72, 6, 22);
+
+      if (progress > 0.6) {
+        ctx.shadowColor = "#facc15";
+        ctx.shadowBlur = 24;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(20, -60, 9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+      kofiHammerSwing.timer--;
+      if (kofiHammerSwing.timer <= 0) {
+        kofiHammerSwing.active = false;
+      }
+    }
+
+    function drawDropShadow(ctx, x, y, radiusX = 22, radiusY = 7, alpha = 0.55) {
+      ctx.save();
+      ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, radiusX, radiusY, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function createBurstParticles(x, y, color, count) {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          type: "spark",
+          x: x, y: y,
+          vx: (Math.random() - 0.5) * 7,
+          vy: (Math.random() - 0.5) * 7,
+          color: color,
+          size: Math.random() * 4 + 2,
+          life: 25
+        });
+      }
+    }
+
+    function drawAdvancingSolarLionRoar(ctx, lr) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = Math.min(1.0, lr.alpha);
+      ctx.shadowColor = "#f59e0b";
+      ctx.shadowBlur = 24;
+
+      const drawW = lr.width * lr.scale;
+      const drawH = lr.height * lr.scale;
+
+      if (ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
+        ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - (drawH / 2), drawW, drawH);
+      } else {
+        const lionGrad = ctx.createRadialGradient(lr.x, lr.y, 10, lr.x, lr.y, 60);
+        lionGrad.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+        lionGrad.addColorStop(0.4, "rgba(251, 191, 36, 0.75)");
+        lionGrad.addColorStop(1, "rgba(217, 119, 6, 0.0)");
+        ctx.fillStyle = lionGrad;
+        ctx.beginPath();
+        ctx.arc(lr.x, lr.y, 60, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawApexVolt(ctx, b) {
+      drawDropShadow(ctx, b.x + 36, 256, 32, 10, 0.65);
+
+      ctx.save();
+      ctx.translate(b.x + 36, 235 + b.y);
+
+      if (b.hitFlash > 0) {
+        ctx.filter = "brightness(2.2)";
+        b.hitFlash--;
+      }
+
+      if (ASSETS.apex.complete && ASSETS.apex.naturalWidth > 0) {
+        ctx.drawImage(ASSETS.apex, -38, -85, 76, 95);
+      } else {
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(-22, -65, 44, 65);
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillRect(-15, -45, 30, 8);
+      }
+
+      ctx.restore();
+    }
+
+    function drawDetailedDreadnought(ctx, b) {
+      const time = Date.now();
+      drawDropShadow(ctx, b.x + 45, 256, 48, 12, 0.75);
+
+      ctx.save();
+      ctx.translate(b.x, 150);
+
+      if (b.hitFlash > 0) {
+        ctx.filter = "brightness(2.2)";
+        b.hitFlash--;
+      }
+
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(72, -18, 10, 22);
+      ctx.fillRect(86, -14, 8, 18);
+
+      const hullGrad = ctx.createLinearGradient(0, 0, 0, 85);
+      hullGrad.addColorStop(0, "#475569");
+      hullGrad.addColorStop(0.3, "#334155");
+      hullGrad.addColorStop(0.8, "#1e293b");
+      hullGrad.addColorStop(1, "#0f172a");
+      ctx.fillStyle = hullGrad;
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(15, 10);
+      ctx.lineTo(88, 10);
+      ctx.lineTo(95, 25);
+      ctx.lineTo(95, 75);
+      ctx.lineTo(0, 75);
+      ctx.lineTo(0, 25);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = "#1e293b";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(8, 20, 36, 45);
+      ctx.strokeRect(48, 20, 42, 45);
+
+      ctx.fillStyle = "#94a3b8";
+      const rivets = [[12, 24], [40, 24], [12, 60], [40, 60], [52, 24], [85, 24], [52, 60], [85, 60]];
+      rivets.forEach(rv => {
+        ctx.beginPath();
+        ctx.arc(rv[0], rv[1], 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.fillStyle = "#f59e0b";
+      ctx.font = "bold 9px monospace";
+      ctx.fillText("OUROBOROS-05", 14, 38);
+
+      const visorPulse = Math.sin(time / 140) * 0.4 + 0.6;
+      ctx.fillStyle = `rgba(239, 68, 68, ${visorPulse})`;
+      ctx.shadowColor = "#ef4444";
+      ctx.shadowBlur = 12;
+      ctx.fillRect(16, 44, 60, 6);
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = "#090d16";
+      ctx.fillRect(-6, 75, 106, 26);
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-6, 75, 106, 26);
+
+      const wheelRotation = (time / 30) % (Math.PI * 2);
+      ctx.fillStyle = "#334155";
+      for (let w = 4; w < 98; w += 22) {
+        ctx.beginPath();
+        ctx.arc(w, 88, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#64748b";
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(w, 88);
+        ctx.rotate(wheelRotation);
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-6, 0); ctx.lineTo(6, 0);
+        ctx.moveTo(0, -6); ctx.lineTo(0, 6);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      const drillPhase = (time / 40);
+      const drillSpin = Math.sin(drillPhase) * 6;
+
+      ctx.save();
+      const drillGrad = ctx.createLinearGradient(-45, 0, 0, 0);
+      drillGrad.addColorStop(0, "#cbd5e1");
+      drillGrad.addColorStop(0.3, "#d97706");
+      drillGrad.addColorStop(0.7, "#78350f");
+      drillGrad.addColorStop(1, "#334155");
+      ctx.fillStyle = drillGrad;
+
+      ctx.beginPath();
+      ctx.moveTo(-45, 48 + drillSpin);
+      ctx.lineTo(2, 18);
+      ctx.lineTo(2, 78);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+      ctx.restore();
+    }
+
+    function drawVolumetricDrone(ctx, e) {
+      e.rotorPhase += 0.85;
+      const droneBob = Math.sin(Date.now() / 140 + e.x) * 4.5;
+      const currentY = e.y + droneBob;
+      drawDropShadow(ctx, e.x + 18, 256, 18, 5, 0.45);
+
+      ctx.save();
+      ctx.translate(e.x, currentY);
+
+      const flameFlicker = Math.sin(Date.now() / 45) * 3;
+      ctx.fillStyle = "rgba(56, 189, 248, 0.85)";
+      ctx.shadowColor = "#00f0ff";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(8, 14); ctx.lineTo(13, 14); ctx.lineTo(10.5, 23 + flameFlicker); ctx.closePath(); ctx.fill();
+      ctx.moveTo(23, 14); ctx.lineTo(28, 14); ctx.lineTo(25.5, 23 + flameFlicker); ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 2;
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath(); ctx.ellipse(4, 8, 4, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(32, 8, 4, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 1;
+      const spinOffset = Math.sin(e.rotorPhase) * 5;
+      ctx.beginPath();
+      ctx.moveTo(4, 8 - spinOffset); ctx.lineTo(4, 8 + spinOffset);
+      ctx.moveTo(32, 8 + spinOffset); ctx.lineTo(32, 8 - spinOffset);
+      ctx.stroke();
+
+      const bodyGrad = ctx.createLinearGradient(0, 0, 0, 18);
+      bodyGrad.addColorStop(0, "#475569");
+      bodyGrad.addColorStop(0.4, "#1e293b");
+      bodyGrad.addColorStop(1, "#090d16");
+      ctx.fillStyle = bodyGrad;
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 1.2;
+
+      ctx.beginPath();
+      ctx.moveTo(8, 2);
+      ctx.lineTo(28, 2);
+      ctx.lineTo(34, 8);
+      ctx.lineTo(26, 16);
+      ctx.lineTo(10, 16);
+      ctx.lineTo(2, 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      const opticPulse = Math.sin(Date.now() / 90) * 0.3 + 0.7;
+      ctx.fillStyle = `rgba(239, 68, 68, ${opticPulse})`;
+      ctx.shadowColor = "#ef4444";
+      ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(18, 9, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(12, 8, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(24, 8, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(18, 16); ctx.lineTo(18, 22); ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawDetailedHelicopter(ctx) {
+      chopper.x += chopper.speed;
+      chopper.rotorAngle += 0.85;
+      if (chopper.x > 640) {
+        chopper.x = -150;
+        chopper.y = 32 + Math.random() * 25;
+      }
+
+      ctx.save();
+      ctx.translate(chopper.x, chopper.y);
+
+      const heliBob = Math.sin(Date.now() / 240) * 2;
+      ctx.translate(0, heliBob);
+
+      if (Math.random() > 0.4) {
+        ctx.fillStyle = "rgba(226, 232, 240, 0.25)";
+        ctx.fillRect(-15 + (Math.random() * 30), 18, Math.random() * 18 + 10, 1.5);
+      }
+
+      const fuseGrad = ctx.createLinearGradient(0, -12, 0, 14);
+      fuseGrad.addColorStop(0, "#334155");
+      fuseGrad.addColorStop(0.4, "#1e293b");
+      fuseGrad.addColorStop(1, "#090d16");
+      ctx.fillStyle = fuseGrad;
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(-16, -8);
+      ctx.lineTo(12, -8);
+      ctx.bezierCurveTo(24, -8, 28, 4, 16, 11);
+      ctx.lineTo(-14, 11);
+      ctx.bezierCurveTo(-22, 11, -24, -4, -16, -8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      const glassGrad = ctx.createLinearGradient(0, -6, 20, 8);
+      glassGrad.addColorStop(0, "rgba(56, 189, 248, 0.85)");
+      glassGrad.addColorStop(1, "rgba(2, 132, 199, 0.45)");
+      ctx.fillStyle = glassGrad;
+      ctx.beginPath();
+      ctx.moveTo(2, -6);
+      ctx.lineTo(14, -6);
+      ctx.bezierCurveTo(22, -6, 24, 4, 14, 8);
+      ctx.lineTo(4, 8);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#1e293b";
+      ctx.beginPath();
+      ctx.moveTo(-20, -1);
+      ctx.lineTo(-55, 3);
+      ctx.lineTo(-55, -12);
+      ctx.lineTo(-48, -1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      const tailSpin = Math.sin(chopper.rotorAngle * 2.5) * 8;
+      ctx.strokeStyle = "rgba(226, 232, 240, 0.75)";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-55, -6 - tailSpin);
+      ctx.lineTo(-55, -6 + tailSpin);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-6, 11); ctx.lineTo(-8, 18);
+      ctx.moveTo(8, 11); ctx.lineTo(6, 18);
+      ctx.moveTo(-16, 18); ctx.lineTo(16, 18);
+      ctx.stroke();
+
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(-2, -12, 4, 4);
+
+      const rotorSpan = Math.cos(chopper.rotorAngle) * 52;
+      ctx.strokeStyle = "rgba(241, 245, 249, 0.85)";
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(-rotorSpan, -12);
+      ctx.lineTo(rotorSpan, -12);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(226, 232, 240, 0.12)";
+      ctx.beginPath();
+      ctx.ellipse(0, -12, 54, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const isStrobe = Math.floor(Date.now() / 220) % 2 === 0;
+      if (isStrobe) {
+        ctx.fillStyle = "#ef4444";
+        ctx.shadowColor = "#ef4444";
+        ctx.shadowBlur = 8;
+        ctx.fillRect(-56, -14, 3, 3);
+        ctx.fillStyle = "#22c55e";
+        ctx.shadowColor = "#22c55e";
+        ctx.fillRect(8, 11, 3, 3);
+        ctx.shadowBlur = 0;
+      }
+
+      chopper.spotSweep = Math.sin(Date.now() / 650) * 0.22;
+      ctx.save();
+      ctx.translate(12, 14);
+      ctx.rotate(0.35 + chopper.spotSweep);
+      const spotLight = ctx.createLinearGradient(0, 0, 0, 220);
+      spotLight.addColorStop(0, "rgba(255, 255, 255, 0.45)");
+      spotLight.addColorStop(0.3, "rgba(56, 189, 248, 0.20)");
+      spotLight.addColorStop(1, "rgba(255, 255, 255, 0.0)");
+      ctx.fillStyle = spotLight;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-32, 220);
+      ctx.lineTo(32, 220);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    function drawHumanoidEnforcer(ctx, e) {
+      e.walkCycle += 0.08;
+      const legSwing = Math.sin(e.walkCycle) * 6;
+
+      ctx.save();
+      ctx.translate(e.x, e.y);
+
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(8, 28); ctx.lineTo(8 + legSwing, 46);
+      ctx.moveTo(18, 28); ctx.lineTo(18 - legSwing, 46);
+      ctx.stroke();
+
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(4, 10, 18, 20);
+      ctx.fillStyle = "#64748b";
+      ctx.fillRect(6, 12, 14, 16);
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.shadowColor = "#38bdf8";
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(13, 20, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(7, 0, 12, 10);
+      ctx.fillStyle = "#ef4444";
+      ctx.fillRect(5, 3, 8, 3);
+      ctx.restore();
+    }
+
+    function drawBystanders(ctx) {
+      const isAlarmed = screenShake > 3 || boss.active;
+      ctx.save();
+      bystanders.forEach(b => {
+        b.isCowering = isAlarmed;
+        ctx.fillStyle = "rgba(10, 15, 29, 0.9)";
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.25)";
+        ctx.lineWidth = 1;
+
+        if (b.isCowering) {
+          ctx.beginPath();
+          ctx.arc(b.x + 7, b.y + 12, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(b.x + 2, b.y + 16, 11, 10);
+        } else {
+          ctx.beginPath();
+          ctx.arc(b.x + 7, b.y + 5, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(b.x + 4, b.y + 9, 6, 16);
+        }
+      });
+      ctx.restore();
+    }
+
+    function drawEnvironment(ctx) {
+      if (activeZone === "detroit") {
+        if (ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
+          const parallaxX = (bgScrollOffset % 40) - 20;
+          ctx.drawImage(ASSETS.bg, parallaxX, 0, canvas.width + 40, canvas.height);
+        } else {
+          ctx.fillStyle = "#090d16";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        const weather = STAGE_WEATHER[currentWave] || STAGE_WEATHER[1];
+        ctx.save();
+        ctx.strokeStyle = weather.rain ? "rgba(148, 163, 184, 0.45)" : "rgba(226, 232, 240, 0.20)";
+        ctx.lineWidth = weather.rain ? 1.5 : 1.1;
+        windLines.forEach(w => {
+          w.x -= w.speed;
+          if (w.x + w.len < 0) {
+            w.x = 540 + w.len;
+            w.y = Math.random() * 230;
+          }
+          ctx.beginPath();
+          ctx.moveTo(w.x, w.y);
+          ctx.lineTo(w.x + w.len, w.y);
+          ctx.stroke();
+        });
+        ctx.restore();
+
+        ctx.fillStyle = weather.skyTint;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        drawDetailedHelicopter(ctx);
+        drawBystanders(ctx);
+
+        const deckGrad = ctx.createLinearGradient(0, 255, 0, canvas.height);
+        deckGrad.addColorStop(0, "#0b1220");
+        deckGrad.addColorStop(1, "#030712");
+        ctx.fillStyle = deckGrad;
+        ctx.fillRect(0, 255, canvas.width, canvas.height - 255);
+
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#38bdf8";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(0, 255);
+        ctx.lineTo(canvas.width, 255);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+      } else if (activeZone === "sahel" || activeZone === "sahel_rift") {
+        if (ASSETS.ouroborosSkyline.complete && ASSETS.ouroborosSkyline.naturalWidth > 0) {
+          const skyScroll = (bgScrollOffset * 0.35) % canvas.width;
+          ctx.drawImage(ASSETS.ouroborosSkyline, skyScroll, 0, canvas.width, 255);
+          ctx.drawImage(ASSETS.ouroborosSkyline, skyScroll + canvas.width, 0, canvas.width, 255);
+        } else {
+          const sahelSky = ctx.createLinearGradient(0, 0, 0, 255);
+          sahelSky.addColorStop(0, "#120520");
+          sahelSky.addColorStop(0.5, "#300c36");
+          sahelSky.addColorStop(1, "#5b152b");
+          ctx.fillStyle = sahelSky;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        ctx.save();
+        ctx.fillStyle = activeZone === "sahel_rift" ? "rgba(251, 191, 36, 0.45)" : "rgba(254, 215, 170, 0.4)";
+        sahelDust.forEach(d => {
+          d.x -= d.speedX;
+          d.y += d.speedY;
+          if (d.x < 0) d.x = 540;
+          if (d.y < 0 || d.y > 255) d.y = Math.random() * 255;
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.radius, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+
+        if (ASSETS.groundPlate.complete && ASSETS.groundPlate.naturalWidth > 0) {
+          const groundX = (groundScrollOffset) % canvas.width;
+          ctx.drawImage(ASSETS.groundPlate, groundX, 238, canvas.width, 52);
+          ctx.drawImage(ASSETS.groundPlate, groundX + canvas.width, 238, canvas.width, 52);
+        } else {
+          const deckGrad = ctx.createLinearGradient(0, 255, 0, canvas.height);
+          deckGrad.addColorStop(0, "#451a03");
+          deckGrad.addColorStop(1, "#1c0a00");
+          ctx.fillStyle = deckGrad;
+          ctx.fillRect(0, 255, canvas.width, canvas.height - 255);
+        }
+
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "#f59e0b";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(0, 255);
+        ctx.lineTo(canvas.width, 255);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+      } else if (activeZone === "forge") {
+        const forgeSky = ctx.createLinearGradient(0, 0, 0, 255);
+        forgeSky.addColorStop(0, "#1f1005");
+        forgeSky.addColorStop(0.4, "#451405");
+        forgeSky.addColorStop(1, "#7c2d12");
+        ctx.fillStyle = forgeSky;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#290d04";
+        ctx.fillRect(80, 70, 60, 185);
+        ctx.fillRect(360, 50, 75, 205);
+
+        ctx.fillStyle = "rgba(245, 158, 11, 0.25)";
+        ctx.beginPath();
+        ctx.arc(110, 170, 45, 0, Math.PI * 2);
+        ctx.arc(395, 160, 55, 0, Math.PI * 2);
+        ctx.fill();
+
+        const deckGrad = ctx.createLinearGradient(0, 255, 0, canvas.height);
+        deckGrad.addColorStop(0, "#451405");
+        deckGrad.addColorStop(1, "#1c0802");
+        ctx.fillStyle = deckGrad;
+        ctx.fillRect(0, 255, canvas.width, canvas.height - 255);
+
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(0, 255, canvas.width, 1);
+      }
+    }
+
+    function drawCelestialLightCone(ctx) {
+      if (!luettaState.active) return;
+      luettaState.timer--;
+      const beamCenter = leadX + 25;
+      const topOriginX = canvas.width / 2;
+      const topOriginY = 40;
+
+      ctx.save();
+      const coneGrad = ctx.createLinearGradient(topOriginX, topOriginY, beamCenter, 260);
+      coneGrad.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+      coneGrad.addColorStop(0.3, "rgba(251, 191, 36, 0.75)");
+      coneGrad.addColorStop(0.7, "rgba(245, 158, 11, 0.35)");
+      coneGrad.addColorStop(1, "rgba(212, 175, 55, 0.05)");
+
+      ctx.fillStyle = coneGrad;
+      ctx.beginPath();
+      ctx.moveTo(topOriginX - 16, topOriginY);
+      ctx.lineTo(topOriginX + 16, topOriginY);
+      ctx.lineTo(beamCenter + 55, 260);
+      ctx.lineTo(beamCenter - 55, 260);
+      ctx.closePath();
+      ctx.fill();
+
+      for (let i = celestialParticles.length - 1; i >= 0; i--) {
+        const cp = celestialParticles[i];
+        cp.x += cp.vx;
+        cp.y += cp.vy;
+        cp.alpha -= 0.012;
+        ctx.fillStyle = `rgba(254, 240, 138, ${Math.max(0, cp.alpha)})`;
+        ctx.beginPath();
+        ctx.arc(cp.x, cp.y, cp.size, 0, Math.PI * 2);
+        ctx.fill();
+        if (cp.alpha <= 0 || cp.y < 50) celestialParticles.splice(i, 1);
+      }
+
+      if (ASSETS.luetta.complete && ASSETS.luetta.naturalWidth > 0) {
+        ctx.drawImage(ASSETS.luetta, topOriginX - 40, 15, 80, 95);
+      }
+      ctx.restore();
+      if (luettaState.timer <= 0) luettaState.active = false;
+    }
+
+    /* =========================================================================
+       8. MAIN RENDER LOOP & COMPLEX SPRITE CYCLES
+       ========================================================================= */
     function renderBrawler() {
-      const brawlerSec = document.getElementById('tab-brawler');
-      if (!brawlerSec || !brawlerSec.classList.contains('active')) return;
-
       ctx.save();
 
       if (screenShake > 0) {
@@ -1909,6 +3191,7 @@
       drawDropShadow(ctx, aiPartner.x + 28, 256, 21 * aiShadowScale, 6 * aiShadowScale, 0.55 * aiShadowScale);
       drawDropShadow(ctx, leadX + 32, 256, 25 * leadShadowScale, 7 * leadShadowScale, 0.65 * leadShadowScale);
 
+      // PARTNER RENDER
       let partnerRole = unlockedRoster.find(r => r !== activeLead) || "xochitl";
       let aiImg = ASSETS[partnerRole];
       ctx.save();
@@ -1921,6 +3204,7 @@
       }
       ctx.restore();
 
+      // LEAD HERO RENDER
       let shouldDrawLead = !xochitlFlight.active;
       if (shouldDrawLead) {
         let leadImg = ASSETS[activeLead];
@@ -1941,11 +3225,13 @@
         }
         ctx.restore();
 
+        // KOFI OSEI ANVIL SLEDGE ATTACK OVERLAY
         if (activeLead === "kofi") {
           drawKofiAnvilHammer(ctx, leadX, drawLeadY);
         }
       }
 
+      // XOCHITL 4-STAGE AERIAL ASSAULT (ASCENT -> STRAFE -> ARROW BARRAGE -> LAND)
       if (xochitlFlight.active) {
         xochitlFlight.timer++;
 
@@ -2030,6 +3316,7 @@
         ctx.restore();
       }
 
+      // SUNDIATA DRUM SHOCKWAVE
       if (sundiataShockwave.active) {
         sundiataShockwave.radius += 9;
         ctx.save();
@@ -2042,6 +3329,7 @@
         if (sundiataShockwave.radius >= sundiataShockwave.maxRadius) sundiataShockwave.active = false;
       }
 
+      // ADVANCING SOLAR LION ROAR PROJECTILE
       for (let r = lionRoars.length - 1; r >= 0; r--) {
         const lr = lionRoars[r];
         lr.x += lr.vx;
@@ -2077,6 +3365,7 @@
         if (lr.x > canvas.width + 120 || lr.life <= 0) lionRoars.splice(r, 1);
       }
 
+      // GROUND SHOCKWAVES
       for (let g = groundShockwaves.length - 1; g >= 0; g--) {
         const sw = groundShockwaves[g];
         sw.x += sw.vx;
@@ -2110,6 +3399,7 @@
         if (sw.x < 0) groundShockwaves.splice(g, 1);
       }
 
+      // ACTIVE MARCUS & KOFI DEFLECT SHIELDS
       if (isShieldActive && activeLead !== "xochitl") {
         ctx.save();
         ctx.strokeStyle = activeLead === "marcus" ? "#38bdf8" : "#fbbf24";
@@ -2122,6 +3412,7 @@
         ctx.restore();
       }
 
+      // ENEMIES
       enemies.forEach(e => {
         if (!e.active) return;
         const frontDefender = Math.max(leadX, aiPartner.x);
@@ -2163,6 +3454,7 @@
         ctx.restore();
       });
 
+      // BOSS RENDER
       if (boss.active) {
         if (boss.type === "chrono") {
           drawDropShadow(ctx, boss.x + 36, 256, 32, 10, 0.6);
@@ -2181,6 +3473,7 @@
         }
       }
 
+      // PROJECTILES: ORBS & LION PULSES
       for (let i = plasmaOrbs.length - 1; i >= 0; i--) {
         const po = plasmaOrbs[i];
         po.x += po.vx;
@@ -2228,6 +3521,7 @@
         if (po.x > canvas.width || po.life <= 0) plasmaOrbs.splice(i, 1);
       }
 
+      // PROJECTILES: OBSIDIAN DAGGERS & SOLAR ARROWS
       for (let i = daggers.length - 1; i >= 0; i--) {
         const d = daggers[i];
         d.x += d.vx;
@@ -2264,6 +3558,7 @@
         if (d.x > canvas.width || d.x < 0 || d.y > 260) daggers.splice(i, 1);
       }
 
+      // PROJECTILES: ENEMY BULLETS & CHRONO CLOCKS
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const b = enemyBullets[i];
         b.x += b.vx;
@@ -2312,6 +3607,7 @@
         if (b.x < 0) enemyBullets.splice(i, 1);
       }
 
+      // LIGHTNING BOLTS (MARCUS VOLT BEAM & APEX DETONATIONS)
       for (let i = lightningBolts.length - 1; i >= 0; i--) {
         const bolt = lightningBolts[i];
         ctx.strokeStyle = "#ffffff";
@@ -2335,6 +3631,7 @@
 
       drawCelestialLightCone(ctx);
 
+      // PARTICLES (INCLUDING CHRONO-LOCK SHATTER PIECES)
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
