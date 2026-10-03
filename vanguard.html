@@ -717,14 +717,14 @@
   <header>
     <div class="portal-title">Vanguard Universe: Unified Combat Portal</div>
     <div class="tab-bar">
-      <button class="tab-btn" onclick="openTab('codex', this)">🎴 Card Codex</button>
+      <button class="tab-btn active" onclick="openTab('codex', this)">🎴 Card Codex</button>
       <button class="tab-btn" onclick="openTab('clash', this)">⚔️ Card Clash</button>
-      <button class="tab-btn active" onclick="openTab('brawler', this)">🕹️️ Side Brawler</button>
+      <button class="tab-btn" onclick="openTab('brawler', this)">🕹 Side Brawler</button>
     </div>
   </header>
 
   <!-- TAB 1: CARD CODEX (EMBEDDED WITH PACKED IN THE MARROW DOUBLE HELIX) -->
-  <section id="tab-codex" class="portal-section">
+  <section id="tab-codex" class="portal-section active">
     <div class="codex-grid">
 
       <!-- Mother Luetta -->
@@ -993,7 +993,7 @@
   </section>
 
   <!-- TAB 3: SIDE BRAWLER (STAGE 1 THROUGH 5) -->
-  <section id="tab-brawler" class="portal-section active">
+  <section id="tab-brawler" class="portal-section">
     <div class="brawler-wrapper">
       <div class="hud-header">
         <div class="hud-top-row">
@@ -1125,7 +1125,7 @@
     loadSavedProgress();
 
     /* =========================================================================
-       2. TAB NAVIGATION & 3D CARD FLIPPER
+       2. TAB NAVIGATION & 3D CARD FLIPPER (WITH BRAWLER PAUSE FIX)
        ========================================================================= */
     let brawlerInitialized = false;
 
@@ -1152,6 +1152,12 @@
           if (!animationFrameId) {
             animationFrameId = requestAnimationFrame(renderBrawler);
           }
+        }
+      } else {
+        // Pause brawler animation loop when switching away to Codex or Clash
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
         }
       }
     }
@@ -1474,6 +1480,7 @@
     function initBrawler() {
       brawlerInitialized = true;
       canvas = document.getElementById("gameCanvas");
+      if (!canvas) return;
       ctx = canvas.getContext("2d");
 
       resizeBrawlerCanvas();
@@ -1665,7 +1672,6 @@
           boss.x = Math.random() > 0.5 ? Math.max(30, leadX - 70) : leadX + 85;
           createBurstParticles(boss.x + 30, 210, "#10b981", 18);
           
-          // Enhanced: Release Temporal Distortion Dials that slow and damage
           enemyBullets.push({
             x: boss.x + 20,
             y: 195,
@@ -1707,7 +1713,6 @@
           screenShake = 16;
           logBrawler(`${bossType === "krieg" ? "Baron Krieg" : "Ironclad Prime"} executes Molten Iron Quake! (JUMP to dodge!)`);
           
-          // Enhanced: Launches twin molten ground shockwaves
           groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#f97316" });
           setTimeout(() => {
             if (boss.active) groundShockwaves.push({ x: boss.x, vx: -7.5, radius: 24, color: "#ef4444" });
@@ -1760,7 +1765,6 @@
             screenShake = 18;
             groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#38bdf8" });
             
-            // Enhanced: Tesla Lightning Strike down directly above the player
             setTimeout(() => {
               if (boss.active) {
                 generateLightning(leadX + 30, 0, leadX + 30, 255, 6);
@@ -1784,8 +1788,7 @@
         logBrawler("💥 Chrono-Lock shattered into a cascade of temporal clockwork gears!");
         playSound('warp');
         
-        // RESTORED: EXPLODE INTO BOUNCING WATCHES, CLOCKS, AND GEARS
-        const clockSymbols = ['⏱️', '⏳', '🕒', '⌛', '⏰', '⚙️️', 'XII', 'VI'];
+        const clockSymbols = ['⏱️', '⏳', '🕒', '⌛', '⏰', '⚙', 'XII', 'VI'];
         for (let i = 0; i < 35; i++) {
           particles.push({
             type: "clock",
@@ -2021,7 +2024,6 @@
         sundiataShockwave.x = leadX + 35;
         sundiataShockwave.radius = 10;
       } else if (activeLead === "kofi") {
-        // TRIGGER CRUCIBLE ANVIL SLEDGE ANIMATION
         playSound('hit');
         screenShake = 14;
         kofiHammerSwing.active = true;
@@ -2373,7 +2375,6 @@
       ctx.restore();
     }
 
-    // DRAW KOFI OSEI'S CRUCIBLE ANVIL SLEDGE (ANIMATED COMBAT SWING)
     function drawKofiAnvilHammer(ctx, originX, originY) {
       if (!kofiHammerSwing.active) return;
 
@@ -2384,14 +2385,12 @@
       ctx.translate(originX + 38, originY + 30);
       ctx.rotate(swingAngle);
 
-      // Shaft
       ctx.fillStyle = "#451a03";
       ctx.fillRect(-3, -52, 6, 68);
       ctx.strokeStyle = "#d97706";
       ctx.lineWidth = 1.2;
       ctx.strokeRect(-3, -52, 6, 68);
 
-      // Dark-Iron Sledge Head
       const ironGrad = ctx.createLinearGradient(-26, -74, 26, -48);
       ironGrad.addColorStop(0, "#0f172a");
       ironGrad.addColorStop(0.5, "#334155");
@@ -2402,14 +2401,12 @@
       ctx.lineWidth = 1.5;
       ctx.strokeRect(-22, -74, 44, 26);
 
-      // Molten Gold Conduits & Anvil Striking Face
       ctx.fillStyle = "#fbbf24";
       ctx.shadowColor = "#f59e0b";
       ctx.shadowBlur = 16;
       ctx.fillRect(-20, -64, 40, 5);
       ctx.fillRect(16, -72, 6, 22);
 
-      // Ground Slam Particle Flash
       if (progress > 0.6) {
         ctx.shadowColor = "#facc15";
         ctx.shadowBlur = 24;
@@ -3032,6 +3029,10 @@
        8. MAIN RENDER LOOP & COMPLEX SPRITE CYCLES
        ========================================================================= */
     function renderBrawler() {
+      // Only execute render if the brawler tab is actually active
+      const brawlerSec = document.getElementById('tab-brawler');
+      if (!brawlerSec || !brawlerSec.classList.contains('active')) return;
+
       ctx.save();
 
       if (screenShake > 0) {
@@ -3449,7 +3450,7 @@
           ctx.font = "18px sans-serif";
           ctx.shadowColor = "#10b981";
           ctx.shadowBlur = 12;
-          ctx.fillText("⏱️️", b.x, b.y);
+          ctx.fillText("⏱", b.x, b.y);
           ctx.restore();
         } else if (b.isLightningArc) {
           ctx.save();
@@ -3488,7 +3489,7 @@
         if (b.x < 0) enemyBullets.splice(i, 1);
       }
 
-      // LIGHTNING BOLTS (MARCUS VOLT BEAM & APEX DETONATIONS)
+      // LIGHTNING BOLTS
       for (let i = lightningBolts.length - 1; i >= 0; i--) {
         const bolt = lightningBolts[i];
         ctx.strokeStyle = "#ffffff";
@@ -3512,7 +3513,7 @@
 
       drawCelestialLightCone(ctx);
 
-      // PARTICLES (INCLUDING CHRONO-LOCK SHATTER PIECES)
+      // PARTICLES
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
@@ -3580,7 +3581,7 @@
        9. LIFECYCLE LISTENERS
        ========================================================================= */
     document.addEventListener("DOMContentLoaded", () => {
-      initBrawler();
+      // Do not auto-start brawler loop on load since Codex is default landing tab
     });
 
     window.addEventListener("load", () => {
@@ -3594,7 +3595,8 @@
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && brawlerInitialized) {
         resizeBrawlerCanvas();
-        if (!animationFrameId) {
+        const brawlerSec = document.getElementById('tab-brawler');
+        if (brawlerSec && brawlerSec.classList.contains('active') && !animationFrameId) {
           animationFrameId = requestAnimationFrame(renderBrawler);
         }
       }
