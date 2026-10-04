@@ -115,7 +115,7 @@
       position: relative;
       width: 100%;
       aspect-ratio: 4 / 3;
-      background: radial-gradient(circle at center, #38bdf8 0%, #0369a1 60%, #0c4a6e 100%);
+      background: radial-gradient(circle at center, #c026d3 0%, #701a75 60%, #4a044e 100%);
       border: 3px solid #f59e0b;
       border-radius: 16px;
       overflow: hidden;
@@ -335,28 +335,28 @@
   <div class="wrapper">
 
     <div class="header-tag">RHODES FAMILY LEGACY</div>
-    <h1 class="hero-title" id="mainTitle">Little Fannie May's Book Express</h1>
+    <h1 class="hero-title" id="mainTitle">Little Fannie May's Funhouse Express</h1>
 
     <!-- 3-WAY MODE SWITCHER -->
     <div class="mode-switch-bar">
-      <button class="mode-btn active" id="btnExpress" onclick="switchGameMode('express')">🚚 Book Express</button>
+      <button class="mode-btn active" id="btnExpress" onclick="switchGameMode('express')">🎪 Funhouse Express</button>
       <button class="mode-btn" id="btnPuzzle" onclick="switchGameMode('puzzle')">🧩 Scramble Word Search</button>
       <button class="mode-btn" id="btnTetris" onclick="switchGameMode('tetris')">🕹️ Legacy Tetris</button>
     </div>
 
     <div class="score-board">
       <span id="scoreDisplay">SCORE: 0</span>
-      <span id="zoneDisplay">ZONE: DETROIT</span>
+      <span id="zoneDisplay">ZONE: FUNHOUSE MIDWAY</span>
       <span id="targetDisplay">2500 PTS = BOOK REWARD</span>
     </div>
 
-    <!-- GAME VIEW 1: BOOK EXPRESS -->
+    <!-- GAME VIEW 1: FUNHOUSE EXPRESS -->
     <div class="game-view active" id="viewExpress">
       <div class="game-container">
         <!-- Age / Difficulty Selector Overlay -->
         <div id="ageModal">
           <h2>Select Your Explorer Level</h2>
-          <p>Choose your driver profile for higher speeds and higher delivery stakes:</p>
+          <p>Choose your driver profile for higher speeds and higher carnival stakes:</p>
           <div class="modal-btns">
             <button class="modal-btn" onclick="startGame('junior')">Junior Explorer</button>
             <button class="modal-btn" onclick="startGame('adult')">Legacy Pro Driver</button>
@@ -366,8 +366,8 @@
       </div>
 
       <div class="controls-panel">
-        <button class="control-btn" onclick="moveTruck(-1)">◀ DRIVE LEFT</button>
-        <button class="control-btn" onclick="moveTruck(1)">DRIVE RIGHT ▶</button>
+        <button class="control-btn" onclick="moveTruck(-1)">◀ STEER LEFT</button>
+        <button class="control-btn" onclick="moveTruck(1)">STEER RIGHT ▶</button>
       </div>
     </div>
 
@@ -433,8 +433,8 @@
       document.getElementById('viewTetris').classList.toggle('active', mode === 'tetris');
       
       if (mode === 'express') {
-        document.getElementById('mainTitle').innerText = "Little Fannie May's Book Express";
-        document.getElementById('zoneDisplay').innerText = "ZONE: DETROIT";
+        document.getElementById('mainTitle').innerText = "Little Fannie May's Funhouse Express";
+        document.getElementById('zoneDisplay').innerText = "ZONE: FUNHOUSE MIDWAY";
       } else if (mode === 'puzzle') {
         document.getElementById('mainTitle').innerText = "Heritage Scramble Word Search";
         document.getElementById('zoneDisplay').innerText = "ZONE: LEGACY VAULT";
@@ -463,7 +463,7 @@
       } catch (e) {}
     }
 
-    // --- BOOK EXPRESS ENGINE ---
+    // --- FUNHOUSE CARNIVAL EXPRESS ENGINE ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
@@ -479,6 +479,7 @@
     let scenery = [];
     let roadOffset = 0;
     let speedMultiplier = 1;
+    let carnivalColorOffset = 0;
 
     function startGame(mode) {
       difficulty = mode;
@@ -511,9 +512,17 @@
 
     function spawnObstacle() {
       const lane = Math.floor(Math.random() * 3);
-      const isBarrier = Math.random() > 0.65; 
-      const iconType = isBarrier ? '🚧' : (Math.random() > 0.5 ? '📖' : '🃏');
-      obstacles.push({ lane: lane, y: -50, icon: iconType, isBarrier: isBarrier });
+      const isHazard = Math.random() > 0.65; 
+      const icons = isHazard ? ['🤡', '🎪', '🌀'] : ['🎈', '🎡', '⭐', '🎁'];
+      const icon = icons[Math.floor(Math.random() * icons.length)];
+      
+      obstacles.push({ 
+        lane: lane, 
+        y: -50, 
+        icon: icon, 
+        isBarrier: isHazard,
+        wobble: Math.random() * Math.PI 
+      });
     }
 
     let spawnTimer = 0;
@@ -521,11 +530,12 @@
     function update() {
       if (!gameActive || activeMode !== 'express') return;
 
-      roadOffset += 6 * speedMultiplier;
-      if (roadOffset > 40) roadOffset = 0;
+      carnivalColorOffset += 0.2;
+      roadOffset += 7 * speedMultiplier;
+      if (roadOffset > 50) roadOffset = 0;
 
       scenery.forEach(item => {
-        item.y += 4 * speedMultiplier;
+        item.y += 4.5 * speedMultiplier;
         if (item.y > canvas.height + 60) item.y = -80;
       });
 
@@ -533,20 +543,23 @@
       truckX += (targetX - truckX) * 0.25;
 
       spawnTimer++;
-      if (spawnTimer > (60 / speedMultiplier)) {
+      if (spawnTimer > (50 / speedMultiplier)) {
         spawnObstacle();
         spawnTimer = 0;
       }
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
-        obstacles[i].y += 4.5 * speedMultiplier;
+        let obs = obstacles[i];
+        obs.y += 5 * speedMultiplier;
+        obs.wobble += 0.1;
+        let currentX = lanes[obs.lane] + Math.sin(obs.wobble) * 15;
 
-        if (obstacles[i].y > truckY - 35 && obstacles[i].y < truckY + 35 && obstacles[i].lane === truckLane) {
-          if (obstacles[i].isBarrier) {
-            score = Math.max(0, score - 30); 
+        if (obs.y > truckY - 35 && obs.y < truckY + 35 && Math.abs(currentX - truckX) < 25) {
+          if (obs.isBarrier) {
+            score = Math.max(0, score - 25); 
             playSound(false);
           } else {
-            score += (difficulty === 'adult' ? 15 : 25); 
+            score += (difficulty === 'adult' ? 15 : 30); 
             playSound(true);
             triggerParticles(truckX, truckY);
           }
@@ -555,7 +568,7 @@
           continue;
         }
 
-        if (obstacles[i] && obstacles[i].y > canvas.height + 40) {
+        if (obs && obs.y > canvas.height + 40) {
           obstacles.splice(i, 1);
         }
       }
@@ -574,91 +587,68 @@
     }
 
     function draw() {
+      // 1. Carnival Tent Sky Gradient
       const skyGrad = ctx.createLinearGradient(0, 0, 0, 130);
-      skyGrad.addColorStop(0, '#0c4a6e');
-      skyGrad.addColorStop(1, '#0369a1');
+      skyGrad.addColorStop(0, '#701a75');
+      skyGrad.addColorStop(1, '#c026d3');
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = '#0284c7';
-      ctx.beginPath();
-      ctx.moveTo(0, 130);
-      ctx.lineTo(40, 95); ctx.lineTo(85, 115); ctx.lineTo(135, 75);
-      ctx.lineTo(190, 105); ctx.lineTo(250, 60); ctx.lineTo(310, 95);
-      ctx.lineTo(370, 75); ctx.lineTo(430, 110); ctx.lineTo(480, 90);
-      ctx.lineTo(480, 130); ctx.lineTo(0, 130);
-      ctx.fill();
+      // 2. Funhouse Striped Marquee Tent Top
+      ctx.fillStyle = '#fef08a';
+      for(let i = 0; i < canvas.width; i += 60) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + 30, 90);
+        ctx.lineTo(i + 60, 0);
+        ctx.fill();
+      }
 
-      ctx.fillStyle = '#059669';
-      ctx.beginPath();
-      ctx.moveTo(0, 130); ctx.lineTo(120, 130); ctx.lineTo(50, canvas.height); ctx.lineTo(0, canvas.height); ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(480, 130); ctx.lineTo(360, 130); ctx.lineTo(430, canvas.height); ctx.lineTo(480, canvas.height); ctx.fill();
-
-      scenery.forEach(item => {
-        let hx = item.side === 'left' ? 35 : 405;
+      // 3. Wacky Funhouse Mirror Booth Sidewalls
+      scenery.forEach((item, index) => {
+        let hx = item.side === 'left' ? 25 : 415;
         let hy = item.y;
         
-        if (item.type === 0) {
-          ctx.fillStyle = '#7c2d12'; 
-          ctx.fillRect(hx, hy, 40, 35);
-          ctx.fillStyle = '#991b1b'; 
-          ctx.beginPath();
-          ctx.moveTo(hx - 5, hy);
-          ctx.lineTo(hx + 20, hy - 18);
-          ctx.lineTo(hx + 45, hy);
-          ctx.closePath();
-          ctx.fill();
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(hx + 15, hy + 15, 10, 20); 
-          ctx.fillStyle = '#fef08a';
-          ctx.fillRect(hx + 6, hy + 8, 8, 8);  
-          ctx.fillRect(hx + 26, hy + 8, 8, 8); 
-        } else {
-          ctx.fillStyle = '#1e3a8a'; 
-          ctx.fillRect(hx, hy, 44, 32);
-          ctx.fillStyle = '#1e293b'; 
-          ctx.beginPath();
-          ctx.moveTo(hx - 4, hy);
-          ctx.lineTo(hx + 22, hy - 15);
-          ctx.lineTo(hx + 48, hy);
-          ctx.closePath();
-          ctx.fill();
-          ctx.fillStyle = '#334155';
-          ctx.fillRect(hx + 12, hy + 14, 20, 18);
-          ctx.fillStyle = '#fef08a';
-          ctx.fillRect(hx + 6, hy + 6, 8, 8);
-          ctx.fillRect(hx + 30, hy + 6, 8, 8);
-        }
+        ctx.fillStyle = index % 2 === 0 ? '#38bdf8' : '#fbbf24';
+        ctx.fillRect(hx, hy, 40, 50);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(hx, hy, 40, 50);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(hx + 20, hy + 25, 12, 0, Math.PI * 2);
+        ctx.fill();
       });
 
-      ctx.fillStyle = '#1e293b';
+      // 4. Rainbow Funhouse Track Floor
+      ctx.fillStyle = '#1e1b4b';
       ctx.beginPath();
       ctx.moveTo(120, 130); ctx.lineTo(360, 130); ctx.lineTo(430, canvas.height); ctx.lineTo(50, canvas.height);
       ctx.closePath(); ctx.fill();
 
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 4;
-      ctx.setLineDash([20, 20]);
+      ctx.strokeStyle = Math.sin(carnivalColorOffset) > 0 ? '#f472b6' : '#38bdf8';
+      ctx.lineWidth = 6;
+      ctx.setLineDash([15, 15]);
       ctx.lineDashOffset = -roadOffset;
       ctx.beginPath(); ctx.moveTo(195, 130); ctx.lineTo(170, canvas.height); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(285, 130); ctx.lineTo(310, canvas.height); ctx.stroke();
       ctx.setLineDash([]); 
 
+      // 5. Render Bouncy Carnival Obstacles & Prizes
       obstacles.forEach(obs => {
-        let ox = lanes[obs.lane];
+        let ox = lanes[obs.lane] + Math.sin(obs.wobble) * 15;
         let oy = obs.y;
         
-        let bubbleGrad = ctx.createRadialGradient(ox - 6, oy - 6, 4, ox, oy, 24);
+        let bubbleGrad = ctx.createRadialGradient(ox - 4, oy - 4, 2, ox, oy, 22);
         bubbleGrad.addColorStop(0, obs.isBarrier ? '#fca5a5' : '#fef08a');
-        bubbleGrad.addColorStop(0.5, obs.isBarrier ? '#dc2626' : '#f59e0b');
-        bubbleGrad.addColorStop(1, obs.isBarrier ? '#7f1d1d' : '#b45309');
+        bubbleGrad.addColorStop(1, obs.isBarrier ? '#b91c1c' : '#d97706');
         ctx.fillStyle = bubbleGrad;
         ctx.beginPath();
-        ctx.arc(ox, oy, 22, 0, Math.PI * 2);
+        ctx.arc(ox, oy, 20, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
         ctx.stroke();
 
         ctx.fillStyle = '#fff';
@@ -666,26 +656,19 @@
         ctx.fillText(obs.icon, ox - 8, oy + 6);
       });
 
-      ctx.fillStyle = '#b91c1c';
+      // 6. Funhouse Delivery Truck
+      ctx.fillStyle = '#db2777'; 
       ctx.beginPath(); ctx.roundRect(truckX - 25, truckY + 4, 50, 32, [4, 4, 12, 12]); ctx.fill();
-      ctx.fillStyle = '#991b1b'; ctx.fillRect(truckX - 18, truckY + 22, 36, 10);
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath(); ctx.arc(truckX - 20, truckY + 26, 4, 0, Math.PI * 2); ctx.arc(truckX + 20, truckY + 26, 4, 0, Math.PI * 2); ctx.fill();
-
+      
       ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.roundRect(truckX - 28, truckY - 28, 56, 36, [8, 8, 4, 4]); ctx.fill();
-      ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2; ctx.strokeRect(truckX - 28, truckY - 28, 56, 36);
+      ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 2; ctx.strokeRect(truckX - 28, truckY - 28, 56, 36);
 
-      ctx.fillStyle = '#0f172a'; ctx.font = 'bold 8px sans-serif'; ctx.fillText('FANNIE MAY', truckX - 25, truckY - 14);
-      ctx.font = 'bold 7px sans-serif'; ctx.fillStyle = '#dc2626'; ctx.fillText('BOOK EXPRESS', truckX - 23, truckY - 4);
-
-      ctx.fillStyle = '#38bdf8'; ctx.fillRect(truckX - 18, truckY - 12, 36, 16);
-      ctx.fillStyle = '#dc2626'; ctx.beginPath(); ctx.arc(truckX, truckY - 12, 18, Math.PI, 0, false); ctx.fill();
+      ctx.fillStyle = '#0f172a'; ctx.font = 'bold 7px sans-serif'; ctx.fillText('FUNHOUSE', truckX - 26, truckY - 14);
+      ctx.font = 'bold 7px sans-serif'; ctx.fillStyle = '#7c2d12'; ctx.fillText('EXPRESS', truckX - 22, truckY - 4);
 
       ctx.fillStyle = '#0f172a';
       ctx.beginPath(); ctx.arc(truckX - 20, truckY + 36, 9, 0, Math.PI * 2); ctx.arc(truckX + 20, truckY + 36, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#94a3b8';
-      ctx.beginPath(); ctx.arc(truckX - 20, truckY + 36, 4, 0, Math.PI * 2); ctx.arc(truckX + 20, truckY + 36, 4, 0, Math.PI * 2); ctx.fill();
 
       for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
@@ -737,7 +720,6 @@
     }
 
     function scrambleWordBoard() {
-      // Fisher-Yates Shuffle
       for (let i = currentBoardLetters.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [currentBoardLetters[i], currentBoardLetters[j]] = [currentBoardLetters[j], currentBoardLetters[i]];
