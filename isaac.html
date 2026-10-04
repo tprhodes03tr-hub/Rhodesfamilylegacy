@@ -93,7 +93,7 @@
       border: 2px solid #f59e0b;
       border-radius: 12px;
       padding: 12px 18px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 800;
       color: #fbbf24;
       box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
@@ -270,16 +270,18 @@
       border-color: #059669;
       text-decoration: line-through;
     }
+    
+    /* TRUE FALLING TETRIS BUBBLE GRID */
     .tetris-bubble-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(4, 1fr);
       gap: 6px;
       background: #131c2e;
       padding: 10px;
       border-radius: 10px;
       border: 1px solid #1e293b;
-      height: 160px;
-      align-content: end;
+      height: 180px;
       overflow: hidden;
     }
     .tetris-bubble {
@@ -290,9 +292,17 @@
       align-items: center;
       justify-content: center;
       box-shadow: inset -3px -3px 8px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.3);
-      transition: transform 0.1s;
+      animation: dropDown 0.3s ease-out;
     }
-    .tetris-bubble:active { transform: scale(0.85); }
+    @keyframes dropDown {
+      0% { transform: translateY(-40px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    .bubble-empty {
+      background: transparent;
+      box-shadow: none;
+      cursor: default;
+    }
     .bubble-red { background: radial-gradient(circle at 30% 30%, #f87171, #dc2626); }
     .bubble-blue { background: radial-gradient(circle at 30% 30%, #38bdf8, #0284c7); }
     .bubble-gold { background: radial-gradient(circle at 30% 30%, #fbbf24, #d97706); }
@@ -354,7 +364,7 @@
       color: #fff;
       padding: 14px;
       border-radius: 12px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 900;
       text-align: center;
       cursor: pointer;
@@ -391,7 +401,7 @@
     <div class="score-board">
       <span id="scoreDisplay">SCORE: 0</span>
       <span id="zoneDisplay">ZONE: DETROIT</span>
-      <span id="targetDisplay">500 PTS = BOOK REWARD</span>
+      <span id="targetDisplay">2500 PTS = BOOK REWARD</span>
     </div>
 
     <!-- GAME VIEW 1: BOOK EXPRESS -->
@@ -400,10 +410,10 @@
         <!-- Age / Difficulty Selector Overlay -->
         <div id="ageModal">
           <h2>Select Your Explorer Level</h2>
-          <p>Choose your driver profile for customized speeds and delivery targets:</p>
+          <p>Choose your driver profile for higher speeds and higher delivery stakes:</p>
           <div class="modal-btns">
-            <button class="modal-btn" onclick="startGame('junior')">Junior Explorer (Kids)</button>
-            <button class="modal-btn" onclick="startGame('adult')">Legacy Adult Driver</button>
+            <button class="modal-btn" onclick="startGame('junior')">Junior Explorer</button>
+            <button class="modal-btn" onclick="startGame('adult')">Legacy Pro Driver</button>
           </div>
         </div>
         <canvas id="gameCanvas" width="480" height="360"></canvas>
@@ -429,7 +439,7 @@
         </div>
 
         <div class="word-grid" id="wordGrid"></div>
-        <div class="status-msg" id="statusMsg">Connect letters to find words & clear the Tetris bubble stack!</div>
+        <div class="status-msg" id="statusMsg">Watch bubbles drop from top! Tap bubbles or find words to clear room!</div>
 
         <div>
           <div class="section-label">2. Falling Color Bubble Stack (Tetris Match)</div>
@@ -442,16 +452,16 @@
     <div class="game-view" id="viewSuitcase">
       <div class="suitcase-panel">
         <div class="section-label">Heritage Vault Suitcase Guess</div>
-        <p style="font-size: 13px; color: #94a3b8;">Choose a winning suitcase to reveal its hidden legacy prize value and boost your book reward score!</p>
+        <p style="font-size: 13px; color: #94a3b8;">Choose wisely! Suitcases hold high bonuses (+50 to +100) or risky penalty deductions (-50 PTS)!</p>
         
         <div class="suitcase-grid" id="suitcaseGrid"></div>
 
-        <div class="status-msg" id="suitcaseStatus">Select a suitcase to open your prize!</div>
-        <button class="control-btn" style="width:100%; margin-top:8px;" onclick="resetSuitcases()">🔄 Play Again</button>
+        <div class="status-msg" id="suitcaseStatus">Select a suitcase to test your luck!</div>
+        <button class="control-btn" style="width:100%; margin-top:8px;" onclick="resetSuitcases()">🔄 Shuffle Vault</button>
       </div>
     </div>
 
-    <a href="#" class="reward-btn" id="rewardBtn" onclick="claimReward()">⭐ COLLECT 500 PTS = UNLOCK BOOK CHAPTER! ⭐</a>
+    <a href="#" class="reward-btn" id="rewardBtn" onclick="claimReward()">⭐ COLLECT 2500 PTS = UNLOCK BOOK CHAPTER! ⭐</a>
     
     <a href="index.html" class="return-link">← RETURN TO CINEMA HUB</a>
 
@@ -460,8 +470,7 @@
   <script>
     let score = 0;
     let activeMode = 'express';
-    let tetrisBubbles = [];
-    const maxStackSize = 15;
+    const targetGoal = 2500;
 
     function switchGameMode(mode) {
       activeMode = mode;
@@ -486,15 +495,15 @@
       }
     }
 
-    // --- AUDIO SYNTHESIZER FOR "BING" CHIME ---
-    function playBingSound() {
+    // --- AUDIO SYNTHESIZER FOR CHIMES ---
+    function playSound(isPositive = true) {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
-        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2); // A5 note
+        osc.type = isPositive ? 'sine' : 'sawtooth';
+        osc.frequency.setValueAtTime(isPositive ? 587.33 : 220, audioCtx.currentTime); 
+        osc.frequency.exponentialRampToValueAtTime(isPositive ? 880 : 110, audioCtx.currentTime + 0.2); 
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
         osc.connect(gain);
@@ -523,7 +532,7 @@
 
     function startGame(mode) {
       difficulty = mode;
-      speedMultiplier = (mode === 'adult') ? 1.4 : 1.0;
+      speedMultiplier = (mode === 'adult') ? 1.6 : 1.1;
       document.getElementById('ageModal').style.display = 'none';
       gameActive = true;
       resetGame();
@@ -538,8 +547,8 @@
       roadOffset = 0;
 
       for(let i=0; i<4; i++) {
-        scenery.push({ y: i * 100 - 50, side: 'left' });
-        scenery.push({ y: i * 100 - 50, side: 'right' });
+        scenery.push({ y: i * 110 - 50, side: 'left', type: i % 2 });
+        scenery.push({ y: i * 110 - 50, side: 'right', type: (i + 1) % 2 });
       }
     }
 
@@ -552,8 +561,9 @@
 
     function spawnObstacle() {
       const lane = Math.floor(Math.random() * 3);
-      const iconType = Math.random() > 0.5 ? '📖' : '🃏';
-      obstacles.push({ lane: lane, y: -50, icon: iconType });
+      const isBarrier = Math.random() > 0.7; 
+      const iconType = isBarrier ? '🚧' : (Math.random() > 0.5 ? '📖' : '🃏');
+      obstacles.push({ lane: lane, y: -50, icon: iconType, isBarrier: isBarrier });
     }
 
     let spawnTimer = 0;
@@ -566,27 +576,30 @@
 
       scenery.forEach(item => {
         item.y += 4 * speedMultiplier;
-        if (item.y > canvas.height + 50) {
-          item.y = -60;
-        }
+        if (item.y > canvas.height + 60) item.y = -80;
       });
 
       let targetX = lanes[truckLane];
       truckX += (targetX - truckX) * 0.25;
 
       spawnTimer++;
-      if (spawnTimer > (70 / speedMultiplier)) {
+      if (spawnTimer > (60 / speedMultiplier)) {
         spawnObstacle();
         spawnTimer = 0;
       }
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
-        obstacles[i].y += 4 * speedMultiplier;
+        obstacles[i].y += 4.5 * speedMultiplier;
 
-        // On-time delivery collection check (Every bubble box is good and awards points!)
         if (obstacles[i].y > truckY - 35 && obstacles[i].y < truckY + 35 && obstacles[i].lane === truckLane) {
-          score += (difficulty === 'adult' ? 35 : 50); 
-          triggerParticles(truckX, truckY);
+          if (obstacles[i].isBarrier) {
+            score = Math.max(0, score - 30); 
+            playSound(false);
+          } else {
+            score += (difficulty === 'adult' ? 15 : 25); 
+            playSound(true);
+            triggerParticles(truckX, truckY);
+          }
           obstacles.splice(i, 1);
           updateScore();
           continue;
@@ -599,13 +612,13 @@
     }
 
     function triggerParticles(x, y) {
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < 10; i++) {
         particles.push({
           x: x, y: y,
-          vx: (Math.random() - 0.5) * 7,
-          vy: (Math.random() - 0.5) * 7,
-          color: Math.random() > 0.4 ? '#fbbf24' : '#38bdf8',
-          life: 35
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          color: '#fbbf24',
+          life: 25
         });
       }
     }
@@ -632,18 +645,44 @@
       ctx.beginPath();
       ctx.moveTo(480, 130); ctx.lineTo(360, 130); ctx.lineTo(430, canvas.height); ctx.lineTo(480, canvas.height); ctx.fill();
 
+      // Render Upright Detroit Neighborhood Houses along the sidewalks
       scenery.forEach(item => {
-        let sx = item.side === 'left' ? 30 : 445;
-        let sy = item.y;
-        ctx.fillStyle = '#065f46';
-        ctx.fillRect(sx - 15, sy, 30, 25);
-        ctx.fillStyle = '#b45309';
-        ctx.beginPath();
-        ctx.moveTo(sx - 18, sy);
-        ctx.lineTo(sx, sy - 15);
-        ctx.lineTo(sx + 18, sy);
-        ctx.closePath();
-        ctx.fill();
+        let hx = item.side === 'left' ? 35 : 405;
+        let hy = item.y;
+        
+        if (item.type === 0) {
+          // Classic Detroit Brick House
+          ctx.fillStyle = '#7c2d12'; 
+          ctx.fillRect(hx, hy, 40, 35);
+          ctx.fillStyle = '#991b1b'; 
+          ctx.beginPath();
+          ctx.moveTo(hx - 5, hy);
+          ctx.lineTo(hx + 20, hy - 18);
+          ctx.lineTo(hx + 45, hy);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(hx + 15, hy + 15, 10, 20); 
+          ctx.fillStyle = '#fef08a';
+          ctx.fillRect(hx + 6, hy + 8, 8, 8);  
+          ctx.fillRect(hx + 26, hy + 8, 8, 8); 
+        } else {
+          // Classic Detroit Craftsman Home
+          ctx.fillStyle = '#1e3a8a'; 
+          ctx.fillRect(hx, hy, 44, 32);
+          ctx.fillStyle = '#1e293b'; 
+          ctx.beginPath();
+          ctx.moveTo(hx - 4, hy);
+          ctx.lineTo(hx + 22, hy - 15);
+          ctx.lineTo(hx + 48, hy);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#334155';
+          ctx.fillRect(hx + 12, hy + 14, 20, 18);
+          ctx.fillStyle = '#fef08a';
+          ctx.fillRect(hx + 6, hy + 6, 8, 8);
+          ctx.fillRect(hx + 30, hy + 6, 8, 8);
+        }
       });
 
       ctx.fillStyle = '#1e293b';
@@ -664,9 +703,9 @@
         let oy = obs.y;
         
         let bubbleGrad = ctx.createRadialGradient(ox - 6, oy - 6, 4, ox, oy, 24);
-        bubbleGrad.addColorStop(0, '#fef08a');
-        bubbleGrad.addColorStop(0.5, '#f59e0b');
-        bubbleGrad.addColorStop(1, '#b45309');
+        bubbleGrad.addColorStop(0, obs.isBarrier ? '#fca5a5' : '#fef08a');
+        bubbleGrad.addColorStop(0.5, obs.isBarrier ? '#dc2626' : '#f59e0b');
+        bubbleGrad.addColorStop(1, obs.isBarrier ? '#7f1d1d' : '#b45309');
         ctx.fillStyle = bubbleGrad;
         ctx.beginPath();
         ctx.arc(ox, oy, 22, 0, Math.PI * 2);
@@ -715,7 +754,7 @@
       if (gameActive) requestAnimationFrame(loop);
     }
 
-    // --- WORD SEARCH & TETRIS BUBBLE STACK ENGINE ---
+    // --- WORD SEARCH & TRUE FALLING TETRIS BUBBLE STACK ENGINE ---
     let selectedIndices = [];
     const targetWords = ["MARROW", "LEGACY", "CLOCK", "DETROIT"];
     const gridLetters = [
@@ -726,7 +765,10 @@
       'T', 'S', 'A', 'G', 'I', 'N',
       'A', 'B', 'C', 'D', 'E', 'F'
     ];
-    const bubbleClasses = ['bubble-red', 'bubble-blue', 'bubble-gold', 'bubble-green'];
+    
+    const tetrisCols = 5;
+    const tetrisRows = 4;
+    let tetrisBoard = [];
 
     function initWordGrid() {
       const wordGridEl = document.getElementById('wordGrid');
@@ -747,58 +789,113 @@
 
       let currentWord = selectedIndices.join('');
       if (targetWords.includes(currentWord)) {
-        score += 100;
-        playBingSound(); 
-        document.getElementById('statusMsg').innerText = `🎉 Correct! Found "${currentWord}" +100 PTS & Stack Cleared!`;
+        score += 25; 
+        playSound(true);
+        document.getElementById('statusMsg').innerText = `🎉 Found "${currentWord}" (+25 PTS)! Row cleared!`;
         document.getElementById(`clue-${currentWord}`).classList.add('found');
         selectedIndices = [];
         document.querySelectorAll('.letter-cell.selected').forEach(c => c.classList.remove('selected'));
         updateScore();
-        clearTetrisStack();
+        clearBottomTetrisRow();
       } else if (currentWord.length >= 7) {
+        score = Math.max(0, score - 10); 
+        playSound(false);
         selectedIndices = [];
         document.querySelectorAll('.letter-cell.selected').forEach(c => c.classList.remove('selected'));
-        document.getElementById('statusMsg').innerText = 'Try connecting adjacent letters!';
+        document.getElementById('statusMsg').innerText = '❌ Incorrect word! -10 PTS penalty.';
+        updateScore();
       }
     }
 
-    function initTetrisStack() {
+    function initTetrisBoard() {
+      tetrisBoard = [];
+      for (let r = 0; r < tetrisRows; r++) {
+        let row = [];
+        for (let c = 0; c < tetrisCols; c++) {
+          row.push(null);
+        }
+        tetrisBoard.push(row);
+      }
+      for (let r = 2; r < tetrisRows; r++) {
+        for (let c = 0; c < tetrisCols; c++) {
+          tetrisBoard[r][c] = getRandomBubbleColor();
+        }
+      }
+      renderTetrisBoard();
+    }
+
+    function getRandomBubbleColor() {
+      const colors = ['bubble-red', 'bubble-blue', 'bubble-gold', 'bubble-green'];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    function renderTetrisBoard() {
       const gridEl = document.getElementById('tetrisBubbleGrid');
       gridEl.innerHTML = '';
-      tetrisBubbles = [];
-      for (let i = 0; i < 10; i++) addFallingBubble();
-    }
-
-    function addFallingBubble() {
-      const gridEl = document.getElementById('tetrisBubbleGrid');
-      if (tetrisBubbles.length >= maxStackSize) return;
-      const bubble = document.createElement('div');
-      const randomClass = bubbleClasses[Math.floor(Math.random() * bubbleClasses.length)];
-      bubble.className = `tetris-bubble ${randomClass}`;
-      bubble.onclick = () => {
-        score += 10;
-        updateScore();
-        bubble.style.transform = 'scale(0)';
-        setTimeout(() => {
-          bubble.remove();
-          tetrisBubbles = tetrisBubbles.filter(b => b !== bubble);
-        }, 150);
-      };
-      gridEl.appendChild(bubble);
-      tetrisBubbles.push(bubble);
-    }
-
-    function clearTetrisStack() {
-      let removeCount = Math.min(5, tetrisBubbles.length);
-      for (let i = 0; i < removeCount; i++) {
-        let b = tetrisBubbles.pop();
-        if (b) b.remove();
+      for (let r = 0; r < tetrisRows; r++) {
+        for (let c = 0; c < tetrisCols; c++) {
+          const cell = document.createElement('div');
+          const colorClass = tetrisBoard[r][c];
+          if (colorClass) {
+            cell.className = `tetris-bubble ${colorClass}`;
+            cell.onclick = () => popTetrisBubble(r, c);
+          } else {
+            cell.className = 'tetris-bubble bubble-empty';
+          }
+          gridEl.appendChild(cell);
+        }
       }
-      for (let i = 0; i < 3; i++) addFallingBubble();
+    }
+
+    function popTetrisBubble(r, c) {
+      if (!tetrisBoard[r][c]) return;
+      playSound(true);
+      score += 10;
+      updateScore();
+      
+      tetrisBoard[r][c] = null;
+      for (let row = r; row > 0; row--) {
+        tetrisBoard[row][c] = tetrisBoard[row - 1][c];
+        tetrisBoard[row - 1][c] = null;
+      }
+      renderTetrisBoard();
+    }
+
+    function dropNewBubbleRow() {
+      for (let c = 0; c < tetrisCols; c++) {
+        if (tetrisBoard[0][c] !== null) {
+          score = Math.max(0, score - 25);
+          updateScore();
+          document.getElementById('statusMsg').innerText = '⚠️ Stack overflow penalty! -25 PTS';
+          break;
+        }
+      }
+
+      for (let r = 0; r < tetrisRows - 1; r++) {
+        tetrisBoard[r] = [...tetrisBoard[r + 1]];
+      }
+      
+      let newRow = [];
+      for (let c = 0; c < tetrisCols; c++) {
+        newRow.push(getRandomBubbleColor());
+      }
+      tetrisBoard[tetrisRows - 1] = newRow;
+      renderTetrisBoard();
+    }
+
+    function clearBottomTetrisRow() {
+      for (let c = 0; c < tetrisCols; c++) {
+        tetrisBoard[tetrisRows - 1][c] = null;
+      }
+      for (let r = tetrisRows - 1; r > 0; r--) {
+        tetrisBoard[r] = [...tetrisBoard[r - 1]];
+      }
+      tetrisBoard[0] = [null, null, null, null, null];
+      renderTetrisBoard();
     }
 
     // --- SUITCASE PRIZE VAULT ENGINE ---
-    const suitcaseValues = [50, 100, 150, 200, 250, 500];
+    const suitcaseValues = [-50, 25, 50, 75, -25, 100]; 
     let suitcases = [];
 
     function initSuitcases() {
@@ -813,17 +910,18 @@
         card.onclick = () => openSuitcase(card, val, idx);
         grid.appendChild(card);
       });
-      document.getElementById('suitcaseStatus').innerText = "Pick a heritage suitcase to unlock your prize!";
+      document.getElementById('suitcaseStatus').innerText = "Careful! Some suitcases hold penalty deductions!";
     }
 
     function openSuitcase(card, val, idx) {
       if (card.classList.contains('opened')) return;
       card.classList.add('opened');
-      card.innerText = `+${val} PTS`;
-      score += val;
+      card.innerText = val > 0 ? `+${val} PTS` : `${val} PTS`;
+      card.style.color = val > 0 ? '#fbbf24' : '#f87171';
+      score = Math.max(0, score + val);
       updateScore();
-      playBingSound();
-      document.getElementById('suitcaseStatus').innerText = `🎉 Suitcase #${idx + 1} revealed +${val} Points!`;
+      playSound(val > 0);
+      document.getElementById('suitcaseStatus').innerText = val > 0 ? `🎉 Suitcase #${idx + 1} gave +${val} Points!` : `⚠️ Suitcase #${idx + 1} hit a penalty of ${val} Points!`;
     }
 
     function resetSuitcases() {
@@ -832,27 +930,29 @@
 
     function updateScore() {
       document.getElementById('scoreDisplay').innerText = `SCORE: ${score}`;
-      if (score >= 500) {
+      if (score >= targetGoal) {
         document.getElementById('rewardBtn').style.background = 'linear-gradient(135deg, #059669, #10b981)';
         document.getElementById('rewardBtn').innerText = '🎉 UNLOCK UNIFIED BOOK CHAPTER NOW! 🎉';
       }
     }
 
     function claimReward() {
-      if (score >= 500) {
-        alert('Congratulations! You unlocked your book preview chapter from Rhodes Family Legacy!');
+      if (score >= targetGoal) {
+        alert('Congratulations! You successfully conquered the 2,500-point challenge and unlocked your VIP book chapter!');
         window.location.href = 'https://payhip.com/rhodesfamilylegacy';
       } else {
-        alert('Reach 500 points across games to unlock your reward chapter!');
+        alert(`You need ${targetGoal} points to unlock the book chapter. Keep playing and strategizing!`);
       }
     }
 
     initWordGrid();
-    initTetrisStack();
+    initTetrisBoard();
     
     setInterval(() => {
-      if (activeMode === 'puzzle') addFallingBubble();
-    }, 4000);
+      if (activeMode === 'puzzle') {
+        dropNewBubbleRow();
+      }
+    }, 4500);
   </script>
 </body>
 </html>
