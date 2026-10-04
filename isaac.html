@@ -242,17 +242,18 @@
     let gameActive = false;
     let difficulty = 'junior'; 
     let truckLane = 1; // 0: Left, 1: Center, 2: Right
-    const lanes = [100, 240, 380];
+    const lanes = [120, 240, 360];
     let truckX = lanes[1];
     const truckY = 260;
 
     let obstacles = [];
     let particles = [];
+    let roadOffset = 0;
     let speedMultiplier = 1;
 
     function startGame(mode) {
       difficulty = mode;
-      speedMultiplier = (mode === 'adult') ? 1.35 : 1.0;
+      speedMultiplier = (mode === 'adult') ? 1.4 : 1.0;
       document.getElementById('ageModal').style.display = 'none';
       gameActive = true;
       resetGame();
@@ -264,6 +265,7 @@
       obstacles = [];
       truckLane = 1;
       truckX = lanes[truckLane];
+      roadOffset = 0;
     }
 
     function moveTruck(dir) {
@@ -288,17 +290,21 @@
     function update() {
       if (!gameActive) return;
 
+      // Scroll road smoothly downward for active motion
+      roadOffset += 6 * speedMultiplier;
+      if (roadOffset > 40) roadOffset = 0;
+
       let targetX = lanes[truckLane];
       truckX += (targetX - truckX) * 0.25;
 
       spawnTimer++;
-      if (spawnTimer > (90 / speedMultiplier)) {
+      if (spawnTimer > (75 / speedMultiplier)) {
         spawnObstacle();
         spawnTimer = 0;
       }
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
-        obstacles[i].y += 3.2 * speedMultiplier;
+        obstacles[i].y += 4 * speedMultiplier;
 
         if (obstacles[i].y > truckY - 35 && obstacles[i].y < truckY + 35 && obstacles[i].lane === truckLane) {
           if (obstacles[i].type === 'parcel') {
@@ -324,62 +330,82 @@
     }
 
     function triggerParticles(x, y) {
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 12; i++) {
         particles.push({
           x: x,
           y: y,
-          vx: (Math.random() - 0.5) * 5,
-          vy: (Math.random() - 0.5) * 5,
-          life: 25
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          color: Math.random() > 0.5 ? '#fbbf24' : '#38bdf8',
+          life: 30
         });
       }
     }
 
     function draw() {
-      // Sky & Horizon Background
+      // Sky Background
       ctx.fillStyle = '#0c4a6e';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Illustrated Skyline Silhouette (Detroit-inspired)
+      // Illustrated Skyline Silhouette
       ctx.fillStyle = '#0369a1';
       ctx.beginPath();
       ctx.moveTo(0, 130);
-      ctx.lineTo(50, 95);
-      ctx.lineTo(100, 115);
-      ctx.lineTo(160, 75);
-      ctx.lineTo(220, 105);
-      ctx.lineTo(280, 60);
-      ctx.lineTo(340, 95);
-      ctx.lineTo(400, 80);
-      ctx.lineTo(480, 120);
+      ctx.lineTo(45, 90);
+      ctx.lineTo(95, 120);
+      ctx.lineTo(150, 70);
+      ctx.lineTo(210, 100);
+      ctx.lineTo(270, 55);
+      ctx.lineTo(330, 90);
+      ctx.lineTo(390, 70);
+      ctx.lineTo(440, 110);
+      ctx.lineTo(480, 95);
       ctx.lineTo(480, 130);
       ctx.lineTo(0, 130);
       ctx.fill();
 
-      // Roadway
+      // Sidewalks
+      ctx.fillStyle = '#047857';
+      ctx.beginPath();
+      ctx.moveTo(0, 130);
+      ctx.lineTo(130, 130);
+      ctx.lineTo(60, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(480, 130);
+      ctx.lineTo(350, 130);
+      ctx.lineTo(420, canvas.height);
+      ctx.lineTo(480, canvas.height);
+      ctx.fill();
+
+      // Scrolling Asphalt Roadway
       ctx.fillStyle = '#1e293b';
       ctx.beginPath();
-      ctx.moveTo(140, 130);
-      ctx.lineTo(340, 130);
-      ctx.lineTo(480, canvas.height);
-      ctx.lineTo(0, canvas.height);
+      ctx.moveTo(130, 130);
+      ctx.lineTo(350, 130);
+      ctx.lineTo(420, canvas.height);
+      ctx.lineTo(60, canvas.height);
       ctx.closePath();
       ctx.fill();
 
-      // Lane Divider Dashes
+      // Animated Lane Dashes (Scrolling Effect)
       ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([16, 16]);
+      ctx.lineWidth = 4;
+      ctx.setLineDash([20, 20]);
+      ctx.lineDashOffset = -roadOffset;
+
       ctx.beginPath();
-      ctx.moveTo(213, 130);
-      ctx.lineTo(160, canvas.height);
+      ctx.moveTo(203, 130);
+      ctx.lineTo(180, canvas.height);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(267, 130);
-      ctx.lineTo(320, canvas.height);
+      ctx.moveTo(277, 130);
+      ctx.lineTo(300, canvas.height);
       ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.setLineDash([]); // Reset dash
 
       // Draw Parcels & Obstacles
       obstacles.forEach(obs => {
@@ -387,87 +413,83 @@
         let oy = obs.y;
         if (obs.type === 'parcel') {
           ctx.fillStyle = '#f59e0b';
-          ctx.fillRect(ox - 20, oy - 20, 40, 40);
+          ctx.fillRect(ox - 22, oy - 22, 44, 44);
           ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(ox - 20, oy - 20, 40, 40);
+          ctx.lineWidth = 3;
+          ctx.strokeRect(ox - 22, oy - 22, 44, 44);
           ctx.fillStyle = '#fff';
-          ctx.font = '18px sans-serif';
-          ctx.fillText('📦', ox - 12, oy + 7);
+          ctx.font = '20px sans-serif';
+          ctx.fillText('📦', ox - 13, oy + 8);
         } else {
           ctx.fillStyle = '#dc2626';
-          ctx.fillRect(ox - 20, oy - 20, 40, 40);
+          ctx.fillRect(ox - 22, oy - 22, 44, 44);
           ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(ox - 20, oy - 20, 40, 40);
+          ctx.lineWidth = 3;
+          ctx.strokeRect(ox - 22, oy - 22, 44, 44);
           ctx.fillStyle = '#fff';
-          ctx.font = '18px sans-serif';
-          ctx.fillText('⚠️', ox - 12, oy + 7);
+          ctx.font = '20px sans-serif';
+          ctx.fillText('⚠️', ox - 13, oy + 8);
         }
       });
 
       // Draw Illustrated Vintage Delivery Truck (Fannie May's Book Express)
-      // Truck Hood / Front
       ctx.fillStyle = '#dc2626';
       ctx.beginPath();
-      ctx.roundRect(truckX - 22, truckY + 2, 44, 28, [4, 4, 10, 10]);
+      ctx.roundRect(truckX - 24, truckY + 2, 48, 30, [4, 4, 10, 10]);
       ctx.fill();
 
-      // Rounded Front Grille / Bumper
       ctx.fillStyle = '#991b1b';
-      ctx.fillRect(truckX - 16, truckY + 18, 32, 10);
+      ctx.fillRect(truckX - 18, truckY + 20, 36, 10);
 
       // Headlights
       ctx.fillStyle = '#fef08a';
       ctx.beginPath();
-      ctx.arc(truckX - 18, truckY + 22, 4, 0, Math.PI * 2);
-      ctx.arc(truckX + 18, truckY + 22, 4, 0, Math.PI * 2);
+      ctx.arc(truckX - 20, truckY + 24, 4, 0, Math.PI * 2);
+      ctx.arc(truckX + 20, truckY + 24, 4, 0, Math.PI * 2);
       ctx.fill();
 
-      // Cargo Box (White with branding)
+      // Cargo Box (White with clean branding)
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.roundRect(truckX - 26, truckY - 26, 52, 32, [8, 8, 4, 4]);
+      ctx.roundRect(truckX - 28, truckY - 28, 56, 34, [8, 8, 4, 4]);
       ctx.fill();
 
-      // Cargo Box Trim / Shadow
       ctx.fillStyle = '#e2e8f0';
-      ctx.fillRect(truckX - 26, truckY - 26, 52, 6);
+      ctx.fillRect(truckX - 28, truckY - 28, 56, 6);
 
-      // Book Express Text on Box
       ctx.fillStyle = '#0f172a';
       ctx.font = 'bold 8px sans-serif';
-      ctx.fillText('LITTLE FANNIE MAY', truckX - 23, truckY - 14);
+      ctx.fillText('FANNIE MAY', truckX - 24, truckY - 15);
       ctx.font = '7px sans-serif';
       ctx.fillStyle = '#dc2626';
-      ctx.fillText('BOOK EXPRESS', truckX - 21, truckY - 4);
+      ctx.fillText('BOOK EXPRESS', truckX - 23, truckY - 5);
 
       // Windshield & Cab Roof
       ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(truckX - 16, truckY - 10, 32, 14);
+      ctx.fillRect(truckX - 18, truckY - 12, 36, 16);
       ctx.fillStyle = '#b91c1c';
       ctx.beginPath();
-      ctx.arc(truckX, truckY - 10, 16, Math.PI, 0, false);
+      ctx.arc(truckX, truckY - 12, 18, Math.PI, 0, false);
       ctx.fill();
 
       // Wheels
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.arc(truckX - 18, truckY + 32, 8, 0, Math.PI * 2);
-      ctx.arc(truckX + 18, truckY + 32, 8, 0, Math.PI * 2);
-      ctx.fill();
-      // Wheel Hubs
-      ctx.fillStyle = '#94a3b8';
-      ctx.beginPath();
-      ctx.arc(truckX - 18, truckY + 32, 3, 0, Math.PI * 2);
-      ctx.arc(truckX + 18, truckY + 32, 3, 0, Math.PI * 2);
+      ctx.arc(truckX - 20, truckY + 34, 9, 0, Math.PI * 2);
+      ctx.arc(truckX + 20, truckY + 34, 9, 0, Math.PI * 2);
       ctx.fill();
 
-      // Particles
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(truckX - 20, truckY + 34, 4, 0, Math.PI * 2);
+      ctx.arc(truckX + 20, truckY + 34, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Particle Bursts
       for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillRect(p.x, p.y, 5, 5);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, 6, 6);
         p.x += p.vx;
         p.y += p.vy;
         p.life--;
