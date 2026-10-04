@@ -207,7 +207,7 @@
       color: #060913;
     }
 
-    /* WORD SEARCH STYLES */
+    /* SCRAMBLE WORD SEARCH STYLES */
     .puzzle-panel {
       background: #0f172a;
       border: 3px solid #f59e0b;
@@ -215,7 +215,7 @@
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       box-shadow: 0 12px 30px rgba(0,0,0,0.7);
     }
     .section-label {
@@ -247,12 +247,16 @@
       color: #f8fafc;
       border-radius: 8px;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .letter-cell:active {
+      transform: scale(0.92);
     }
     .letter-cell.selected {
       background: #f59e0b;
       color: #060913;
       border-color: #fff;
+      box-shadow: 0 0 10px #f59e0b;
     }
     .word-clues {
       display: flex;
@@ -272,6 +276,10 @@
       color: #4ade80;
       border-color: #059669;
       text-decoration: line-through;
+    }
+    .scramble-actions {
+      display: flex;
+      gap: 10px;
     }
 
     /* TETRIS PANEL STYLES */
@@ -332,7 +340,7 @@
     <!-- 3-WAY MODE SWITCHER -->
     <div class="mode-switch-bar">
       <button class="mode-btn active" id="btnExpress" onclick="switchGameMode('express')">🚚 Book Express</button>
-      <button class="mode-btn" id="btnPuzzle" onclick="switchGameMode('puzzle')">🧩 Word Search</button>
+      <button class="mode-btn" id="btnPuzzle" onclick="switchGameMode('puzzle')">🧩 Scramble Word Search</button>
       <button class="mode-btn" id="btnTetris" onclick="switchGameMode('tetris')">🕹️ Legacy Tetris</button>
     </div>
 
@@ -363,11 +371,11 @@
       </div>
     </div>
 
-    <!-- GAME VIEW 2: CLEAN RELAXED WORD SEARCH -->
+    <!-- GAME VIEW 2: SCRAMBLE WORD SEARCH -->
     <div class="game-view" id="viewPuzzle">
       <div class="puzzle-panel">
         <div>
-          <div class="section-label">Heritage Word Search (Relaxed Solo Mode)</div>
+          <div class="section-label">Heritage Scramble Word Search</div>
           <div class="word-clues" id="wordClues">
             <span class="word-clue" id="clue-MARROW">MARROW</span>
             <span class="word-clue" id="clue-LEGACY">LEGACY</span>
@@ -377,7 +385,12 @@
         </div>
 
         <div class="word-grid" id="wordGrid"></div>
-        <div class="status-msg" id="statusMsg">Connect letters in order to find heritage words (+100 PTS)!</div>
+        <div class="status-msg" id="statusMsg">Select letters in any order or shuffle the board!</div>
+        
+        <div class="scramble-actions">
+          <button class="control-btn" style="width:100%;" onclick="scrambleWordBoard()">🔀 SHUFFLE BOARD</button>
+          <button class="control-btn" style="width:100%; background: #f59e0b; color: #060913;" onclick="submitScrambleWord()">SUBMIT WORD</button>
+        </div>
       </div>
     </div>
 
@@ -423,7 +436,7 @@
         document.getElementById('mainTitle').innerText = "Little Fannie May's Book Express";
         document.getElementById('zoneDisplay').innerText = "ZONE: DETROIT";
       } else if (mode === 'puzzle') {
-        document.getElementById('mainTitle').innerText = "Heritage Word Search";
+        document.getElementById('mainTitle').innerText = "Heritage Scramble Word Search";
         document.getElementById('zoneDisplay').innerText = "ZONE: LEGACY VAULT";
       } else {
         document.getElementById('mainTitle').innerText = "Legacy Tetris Arcade";
@@ -688,10 +701,10 @@
       if (gameActive) requestAnimationFrame(loop);
     }
 
-    // --- CLEAN WORD SEARCH ENGINE ---
-    let selectedIndices = [];
+    // --- SCRAMBLE WORD SEARCH ENGINE ---
+    let selectedCellObjects = [];
     const targetWords = ["MARROW", "LEGACY", "CLOCK", "DETROIT"];
-    const gridLetters = [
+    let currentBoardLetters = [
       'M', 'A', 'R', 'R', 'O', 'W',
       'L', 'E', 'G', 'A', 'C', 'Y',
       'C', 'L', 'O', 'C', 'K', 'X',
@@ -703,36 +716,54 @@
     function initWordGrid() {
       const wordGridEl = document.getElementById('wordGrid');
       wordGridEl.innerHTML = '';
-      gridLetters.forEach((letter) => {
+      currentBoardLetters.forEach((letter, idx) => {
         const cell = document.createElement('div');
         cell.className = 'letter-cell';
         cell.innerText = letter;
-        cell.onclick = () => selectLetter(cell, letter);
+        cell.onclick = () => toggleScrambleCell(cell, letter, idx);
         wordGridEl.appendChild(cell);
       });
     }
 
-    function selectLetter(cell, letter) {
-      if (cell.classList.contains('selected')) return;
-      cell.classList.add('selected');
-      selectedIndices.push(letter);
+    function toggleScrambleCell(cell, letter, idx) {
+      cell.classList.toggle('selected');
+      const existingIndex = selectedCellObjects.findIndex(item => item.idx === idx);
+      
+      if (existingIndex > -1) {
+        selectedCellObjects.splice(existingIndex, 1);
+      } else {
+        selectedCellObjects.push({ letter, idx });
+      }
+    }
 
-      let currentWord = selectedIndices.join('');
-      if (targetWords.includes(currentWord)) {
-        score += 100; 
+    function scrambleWordBoard() {
+      // Fisher-Yates Shuffle
+      for (let i = currentBoardLetters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [currentBoardLetters[i], currentBoardLetters[j]] = [currentBoardLetters[j], currentBoardLetters[i]];
+      }
+      selectedCellObjects = [];
+      initWordGrid();
+      document.getElementById('statusMsg').innerText = '🔀 Board shuffled! Pick your letters.';
+    }
+
+    function submitScrambleWord() {
+      const formedWord = selectedCellObjects.map(item => item.letter).join('');
+      if (targetWords.includes(formedWord)) {
+        score += 100;
         playSound(true);
-        document.getElementById('statusMsg').innerText = `🎉 Found "${currentWord}" (+100 PTS)!`;
-        document.getElementById(`clue-${currentWord}`).classList.add('found');
-        selectedIndices = [];
-        document.querySelectorAll('.letter-cell.selected').forEach(c => c.classList.remove('selected'));
+        document.getElementById('statusMsg').innerText = `🎉 Found "${formedWord}" (+100 PTS)!`;
+        const clueEl = document.getElementById(`clue-${formedWord}`);
+        if (clueEl) clueEl.classList.add('found');
+        
+        selectedCellObjects = [];
+        initWordGrid();
         updateScore();
-      } else if (currentWord.length >= 7) {
-        score = Math.max(0, score - 15); 
+      } else {
         playSound(false);
-        selectedIndices = [];
+        document.getElementById('statusMsg').innerText = `❌ "${formedWord}" is not a target word. Try again!`;
+        selectedCellObjects = [];
         document.querySelectorAll('.letter-cell.selected').forEach(c => c.classList.remove('selected'));
-        document.getElementById('statusMsg').innerText = '❌ Incorrect word! -15 PTS penalty.';
-        updateScore();
       }
     }
 
