@@ -356,7 +356,7 @@
         <!-- Age / Difficulty Selector Overlay -->
         <div id="ageModal">
           <h2>Select Your Explorer Level</h2>
-          <p>Choose your driver profile for customized speeds and heritage challenge depth:</p>
+          <p>Choose your driver profile for customized speeds and delivery targets:</p>
           <div class="modal-btns">
             <button class="modal-btn" onclick="startGame('junior')">Junior Explorer (Kids)</button>
             <button class="modal-btn" onclick="startGame('adult')">Legacy Adult Driver</button>
@@ -420,6 +420,26 @@
       }
     }
 
+    // --- AUDIO SYNTHESIZER FOR "BING" CHIME ---
+    function playBingSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2); // A5 note
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } catch (e) {
+        // Audio context fallback if blocked by browser policy
+      }
+    }
+
     // --- BOOK EXPRESS ENGINE ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -433,6 +453,7 @@
 
     let obstacles = [];
     let particles = [];
+    let scenery = [];
     let roadOffset = 0;
     let speedMultiplier = 1;
 
@@ -447,9 +468,15 @@
 
     function resetGame() {
       obstacles = [];
+      scenery = [];
       truckLane = 1;
       truckX = lanes[truckLane];
       roadOffset = 0;
+
+      for(let i=0; i<4; i++) {
+        scenery.push({ y: i * 100 - 50, side: 'left' });
+        scenery.push({ y: i * 100 - 50, side: 'right' });
+      }
     }
 
     function moveTruck(dir) {
@@ -461,8 +488,8 @@
 
     function spawnObstacle() {
       const lane = Math.floor(Math.random() * 3);
-      const type = Math.random() > 0.3 ? 'parcel' : 'barrier';
-      obstacles.push({ lane: lane, y: -50, type: type });
+      const iconType = Math.random() > 0.5 ? '📖' : '🃏';
+      obstacles.push({ lane: lane, y: -50, icon: iconType });
     }
 
     let spawnTimer = 0;
@@ -473,11 +500,18 @@
       roadOffset += 6 * speedMultiplier;
       if (roadOffset > 40) roadOffset = 0;
 
+      scenery.forEach(item => {
+        item.y += 4 * speedMultiplier;
+        if (item.y > canvas.height + 50) {
+          item.y = -60;
+        }
+      });
+
       let targetX = lanes[truckLane];
       truckX += (targetX - truckX) * 0.25;
 
       spawnTimer++;
-      if (spawnTimer > (75 / speedMultiplier)) {
+      if (spawnTimer > (70 / speedMultiplier)) {
         spawnObstacle();
         spawnTimer = 0;
       }
@@ -485,13 +519,10 @@
       for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].y += 4 * speedMultiplier;
 
+        // On-time delivery collection check (Every bubble box is good and awards points!)
         if (obstacles[i].y > truckY - 35 && obstacles[i].y < truckY + 35 && obstacles[i].lane === truckLane) {
-          if (obstacles[i].type === 'parcel') {
-            score += (difficulty === 'adult' ? 25 : 50);
-            triggerParticles(truckX, truckY);
-          } else {
-            score = Math.max(0, score - 15);
-          }
+          score += (difficulty === 'adult' ? 35 : 50); 
+          triggerParticles(truckX, truckY);
           obstacles.splice(i, 1);
           updateScore();
           continue;
@@ -537,6 +568,20 @@
       ctx.beginPath();
       ctx.moveTo(480, 130); ctx.lineTo(360, 130); ctx.lineTo(430, canvas.height); ctx.lineTo(480, canvas.height); ctx.fill();
 
+      scenery.forEach(item => {
+        let sx = item.side === 'left' ? 30 : 445;
+        let sy = item.y;
+        ctx.fillStyle = '#065f46';
+        ctx.fillRect(sx - 15, sy, 30, 25);
+        ctx.fillStyle = '#b45309';
+        ctx.beginPath();
+        ctx.moveTo(sx - 18, sy);
+        ctx.lineTo(sx, sy - 15);
+        ctx.lineTo(sx + 18, sy);
+        ctx.closePath();
+        ctx.fill();
+      });
+
       ctx.fillStyle = '#1e293b';
       ctx.beginPath();
       ctx.moveTo(120, 130); ctx.lineTo(360, 130); ctx.lineTo(430, canvas.height); ctx.lineTo(50, canvas.height);
@@ -553,18 +598,22 @@
       obstacles.forEach(obs => {
         let ox = lanes[obs.lane];
         let oy = obs.y;
-        if (obs.type === 'parcel') {
-          ctx.fillStyle = '#f59e0b';
-          ctx.fillRect(ox - 22, oy - 22, 44, 44);
-          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.strokeRect(ox - 22, oy - 22, 44, 44);
-          ctx.fillStyle = '#dc2626'; ctx.fillRect(ox - 6, oy - 22, 12, 44); ctx.fillRect(ox - 22, oy - 6, 44, 12);
-          ctx.fillStyle = '#fff'; ctx.font = '18px sans-serif'; ctx.fillText('📖', ox - 10, oy + 7);
-        } else {
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(ox - 22, oy - 22, 44, 44);
-          ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(ox - 22, oy - 22, 44, 44);
-          ctx.fillStyle = '#fff'; ctx.font = '20px sans-serif'; ctx.fillText('⚠️', ox - 12, oy + 8);
-        }
+        
+        let bubbleGrad = ctx.createRadialGradient(ox - 6, oy - 6, 4, ox, oy, 24);
+        bubbleGrad.addColorStop(0, '#fef08a');
+        bubbleGrad.addColorStop(0.5, '#f59e0b');
+        bubbleGrad.addColorStop(1, '#b45309');
+        ctx.fillStyle = bubbleGrad;
+        ctx.beginPath();
+        ctx.arc(ox, oy, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px sans-serif';
+        ctx.fillText(obs.icon, ox - 8, oy + 6);
       });
 
       ctx.fillStyle = '#b91c1c';
@@ -577,7 +626,7 @@
       ctx.beginPath(); ctx.roundRect(truckX - 28, truckY - 28, 56, 36, [8, 8, 4, 4]); ctx.fill();
       ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2; ctx.strokeRect(truckX - 28, truckY - 28, 56, 36);
 
-      ctx.fillStyle = '#0f172a'; ctx.font = 'bold 8px sans-serif'; ctx.fillText('LITTLE FANNIE MAY', truckX - 25, truckY - 14);
+      ctx.fillStyle = '#0f172a'; ctx.font = 'bold 8px sans-serif'; ctx.fillText('FANNIE MAY', truckX - 25, truckY - 14);
       ctx.font = 'bold 7px sans-serif'; ctx.fillStyle = '#dc2626'; ctx.fillText('BOOK EXPRESS', truckX - 23, truckY - 4);
 
       ctx.fillStyle = '#38bdf8'; ctx.fillRect(truckX - 18, truckY - 12, 36, 16);
@@ -635,7 +684,8 @@
       let currentWord = selectedIndices.join('');
       if (targetWords.includes(currentWord)) {
         score += 100;
-        document.getElementById('statusMsg').innerText = `🎉 Found word: ${currentWord}! Bubble Burst Combo Unlocked!`;
+        playBingSound(); // Play satisfying chime sound on correct word
+        document.getElementById('statusMsg').innerText = `🎉 Correct! Found "${currentWord}" +100 PTS & Bubble Combo Unlocked!`;
         document.getElementById(`clue-${currentWord}`).classList.add('found');
         selectedIndices = [];
         document.querySelectorAll('.letter-cell.selected').forEach(c => c.classList.remove('selected'));
@@ -661,8 +711,20 @@
       bubble.onclick = () => {
         score += 15;
         updateScore();
-        bubble.style.transform = 'scale(0)';
-        setTimeout(() => { bubble.remove(); createBubble(container); createBubble(container); }, 150);
+        
+        bubble.style.transform = 'scale(1.4)';
+        bubble.style.filter = 'brightness(1.8)';
+        bubble.innerText = '💥';
+        
+        setTimeout(() => { 
+          bubble.style.transform = 'scale(0)';
+          bubble.style.opacity = '0';
+          setTimeout(() => {
+            bubble.remove(); 
+            createBubble(container); 
+            createBubble(container);
+          }, 150);
+        }, 120);
       };
       container.appendChild(bubble);
     }
