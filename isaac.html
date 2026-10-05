@@ -54,7 +54,7 @@
       letter-spacing: 0.5px;
     }
 
-    /* 4-WAY MODE SWITCHER BAR */
+    /* 5-WAY MODE SWITCHER BAR (BALANCED GRID) */
     .mode-switch-bar {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -64,6 +64,9 @@
       padding: 6px;
       border-radius: 12px;
       border: 1px solid #1e293b;
+    }
+    .mode-switch-bar .full-width {
+      grid-column: span 2;
     }
     .mode-btn {
       padding: 10px 6px;
@@ -292,7 +295,6 @@
       cursor: pointer;
       text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
-    /* Vibrant multi-color tile styling */
     .letter-cell.vowel { background: linear-gradient(135deg, #f472b6, #db2777); color: #fff; border-color: #fbcfe8; }
     .letter-cell.consonant { background: linear-gradient(135deg, #38bdf8, #0284c7); color: #fff; border-color: #bae6fd; }
     .letter-cell.bonus { background: linear-gradient(135deg, #fbbf24, #d97706); color: #060913; border-color: #fef08a; }
@@ -418,12 +420,13 @@
     <div class="header-tag">RHODES FAMILY LEGACY</div>
     <h1 class="hero-title" id="mainTitle">Funhouse Journey</h1>
 
-    <!-- 4-WAY MODE SWITCHER -->
+    <!-- 5-WAY MODE SWITCHER -->
     <div class="mode-switch-bar">
       <button class="mode-btn active" id="btnExpress" onclick="switchGameMode('express')">🎪 Journey</button>
-      <button class="mode-btn" id="btnWord" onclick="switchGameMode('word')">🔤 Crossword Builder</button>
+      <button class="mode-btn" id="btnWord" onclick="switchGameMode('word')">🔤 Crossword</button>
       <button class="mode-btn" id="btnCards" onclick="switchGameMode('cards')">🃏 Card Match</button>
-      <button class="mode-btn" id="btnTetris" onclick="switchGameMode('tetris')">🕹️ Legacy Tetris</button>
+      <button class="mode-btn" id="btnTetris" onclick="switchGameMode('tetris')">🕹️ Tetris</button>
+      <button class="mode-btn full-width" id="btnGalaxy" onclick="switchGameMode('galaxy')">🚀 Galaxy Shooter (Dual Ship)</button>
     </div>
 
     <div class="score-board">
@@ -509,6 +512,30 @@
       </div>
     </div>
 
+    <!-- GAME VIEW 5: GALAXY ARCADE SHOOTER -->
+    <div class="game-view" id="viewGalaxy">
+      <div class="tetris-panel" style="width:100%;">
+        <div class="section-label">🚀 Galaxy Arcade (Dual Ship Swarm) 🚀</div>
+        <div class="game-container" style="aspect-ratio: 4 / 3; max-width: 100%;">
+          <div id="galaxyModal" class="overlay-screen" style="display: flex;">
+            <h2>Galaxy Defender</h2>
+            <p>Blast alien swarms! Watch out for boss tractor beams to form your dual-ship armada!</p>
+            <div class="modal-btns">
+              <button class="modal-btn" onclick="startGalaxyGame()">Launch Mission</button>
+            </div>
+          </div>
+          <canvas id="galaxyCanvas" width="480" height="360"></canvas>
+        </div>
+        <div class="status-msg" id="galaxyStatus">Defend the galaxy and rescue captured fighters!</div>
+        <div class="controls-panel" style="grid-template-columns: repeat(4, 1fr);">
+          <button class="control-btn" onclick="galaxyMove(-1)">◀</button>
+          <button class="control-btn" onclick="galaxyShoot()" style="background:#0284c7;">🔥 FIRE</button>
+          <button class="control-btn" onclick="galaxyMove(1)">▶</button>
+          <button class="control-btn" onclick="galaxyEscapeBeam()" style="background:#7c2d12; font-size:11px;">🛸 ESCAPE</button>
+        </div>
+      </div>
+    </div>
+
     <!-- INITIALS ENTRY MODAL -->
     <div id="initialsModal" class="overlay-screen" style="display: none;">
       <h2>🏆 New Hall of Fame Score! 🏆</h2>
@@ -583,11 +610,13 @@
       document.getElementById('btnWord').classList.toggle('active', mode === 'word');
       document.getElementById('btnCards').classList.toggle('active', mode === 'cards');
       document.getElementById('btnTetris').classList.toggle('active', mode === 'tetris');
+      document.getElementById('btnGalaxy').classList.toggle('active', mode === 'galaxy');
       
       document.getElementById('viewExpress').classList.toggle('active', mode === 'express');
       document.getElementById('viewWord').classList.toggle('active', mode === 'word');
       document.getElementById('viewCards').classList.toggle('active', mode === 'cards');
       document.getElementById('viewTetris').classList.toggle('active', mode === 'tetris');
+      document.getElementById('viewGalaxy').classList.toggle('active', mode === 'galaxy');
       
       if (mode === 'express') {
         document.getElementById('mainTitle').innerText = "Funhouse Journey";
@@ -600,10 +629,13 @@
         document.getElementById('mainTitle').innerText = "Heritage Card Match";
         document.getElementById('zoneDisplay').innerText = "ZONE: MEMORY GARDEN";
         initCardGame();
-      } else {
+      } else if (mode === 'tetris') {
         document.getElementById('mainTitle').innerText = "Legacy Tetris Arcade";
         document.getElementById('zoneDisplay').innerText = "ZONE: ARCADE SPEEDWAY";
         startTetrisGame();
+      } else if (mode === 'galaxy') {
+        document.getElementById('mainTitle').innerText = "Galaxy Arcade (Dual Ship)";
+        document.getElementById('zoneDisplay').innerText = "ZONE: DEEP SPACE SWARM";
       }
     }
 
@@ -614,20 +646,20 @@
     }
 
     // --- AUDIO SYNTHESIZER ---
-    function playSound(isPositive = true) {
+    function playSound(type = 'sine', freq = 587.33, duration = 0.2) {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = isPositive ? 'sine' : 'sawtooth';
-        osc.frequency.setValueAtTime(isPositive ? 587.33 : 220, audioCtx.currentTime); 
-        osc.frequency.exponentialRampToValueAtTime(isPositive ? 880 : 110, audioCtx.currentTime + 0.2); 
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.5, audioCtx.currentTime + duration);
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
+        osc.stop(audioCtx.currentTime + duration);
       } catch (e) {}
     }
 
@@ -690,7 +722,7 @@
 
         if (itm.y > truckY - 30 && itm.y < truckY + 30 && Math.abs(currentX - truckX) < 25) {
           score += 50;
-          playSound(true);
+          playSound('sine', 880, 0.2);
           triggerParticles(truckX, truckY);
           items.splice(i, 1);
           updateScore();
@@ -798,7 +830,7 @@
       const formedWord = selectedCellObjects.map(i => i.letter).join('');
       if (targetWords.includes(formedWord)) {
         score += 100;
-        playSound(true);
+        playSound('sine', 880, 0.2);
         document.getElementById('wordStatusMsg').innerText = `🎉 Found "${formedWord}" (+100 PTS)!`;
         const clue = document.getElementById(`clue-${formedWord}`);
         if (clue) clue.classList.add('found');
@@ -806,7 +838,7 @@
         initWordGrid();
         updateScore();
       } else {
-        playSound(false);
+        playSound('sawtooth', 220, 0.2);
         document.getElementById('wordStatusMsg').innerText = `❌ "${formedWord}" is not active.`;
         selectedCellObjects = [];
         document.querySelectorAll('.letter-cell.selected').forEach(c => c.classList.remove('selected'));
@@ -837,12 +869,12 @@
           secondCard = card;
           if (firstCard.dataset.symbol === secondCard.dataset.symbol) {
             firstCard.classList.add('matched'); secondCard.classList.add('matched');
-            score += 100; playSound(true); updateScore();
+            score += 100; playSound('sine', 880, 0.2); updateScore();
             document.getElementById('cardStatusMsg').innerText = '🎉 Wonderful match! +100 PTS!';
             firstCard = null; secondCard = null;
           } else {
             lockBoard = true;
-            playSound(false);
+            playSound('sawtooth', 220, 0.2);
             setTimeout(() => {
               firstCard.innerText = '❓'; secondCard.innerText = '❓';
               firstCard.classList.remove('flipped'); secondCard.classList.remove('flipped');
@@ -886,7 +918,7 @@
         score = 0; updateScore();
         tBoard = Array(tRows).fill().map(() => Array(tCols).fill(0));
         document.getElementById('tetrisStatus').innerText = '⚠️ Stack Full! Score Reset!';
-        playSound(false);
+        playSound('sawtooth', 220, 0.3);
         checkLeaderboard(finalScore);
       }
     }
@@ -935,6 +967,170 @@
       if (currentPiece && currentPiece.shape) {
         tCtx.fillStyle = currentPiece.color;
         currentPiece.shape.forEach((row, r) => row.forEach((val, c) => { if (val) tCtx.fillRect((currentPiece.x + c) * tSize, (currentPiece.y + r) * tSize, tSize - 1, tSize - 1); }));
+      }
+    }
+
+    // --- GALAXY ARCADE SHOOTER ENGINE ---
+    const gCanvas = document.getElementById('galaxyCanvas');
+    const gCtx = gCanvas.getContext('2d');
+    let galaxyActive = false;
+    let shipX = 220;
+    let isDualShip = false;
+    let bullets = [];
+    let aliens = [];
+    let tractorBeamActive = false;
+    let tractorX = 0;
+
+    function startGalaxyGame() {
+      document.getElementById('galaxyModal').style.display = 'none';
+      galaxyActive = true;
+      shipX = 220;
+      isDualShip = false;
+      bullets = [];
+      aliens = [];
+      spawnGalaxyAliens();
+      requestAnimationFrame(galaxyLoop);
+    }
+
+    function spawnGalaxyAliens() {
+      aliens = [];
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 8; c++) {
+          aliens.push({
+            x: 50 + c * 48,
+            y: 40 + r * 35,
+            w: 30,
+            h: 22,
+            alive: true,
+            isBoss: (r === 0 && c === 4)
+          });
+        }
+      }
+    }
+
+    function galaxyMove(dir) {
+      if (!galaxyActive || activeMode !== 'galaxy') return;
+      shipX += dir * 20;
+      if (shipX < 20) shipX = 20;
+      if (shipX > 440) shipX = 440;
+    }
+
+    function galaxyShoot() {
+      if (!galaxyActive || activeMode !== 'galaxy') return;
+      playSound('sine', 587.33, 0.1);
+      if (isDualShip) {
+        bullets.push({ x: shipX - 14, y: 300, vy: -7 });
+        bullets.push({ x: shipX + 14, y: 300, vy: -7 });
+      } else {
+        bullets.push({ x: shipX, y: 300, vy: -7 });
+      }
+    }
+
+    function galaxyEscapeBeam() {
+      if (!galaxyActive || activeMode !== 'galaxy') return;
+      if (tractorBeamActive) {
+        tractorBeamActive = false;
+        isDualShip = true;
+        playSound('sine', 987.77, 0.3);
+        document.getElementById('galaxyStatus').innerText = '⭐ Dual Fighter Formed! Double Firepower Activated!';
+      }
+    }
+
+    function galaxyUpdate() {
+      if (!galaxyActive || activeMode !== 'galaxy') return;
+
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        bullets[i].y += bullets[i].vy;
+        if (bullets[i].y < 0) bullets.splice(i, 1);
+      }
+
+      bullets.forEach((b, bIdx) => {
+        aliens.forEach(a => {
+          if (a.alive && b.x > a.x && b.x < a.x + a.w && b.y > a.y && b.y < a.y + a.h) {
+            a.alive = false;
+            bullets.splice(bIdx, 1);
+            score += 50;
+            playSound('sawtooth', 300, 0.15);
+            updateScore();
+          }
+        });
+      });
+
+      if (Math.random() < 0.005 && !tractorBeamActive) {
+        let boss = aliens.find(a => a.isBoss && a.alive);
+        if (boss) {
+          tractorBeamActive = true;
+          tractorX = boss.x + 15;
+          playSound('sawtooth', 150, 0.6);
+          document.getElementById('galaxyStatus').innerText = '🛸 Boss Tractor Beam Active! Tap ESCAPE to break free & form dual ship!';
+        }
+      }
+
+      if (aliens.every(a => !a.alive)) {
+        document.getElementById('galaxyStatus').innerText = '🎉 Sector Cleared! Wave Bonus +500 PTS!';
+        score += 500;
+        updateScore();
+        spawnGalaxyAliens();
+      }
+    }
+
+    function galaxyDraw() {
+      gCtx.fillStyle = '#060913';
+      gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
+
+      gCtx.fillStyle = '#ffffff';
+      for (let i = 0; i < 30; i++) {
+        gCtx.fillRect((i * 37) % gCanvas.width, (i * 23 + Date.now() * 0.02) % gCanvas.height, 2, 2);
+      }
+
+      if (tractorBeamActive) {
+        gCtx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+        gCtx.beginPath();
+        gCtx.moveTo(tractorX - 25, 60);
+        gCtx.lineTo(tractorX + 25, 60);
+        gCtx.lineTo(tractorX + 40, 320);
+        gCtx.lineTo(tractorX - 40, 320);
+        gCtx.closePath();
+        gCtx.fill();
+      }
+
+      aliens.forEach(a => {
+        if (!a.alive) return;
+        gCtx.fillStyle = a.isBoss ? '#f472b6' : '#38bdf8';
+        gCtx.fillRect(a.x, a.y, a.w, a.h);
+        gCtx.fillStyle = '#fef08a';
+        gCtx.fillRect(a.x + 6, a.y + 6, 6, 6);
+        gCtx.fillRect(a.x + 18, a.y + 6, 6, 6);
+      });
+
+      gCtx.fillStyle = '#fbbf24';
+      bullets.forEach(b => {
+        gCtx.fillRect(b.x - 2, b.y, 4, 12);
+      });
+
+      if (isDualShip) {
+        gCtx.fillStyle = '#4ade80';
+        gCtx.fillRect(shipX - 24, 310, 16, 20);
+        gCtx.fillRect(shipX + 8, 310, 16, 20);
+        gCtx.fillStyle = '#fef08a';
+        gCtx.fillRect(shipX - 18, 305, 4, 8);
+        gCtx.fillRect(shipX + 14, 305, 4, 8);
+      } else {
+        gCtx.fillStyle = '#f59e0b';
+        gCtx.beginPath();
+        gCtx.moveTo(shipX, 305);
+        gCtx.lineTo(shipX - 14, 325);
+        gCtx.lineTo(shipX + 14, 325);
+        gCtx.closePath();
+        gCtx.fill();
+      }
+    }
+
+    function galaxyLoop() {
+      galaxyUpdate();
+      galaxyDraw();
+      if (galaxyActive && activeMode === 'galaxy') {
+        requestAnimationFrame(galaxyLoop);
       }
     }
 
