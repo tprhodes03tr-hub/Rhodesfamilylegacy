@@ -605,6 +605,11 @@
 
     function switchGameMode(mode) {
       activeMode = mode;
+      // Stop Galaxy loop when switching away
+      if (mode !== 'galaxy') {
+        galaxyActive = false;
+      }
+      
       document.getElementById('btnExpress').classList.toggle('active', mode === 'express');
       document.getElementById('btnWord').classList.toggle('active', mode === 'word');
       document.getElementById('btnCards').classList.toggle('active', mode === 'cards');
@@ -968,7 +973,7 @@
       }
     }
 
-    // --- STABLE GALAXY ARCADE SHOOTER ENGINE ---
+    // --- AUTHENTIC GALAXY ARCADE SHOOTER ENGINE (FIXED & POLISHED) ---
     const gCanvas = document.getElementById('galaxyCanvas');
     const gCtx = gCanvas.getContext('2d');
     let galaxyActive = false;
@@ -981,12 +986,13 @@
     let tractorX = 0;
     let starfield = [];
 
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 50; i++) {
       starfield.push({
         x: Math.random() * 480,
         y: Math.random() * 360,
-        speed: 0.5 + Math.random() * 1.0,
-        size: Math.random() > 0.5 ? 2 : 1
+        speed: 0.6 + Math.random() * 1.2,
+        size: Math.random() > 0.5 ? 2 : 1,
+        alpha: Math.random()
       });
     }
 
@@ -1004,16 +1010,16 @@
     function spawnGalaxyAliens() {
       aliens = [];
       const colors = ['#f472b6', '#38bdf8', '#fbbf24', '#4ade80'];
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 8; c++) {
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 10; c++) {
           aliens.push({
-            x: 60 + c * 45,
-            y: 40 + r * 30,
+            x: 35 + c * 42,
+            y: 30 + r * 26,
             w: 24,
             h: 16,
             alive: true,
             color: colors[r % colors.length],
-            isBoss: (r === 0 && c === 4)
+            isBoss: (r === 0 && (c === 4 || c === 5))
           });
         }
       }
@@ -1021,7 +1027,7 @@
 
     function galaxyMove(dir) {
       if (!galaxyActive || activeMode !== 'galaxy') return;
-      shipX += dir * 20;
+      shipX += dir * 22;
       if (shipX < 25) shipX = 25;
       if (shipX > 455) shipX = 455;
     }
@@ -1030,10 +1036,10 @@
       if (!galaxyActive || activeMode !== 'galaxy') return;
       playSound('sine', 587.33, 0.08);
       if (isDualShip) {
-        bullets.push({ x: shipX - 12, y: 310, vy: -8 });
-        bullets.push({ x: shipX + 12, y: 310, vy: -8 });
+        bullets.push({ x: shipX - 12, y: 310, vy: -9 });
+        bullets.push({ x: shipX + 12, y: 310, vy: -9 });
       } else {
-        bullets.push({ x: shipX, y: 310, vy: -8 });
+        bullets.push({ x: shipX, y: 310, vy: -9 });
       }
     }
 
@@ -1050,17 +1056,25 @@
     function galaxyUpdate() {
       if (!galaxyActive || activeMode !== 'galaxy') return;
 
+      // Twinkle & scroll starfield
       starfield.forEach(s => {
         s.y += s.speed;
         if (s.y > gCanvas.height) s.y = 0;
+        s.alpha += 0.02;
       });
 
+      // Update bullets
       for (let i = bullets.length - 1; i >= 0; i--) {
+        if (!bullets[i]) continue;
         bullets[i].y += bullets[i].vy;
-        if (bullets[i].y < 0) bullets.splice(i, 1);
+        if (bullets[i].y < 0) {
+          bullets.splice(i, 1);
+        }
       }
 
+      // Update enemy bullets & hit check
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        if (!enemyBullets[i]) continue;
         enemyBullets[i].y += enemyBullets[i].vy;
         if (enemyBullets[i].y > gCanvas.height) {
           enemyBullets.splice(i, 1);
@@ -1084,7 +1098,7 @@
         }
       }
 
-      // Safe Collision Loop preventing null reference crashes
+      // Safe bullet-alien collision loop
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i];
         if (!b) continue;
@@ -1104,7 +1118,7 @@
       aliens.forEach(a => {
         if (!a || !a.alive) return;
         if (Math.random() < 0.002) {
-          enemyBullets.push({ x: a.x + a.w / 2, y: a.y + a.h, vy: 3.5 });
+          enemyBullets.push({ x: a.x + a.w / 2, y: a.y + a.h, vy: 4 });
         }
       });
 
@@ -1127,57 +1141,69 @@
     }
 
     function galaxyDraw() {
-      gCtx.fillStyle = '#060913';
+      // Deep space background gradient
+      const bgGrad = gCtx.createLinearGradient(0, 0, 0, gCanvas.height);
+      bgGrad.addColorStop(0, '#020617');
+      bgGrad.addColorStop(0.5, '#090d16');
+      bgGrad.addColorStop(1, '#1e1b4b');
+      gCtx.fillStyle = bgGrad;
       gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
 
-      gCtx.fillStyle = '#ffffff';
+      // Render glowing starfield
       starfield.forEach(s => {
+        gCtx.fillStyle = `rgba(255, 255, 255, ${0.4 + Math.abs(Math.sin(s.alpha)) * 0.6})`;
         gCtx.fillRect(s.x, s.y, s.size, s.size);
       });
 
+      // Render glowing tractor beam
       if (tractorBeamActive) {
         gCtx.fillStyle = 'rgba(56, 189, 248, 0.3)';
         gCtx.beginPath();
-        gCtx.moveTo(tractorX - 22, 60);
-        gCtx.lineTo(tractorX + 22, 60);
-        gCtx.lineTo(tractorX + 50, 320);
-        gCtx.lineTo(tractorX - 50, 320);
+        gCtx.moveTo(tractorX - 22, 40);
+        gCtx.lineTo(tractorX + 22, 40);
+        gCtx.lineTo(tractorX + 55, 320);
+        gCtx.lineTo(tractorX - 55, 320);
         gCtx.closePath();
         gCtx.fill();
       }
 
+      // Render detailed pixel aliens
       aliens.forEach(a => {
         if (!a || !a.alive) return;
         gCtx.fillStyle = a.color;
         gCtx.fillRect(a.x, a.y, a.w, a.h);
+        // Eyes
         gCtx.fillStyle = '#ffffff';
         gCtx.fillRect(a.x + 4, a.y + 4, 3, 3);
         gCtx.fillRect(a.x + a.w - 7, a.y + 4, 3, 3);
       });
 
+      // Render player laser bolts
       gCtx.fillStyle = '#fbbf24';
       bullets.forEach(b => {
-        if (b) gCtx.fillRect(b.x - 1.5, b.y, 3, 10);
+        if (b) gCtx.fillRect(b.x - 2, b.y, 4, 12);
       });
 
+      // Render enemy laser bolts
       gCtx.fillStyle = '#f472b6';
       enemyBullets.forEach(eb => {
-        if (eb) gCtx.fillRect(eb.x - 2, eb.y, 4, 10);
+        if (eb) gCtx.fillRect(eb.x - 2, eb.y, 4, 12);
       });
 
+      // Render Player Ship / Dual Armada with polished detail
       if (isDualShip) {
         gCtx.fillStyle = '#38bdf8';
-        gCtx.fillRect(shipX - 24, 315, 16, 18);
+        gCtx.fillRect(shipX - 26, 315, 16, 18);
         gCtx.fillStyle = '#fef08a';
-        gCtx.fillRect(shipX - 20, 310, 8, 5);
+        gCtx.fillRect(shipX - 22, 310, 8, 5);
         
         gCtx.fillStyle = '#38bdf8';
-        gCtx.fillRect(shipX + 8, 315, 16, 18);
+        gCtx.fillRect(shipX + 10, 315, 16, 18);
         gCtx.fillStyle = '#fef08a';
-        gCtx.fillRect(shipX + 12, 310, 8, 5);
+        gCtx.fillRect(shipX + 14, 310, 8, 5);
         
         gCtx.fillStyle = '#4ade80';
-        gCtx.fillRect(shipX - 8, 320, 16, 3);
+        gCtx.fillRect(shipX - 10, 320, 20, 4);
       } else {
         gCtx.fillStyle = '#38bdf8';
         gCtx.beginPath();
