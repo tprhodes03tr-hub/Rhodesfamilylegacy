@@ -1378,7 +1378,7 @@
     }
 
     /* =========================================================================
-       5. BRAWLER ENGINE VARIABLES & SPRITE-SHEET CONFIGURATION
+       5. BRAWLER ENGINE VARIABLES & ROOT ASSETS (USING STABLE IMAGES)
        ========================================================================= */
     let canvas, ctx;
     let animationFrameId = null;
@@ -1394,23 +1394,13 @@
       boss: new Image()
     };
 
-    // Sprite Sheet Configuration Mapping (Frames, Width, Height per row)
-    const SPRITE_CONFIG = {
-      marcus: { src: "1791223296412.jpg", cols: 8, rows: 4, frameW: 64, frameH: 64 },
-      xochitl: { src: "1791222502778.jpg", cols: 12, rows: 3, frameW: 64, frameH: 64 },
-      sundiata: { src: "1791223140885.jpg", cols: 6, rows: 5, frameW: 64, frameH: 64 },
-      kofi: { src: "1791222707824.jpg", cols: 6, rows: 3, frameW: 64, frameH: 64 }
-    };
-
-    let spriteImages = {};
-
     let activeZone = "detroit"; 
     let unlockedRoster = playerProgress.unlockedOperatives;
     let rosterIdx = 0;
     let activeLead = "marcus";
 
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
-    let walkAnimFrame = 0, animTimer = 0;
+    let leadLean = 0, leadLandSquash = 1, walkCadence = 0;
 
     let aiPartner = {
       x: 35,
@@ -1435,17 +1425,15 @@
 
       resizeBrawlerCanvas();
 
+      // Using the verified, stable asset files that load successfully without 404 errors
       ASSETS.bg.src = "bg-detroit.jpg";
+      ASSETS.marcus.src = "marcus.png";
+      ASSETS.xochitl.src = "xochitl.png";
+      ASSETS.sundiata.src = "sundiata-prime.png";
+      ASSETS.kofi.src = "kofi.png";
       ASSETS.ironclad.src = "ironclad.png";
       ASSETS.apex.src = "apex-volt.png";
       ASSETS.boss.src = "chrono-lock.png";
-
-      // Load Multi-frame Sprite Sheets
-      for (let key in SPRITE_CONFIG) {
-        let cfg = SPRITE_CONFIG[key];
-        spriteImages[key] = new Image();
-        spriteImages[key].src = cfg.src;
-      }
 
       startWave(1);
       
@@ -1473,11 +1461,8 @@
       if (!gameActive) return;
       initAudio();
       leadX = Math.max(65, Math.min(330, leadX + dx));
-      animTimer++;
-      if (animTimer > 5) {
-        walkAnimFrame = (walkAnimFrame + 1) % 6;
-        animTimer = 0;
-      }
+      walkCadence += 0.2;
+      leadLean = dx > 0 ? 0.08 : -0.08;
     }
 
     function playerJump() {
@@ -1542,12 +1527,13 @@
       updateHUD();
     }
 
-    // DRAW SLICED SPRITE SHEET FRAME
-    function drawSpriteFrame(ctx, sheetImg, cfg, col, row, x, y, displayW, displayH) {
-      if (!sheetImg || !sheetImg.complete || sheetImg.naturalWidth === 0) return;
-      let srcX = col * cfg.frameW;
-      let srcY = row * cfg.frameH;
-      ctx.drawImage(sheetImg, srcX, srcY, cfg.frameW, cfg.frameH, x, y, displayW, displayH);
+    function drawDropShadow(ctx, x, y, radiusX = 22, radiusY = 7, alpha = 0.55) {
+      ctx.save();
+      ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, radiusX, radiusY, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
     function renderBrawler() {
@@ -1555,11 +1541,22 @@
       ctx.save();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Background
-      ctx.fillStyle = "#090d16";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Environment Background
+      if (ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
+        ctx.drawImage(ASSETS.bg, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = "#090d16";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
       ctx.fillStyle = "#1e293b";
       ctx.fillRect(0, 255, canvas.width, 35);
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 255);
+      ctx.lineTo(canvas.width, 255);
+      ctx.stroke();
 
       if (!isGrounded) {
         leadY -= leadVy;
@@ -1567,20 +1564,18 @@
         if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
       }
 
-      // Render Lead Character from Sprite Sheet
-      let leadSheet = spriteImages[activeLead];
-      let cfg = SPRITE_CONFIG[activeLead];
-      let drawY = (175 - leadY);
+      // Render Lead Character Sprite
+      let leadImg = ASSETS[activeLead];
+      drawDropShadow(ctx, leadX + 32, 256, 25, 7, 0.65);
 
       ctx.save();
-      ctx.translate(leadX, drawY);
-      if (leadSheet && cfg) {
-        // Row 1: Walk Cycle frames (columns 0 to 5)
-        let frameCol = walkAnimFrame % cfg.cols;
-        drawSpriteFrame(ctx, leadSheet, cfg, frameCol, 1, 0, 0, 64, 64);
+      ctx.translate(leadX + 32, (175 - leadY) + 80);
+      ctx.rotate(leadLean);
+      if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
+        ctx.drawImage(leadImg, -32, -80, 65, 80);
       } else {
         ctx.fillStyle = "#38bdf8";
-        ctx.fillRect(0, 0, 30, 55);
+        ctx.fillRect(-15, -55, 30, 55);
       }
       ctx.restore();
 
@@ -1588,8 +1583,16 @@
       enemies.forEach(e => {
         if (!e.active) return;
         e.x -= e.speed;
-        ctx.fillStyle = "#ef4444";
-        ctx.fillRect(e.x, 205, 30, 45);
+        let enemyImg = ASSETS.apex;
+        ctx.save();
+        ctx.translate(e.x + 20, 220);
+        if (enemyImg && enemyImg.complete && enemyImg.naturalWidth > 0) {
+          ctx.drawImage(enemyImg, -20, -45, 40, 50);
+        } else {
+          ctx.fillStyle = "#ef4444";
+          ctx.fillRect(-15, -35, 30, 45);
+        }
+        ctx.restore();
       });
 
       ctx.restore();
@@ -1602,6 +1605,11 @@
       document.getElementById("heroHpText").innerText = `${playerHp}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
       document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units Remaining`;
+    }
+
+    function logBrawler(msg) {
+      const log = document.getElementById("combatLog");
+      if (log) log.innerText = msg;
     }
   </script>
 </body>
