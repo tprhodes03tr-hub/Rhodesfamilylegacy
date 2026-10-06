@@ -727,6 +727,7 @@
     window.playerMove = function(dx) {
       if (!brawlerRunning || !gameActive) return;
       leadX = Math.max(65, Math.min(330, leadX + dx));
+      animFrame = (animFrame + 1) % 6; // advance walk cycle frame
     };
 
     window.playerJump = function() {
@@ -747,11 +748,13 @@
     window.executeBurst = function() { if (!brawlerRunning || !gameActive) return; };
     window.executeLuettaAid = function() { if (!brawlerRunning || !gameActive) return; };
 
-    // GAME ENGINE WITH SAFE FALLBACK RENDERER
+    // GAME ENGINE WITH SPRITE SHEET FRAME SLICER
     let brawlerRunning = false;
     let brawlerInitialized = false;
     let canvas, ctx;
     let animationFrameId = null;
+    let animFrame = 0;
+    let frameTimer = 0;
 
     function resizeBrawlerCanvas() {
       if (!canvas) return;
@@ -765,10 +768,13 @@
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
     let playerHp = 100, gameActive = true;
 
-    const ASSETS = {
-      marcus: new Image(),
-      xochitl: new Image()
+    // Sprite Sheet Configuration Mapping (Assuming standard 6-column / multi-row sheets)
+    const SPRITE_CONFIG = {
+      marcus: { src: "1791223140885.jpg", cols: 6, rows: 6, frameW: 64, frameH: 64, walkRow: 1 },
+      xochitl: { src: "1791222502778.jpg", cols: 6, rows: 4, frameW: 64, frameH: 64, walkRow: 1 }
     };
+
+    const loadedSheets = {};
 
     function initBrawler() {
       brawlerInitialized = true;
@@ -776,8 +782,12 @@
       if (canvas) ctx = canvas.getContext("2d");
       resizeBrawlerCanvas();
 
-      ASSETS.marcus.src = "marcus.png";
-      ASSETS.xochitl.src = "xochitl.png";
+      // Preload the specific sprite sheet images uploaded
+      for (let key in SPRITE_CONFIG) {
+        let img = new Image();
+        img.src = SPRITE_CONFIG[key].src;
+        loadedSheets[key] = img;
+      }
 
       renderBrawlerFrame();
     }
@@ -807,19 +817,28 @@
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(0, 255); ctx.lineTo(canvas.width, 255); ctx.stroke();
 
-      // Safe Fallback Character Render (Draws vector character if image hasn't loaded or is a sprite sheet)
-      let leadImg = ASSETS[activeLead];
+      // SPRITE SHEET SLICER RENDER
+      let cfg = SPRITE_CONFIG[activeLead];
+      let sheetImg = loadedSheets[activeLead];
       let drawX = leadX;
       let drawY = (175 - leadY);
 
-      if (leadImg && leadImg.complete && leadImg.naturalWidth > 0 && leadImg.naturalWidth < 300) {
-        ctx.drawImage(leadImg, drawX, drawY, 50, 75);
+      if (sheetImg && sheetImg.complete && sheetImg.naturalWidth > 0) {
+        // Automatically animate walking frames across columns
+        let col = Math.floor(animFrame) % cfg.cols;
+        let row = isGrounded ? 0 : cfg.walkRow; // Row 0 for Idle, Row 1 for Walk
+
+        let sx = col * cfg.frameW;
+        let sy = row * cfg.frameH;
+
+        // Draw sliced frame from multi-row sprite sheet
+        ctx.drawImage(sheetImg, sx, sy, cfg.frameW, cfg.frameH, drawX, drawY, 64, 64);
       } else {
-        // Safe Vector Fallback (prevents black screen / sprite sheet stretching)
+        // Fallback vector shape if sheet is loading
         ctx.fillStyle = activeLead === "marcus" ? "#38bdf8" : "#f97316";
-        ctx.fillRect(drawX + 10, drawY + 20, 30, 45); // Body
+        ctx.fillRect(drawX + 10, drawY + 20, 30, 45);
         ctx.fillStyle = "#fbbf24";
-        ctx.beginPath(); ctx.arc(drawX + 25, drawY + 12, 12, 0, Math.PI * 2); ctx.fill(); // Head
+        ctx.beginPath(); ctx.arc(drawX + 25, drawY + 12, 12, 0, Math.PI * 2); ctx.fill();
       }
 
       ctx.restore();
@@ -834,6 +853,14 @@
           leadVy += 0.8;
           if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
         }
+
+        // Animate walk cycle over time
+        frameTimer++;
+        if (frameTimer > 8) {
+          animFrame = (animFrame + 1) % 6;
+          frameTimer = 0;
+        }
+
         animationFrameId = requestAnimationFrame(renderBrawler);
       } else {
         animationFrameId = null;
