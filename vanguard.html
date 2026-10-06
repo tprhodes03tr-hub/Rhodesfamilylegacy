@@ -106,7 +106,7 @@
       align-items: center;
     }
 
-    /* 3D CARD FLIPPER FOR CODEX & AR */
+    /* 3D CARD FLIPPER FOR CODEX */
     .card-flipper-container {
       perspective: 1000px;
       width: 100%;
@@ -208,6 +208,7 @@
       color: #c4b5fd;
       text-transform: uppercase;
       font-weight: 800;
+      text-decoration: none;
     }
 
     .card-foil {
@@ -453,7 +454,7 @@
     </div>
   </header>
 
-  <!-- TAB 1: CARD CODEX (3D AR FLIPPER CARDS & DOUBLE HELIX) -->
+  <!-- TAB 1: CARD CODEX (3D AR HOLOGRAM FLIPPER CARDS) -->
   <section id="tab-codex" class="portal-section">
     <div class="codex-grid">
 
@@ -466,7 +467,7 @@
             <div class="card-title">Root Ancestor • Living Codex</div>
             <div class="stat-row"><span class="stat-badge">PWR: 99</span><span class="stat-badge">DEF: 99</span><span class="stat-badge">WILL: 100</span></div>
             <span class="worth-badge worth-cosmic">Cosmic Singularity • 1/100</span>
-            <div class="ar-badge">✨ 3D AR Hologram</div>
+            <a href="ar-portal.html" class="ar-badge" onclick="event.stopPropagation()">✨ 3D AR Hologram</a>
           </div>
           <div class="card-face card-face-back">
             <div class="back-brand-title">RHODES FAMILY LEGACY</div>
@@ -488,7 +489,7 @@
             <div class="card-title">Detroit Diaspora • Urban Dynamo</div>
             <div class="stat-row"><span class="stat-badge">PWR: 91</span><span class="stat-badge">DEF: 88</span><span class="stat-badge">WILL: 90</span></div>
             <span class="worth-badge worth-gold">Gold Relic Foil • 1st Edition</span>
-            <div class="ar-badge">✨ 3D AR Hologram</div>
+            <a href="ar-portal.html" class="ar-badge" onclick="event.stopPropagation()">✨ 3D AR Hologram</a>
           </div>
           <div class="card-face card-face-back">
             <div class="back-brand-title">RHODES FAMILY LEGACY</div>
@@ -510,7 +511,7 @@
             <div class="card-title">Obsidian Sun • Feather Flight</div>
             <div class="stat-row"><span class="stat-badge">PWR: 89</span><span class="stat-badge">DEF: 78</span><span class="stat-badge">WILL: 86</span></div>
             <span class="worth-badge worth-gold">Gold Relic Foil • 1st Edition</span>
-            <div class="ar-badge">✨ 3D AR Hologram</div>
+            <a href="ar-portal.html" class="ar-badge" onclick="event.stopPropagation()">✨ 3D AR Hologram</a>
           </div>
           <div class="card-face card-face-back">
             <div class="back-brand-title">RHODES FAMILY LEGACY</div>
@@ -532,7 +533,7 @@
             <div class="card-title">Lion Bastion • Dundun Resonance</div>
             <div class="stat-row"><span class="stat-badge">PWR: 94</span><span class="stat-badge">DEF: 96</span><span class="stat-badge">WILL: 92</span></div>
             <span class="worth-badge worth-gold">Sahel Anchor</span>
-            <div class="ar-badge">✨ 3D AR Hologram</div>
+            <a href="ar-portal.html" class="ar-badge" onclick="event.stopPropagation()">✨ 3D AR Hologram</a>
           </div>
           <div class="card-face card-face-back">
             <div class="back-brand-title">RHODES FAMILY LEGACY</div>
@@ -707,10 +708,10 @@
   <div class="modal-overlay" id="trial-modal">
     <div class="modal-content">
       <div style="font-size: 32px; margin-bottom: 6px;">🦁</div>
-      <h2 id="modalTitle">MARROW RESONANCE RESTORED!</h2>
-      <p id="modalBody">Sundiata Prime's Solar Lion Roar shattered Apex Volt and sealed the Sahel temporal rift!</p>
+      <h2>MARROW RESONANCE RESTORED!</h2>
+      <p>Sundiata Prime's Solar Lion Roar shattered Apex Volt and sealed the Sahel temporal rift!</p>
       <div class="modal-actions">
-        <button class="replay-btn" onclick="resetCampaignToStage1()">🔄 PLAY AGAIN</button>
+        <button class="replay-btn" onclick="resetCampaignToStage1()">🔄 RESTART</button>
       </div>
     </div>
   </div>
@@ -721,7 +722,7 @@
       <div style="font-size: 32px; margin-bottom: 6px;">⚠️</div>
       <h2 style="color: #ef4444;">RESONANCE SEVERED!</h2>
       <div class="modal-actions">
-        <button class="defeat-btn" onclick="retryCurrentWave()">⚔️ RETRY CHECKPOINT</button>
+        <button class="defeat-btn" onclick="retryCurrentWave()">⚔️ RETRY</button>
       </div>
     </div>
   </div>
@@ -732,6 +733,24 @@
 
     let canvas, ctx;
     let animationFrameId = null;
+
+    const ASSETS = {
+      marcus: new Image(),
+      xochitl: new Image(),
+      sundiata: new Image(),
+      kofi: new Image(),
+      boss: new Image(),
+      apex: new Image()
+    };
+
+    let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
+    let playerHp = 100;
+    let enemies = [{ x: 420, y: 205, hp: 2, active: true, speed: 1.15 }];
+    let plasmaOrbs = [];
+    let unlockedRoster = ["marcus", "xochitl", "sundiata"];
+    let rosterIdx = 0;
+    let activeLead = "marcus";
+    let luettaState = { active: false, timer: 0 };
 
     function resizeBrawlerCanvas() {
       if (!canvas) return;
@@ -751,7 +770,6 @@
           animationFrameId = requestAnimationFrame(renderBrawler);
         }
       } else {
-        // PAUSE BRAWLER LOOP WHEN SWITCHING TO OTHER TABS
         if (animationFrameId) {
           cancelAnimationFrame(animationFrameId);
           animationFrameId = null;
@@ -763,15 +781,6 @@
       const inner = container.querySelector('.card-flipper-inner');
       if (inner) inner.classList.toggle('is-flipped');
     }
-
-    let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
-    let playerHp = 100;
-    let enemies = [{ x: 420, y: 205, hp: 2, active: true, speed: 1.15 }];
-    let plasmaOrbs = [];
-    let unlockedRoster = ["marcus", "xochitl", "sundiata"];
-    let rosterIdx = 0;
-    let activeLead = "marcus";
-    let luettaState = { active: false, timer: 0 };
 
     window.selectTarget = function(index) {
       document.querySelectorAll('.battle-card').forEach(c => c.classList.remove('targeted'));
@@ -832,6 +841,13 @@
       ctx = canvas.getContext("2d");
       resizeBrawlerCanvas();
 
+      ASSETS.marcus.src = "marcus.png";
+      ASSETS.xochitl.src = "xochitl.png";
+      ASSETS.sundiata.src = "sundiata-prime.png";
+      ASSETS.kofi.src = "kofi.png";
+      ASSETS.boss.src = "chrono-lock.png";
+      ASSETS.apex.src = "apex-volt.png";
+
       if (!animationFrameId) {
         animationFrameId = requestAnimationFrame(renderBrawler);
       }
@@ -876,17 +892,27 @@
         if (luettaState.timer <= 0) luettaState.active = false;
       }
 
-      // Hero
-      ctx.fillStyle = activeLead === "marcus" ? "#38bdf8" : (activeLead === "xochitl" ? "#f97316" : "#f59e0b");
-      ctx.fillRect(leadX, 245 - 55 - leadY, 35, 55);
+      // Draw Hero Sprite with Fallback
+      let heroImg = ASSETS[activeLead];
+      if (heroImg && heroImg.complete && heroImg.naturalWidth > 0) {
+        ctx.drawImage(heroImg, leadX, 245 - 80 - leadY, 55, 80);
+      } else {
+        ctx.fillStyle = activeLead === "marcus" ? "#38bdf8" : (activeLead === "xochitl" ? "#f97316" : "#f59e0b");
+        ctx.fillRect(leadX, 245 - 55 - leadY, 35, 55);
+      }
 
-      // Enemies
+      // Draw Enemies
       enemies.forEach(e => {
         if (!e.active) return;
         e.x -= e.speed;
         if (e.x < -30) e.x = 560;
-        ctx.fillStyle = "#ef4444";
-        ctx.fillRect(e.x, 245 - 40, 30, 40);
+        let enemyImg = ASSETS.boss;
+        if (enemyImg && enemyImg.complete && enemyImg.naturalWidth > 0) {
+          ctx.drawImage(enemyImg, e.x, 245 - 65, 45, 65);
+        } else {
+          ctx.fillStyle = "#ef4444";
+          ctx.fillRect(e.x, 245 - 40, 30, 40);
+        }
       });
 
       // Orbs
