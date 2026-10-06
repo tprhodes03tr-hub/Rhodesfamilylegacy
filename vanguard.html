@@ -70,8 +70,8 @@
     .bar-group { flex: 1; display: flex; flex-direction: column; gap: 2px; }
     .bar-label { font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; font-weight: 700; }
     .bar-track { width: 100%; height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden; }
-    .bar-fill-hero { width: 100%; height: 100%; background: #10b981; }
-    .bar-fill-enemy { width: 100%; height: 100%; background: #ef4444; }
+    .bar-fill-hero { width: 100%; height: 100%; background: #10b981; transition: width 0.1s ease; }
+    .bar-fill-enemy { width: 100%; height: 100%; background: #ef4444; transition: width 0.1s ease; }
     .canvas-container { position: relative; width: 100%; height: 290px; background: #000; border: 1px solid #334155; border-radius: 8px; overflow: hidden; box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9); }
     #gameCanvas { display: block; width: 100%; height: 100%; }
     .combat-log { font-family: monospace; font-size: 11px; background: #090e18; border: 1px solid #1e293b; padding: 6px 10px; border-radius: 6px; color: #38bdf8; min-height: 28px; display: flex; align-items: center; width: 100%; }
@@ -87,6 +87,7 @@
     .ar-canvas-container { width: 100%; height: 170px; background: #04070f; border: 2px solid #38bdf8; border-radius: 8px; position: relative; overflow: hidden; margin-bottom: 12px; }
     #arCanvas { display: block; width: 100%; height: 100%; }
     .close-modal-btn { background: #334155; color: #fff; border: none; padding: 11px; border-radius: 6px; font-weight: 800; cursor: pointer; width: 100%; margin-top: 10px; }
+    @media (max-width: 600px) { .battle-row { grid-template-columns: repeat(2, 1fr); } }
   </style>
 </head>
 <body>
@@ -103,6 +104,7 @@
   <!-- TAB 1: CARD CODEX -->
   <section id="tab-codex" class="portal-section active">
     <div class="codex-grid">
+      <!-- Mother Luetta -->
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
         <div class="card-flipper-inner">
           <div class="card-face card-face-front card-foil foil-cosmic">
@@ -122,6 +124,7 @@
         </div>
       </div>
 
+      <!-- Marcus Prime -->
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
         <div class="card-flipper-inner">
           <div class="card-face card-face-front card-foil foil-gold">
@@ -141,6 +144,7 @@
         </div>
       </div>
 
+      <!-- Amina Zazzau -->
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
         <div class="card-flipper-inner">
           <div class="card-face card-face-front card-foil foil-platinum">
@@ -159,6 +163,7 @@
         </div>
       </div>
 
+      <!-- Xochitl -->
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
         <div class="card-flipper-inner">
           <div class="card-face card-face-front card-foil foil-gold">
@@ -177,6 +182,7 @@
         </div>
       </div>
 
+      <!-- Sundiata Prime -->
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
         <div class="card-flipper-inner">
           <div class="card-face card-face-front card-foil foil-gold">
@@ -195,6 +201,7 @@
         </div>
       </div>
 
+      <!-- Kofi Osei -->
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
         <div class="card-flipper-inner">
           <div class="card-face card-face-front card-foil foil-gold">
@@ -213,6 +220,7 @@
         </div>
       </div>
 
+      <!-- Chrono-Lock -->
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
         <div class="card-flipper-inner">
           <div class="card-face card-face-front card-foil foil-syndicate">
@@ -231,6 +239,7 @@
         </div>
       </div>
 
+      <!-- Apex Volt -->
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
         <div class="card-flipper-inner">
           <div class="card-face card-face-front card-foil foil-syndicate">
@@ -386,11 +395,87 @@
       document.getElementById('clash-status').innerText = `Target locked on Enemy #${id + 1}. Press an action.`;
     }
 
-    function moveHero(dir) {}
-    function heroAttack(type) {}
-    function heroSpecial() {}
-    function cycleHeroTag() {}
-    function heroUltimate() {}
+    // Side Brawler Canvas Loop & Game State
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let hero = { x: 50, y: 180, vx: 0, vy: 0, hp: 100, maxHp: 100, attacking: false };
+    let enemy = { x: 400, y: 180, hp: 100, maxHp: 100, state: 'idle' };
+
+    const marcusImg = new Image();
+    marcusImg.src = 'marcus.png';
+
+    function moveHero(dir) {
+      if (dir === 'left') hero.vx = -3;
+      if (dir === 'right') hero.vx = 3;
+      if (dir === 'up' && hero.y >= 150) hero.vy = -4;
+      if (dir === 'down' && hero.y <= 220) hero.vy = 4;
+      setTimeout(() => { hero.vx = 0; hero.vy = 0; }, 350);
+    }
+
+    function heroAttack(type) {
+      hero.attacking = true;
+      document.getElementById('combatLog').innerText = `Marcus Prime executed ${type}!`;
+      if (Math.abs(hero.x - enemy.x) < 80) {
+        enemy.hp = Math.max(0, enemy.hp - 15);
+        document.getElementById('enemyHpBar').style.width = enemy.hp + '%';
+        document.getElementById('enemyHpText').innerText = enemy.hp + '/100';
+      }
+      setTimeout(() => { hero.attacking = false; }, 300);
+    }
+
+    function heroSpecial() {
+      document.getElementById('combatLog').innerText = `Marcus Prime fired Arc-Bolt!`;
+      enemy.hp = Math.max(0, enemy.hp - 25);
+      document.getElementById('enemyHpBar').style.width = enemy.hp + '%';
+      document.getElementById('enemyHpText').innerText = enemy.hp + '/100';
+    }
+
+    function cycleHeroTag() {
+      document.getElementById('combatLog').innerText = `Switched tag-team tactical assist!`;
+    }
+
+    function heroUltimate() {
+      document.getElementById('combatLog').innerText = `✨ MARROW ULTIMATE ACTIVATED! Sector cleared!`;
+      enemy.hp = 0;
+      document.getElementById('enemyHpBar').style.width = '0%';
+      document.getElementById('enemyHpText').innerText = '0/100';
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Update Hero positions
+      hero.x += hero.vx;
+      hero.y += hero.vy;
+      hero.x = Math.max(10, Math.min(canvas.width - 50, hero.x));
+
+      // Draw Stage Grid / Background Line
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 240); ctx.lineTo(canvas.width, 240);
+      ctx.stroke();
+
+      // Render Hero Sprite
+      if (marcusImg.complete && marcusImg.naturalWidth !== 0) {
+        ctx.drawImage(marcusImg, hero.x, hero.y - 45, 55, 75);
+      } else {
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(hero.x, hero.y - 40, 35, 60);
+      }
+
+      // Render Enemy Sprite
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(enemy.x, enemy.y - 40, 35, 60);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    marcusImg.onload = () => {
+      gameLoop();
+    };
+    // Fallback trigger if image is already cached
+    setTimeout(gameLoop, 200);
   </script>
 </body>
 </html>
