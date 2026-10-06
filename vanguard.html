@@ -647,7 +647,7 @@
     </div>
   </header>
 
-  <!-- TAB 1: CARD CODEX (3D FLIPPER WITH PACKED IN THE MARROW TREE EMBLEM) -->
+  <!-- TAB 1: CARD CODEX -->
   <section id="tab-codex" class="portal-section active">
     <div class="codex-grid">
       <!-- Mother Luetta -->
@@ -830,7 +830,7 @@
     </div>
   </section>
 
-  <!-- TAB 3: SIDE BRAWLER -->
+  <!-- TAB 3: SIDE BRAWLER WITH SPRITE SHEET SLICER -->
   <section id="tab-brawler" class="portal-section">
     <div class="brawler-wrapper">
       <div class="hud-header">
@@ -981,6 +981,7 @@
     window.playerMove = function(dx) {
       if (!brawlerRunning || !gameActive) return;
       leadX = Math.max(65, Math.min(330, leadX + dx));
+      animFrame = (animFrame + 1) % 6;
     };
 
     window.playerJump = function() {
@@ -996,16 +997,18 @@
       updateControlsUI();
     };
 
-    window.executeStrike = function() { if (!brawlerRunning || !gameActive) return; };
-    window.executePlasmaOrb = function() { if (!brawlerRunning || !gameActive) return; };
-    window.executeBurst = function() { if (!brawlerRunning || !gameActive) return; };
-    window.executeLuettaAid = function() { if (!brawlerRunning || !gameActive) return; };
+    window.executeStrike = function() { if (!brawlerRunning || !gameActive) return; logBrawler(activeLead.toUpperCase() + " executed Volt Beam!"); };
+    window.executePlasmaOrb = function() { if (!brawlerRunning || !gameActive) return; logBrawler(activeLead.toUpperCase() + " released Plasma Orb!"); };
+    window.executeBurst = function() { if (!brawlerRunning || !gameActive) return; logBrawler(activeLead.toUpperCase() + " activated Deflect Shield!"); };
+    window.executeLuettaAid = function() { if (!brawlerRunning || !gameActive) return; logBrawler("★ MOTHER LUETTA SUMMONED • Prismatic Board Wipe! ★"); };
 
-    // GAME ENGINE
+    // GAME ENGINE WITH SPRITE SHEET MAPPING
     let brawlerRunning = false;
     let brawlerInitialized = false;
     let canvas, ctx;
     let animationFrameId = null;
+    let animFrame = 0;
+    let frameTimer = 0;
 
     function resizeBrawlerCanvas() {
       if (!canvas) return;
@@ -1019,17 +1022,33 @@
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
     let playerHp = 100, gameActive = true;
 
+    // Sprite Sheet Mapping to uploaded files
+    const SPRITE_CONFIG = {
+      marcus: { src: "1791223140885.jpg", cols: 6, rows: 6, frameW: 64, frameH: 64, walkRow: 1 },
+      xochitl: { src: "1791222502778.jpg", cols: 6, rows: 4, frameW: 64, frameH: 64, walkRow: 1 }
+    };
+
+    const loadedSheets = {};
+
     function initBrawler() {
       brawlerInitialized = true;
       canvas = document.getElementById("gameCanvas");
       if (canvas) ctx = canvas.getContext("2d");
       resizeBrawlerCanvas();
+
+      for (let key in SPRITE_CONFIG) {
+        let img = new Image();
+        img.src = SPRITE_CONFIG[key].src;
+        loadedSheets[key] = img;
+      }
+
       renderBrawlerFrame();
     }
 
     function updateControlsUI() {
       let partner = unlockedRoster.find(r => r !== activeLead) || "xochitl";
       document.getElementById("heroNameLabel").innerText = `${activeLead.toUpperCase()} (Lead) & ${partner.toUpperCase()} (AI)`;
+      document.getElementById("btnTag").innerText = `TAG: ${partner.toUpperCase()}`;
     }
 
     function logBrawler(msg) {
@@ -1050,10 +1069,25 @@
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(0, 255); ctx.lineTo(canvas.width, 255); ctx.stroke();
 
-      ctx.fillStyle = "#38bdf8";
-      ctx.fillRect(leadX + 10, (175 - leadY) + 20, 30, 45);
-      ctx.fillStyle = "#fbbf24";
-      ctx.beginPath(); ctx.arc(leadX + 25, (175 - leadY) + 12, 12, 0, Math.PI * 2); ctx.fill();
+      let cfg = SPRITE_CONFIG[activeLead];
+      let sheetImg = loadedSheets[activeLead];
+      let drawX = leadX;
+      let drawY = (175 - leadY);
+
+      if (sheetImg && sheetImg.complete && sheetImg.naturalWidth > 0) {
+        let col = Math.floor(animFrame) % cfg.cols;
+        let row = isGrounded ? 0 : cfg.walkRow;
+        let sx = col * cfg.frameW;
+        let sy = row * cfg.frameH;
+
+        ctx.drawImage(sheetImg, sx, sy, cfg.frameW, cfg.frameH, drawX, drawY, 64, 64);
+      } else {
+        // Fallback vector shape if sheet is loading
+        ctx.fillStyle = activeLead === "marcus" ? "#38bdf8" : "#f97316";
+        ctx.fillRect(drawX + 10, drawY + 20, 30, 45);
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath(); ctx.arc(drawX + 25, drawY + 12, 12, 0, Math.PI * 2); ctx.fill();
+      }
 
       ctx.restore();
     }
@@ -1066,6 +1100,13 @@
           leadVy += 0.8;
           if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
         }
+
+        frameTimer++;
+        if (frameTimer > 8) {
+          animFrame = (animFrame + 1) % 6;
+          frameTimer = 0;
+        }
+
         animationFrameId = requestAnimationFrame(renderBrawler);
       } else {
         animationFrameId = null;
