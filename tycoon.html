@@ -510,4 +510,477 @@
   <!-- GLOBAL MARROW ENERGY ECONOMY BAR -->
   <div class="marrow-bar">
     <span>✨ MARROW ENERGY RESERVES</span>
-    <span id="marrowCounter" style="font-size: 13px; font-weight:
+    <span id="marrowCounter" style="font-size: 13px; font-weight: 900; color: #facc15;">250 ME</span>
+  </div>
+
+  <!-- MARROW SPECIAL POWERS BAR -->
+  <div class="powers-bar">
+    <button class="power-btn" onclick="triggerChronoLeap()">⚡ Chrono-Leap (100 ME)</button>
+    <button class="power-btn" onclick="triggerLegacyShield()">🛡️ Legacy Shield (75 ME)</button>
+  </div>
+
+  <!-- ADAPTIVE HUD ROSTER -->
+  <div class="hud-roster" id="hudRoster"></div>
+
+  <!-- 16-TILE TRACK -->
+  <div class="board-frame" id="boardTrack"></div>
+
+  <div class="log-box" id="gameLog">
+    Welcome! Connect with your partner to begin asynchronous turns.
+  </div>
+
+  <div class="control-actions">
+    <button class="btn btn-roll" id="btnRoll" onclick="rollDice()">🎲 Roll Dice</button>
+    <button class="btn btn-buy" id="btnBuy" onclick="buyProperty()" disabled>🏛️ Buy Deed</button>
+    <button class="btn btn-auction" id="btnAuction" onclick="startPropertyAuction()" disabled>📢 Auction</button>
+  </div>
+
+  <!-- SUITCASE CHALLENGE MODAL -->
+  <div class="modal-overlay" id="suitcaseModal">
+    <div class="modal-card">
+      <h3 style="color: #facc15; font-size: 1.1rem; margin-bottom: 6px;">💼 THE SUITCASE CHALLENGE</h3>
+      <p style="font-size: 12px; color: #cbd5e1;">Pick one of the heirlooms to reveal your ancestral dividend!</p>
+      <div class="suitcases-row">
+        <button class="case-btn" onclick="openSuitcase(1)">🧳</button>
+        <button class="case-btn" onclick="openSuitcase(2)">🧳</button>
+        <button class="case-btn" onclick="openSuitcase(3)">🧳</button>
+      </div>
+      <div id="caseResult" style="font-size: 12px; font-weight: 800; min-height: 20px; color: #38bdf8;"></div>
+    </div>
+  </div>
+
+  <!-- AUCTION MODAL -->
+  <div class="modal-overlay" id="auctionModal">
+    <div class="modal-card" style="border-color: #8b5cf6;">
+      <h3 style="color: #a78bfa; font-size: 1.1rem; margin-bottom: 4px;">📢 FAMILY AUCTION BLOCK</h3>
+      <p id="auctionPropertyTitle" style="font-size: 12px; color: #cbd5e1; margin-bottom: 10px;">Bidding for Property</p>
+      <div style="font-size: 26px; font-weight: 900; color: #10b981; margin-bottom: 4px;" id="auctionCurrentBid">$100</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-bottom: 12px;" id="auctionLeader">High Bidder: None</div>
+      <div style="font-size: 13px; font-weight: 800; color: #f59e0b; margin-bottom: 14px;" id="auctionTimerText">8s remaining</div>
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <button class="btn btn-buy" style="padding: 10px 16px;" onclick="placePlayerBid(25)">+ $25 Bid</button>
+        <button class="btn btn-buy" style="padding: 10px 16px;" onclick="placePlayerBid(50)">+ $50 Bid</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let playerMarrowEnergy = 250;
+    let myCustomName = "Tommy";
+    let myCustomColor = "#38bdf8";
+    let shieldActive = false;
+
+    function selectColor(color, el) {
+      document.querySelectorAll(".color-opt").forEach(o => o.classList.remove("selected"));
+      el.classList.add("selected");
+      myCustomColor = color;
+    }
+
+    function completeSetup() {
+      const nameInput = document.getElementById("customPlayerName").value.trim();
+      if (nameInput) myCustomName = nameInput;
+      document.getElementById("setupOverlay").style.display = "none";
+      initGame();
+    }
+
+    const TILES = [
+      { id: 0, name: "START (+$200)", type: "corner", color: "th-corner", price: 0, rent: 0, row: 5, col: 5 },
+      { id: 1, name: "Woodward Ave", type: "prop", color: "th-blue", price: 100, rent: 18, row: 5, col: 4, owner: null },
+      { id: 2, name: "Grand River Depot", type: "prop", color: "th-blue", price: 120, rent: 22, row: 5, col: 3, owner: null },
+      { id: 3, name: "Mystery Suitcase", type: "suitcase", color: "th-purple", price: 0, rent: 0, row: 5, col: 2 },
+      { id: 4, name: "MICHIGAN TRANSIT", type: "corner", color: "th-corner", price: 0, rent: 0, row: 5, col: 1 },
+
+      { id: 5, name: "West Grand Blvd", type: "prop", color: "th-blue", price: 140, rent: 26, row: 4, col: 1, owner: null },
+      { id: 6, name: "Conant Gardens", type: "prop", color: "th-blue", price: 160, rent: 30, row: 3, col: 1, owner: null },
+      { id: 7, name: "I-75 Northway", type: "prop", color: "th-green", price: 180, rent: 34, row: 2, col: 1, owner: null },
+
+      { id: 8, name: "SAGINAW REUNION", type: "corner", color: "th-corner", price: 0, rent: 0, row: 1, col: 1 },
+      { id: 9, name: "Hoyt Public Library", type: "prop", color: "th-green", price: 200, rent: 38, row: 1, col: 2, owner: null },
+      { id: 10, name: "Mystery Suitcase", type: "suitcase", color: "th-purple", price: 0, rent: 0, row: 1, col: 3 },
+      { id: 11, name: "Ojibway Island Park", type: "prop", color: "th-green", price: 240, rent: 45, row: 1, col: 4, owner: null },
+
+      { id: 12, name: "LINEAGE VAULT", type: "corner", color: "th-corner", price: 0, rent: 0, row: 1, col: 5 },
+      { id: 13, name: "Saginaw Riverwalk", type: "prop", color: "th-gold", price: 260, rent: 50, row: 2, col: 5, owner: null },
+      { id: 14, name: "Atwater Street", type: "prop", color: "th-gold", price: 300, rent: 60, row: 3, col: 5, owner: null },
+      { id: 15, name: "The Atwater Estate", type: "prop", color: "th-gold", price: 350, rent: 75, row: 4, col: 5, owner: null }
+    ];
+
+    let players = [];
+    let currentTurn = 0;
+
+    let peer = null;
+    let conn = null;
+    let isHost = false;
+    let myPlayerId = 0;
+
+    function initGame() {
+      players = [
+        { id: 0, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] },
+        { id: 1, name: "Angela", color: "#f472b6", cash: 1500, pos: 0, deeds: [] }
+      ];
+      currentTurn = 0;
+      buildHUD();
+      buildBoard();
+      updateHUD();
+      checkTurnControl();
+    }
+
+    function hostTable() {
+      peer = new Peer();
+      peer.on('open', (id) => {
+        isHost = true;
+        myPlayerId = 0;
+        document.getElementById("mpStatus").innerText = `Hosting! Code: ${id}`;
+        prompt("Send this match code to Angela:", id);
+      });
+
+      peer.on('connection', (connection) => {
+        conn = connection;
+        setupConnectionEvents();
+        document.getElementById("mpStatus").innerText = "Angela Connected!";
+        broadcastState("Angela connected to the match.");
+      });
+    }
+
+    function joinTable() {
+      const code = document.getElementById("joinCodeInput").value.trim();
+      if (!code) { alert("Enter a valid host code!"); return; }
+
+      peer = new Peer();
+      peer.on('open', () => {
+        conn = peer.connect(code);
+        isHost = false;
+        myPlayerId = 1; 
+        setupConnectionEvents();
+        document.getElementById("mpStatus").innerText = "Connected to Match!";
+      });
+    }
+
+    function setupConnectionEvents() {
+      conn.on('data', (data) => {
+        if (data.type === 'STATE_SYNC') {
+          players = data.players;
+          currentTurn = data.currentTurn;
+          playerMarrowEnergy = data.marrowEnergy;
+          if (data.tiles) {
+            data.tiles.forEach((syncTile, idx) => {
+              if (TILES[idx]) TILES[idx].owner = syncTile.owner;
+            });
+          }
+          buildBoard();
+          updateHUD();
+          updateMarrowDisplay();
+          checkTurnControl();
+          log(data.logMsg);
+        }
+      });
+    }
+
+    function broadcastState(msg = "State updated.") {
+      if (conn) {
+        conn.send({
+          type: 'STATE_SYNC',
+          players: players,
+          tiles: TILES,
+          currentTurn: currentTurn,
+          marrowEnergy: playerMarrowEnergy,
+          logMsg: msg
+        });
+      }
+    }
+
+    function checkTurnControl() {
+      const isMyTurn = (currentTurn === myPlayerId);
+      document.getElementById("btnRoll").disabled = !isMyTurn;
+      if (isMyTurn) {
+        log(`Your turn (${players[currentTurn].name})! Roll the holographic dice.`);
+      } else {
+        log(`Waiting for ${players[currentTurn].name}'s turn...`);
+      }
+    }
+
+    let auctionState = { active: false, tileId: null, highBid: 0, highBidder: null, timer: null, timeLeft: 8 };
+
+    function buildHUD() {
+      const hud = document.getElementById("hudRoster");
+      hud.innerHTML = "";
+      players.forEach((p, idx) => {
+        const card = document.createElement("div");
+        card.className = `p-card ${idx === currentTurn ? 'active-turn' : ''}`;
+        card.id = `pcard-${p.id}`;
+        card.innerHTML = `
+          <div class="p-title" style="color: ${p.color};">${p.name}</div>
+          <div class="p-val" id="pcash-${p.id}">$${p.cash}</div>
+        `;
+        hud.appendChild(card);
+      });
+    }
+
+    function buildBoard() {
+      const board = document.getElementById("boardTrack");
+      board.innerHTML = "";
+
+      const center = document.createElement("div");
+      center.className = "board-center";
+      center.innerHTML = `
+        <div class="center-logo">DETROIT & SAGINAW</div>
+        <div class="dice-box">
+          <div class="dice-3d" id="d1">🎲</div>
+          <div class="dice-3d" id="d2">🎲</div>
+        </div>
+        <div style="font-size: 8px; color: #94a3b8;">Holographic AR Edition</div>
+      `;
+      board.appendChild(center);
+
+      TILES.forEach(t => {
+        const tileDiv = document.createElement("div");
+        tileDiv.className = "tile";
+        tileDiv.id = `tile-${t.id}`;
+        tileDiv.style.gridRow = t.row;
+        tileDiv.style.gridColumn = t.col;
+
+        let priceText = t.price > 0 ? `$${t.price}` : "";
+        let ownerTag = (t.owner !== null && t.owner !== undefined && players[t.owner]) ? `(${players[t.owner].name.substring(0,2)})` : "";
+
+        tileDiv.innerHTML = `
+          <div class="tile-header ${t.color}"></div>
+          <div class="tile-name">${t.name} ${ownerTag}</div>
+          <div class="tile-price">${priceText}</div>
+          <div class="token-slot" id="slot-${t.id}"></div>
+        `;
+        board.appendChild(tileDiv);
+      });
+
+      renderTokens();
+    }
+
+    function renderTokens() {
+      for (let i = 0; i < 16; i++) {
+        const slot = document.getElementById(`slot-${i}`);
+        if (slot) slot.innerHTML = "";
+      }
+
+      players.forEach(p => {
+        const slot = document.getElementById(`slot-${p.pos}`);
+        if (slot) {
+          const tok = document.createElement("div");
+          tok.className = "token";
+          tok.style.background = p.color;
+          tok.style.boxShadow = `0 0 8px ${p.color}`;
+          slot.appendChild(tok);
+        }
+      });
+    }
+
+    function rollDice() {
+      if (currentTurn !== myPlayerId) {
+        log("⚠️ Please wait for your turn!");
+        return;
+      }
+
+      document.getElementById("btnRoll").disabled = true;
+
+      const d1El = document.getElementById("d1");
+      const d2El = document.getElementById("d2");
+      d1El.classList.add("dice-rolling");
+      d2El.classList.add("dice-rolling");
+
+      setTimeout(() => {
+        d1El.classList.remove("dice-rolling");
+        d2El.classList.remove("dice-rolling");
+
+        const roll1 = Math.floor(Math.random() * 6) + 1;
+        const roll2 = Math.floor(Math.random() * 6) + 1;
+        const total = roll1 + roll2;
+
+        d1El.innerText = roll1;
+        d2El.innerText = roll2;
+
+        const p = players[currentTurn];
+        const oldPos = p.pos;
+        p.pos = (p.pos + total) % 16;
+
+        if (p.pos < oldPos) {
+          p.cash += 200;
+          playerMarrowEnergy += 50; 
+          updateMarrowDisplay();
+          log(`${p.name} passed START! Collected $200 & +50 Marrow Energy!`);
+        }
+
+        renderTokens();
+        handleTileLand(p);
+      }, 600);
+    }
+
+    function handleTileLand(p) {
+      const tile = TILES[p.pos];
+      updateHUD();
+
+      if (tile.type === "suitcase") {
+        log(`${p.name} landed on Mystery Suitcase!`);
+        triggerSuitcaseModal();
+        return;
+      }
+
+      if (tile.type === "prop") {
+        if (tile.owner === null || tile.owner === undefined) {
+          log(`Unclaimed: ${tile.name} ($${tile.price}). Buy deed or pass!`);
+          document.getElementById("btnBuy").disabled = (p.cash < tile.price);
+          document.getElementById("btnAuction").disabled = false;
+          return;
+        } else if (tile.owner !== p.id) {
+          if (shieldActive && p.id === myPlayerId) {
+            shieldActive = false;
+            log(`🛡️ Legacy Shield blocked rent payment to ${players[tile.owner].name}!`);
+          } else {
+            const rent = tile.rent;
+            p.cash -= rent;
+            players[tile.owner].cash += rent;
+            log(`${p.name} landed on ${tile.name}! Paid $${rent} rent.`);
+          }
+        } else {
+          log(`${p.name} visited their estate.`);
+        }
+      }
+
+      setTimeout(endTurn, 1000);
+    }
+
+    function buyProperty() {
+      const p = players[currentTurn];
+      const tile = TILES[p.pos];
+      if (tile.type === "prop" && (tile.owner === null || tile.owner === undefined) && p.cash >= tile.price) {
+        tile.owner = p.id;
+        p.cash -= tile.price;
+        p.deeds.push(tile.name);
+        playerMarrowEnergy += 25; 
+        updateMarrowDisplay();
+        
+        // Trigger 3D Holographic AR Deed Modal
+        document.getElementById("arDeedTitle").innerText = tile.name;
+        document.getElementById("arDeedPrice").innerText = `$${tile.price} Deed Secured`;
+        document.getElementById("arDeedModal").style.display = "flex";
+
+        document.getElementById("btnBuy").disabled = true;
+        document.getElementById("btnAuction").disabled = true;
+        buildBoard();
+        updateHUD();
+        broadcastState(`${p.name} acquired ${tile.name}`);
+      }
+    }
+
+    function closeArDeed() {
+      document.getElementById("arDeedModal").style.display = "none";
+      setTimeout(endTurn, 600);
+    }
+
+    function triggerChronoLeap() {
+      if (currentTurn !== myPlayerId) { log("⚠️ Not your turn!"); return; }
+      if (playerMarrowEnergy >= 100) {
+        playerMarrowEnergy -= 100;
+        updateMarrowDisplay();
+        const p = players[currentTurn];
+        p.pos = (p.pos + 3) % 16;
+        renderTokens();
+        log(`⚡ Chrono-Leap activated! Teleported forward 3 spaces!`);
+        broadcastState(`${p.name} used Chrono-Leap`);
+      } else {
+        log("⚠️ Need 100 Marrow Energy for Chrono-Leap!");
+      }
+    }
+
+    function triggerLegacyShield() {
+      if (currentTurn !== myPlayerId) { log("⚠️️ Not your turn!"); return; }
+      if (playerMarrowEnergy >= 75) {
+        playerMarrowEnergy -= 75;
+        updateMarrowDisplay();
+        shieldActive = true;
+        log(`🛡️ Legacy Shield active! Next rent payment blocked.`);
+      } else {
+        log("⚠️ Need 75 Marrow Energy for Legacy Shield!");
+      }
+    }
+
+    function startPropertyAuction() {
+      const tile = TILES[players[currentTurn].pos];
+      document.getElementById("btnBuy").disabled = true;
+      document.getElementById("btnAuction").disabled = true;
+
+      auctionState.active = true;
+      auctionState.tileId = tile.id;
+      auctionState.highBid = Math.floor(tile.price * 0.70);
+      auctionState.highBidder = null;
+      auctionState.timeLeft = 8;
+
+      document.getElementById("auctionPropertyTitle").innerText = `Bidding for: ${tile.name}`;
+      document.getElementById("auctionModal").style.display = "flex";
+      updateAuctionUI();
+
+      if (auctionState.timer) clearInterval(auctionState.timer);
+      auctionState.timer = setInterval(auctionTick, 1000);
+    }
+
+    function placePlayerBid(amount) {
+      const newBid = auctionState.highBid + amount;
+      if (players[myPlayerId].cash >= newBid) {
+        auctionState.highBid = newBid;
+        auctionState.highBidder = myPlayerId;
+        auctionState.timeLeft = 6;
+        updateAuctionUI();
+        log(`${players[myPlayerId].name} bid $${newBid}!`);
+      } else {
+        log("⚠️ Not enough cash!");
+      }
+    }
+
+    function auctionTick() {
+      auctionState.timeLeft--;
+      if (auctionState.timeLeft <= 0) {
+        resolveAuction();
+      } else {
+        updateAuctionUI();
+      }
+    }
+
+    function resolveAuction() {
+      clearInterval(auctionState.timer);
+      document.getElementById("auctionModal").style.display = "none";
+      auctionState.active = false;
+      const tile = TILES[auctionState.tileId];
+
+      if (auctionState.highBidder !== null) {
+        const winner = players[auctionState.highBidder];
+        winner.cash -= auctionState.highBid;
+        winner.deeds.push(tile.name);
+        tile.owner = auctionState.highBidder;
+        log(`🏆 SOLD! ${winner.name} won ${tile.name} for $${auctionState.highBid}!`);
+      } else {
+        log(`❌ No bids accepted. ${tile.name} stays unclaimed.`);
+      }
+
+      buildBoard();
+      updateHUD();
+      broadcastState(`Auction resolved for ${tile.name}`);
+      setTimeout(endTurn, 1000);
+    }
+
+    function updateAuctionUI() {
+      document.getElementById("auctionCurrentBid").innerText = `$${auctionState.highBid}`;
+      document.getElementById("auctionTimerText").innerText = `${auctionState.timeLeft}s remaining`;
+      document.getElementById("auctionLeader").innerText = 
+        `High Bidder: ${auctionState.highBidder === null ? 'None' : players[auctionState.highBidder].name}`;
+    }
+
+    function endTurn() {
+      document.getElementById("btnBuy").disabled = true;
+      document.getElementById("btnAuction").disabled = true;
+
+      currentTurn = (currentTurn + 1) % players.length;
+      updateHUD();
+      checkTurnControl();
+      broadcastState(`Turn passed to ${players[currentTurn].name}`);
+    }
+
+    function triggerSuitcaseModal() {
+      document.getElementById("caseResult").innerText = "";
+      document.getElementById("suitcaseModal").style
