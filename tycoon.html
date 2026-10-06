@@ -642,6 +642,11 @@
           players = data.players;
           currentTurn = data.currentTurn;
           playerMarrowEnergy = data.marrowEnergy;
+          if (data.tiles) {
+            data.tiles.forEach((syncTile, idx) => {
+              if (TILES[idx]) TILES[idx].owner = syncTile.owner;
+            });
+          }
           buildBoard();
           updateHUD();
           updateMarrowDisplay();
@@ -656,6 +661,7 @@
         conn.send({
           type: 'STATE_SYNC',
           players: players,
+          tiles: TILES,
           currentTurn: currentTurn,
           marrowEnergy: playerMarrowEnergy,
           logMsg: msg
@@ -714,7 +720,7 @@
         tileDiv.style.gridColumn = t.col;
 
         let priceText = t.price > 0 ? `$${t.price}` : "";
-        let ownerTag = t.owner !== null ? `(${players[t.owner].name.substring(0,2)})` : "";
+        let ownerTag = (t.owner !== null && t.owner !== undefined && players[t.owner]) ? `(${players[t.owner].name.substring(0,2)})` : "";
 
         tileDiv.innerHTML = `
           <div class="tile-header ${t.color}"></div>
@@ -748,7 +754,7 @@
 
     function rollDice() {
       if (currentTurn !== myPlayerId) {
-        log("⚠️️ Please wait for your turn!");
+        log("⚠️ Please wait for your turn!");
         return;
       }
 
@@ -797,7 +803,7 @@
       }
 
       if (tile.type === "prop") {
-        if (tile.owner === null) {
+        if (tile.owner === null || tile.owner === undefined) {
           log(`Unclaimed: ${tile.name} ($${tile.price}). Buy deed or pass!`);
           document.getElementById("btnBuy").disabled = (p.cash < tile.price);
           document.getElementById("btnAuction").disabled = false;
@@ -823,7 +829,7 @@
     function buyProperty() {
       const p = players[currentTurn];
       const tile = TILES[p.pos];
-      if (tile.type === "prop" && tile.owner === null && p.cash >= tile.price) {
+      if (tile.type === "prop" && (tile.owner === null || tile.owner === undefined) && p.cash >= tile.price) {
         tile.owner = p.id;
         p.cash -= tile.price;
         p.deeds.push(tile.name);
@@ -964,7 +970,7 @@
         { text: "🏛️ Hoyt Library Grant! +$200", val: 200, marrow: 40 },
         { text: "🏡 Reunion Dividend! +$180", val: 180, marrow: 35 },
         { text: "🚗 Transit Toll. -$75", val: -75, marrow: 15 },
-        { text: "🛋️ Furniture Dividend! +$220", val: 220, marrow: 50 }
+        { text: "🛋️️ Furniture Dividend! +$220", val: 220, marrow: 50 }
       ];
       const p = players[currentTurn];
       const prize = outcomes[Math.floor(Math.random() * outcomes.length)];
@@ -1004,6 +1010,7 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       updateMarrowDisplay();
+      buildBoard();
     });
   </script>
 </body>
