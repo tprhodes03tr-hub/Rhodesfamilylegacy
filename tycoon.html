@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Family Legacy Tycoon: Detroit & Saginaw</title>
+  <!-- PeerJS CDN for Real-Time P2P Multiplayer -->
+  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <style>
     :root {
       --bg-dark: #060913;
@@ -51,7 +53,42 @@
       margin-bottom: 2px;
     }
 
-    /* GLOBAL MARROW ENERGY COUNTER */
+    /* MULTIPLAYER LOBBY BAR */
+    .multiplayer-bar {
+      width: 100%;
+      max-width: 540px;
+      background: #0f172a;
+      border: 1px solid #38bdf8;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .mp-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .mp-input {
+      background: #1e293b;
+      border: 1px solid #38bdf8;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      width: 130px;
+      text-align: center;
+    }
+
+    /* GLOBAL MARROW ENERGY ECONOMY BAR */
     .marrow-bar {
       width: 100%;
       max-width: 540px;
@@ -271,6 +308,7 @@
     .btn-roll    { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; }
     .btn-buy     { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
     .btn-auction { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; }
+    .btn-mp      { background: linear-gradient(135deg, #38bdf8, #0284c7); color: #000; }
 
     /* MODALS */
     .modal-overlay {
@@ -308,6 +346,21 @@
   <div class="tycoon-header">
     <div class="badge-tag">Rhodes Family Legacy</div>
     <h2 style="font-size: 1.1rem; font-weight: 900; color: #f8fafc;">Detroit & Saginaw Tycoon</h2>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY BAR -->
+  <div class="multiplayer-bar">
+    <div class="mp-row">
+      <span>🌐 ONLINE MULTIPLAYER</span>
+      <span id="mpStatus" style="color: #facc15;">Offline (Solo/Hotseat)</span>
+    </div>
+    <div class="mp-row" style="margin-top: 4px;">
+      <button class="btn btn-mp" style="padding: 6px 12px;" onclick="hostTable()">Host Table</button>
+      <div style="display: flex; gap: 4px; align-items: center;">
+        <input type="text" id="joinCodeInput" class="mp-input" placeholder="Enter Host Code" />
+        <button class="btn btn-mp" style="padding: 6px 12px;" onclick="joinTable()">Join</button>
+      </div>
+    </div>
   </div>
 
   <!-- GLOBAL MARROW ENERGY ECONOMY BAR -->
@@ -410,6 +463,74 @@
     let players = [];
     let currentTurn = 0;
 
+    // --- PEERJS MULTIPLAYER STATE ---
+    let peer = null;
+    let conn = null;
+    let isHost = false;
+    let myPlayerId = 0;
+
+    function hostTable() {
+      peer = new Peer();
+      peer.on('open', (id) => {
+        isHost = true;
+        myPlayerId = 0;
+        players[1].isAI = false; // Turn P2 human for friend
+        players[1].name = "P2 (Friend)";
+        document.getElementById("mpStatus").innerText = `Hosting! Code: ${id}`;
+        prompt("Copy and send this Table Code to your friend:", id);
+        buildHUD();
+      });
+
+      peer.on('connection', (connection) => {
+        conn = connection;
+        setupConnectionEvents();
+        document.getElementById("mpStatus").innerText = "Friend Connected!";
+        broadcastState();
+      });
+    }
+
+    function joinTable() {
+      const code = document.getElementById("joinCodeInput").value.trim();
+      if (!code) { alert("Enter a valid host code!"); return; }
+
+      peer = new Peer();
+      peer.on('open', () => {
+        conn = peer.connect(code);
+        isHost = false;
+        myPlayerId = 1; // Joined friend is Player 2
+        setupConnectionEvents();
+        document.getElementById("mpStatus").innerText = "Connected to Host!";
+      });
+    }
+
+    function setupConnectionEvents() {
+      conn.on('data', (data) => {
+        if (data.type === 'STATE_SYNC') {
+          players = data.players;
+          TILES = data.tiles;
+          currentTurn = data.currentTurn;
+          playerMarrowEnergy = data.marrowEnergy;
+          buildBoard();
+          updateHUD();
+          updateMarrowDisplay();
+          log(data.logMsg);
+        }
+      });
+    }
+
+    function broadcastState(msg = "State updated.") {
+      if (isHost && conn) {
+        conn.send({
+          type: 'STATE_SYNC',
+          players: players,
+          tiles: TILES,
+          currentTurn: currentTurn,
+          marrowEnergy: playerMarrowEnergy,
+          logMsg: msg
+        });
+      }
+    }
+
     let auctionState = {
       active: false,
       tileId: null,
@@ -509,28 +630,32 @@
     }
 
     function rollDice() {
-      document.getElementById("btnRoll").disabled = true;
+      if (!peer || isHost || currentTurn === myPlayerId) {
+        document.getElementById("btnRoll").disabled = true;
 
-      const roll1 = Math.floor(Math.random() * 6) + 1;
-      const roll2 = Math.floor(Math.random() * 6) + 1;
-      const total = roll1 + roll2;
+        const roll1 = Math.floor(Math.random() * 6) + 1;
+        const roll2 = Math.floor(Math.random() * 6) + 1;
+        const total = roll1 + roll2;
 
-      document.getElementById("d1").innerText = roll1;
-      document.getElementById("d2").innerText = roll2;
+        document.getElementById("d1").innerText = roll1;
+        document.getElementById("d2").innerText = roll2;
 
-      const p = players[currentTurn];
-      const oldPos = p.pos;
-      p.pos = (p.pos + total) % 16;
+        const p = players[currentTurn];
+        const oldPos = p.pos;
+        p.pos = (p.pos + total) % 16;
 
-      if (p.pos < oldPos) {
-        p.cash += 200;
-        playerMarrowEnergy += 50; // Marrow Energy bonus for passing start!
-        updateMarrowDisplay();
-        log(`${p.name} passed START! Collected $200 & +50 Marrow Energy!`);
+        if (p.pos < oldPos) {
+          p.cash += 200;
+          playerMarrowEnergy += 50; 
+          updateMarrowDisplay();
+          log(`${p.name} passed START! Collected $200 & +50 Marrow Energy!`);
+        }
+
+        renderTokens();
+        handleTileLand(p);
+      } else {
+        log("⚠️ Wait for your turn!");
       }
-
-      renderTokens();
-      handleTileLand(p);
     }
 
     function handleTileLand(p) {
@@ -586,13 +711,14 @@
         tile.owner = p.id;
         p.cash -= tile.price;
         p.deeds.push(tile.name);
-        playerMarrowEnergy += 25; // Marrow reward for acquiring estate
+        playerMarrowEnergy += 25; 
         updateMarrowDisplay();
         log(`🎉 You acquired ${tile.name} & gained +25 Marrow Energy!`);
         document.getElementById("btnBuy").disabled = true;
         document.getElementById("btnAuction").disabled = true;
         buildBoard();
         updateHUD();
+        broadcastState(`${p.name} purchased ${tile.name}`);
         setTimeout(endTurn, 1000);
       }
     }
@@ -671,6 +797,7 @@
 
       buildBoard();
       updateHUD();
+      broadcastState(`Auction resolved for ${tile.name}`);
       setTimeout(endTurn, 1000);
     }
 
@@ -687,6 +814,7 @@
 
       currentTurn = (currentTurn + 1) % players.length;
       updateHUD();
+      broadcastState(`Turn passed to ${players[currentTurn].name}`);
 
       const nextPlayer = players[currentTurn];
       if (nextPlayer.isAI) {
@@ -720,6 +848,7 @@
         document.getElementById("suitcaseModal").style.display = "none";
         log(`Suitcase Result: ${prize.text}`);
         updateHUD();
+        broadcastState(`Suitcase opened by ${players[0].name}`);
         endTurn();
       }, 1500);
     }
