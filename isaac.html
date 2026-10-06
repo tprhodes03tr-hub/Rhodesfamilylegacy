@@ -425,7 +425,7 @@
           <button class="control-btn" onclick="tetrisMove(-1)">◀</button>
           <button class="control-btn" onclick="tetrisRotate()">🔄</button>
           <button class="control-btn" onclick="tetrisDrop()">⬇️</button>
-          <button class="control-btn" onclick="toggleTetrisPause()" style="background:#7c2d12;">⏸️️</button>
+          <button class="control-btn" onclick="toggleTetrisPause()" style="background:#7c2d12;">⏸</button>
           <button class="control-btn" onclick="tetrisMove(1)">▶</button>
         </div>
       </div>
@@ -437,3 +437,263 @@
       <p id="finalScoreText">Enter your 3 initials:</p>
       <input type="text" id="playerInitials" maxlength="3" placeholder="TPR" />
       <div class="modal-btns">
+        <button class="modal-btn" onclick="saveInitials()">Save Score</button>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD DISPLAY -->
+    <div class="leaderboard-box">
+      <h3>👑 Weekly Hall of Fame</h3>
+      <div id="leaderboardList">
+        <div class="lb-row"><span>1. ---</span><span>0 PTS</span></div>
+        <div class="lb-row"><span>2. ---</span><span>0 PTS</span></div>
+        <div class="lb-row"><span>3. ---</span><span>0 PTS</span></div>
+      </div>
+    </div>
+
+    <a href="#" class="reward-btn" id="rewardBtn" onclick="claimReward()">⭐ COLLECT 2500 PTS = UNLOCK BOOK CHAPTER! ⭐</a>
+    
+    <a href="index.html" class="return-link">← RETURN TO CINEMA HUB</a>
+
+  </div>
+
+  <script>
+    let score = 0;
+    let activeMode = 'word';
+    const targetGoal = 2500;
+    let pendingScore = 0;
+
+    // --- LEADERBOARD LOGIC ---
+    function loadLeaderboard() {
+      let lb = JSON.parse(localStorage.getItem('rhodes_lb')) || [
+        {name: 'ANG', score: 650},
+        {name: 'TPR', score: 500},
+        {name: 'FAM', score: 350}
+      ];
+      const listEl = document.getElementById('leaderboardList');
+      listEl.innerHTML = '';
+      lb.forEach((entry, idx) => {
+        listEl.innerHTML += `<div class="lb-row"><span>${idx + 1}. ${entry.name}</span><span>${entry.score} PTS</span></div>`;
+      });
+    }
+
+    function checkLeaderboard(finalScore) {
+      if (finalScore <= 0) return;
+      pendingScore = finalScore;
+      document.getElementById('finalScoreText').innerText = `You scored ${finalScore} points! Enter your 3 initials:`;
+      document.getElementById('initialsModal').style.display = 'flex';
+    }
+
+    function saveInitials() {
+      let initials = document.getElementById('playerInitials').value.toUpperCase().trim() || 'FAM';
+      if (initials.length > 3) initials = initials.substring(0, 3);
+      
+      let lb = JSON.parse(localStorage.getItem('rhodes_lb')) || [];
+      lb.push({name: initials, score: pendingScore});
+      lb.sort((a, b) => b.score - a.score);
+      lb = lb.slice(0, 3);
+      
+      localStorage.setItem('rhodes_lb', JSON.stringify(lb));
+      document.getElementById('initialsModal').style.display = 'none';
+      loadLeaderboard();
+    }
+
+    function switchGameMode(mode) {
+      activeMode = mode;
+      
+      tetrisActive = false;
+      if (dropTimer) clearInterval(dropTimer);
+
+      document.getElementById('btnWord').classList.toggle('active', mode === 'word');
+      document.getElementById('btnTetris').classList.toggle('active', mode === 'tetris');
+      
+      document.getElementById('viewWord').classList.toggle('active', mode === 'word');
+      document.getElementById('viewTetris').classList.toggle('active', mode === 'tetris');
+      
+      if (mode === 'word') {
+        document.getElementById('mainTitle').innerText = "Crossword Builder";
+        document.getElementById('zoneDisplay').innerText = "ZONE: LEGACY VAULT";
+        initWordGrid();
+      } else if (mode === 'tetris') {
+        document.getElementById('mainTitle').innerText = "Legacy Tetris Arcade";
+        document.getElementById('zoneDisplay').innerText = "ZONE: ARCADE SPEEDWAY";
+        startTetrisGame();
+      }
+    }
+
+    function playSound(type = 'sine', freq = 587.33, duration = 0.2) {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.5, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function updateScore() {
+      document.getElementById('scoreDisplay').innerText = `SCORE: ${score}`;
+      if (score >= targetGoal) {
+        document.getElementById('rewardBtn').style.background = 'linear-gradient(135deg, #059669, #10b981)';
+      }
+    }
+
+    function claimReward() {
+      if (score >= targetGoal) {
+        alert('🎉 Congratulations! You unlocked the exclusive Rhodes Family Legacy book chapter reward!');
+      } else {
+        alert(`Keep playing! You need ${targetGoal - score} more points to unlock the book reward.`);
+      }
+    }
+
+    // --- MULTI-COLOR CROSSWORD BUILDER ENGINE ---
+    let selectedCellObjects = [];
+    const targetWords = ["MARROW", "LEGACY", "CLOCK", "DETROIT"];
+    let currentBoardLetters = ['M', 'A', 'R', 'R', 'O', 'W', 'L', 'E', 'G', 'A', 'C', 'Y', 'C', 'L', 'O', 'C', 'K', 'X', 'D', 'E', 'T', 'R', 'O', 'I', 'T', 'S', 'A', 'G', 'I', 'N', 'A', 'B', 'C', 'D', 'E', 'F'];
+
+    function initWordGrid() {
+      const wordGridEl = document.getElementById('wordGrid');
+      wordGridEl.innerHTML = '';
+      currentBoardLetters.forEach((letter, idx) => {
+        const cell = document.createElement('div');
+        let tileType = 'consonant';
+        if (['A','E','I','O','U'].includes(letter)) tileType = 'vowel';
+        if (['M','L','C','D'].includes(letter) && idx % 3 === 0) tileType = 'bonus';
+        
+        cell.className = `letter-cell ${tileType}`;
+        cell.innerText = letter;
+        cell.onclick = () => {
+          cell.classList.toggle('selected');
+          const existing = selectedCellObjects.findIndex(i => i.idx === idx);
+          if (existing > -1) selectedCellObjects.splice(existing, 1);
+          else selectedCellObjects.push({ letter, idx });
+        };
+        wordGridEl.appendChild(cell);
+      });
+    }
+
+    function scrambleWordBoard() {
+      for (let i = currentBoardLetters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [currentBoardLetters[i], currentBoardLetters[j]] = [currentBoardLetters[j], currentBoardLetters[i]];
+      }
+      selectedCellObjects = [];
+      initWordGrid();
+      document.getElementById('wordStatusMsg').innerText = '✨ Board shuffled! Pick your letters.';
+    }
+
+    function submitScrambleWord() {
+      const formedWord = selectedCellObjects.map(i => i.letter).join('');
+      if (targetWords.includes(formedWord)) {
+        score += 100;
+        playSound('sine', 880, 0.2);
+        document.getElementById('wordStatusMsg').innerText = `🎉 Found "${formedWord}" (+100 PTS)!`;
+        const clue = document.getElementById(`clue-${formedWord}`);
+        if (clue) clue.classList.add('found');
+        selectedCellObjects = [];
+        initWordGrid();
+        updateScore();
+      } else {
+        playSound('sawtooth', 220, 0.2);
+        document.getElementById('wordStatusMsg').innerText = `❌ "${formedWord}" is not active.`;
+        selectedCellObjects = [];
+        document.querySelectorAll('.letter-cell.selected').forEach(c => c.classList.remove('selected'));
+      }
+    }
+
+    // --- TETRIS ENGINE ---
+    const tCanvas = document.getElementById('tetrisCanvas');
+    const tCtx = tCanvas.getContext('2d');
+    const tCols = 10, tRows = 18, tSize = 24;
+    let tBoard = Array(tRows).fill().map(() => Array(tCols).fill(0));
+    let tetrisActive = false, tetrisPaused = false, dropInterval = 700, dropTimer = null;
+    const shapes = [[[1,1,1,1]], [[1,1],[1,1]], [[0,1,0],[1,1,1]], [[1,0],[1,0],[1,1]], [[0,1],[0,1],[1,1]]];
+    const shapeColors = ['#38bdf8', '#fbbf24', '#f472b6', '#4ade80', '#818cf8'];
+    let currentPiece = { shape: shapes[0], color: shapeColors[0], x: 3, y: 0 };
+
+    function startTetrisGame() {
+      tetrisActive = true; tetrisPaused = false;
+      tBoard = Array(tRows).fill().map(() => Array(tCols).fill(0));
+      spawnTetrisPiece();
+      if (dropTimer) clearInterval(dropTimer);
+      dropTimer = setInterval(tetrisTick, dropInterval);
+    }
+
+    function toggleTetrisPause() {
+      if (!tetrisActive) return;
+      tetrisPaused = !tetrisPaused;
+      document.getElementById('tetrisPauseModal').style.display = tetrisPaused ? 'flex' : 'none';
+    }
+
+    function spawnTetrisPiece() {
+      const idx = Math.floor(Math.random() * shapes.length);
+      currentPiece = { shape: shapes[idx], color: shapeColors[idx], x: Math.floor(tCols / 2) - Math.floor(shapes[idx][0].length / 2), y: 0 };
+      if (checkTetrisCollision(0, 0, currentPiece.shape)) {
+        let finalScore = score;
+        score = 0; updateScore();
+        tBoard = Array(tRows).fill().map(() => Array(tCols).fill(0));
+        document.getElementById('tetrisStatus').innerText = '⚠️ Stack Full! Score Reset!';
+        playSound('sawtooth', 220, 0.3);
+        checkLeaderboard(finalScore);
+      }
+    }
+
+    function checkTetrisCollision(ox, oy, shape) {
+      for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+          if (shape[r][c]) {
+            let nx = currentPiece.x + c + ox, ny = currentPiece.y + r + oy;
+            if (nx < 0 || nx >= tCols || ny >= tRows) return true;
+            if (ny >= 0 && tBoard[ny][nx]) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function tetrisTick() {
+      if (!tetrisActive || activeMode !== 'tetris' || tetrisPaused) return;
+      if (!checkTetrisCollision(0, 1, currentPiece.shape)) currentPiece.y++;
+      else {
+        currentPiece.shape.forEach((row, r) => row.forEach((val, c) => { if (val && currentPiece.y + r >= 0) tBoard[currentPiece.y + r][currentPiece.x + c] = currentPiece.color; }));
+        for (let r = tRows - 1; r >= 0; r--) {
+          if (tBoard[r].every(cell => cell !== 0)) { tBoard.splice(r, 1); tBoard.unshift(Array(tCols).fill(0)); score += 75; updateScore(); r++; }
+        }
+        spawnTetrisPiece();
+      }
+      drawTetris();
+    }
+
+    function tetrisMove(dir) { if (!tetrisPaused && !checkTetrisCollision(dir, 0, currentPiece.shape)) { currentPiece.x += dir; drawTetris(); } }
+    function tetrisRotate() {
+      if (tetrisPaused) return;
+      let rotated = currentPiece.shape[0].map((_, i) => currentPiece.shape.map(row => row[i]).reverse());
+      if (!checkTetrisCollision(0, 0, rotated)) { currentPiece.shape = rotated; drawTetris(); }
+    }
+    function tetrisDrop() {
+      if (tetrisPaused) return;
+      while (!checkTetrisCollision(0, 1, currentPiece.shape)) currentPiece.y++;
+      tetrisTick();
+    }
+
+    function drawTetris() {
+      tCtx.fillStyle = '#0f172a'; tCtx.fillRect(0, 0, tCanvas.width, tCanvas.height);
+      tBoard.forEach((row, r) => row.forEach((color, c) => { if (color) { tCtx.fillStyle = color; tCtx.fillRect(c * tSize, r * tSize, tSize - 1, tSize - 1); } }));
+      if (currentPiece && currentPiece.shape) {
+        tCtx.fillStyle = currentPiece.color;
+        currentPiece.shape.forEach((row, r) => row.forEach((val, c) => { if (val) tCtx.fillRect((currentPiece.x + c) * tSize, (currentPiece.y + r) * tSize, tSize - 1, tSize - 1); }));
+      }
+    }
+
+    loadLeaderboard();
+    initWordGrid();
+  </script>
+</body>
+</html>
