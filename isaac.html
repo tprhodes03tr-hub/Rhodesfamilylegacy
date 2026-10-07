@@ -398,7 +398,7 @@
     </div>
 
     <div class="combat-log" id="combatLog">
-      Tactical Co-Op active! Mother Luetta heavenly ascent, Amina Zazzau celestial spear, and Wacan ocean wave fully operational.
+      Tactical Co-Op active! Mother Luetta heavenly descent, helicopter spotlight, rain weather, and hammer active.
     </div>
 
     <div class="controls-grid">
@@ -445,13 +445,13 @@
 
   <script>
     /* =========================================================================
-       1. DEFINITIVE ROSTER INCLUDING AMINA ZAZZAU & WACAN (GUACAN)
+       1. ROSTER & ASSET CONFIGURATION
        ========================================================================= */
     const ROSTER_CONFIG = {
       marcus: { name: "Marcus Prime", role: "Grid Channeler", color: "#38bdf8", imgKey: "marcus" },
       xochitl: { name: "Xochitl", role: "Obsidian Sun", color: "#f97316", imgKey: "xochitl" },
       sundiata: { name: "Sundiata Prime", role: "Lion Bastion", color: "#f59e0b", imgKey: "sundiata" },
-      kofi: { name: "Kofi Osei", role: "Gold-Smith", color: "#eab308", imgKey: "kofi" },
+      kofi: { name: "Kofi Osei (Gold-Smith)", role: "Forge Hammer", color: "#eab308", imgKey: "kofi" },
       amina: { name: "Amina Zazzau", role: "Spear of the Realm", color: "#a855f7", imgKey: "amina" },
       wacan: { name: "Wacan (Guacan)", role: "Storm-Tide Sentinel", color: "#0284c7", imgKey: "wacan" }
     };
@@ -486,7 +486,7 @@
     ASSETS.apex.src = "apex-volt.png";
     ASSETS.luetta.src = "mother-luta.png";
 
-    const SAVE_KEY = 'vanguard_isaac_save_v13';
+    const SAVE_KEY = 'vanguard_isaac_save_v15';
     let playerProgress = { highestStageUnlocked: 1, currentStage: 1 };
 
     function loadSavedProgress() {
@@ -563,9 +563,9 @@
         osc.start(now); osc.stop(now + 0.25);
       } else if (type === 'tide') {
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(100, now);
-        osc.frequency.linearRampToValueAtTime(500, now + 0.8);
-        gain.gain.setValueAtTime(0.7, now);
+        osc.frequency.setValueAtTime(90, now);
+        osc.frequency.linearRampToValueAtTime(420, now + 0.8);
+        gain.gain.setValueAtTime(0.65, now);
         gain.gain.linearRampToValueAtTime(0.01, now + 0.9);
         osc.start(now); osc.stop(now + 0.9);
       }
@@ -591,15 +591,27 @@
     let enemies = [];
     let boss = { x: 380, y: 0, hp: 24, maxHp: 24, active: false, type: "chrono", hitFlash: 0 };
     let gameActive = true;
-    let plasmaOrbs = [], lightningBolts = [], lionRoars = [], daggers = [], clockDebris = [], hammers = [], tsunamis = [];
-    let luettaState = { active: false, phase: 'DESCEND', x: 270, y: -40, targetY: 40, timer: 0 };
+    let plasmaOrbs = [], lightningBolts = [], lionRoars = [], daggers = [], clockDebris = [], hammers = [], tsunamis = [], raindrops = [];
+    let luettaState = { active: false, phase: 'DESCEND', x: 270, y: -90, targetY: 45, timer: 0 };
     let xochitlFlight = { active: false, phase: 'UP', x: 0, y: 0, timer: 0 };
+    let chopper = { x: -120, y: 35, speed: 1.2, spotAngle: 0 };
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
       ctx = canvas.getContext("2d");
       resizeCanvas();
       startWave(1);
+      
+      // Initialize Raindrops for weather cycle
+      for (let i = 0; i < 40; i++) {
+        raindrops.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          len: Math.random() * 15 + 10,
+          speed: Math.random() * 6 + 8
+        });
+      }
+
       if (!animationFrameId) animationFrameId = requestAnimationFrame(renderBrawler);
     }
 
@@ -637,6 +649,8 @@
           hp: 3,
           speed: 1.15,
           active: true,
+          type: i % 2 === 0 ? 'walker' : 'drone',
+          walkCycle: Math.random() * Math.PI * 2,
           rotorPhase: Math.random() * Math.PI * 2
         });
       }
@@ -672,7 +686,7 @@
         xochitlFlight.x = leadX;
         xochitlFlight.y = 175;
         xochitlFlight.timer = 0;
-        logBrawler("🪶 Xochitl takes flight: soaring up to the right, folding wings, and drifting left releasing daggers!");
+        logBrawler("🪶 Xochitl soaring high: ascending right, folding wings, and drifting left releasing daggers!");
       }
     }
 
@@ -703,14 +717,14 @@
         document.getElementById("btnStrike").innerText = "⚒️ Anvil Sledge";
         document.getElementById("btnOrb").innerText = "✨ Molten Shards";
         document.getElementById("btnBurst").innerText = "🛡️ Crucible Bastion";
-      } else if (activeLead === "amina") {
-        document.getElementById("btnStrike").innerText = "✨ Celestial Spear";
-        document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
-        document.getElementById("btnBurst").innerText = "🛡️ Deflect";
       } else if (activeLead === "wacan") {
         document.getElementById("btnStrike").innerText = "🌊 Tidal Surge";
         document.getElementById("btnOrb").innerText = "🐚 Guamo Call";
         document.getElementById("btnBurst").innerText = "🛡️ Larimar Shield";
+      } else if (activeLead === "amina") {
+        document.getElementById("btnStrike").innerText = "✨ Celestial Spear";
+        document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
+        document.getElementById("btnBurst").innerText = "🛡️ Deflect";
       } else {
         document.getElementById("btnStrike").innerText = "⚡ Volt Beam";
         document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
@@ -742,14 +756,14 @@
         hammers.push({ x: leadX + 40, y: 190, vx: 8.0, life: 25 });
         createBurstParticles(leadX + 50, 210, "#eab308", 16);
         logBrawler("⚒️ CRUCIBLE ANVIL SLEDGE slams with molten kinetic force!");
+      } else if (activeLead === "wacan") {
+        playSound('tide');
+        tsunamis.push({ x: leadX + 20, y: 170, vx: 6.5, width: 140, height: 110, life: 90 });
+        logBrawler("🌊 Wacan blows Guamo conch: Realistic Tsunami Ocean Wave washes enemies away!");
       } else if (activeLead === "amina") {
         playSound('zap');
         plasmaOrbs.push({ x: leadX + 40, y: 190, vx: 9.0, radius: 14, color: "#a855f7", life: 75 });
         logBrawler("✨ Amina Zazzau fires a Hard-Light Celestial Spear!");
-      } else if (activeLead === "wacan") {
-        playSound('tide');
-        tsunamis.push({ x: leadX + 20, y: 170, vx: 6.5, width: 90, height: 110, life: 90 });
-        logBrawler("🌊 Wacan blows the Guamo conch horn: Tsunami ocean wave sweeps the enemies!");
       }
 
       applyDamageToTargets(activeLead === "sundiata" || activeLead === "kofi" || activeLead === "wacan" ? 3 : 2);
@@ -773,10 +787,10 @@
         logBrawler("🪶 Xochitl initiates Solar Strafe Flight!");
       } else if (activeLead === "wacan") {
         playSound('tide');
-        tsunamis.push({ x: leadX + 20, y: 165, vx: 7.0, width: 110, height: 125, life: 100 });
+        tsunamis.push({ x: leadX + 20, y: 165, vx: 7.0, width: 160, height: 125, life: 100 });
         logBrawler("🐚 Guamo War Horn summons a massive crystal-blue Atlantic Tsunami wave!");
       } else {
-        let orbColor = activeLead === "amina" ? "#a855f7" : (activeLead === "sundiata" ? "#f59e0b" : "#38bdf8");
+        let orbColor = activeLead === "wacan" ? "#0284c7" : (activeLead === "sundiata" ? "#f59e0b" : "#38bdf8");
         plasmaOrbs.push({ x: leadX + 40, y: 195, vx: 7.5, radius: 12, color: orbColor, life: 75 });
       }
     }
@@ -795,8 +809,8 @@
       initAudio();
       luettaState.active = true;
       luettaState.phase = 'DESCEND';
-      luettaState.y = -60; // Starts in heavens
-      luettaState.timer = 110;
+      luettaState.y = -90; // Starts way up in the heavens
+      luettaState.timer = 120;
       playerHp = 100;
       updateHUD();
       playSound('shield');
@@ -809,13 +823,13 @@
         }
       });
       if (boss.active) {
-        boss.hp -= 14;
+        boss.hp -= 16;
         boss.hitFlash = 15;
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
       }
 
-      logBrawler("✨ Mother Luetta descends from the heavens, healing squad and wiping out all bosses and enemies! ✨");
+      logBrawler("✨ Mother Luetta descends from the heavens, shining a golden healing beam on players and wiping out all enemies! ✨[span_4](start_span)[span_4](end_span)[span_5](start_span)[span_5](end_span)");
     }
 
     function applyDamageToTargets(dmg) {
@@ -957,6 +971,38 @@
         ctx.fillStyle = activeZone === "sahel" ? "#2d1205" : (activeZone === "forge" ? "#3d0b03" : "#090d16");
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
+
+      // Helicopter Spotlight Sweeping Across Detroit Background[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span)
+      chopper.x += chopper.speed;
+      chopper.spotAngle = Math.sin(Date.now() / 500) * 0.25;
+      if (chopper.x > canvas.width + 100) chopper.x = -120;
+
+      ctx.save();
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(chopper.x, chopper.y, 35, 14); // Helicopter body
+      ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+      ctx.beginPath();
+      ctx.moveTo(chopper.x + 15, chopper.y + 14);
+      ctx.lineTo(chopper.x - 30 + (chopper.spotAngle * 50), 255);
+      ctx.lineTo(chopper.x + 45 + (chopper.spotAngle * 50), 255);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // Rain Weather Effect
+      ctx.save();
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.55)";
+      ctx.lineWidth = 1.2;
+      raindrops.forEach(r => {
+        r.y += r.speed;
+        r.x -= 1.5;
+        if (r.y > canvas.height) { r.y = -10; r.x = Math.random() * canvas.width; }
+        ctx.beginPath();
+        ctx.moveTo(r.x, r.y);
+        ctx.lineTo(r.x - 1.5, r.y + r.len);
+        ctx.stroke();
+      });
+      ctx.restore();
     }
 
     function drawCharacterSprite(ctx, x, y, key, color) {
@@ -974,17 +1020,21 @@
       }
     }
 
-    function drawVolumetricDrone(ctx, e) {
-      e.rotorPhase += 0.2;
+    function drawWalkingDroid(ctx, e) {
+      e.walkCycle += 0.15;
+      const legOffset = Math.sin(e.walkCycle) * 5;
       ctx.save();
-      ctx.translate(e.x, e.y + Math.sin(e.rotorPhase) * 3);
-      ctx.fillStyle = "#0f172a";
-      ctx.strokeStyle = "#38bdf8";
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(0, 0, 32, 16);
-      ctx.strokeRect(0, 0, 32, 16);
-      ctx.fillStyle = "#ef4444";
-      ctx.beginPath(); ctx.arc(16, 8, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.translate(e.x, e.y);
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(6, 12, 18, 26); // Body
+      ctx.fillStyle = "#38bdf8";
+      ctx.fillRect(10, 16, 10, 6); // Visor
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(10, 38); ctx.lineTo(10 + legOffset, 50); // Left Leg
+      ctx.moveTo(20, 38); ctx.lineTo(20 - legOffset, 50); // Right Leg
+      ctx.stroke();
       ctx.restore();
     }
 
@@ -1038,18 +1088,18 @@
         ctx.restore();
       }
 
-      // Xochitl Flight & Dagger Strafe Pattern (Up-Right, then Drift Left with folded wings)
+      // Xochitl Flight & Dagger Strafe Pattern (Up-Right to Down-Left with folded wings)
       if (xochitlFlight.active) {
         xochitlFlight.timer++;
         if (xochitlFlight.phase === 'UP') {
-          xochitlFlight.y -= 4.0;
-          xochitlFlight.x += 3.0;
-          if (xochitlFlight.y <= 70) xochitlFlight.phase = 'DRIFT';
+          xochitlFlight.y -= 5.0;
+          xochitlFlight.x += 3.5;
+          if (xochitlFlight.y <= 40) xochitlFlight.phase = 'DRIFT';
         } else {
-          xochitlFlight.x -= 4.0;
+          xochitlFlight.x -= 4.5;
           xochitlFlight.y += 2.0;
-          if (xochitlFlight.timer % 6 === 0) {
-            daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 10, vx: -9.0, vy: 3.0, length: 24, width: 6 });
+          if (xochitlFlight.timer % 5 === 0) {
+            daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 10, vx: -10.0, vy: 4.0, length: 26, width: 6 });
           }
           if (xochitlFlight.y >= 205) xochitlFlight.active = false;
         }
@@ -1057,36 +1107,36 @@
         ctx.save();
         ctx.fillStyle = "#f97316";
         ctx.shadowColor = "#ea580c";
-        ctx.shadowBlur = 15;
-        ctx.fillRect(xochitlFlight.x, xochitlFlight.y, 40, 25);
+        ctx.shadowBlur = 20;
+        ctx.fillRect(xochitlFlight.x, xochitlFlight.y, 45, 28);
         ctx.restore();
       }
 
-      // Mother Luetta Heavenly Descent from the Heavens
+      // Mother Luetta Heavenly Descent from Heavens with Golden Healing Beam[span_8](start_span)[span_8](end_span)[span_9](start_span)[span_9](end_span)
       if (luettaState.active) {
         luettaState.timer--;
         if (luettaState.phase === 'DESCEND') {
-          luettaState.y += 5.0;
+          luettaState.y += 5.5;
           if (luettaState.y >= luettaState.targetY) luettaState.phase = 'ASCEND';
         } else {
-          luettaState.y -= 3.5;
+          luettaState.y -= 4.0;
         }
 
         ctx.save();
-        ctx.fillStyle = "rgba(251, 191, 36, 0.30)";
+        ctx.fillStyle = "rgba(251, 191, 36, 0.32)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Radiant Golden Beam connecting Luetta to the ground
-        const beamGrad = ctx.createLinearGradient(luettaState.x + 37, luettaState.y + 80, luettaState.x + 37, 260);
-        beamGrad.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-        beamGrad.addColorStop(0.5, "rgba(251, 191, 36, 0.75)");
-        beamGrad.addColorStop(1, "rgba(245, 158, 11, 0.1)");
+        // Brilliant Golden Healing Beam[span_10](start_span)[span_10](end_span)[span_11](start_span)[span_11](end_span)
+        const beamGrad = ctx.createLinearGradient(luettaState.x + 37, luettaState.y + 80, leadX + 22, 255);
+        beamGrad.addColorStop(0, "rgba(255, 255, 255, 0.98)");
+        beamGrad.addColorStop(0.5, "rgba(251, 191, 36, 0.85)");
+        beamGrad.addColorStop(1, "rgba(245, 158, 11, 0.30)");
         ctx.fillStyle = beamGrad;
         ctx.beginPath();
         ctx.moveTo(luettaState.x + 10, luettaState.y + 80);
         ctx.lineTo(luettaState.x + 65, luettaState.y + 80);
-        ctx.lineTo(leadX + 80, 260);
-        ctx.lineTo(leadX - 20, 260);
+        ctx.lineTo(leadX + 50, 255);
+        ctx.lineTo(leadX - 10, 255);
         ctx.closePath();
         ctx.fill();
 
@@ -1098,9 +1148,9 @@
         }
 
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 18px sans-serif";
+        ctx.font = "bold 16px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("✨ MOTHER LUETTA HEAVENLY HEALING & BOARD WIPE ✨", canvas.width / 2, 35);
+        ctx.fillText("✨ MOTHER LUETTA HEAVENLY HEALING BEAM ✨[span_12](start_span)[span_12](end_span)[span_13](start_span)[span_13](end_span)", canvas.width / 2, 35);
         ctx.restore();
 
         if (luettaState.timer <= 0) luettaState.active = false;
@@ -1117,7 +1167,11 @@
           }
           e.x += 45;
         }
-        drawVolumetricDrone(ctx, e);
+        if (e.type === 'walker') {
+          drawWalkingDroid(ctx, e);
+        } else {
+          drawVolumetricDrone(ctx, e);
+        }
       });
 
       if (boss.active) {
@@ -1166,49 +1220,41 @@
         }
       });
 
-      // Wacan's Realistic Tsunami Ocean Wave
-      tsunamis.forEach((ts, idx) => {
-        ts.x += ts.vx;
+      tsunamis.forEach((tw, idx) => {
+        tw.x += tw.vx;
         ctx.save();
-        const waveGrad = ctx.createLinearGradient(ts.x, ts.y - ts.height, ts.x + ts.width, ts.y + ts.height);
-        waveGrad.addColorStop(0, "rgba(56, 189, 248, 0.90)");
+        const waveGrad = ctx.createLinearGradient(tw.x, tw.y - tw.height, tw.x + tw.width, tw.y + tw.height);
+        waveGrad.addColorStop(0, "rgba(14, 165, 233, 0.85)");
         waveGrad.addColorStop(0.5, "rgba(2, 132, 199, 0.75)");
-        waveGrad.addColorStop(1, "rgba(3, 105, 161, 0.35)");
+        waveGrad.addColorStop(1, "rgba(3, 105, 161, 0.25)");
         ctx.fillStyle = waveGrad;
         ctx.shadowColor = "#38bdf8";
-        ctx.shadowBlur = 25;
+        ctx.shadowBlur = 22;
 
-        // Realistic curling wave crest shape
         ctx.beginPath();
-        ctx.moveTo(ts.x, ts.y + 60);
-        ctx.bezierCurveTo(ts.x + 20, ts.y - 40, ts.x + ts.width - 20, ts.y - 60, ts.x + ts.width, ts.y + 60);
-        ctx.lineTo(ts.x + ts.width, 255);
-        ctx.lineTo(ts.x, 255);
+        ctx.moveTo(tw.x, tw.y + 50);
+        ctx.bezierCurveTo(tw.x + 25, tw.y - 45, tw.x + tw.width - 25, tw.y - 55, tw.x + tw.width, tw.y + 50);
+        ctx.lineTo(tw.x + tw.width, 255);
+        ctx.lineTo(tw.x, 255);
         ctx.closePath();
-        ctx.fill();
-
-        // White crest foam
-        ctx.fillStyle = "#ffffff";
-        ctx.beginPath();
-        ctx.arc(ts.x + ts.width * 0.75, ts.y - 15, 14, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
         enemies.forEach(e => {
-          if (e.active && Math.abs(e.x - ts.x) < ts.width) {
+          if (e.active && Math.abs(e.x - tw.x) < tw.width) {
             e.hp = 0;
             onEnemyDestroyed(e);
           }
         });
 
-        if (boss.active && Math.abs(ts.x - boss.x) < ts.width) {
+        if (boss.active && Math.abs(tw.x - boss.x) < tw.width) {
           boss.hp -= 4;
           updateHUD();
           if (boss.hp <= 0) onBossDefeated();
         }
 
-        ts.life--;
-        if (ts.life <= 0) tsunamis.splice(idx, 1);
+        tw.life--;
+        if (tw.life <= 0) tsunamis.splice(idx, 1);
       });
 
       daggers.forEach((d, idx) => {
@@ -1255,7 +1301,6 @@
         if (lr.life <= 0) lionRoars.splice(idx, 1);
       });
 
-      // Clockwork Debris when Chrono-Lock is defeated
       clockDebris.forEach((cd, idx) => {
         cd.x += cd.vx;
         cd.y += cd.vy;
