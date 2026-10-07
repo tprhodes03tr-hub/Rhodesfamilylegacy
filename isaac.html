@@ -202,6 +202,7 @@
       cursor: pointer;
       padding: 6px 3px;
       transition: background 0.1s, transform 0.05s;
+      touch-action: manipulation;
     }
 
     .btn:active {
@@ -363,7 +364,7 @@
   <div class="brawler-wrapper">
     <div class="hud-header">
       <div class="hud-top-row">
-        <span id="heroNameLabel" class="hero-title">Marcus Prime (Lead) & Xochitl (Tactical AI)</span>
+        <span id="heroNameLabel" class="hero-title">Marcus Prime (Lead) & Xochitl (AI)</span>
         <span id="waveDisplay" class="wave-badge">Wave 1: Scout Vanguard</span>
       </div>
       <div class="bars-container">
@@ -392,20 +393,20 @@
       <canvas id="gameCanvas" width="540" height="290"></canvas>
       <div class="chapter-banner" id="chapterBanner">
         <h3 id="bannerTitle">CHAPTER 1 COMPLETED</h3>
-        <p id="bannerDesc">Detroit 313 Grid Secured! Transmitting resonance beacon to West Africa. Sundiata Prime has awakened!</p>
+        <p id="bannerDesc">Detroit 313 Grid Secured! Transmitting resonance beacon to West Africa.</p>
         <button id="bannerBtn" onclick="dismissChapterBanner()">ENTER NEXT STAGE</button>
       </div>
     </div>
 
     <div class="combat-log" id="combatLog">
-      Tactical Co-Op active! Amina Zazzau and Wacan integrated with custom electric spear and realistic ocean wave.
+      Tactical Co-Op active! Tap controls below to move and battle.
     </div>
 
     <div class="controls-grid">
       <div class="dpad-cluster">
-        <button class="btn" onclick="playerMove(-25)">◄ LEFT</button>
-        <button class="btn" onclick="playerJump()">▲ JUMP</button>
-        <button class="btn" onclick="playerMove(25)">RIGHT ►</button>
+        <button class="btn" id="leftBtn">◄ LEFT</button>
+        <button class="btn" id="jumpBtn">▲ JUMP</button>
+        <button class="btn" id="rightBtn">RIGHT ►</button>
       </div>
 
       <div class="action-cluster">
@@ -444,9 +445,6 @@
   </div>
 
   <script>
-    /* =========================================================================
-       1. EXTENDED ROSTER INCLUDING AMINA ZAZZAU & WACAN
-       ========================================================================= */
     const ROSTER_CONFIG = {
       marcus: { name: "Marcus Prime", role: "Grid Channeler", color: "#38bdf8", imgKey: "marcus" },
       xochitl: { name: "Xochitl", role: "Obsidian Sun", color: "#f97316", imgKey: "xochitl" },
@@ -462,9 +460,6 @@
 
     const ASSETS = {
       bg: new Image(),
-      ouroborosSkyline: new Image(),
-      groundPlate: new Image(),
-      solarLion: new Image(),
       marcus: new Image(),
       xochitl: new Image(),
       sundiata: new Image(),
@@ -472,16 +467,10 @@
       amina: new Image(),
       wacan: new Image(),
       boss: new Image(),
-      ironclad: new Image(),
-      apex: new Image(),
       luetta: new Image()
     };
 
     ASSETS.bg.src = "bg-detroit.jpg";
-    ASSETS.ouroborosSkyline.src = "ouroboros-skyline.png";
-    ASSETS.groundPlate.src = "niani-ground-plate.png";
-    ASSETS.solarLion.src = "solar-lion-roar.png";
-
     ASSETS.marcus.src = "marcus.png";
     ASSETS.xochitl.src = "xochitl.png";
     ASSETS.sundiata.src = "sundiata-prime.png";
@@ -489,32 +478,8 @@
     ASSETS.amina.src = "amina-zazzau.png";
     ASSETS.wacan.src = "guacan-sheet.png";
     ASSETS.boss.src = "chrono-lock.png";
-    ASSETS.ironclad.src = "ironclad.png";
-    ASSETS.apex.src = "apex-volt.png";
     ASSETS.luetta.src = "mother-luta.png";
 
-    const SAVE_KEY = 'vanguard_universe_save_v17';
-    let playerProgress = { highestStageUnlocked: 1, currentStage: 1, unlockedOperatives: ["marcus", "xochitl", "sundiata", "kofi", "amina", "wacan"] };
-
-    function loadSavedProgress() {
-      const saved = localStorage.getItem(SAVE_KEY);
-      if (saved) {
-        try { playerProgress = Object.assign(playerProgress, JSON.parse(saved)); } catch (e) {}
-      }
-    }
-    loadSavedProgress();
-
-    function saveGameProgress(stageCleared) {
-      if (stageCleared >= playerProgress.highestStageUnlocked) {
-        playerProgress.highestStageUnlocked = Math.min(5, stageCleared + 1);
-      }
-      playerProgress.currentStage = playerProgress.highestStageUnlocked;
-      localStorage.setItem(SAVE_KEY, JSON.stringify(playerProgress));
-    }
-
-    /* =========================================================================
-       2. AUDIO & CANVAS ENGINE
-       ========================================================================= */
     let canvas, ctx;
     let animationFrameId = null;
     let audioCtx = null;
@@ -533,170 +498,69 @@
       gain.connect(audioCtx.destination);
       const now = audioCtx.currentTime;
 
-      if (type === 'zap') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(950, now);
-        osc.frequency.exponentialRampToValueAtTime(80, now + 0.22);
-        gain.gain.setValueAtTime(0.35, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
-        osc.start(now); osc.stop(now + 0.22);
-      } else if (type === 'hit') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(140, now);
-        osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
-        gain.gain.setValueAtTime(0.4, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
-        osc.start(now); osc.stop(now + 0.15);
-      } else if (type === 'shield') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(320, now);
-        osc.frequency.setValueAtTime(640, now + 0.12);
-        gain.gain.setValueAtTime(0.25, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
-        osc.start(now); osc.stop(now + 0.25);
-      } else if (type === 'roar') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(260, now);
-        osc.frequency.exponentialRampToValueAtTime(65, now + 0.65);
-        gain.gain.setValueAtTime(0.85, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.65);
-        osc.start(now); osc.stop(now + 0.65);
-      } else if (type === 'tide') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(110, now);
-        osc.frequency.linearRampToValueAtTime(480, now + 0.75);
-        gain.gain.setValueAtTime(0.7, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.85);
-        osc.start(now); osc.stop(now + 0.85);
-      }
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+      osc.start(now); osc.stop(now + 0.15);
     }
 
-    function resizeBrawlerCanvas() {
-      if (!canvas) return;
-      canvas.width = 540;
-      canvas.height = 290;
-    }
-
-    /* =========================================================================
-       3. GAME STATE & LOOP
-       ========================================================================= */
-    let activeZone = "detroit";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
-    let leadLean = 0, walkCadence = 0, bgScrollOffset = 0, groundScrollOffset = 0;
-
-    let aiPartner = { x: 35, y: 0, vy: 0, isGrounded: true, attackCooldown: 0, desiredDistance: 65, wanderTimer: 0 };
-    let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
-
-    let currentWave = 1, mobsRemaining = 14, mobsTotal = 14;
+    let playerHp = 100, isShieldActive = false;
+    let currentWave = 1, mobsRemaining = 14;
     let enemies = [];
-    let boss = { x: 380, y: 0, vy: 0, hp: 24, maxHp: 24, active: false, type: "chrono", hitFlash: 0, phase: 1 };
+    let boss = { x: 380, y: 0, hp: 24, maxHp: 24, active: false };
     let gameActive = true;
-
-    let lightningBolts = [], daggers = [], particles = [], enemyBullets = [], plasmaOrbs = [], clockDebris = [], hammers = [], electricSpears = [], tsunamis = [], raindrops = [];
+    let plasmaOrbs = [], lightningBolts = [], daggers = [], hammers = [], electricSpears = [], tsunamis = [], raindrops = [];
     let luettaState = { active: false, phase: 'DESCEND', x: 270, y: -90, targetY: 45, timer: 0 };
-    let xochitlFlight = { active: false, phase: 'UP', x: 0, y: 0, timer: 0, diveAngle: 0 };
-    let kofiHammerSwing = { active: false, timer: 0, maxTimer: 14 };
-    let sundiataShockwave = { active: false, x: 0, radius: 0, maxRadius: 180 };
-    let lionRoars = [];
-
-    const bystanders = [
-      { x: 18, y: 228, width: 14, height: 26 },
-      { x: 36, y: 231, width: 13, height: 23 },
-      { x: 53, y: 229, width: 15, height: 25 }
-    ];
-
-    const STAGE_WEATHER = {
-      1: { skyTint: "rgba(251, 191, 36, 0.08)", rain: false },
-      2: { skyTint: "rgba(30, 41, 59, 0.55)", rain: true },
-      3: { skyTint: "rgba(15, 7, 30, 0.78)", rain: true }
-    };
-
-    let windLines = [];
-    for (let i = 0; i < 22; i++) {
-      windLines.push({ x: Math.random() * 540, y: Math.random() * 240, len: Math.random() * 35 + 20, speed: Math.random() * 5 + 6 });
-    }
+    let xochitlFlight = { active: false, phase: 'UP', x: 0, y: 0, timer: 0 };
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
       ctx = canvas.getContext("2d");
-      resizeBrawlerCanvas();
-      startWave(1);
+      canvas.width = 540;
+      canvas.height = 290;
 
-      for (let i = 0; i < 35; i++) {
-        raindrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, len: Math.random() * 14 + 10, speed: Math.random() * 6 + 7 });
+      for (let i = 0; i < 30; i++) {
+        raindrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, len: 12, speed: 8 });
       }
 
+      setupSwarm(14);
       if (!animationFrameId) animationFrameId = requestAnimationFrame(renderBrawler);
     }
 
-    function startWave(num) {
-      currentWave = num;
-      enemies = [];
-      if (num === 1) {
-        activeZone = "detroit";
-        mobsRemaining = 14; mobsTotal = 14; boss.active = false;
-        setupSwarm(14);
-        logBrawler("Stage 1: Detroit Scout Vanguard infiltrating ley-lines!");
-      } else if (num === 2) {
-        activeZone = "sahel";
-        mobsRemaining = 18; mobsTotal = 18; boss.active = false;
-        setupSwarm(18);
-        logBrawler("Stage 2: Ouroboros Mining Drills surging in the Sahel!");
-      } else if (num === 3) {
-        startBossFight("chrono");
-      }
-      updateHUD();
-    }
-
     function setupSwarm(count) {
+      enemies = [];
       for (let i = 0; i < count; i++) {
         enemies.push({
-          x: 520 + (i * 65),
+          x: 520 + (i * 60),
           y: 205,
           hp: 3,
-          speed: 1.15,
+          speed: 1.1,
           active: true,
-          type: i % 2 === 0 ? 'walker' : 'drone',
-          walkCycle: Math.random() * Math.PI * 2,
-          rotorPhase: Math.random() * Math.PI * 2
+          type: i % 2 === 0 ? 'walker' : 'drone'
         });
       }
-    }
-
-    function startBossFight(type) {
-      boss.active = true;
-      boss.type = type;
-      boss.x = 380;
-      boss.hp = 24;
-      boss.maxHp = 24;
-      enemies = [];
-      mobsRemaining = 0;
-      logBrawler("⚠️ BOSS: Chrono-Lock engaged!");
     }
 
     function playerMove(dx) {
       if (!gameActive) return;
       initAudio();
       leadX = Math.max(50, Math.min(340, leadX + dx));
-      bgScrollOffset -= (dx * 0.15);
-      groundScrollOffset -= (dx * 0.6);
-      leadLean = dx > 0 ? 0.08 : -0.08;
-      walkCadence += 1.4;
     }
 
     function playerJump() {
       if (!gameActive || !isGrounded) return;
       initAudio();
-      leadVy = -13;
+      leadVy = -12;
       isGrounded = false;
-
       if (activeLead === "xochitl") {
         xochitlFlight.active = true;
         xochitlFlight.phase = 'UP';
         xochitlFlight.x = leadX;
         xochitlFlight.y = 175;
         xochitlFlight.timer = 0;
-        logBrawler("🪶 Xochitl soaring high: ascending right, folding wings, and drifting left releasing daggers!");
       }
     }
 
@@ -705,7 +569,6 @@
       initAudio();
       rosterIdx = (rosterIdx + 1) % unlockedRoster.length;
       activeLead = unlockedRoster[rosterIdx];
-      playSound('shield');
       updateControlsUI();
       logBrawler(`Active Operative Tagged: ${ROSTER_CONFIG[activeLead].name}`);
     }
@@ -714,109 +577,56 @@
       document.getElementById("heroNameLabel").innerText = `${ROSTER_CONFIG[activeLead].name} (${ROSTER_CONFIG[activeLead].role})`;
       let nextHero = unlockedRoster[(rosterIdx + 1) % unlockedRoster.length];
       document.getElementById("btnTag").innerText = `TAG: ${nextHero.toUpperCase()}`;
-
-      if (activeLead === "xochitl") {
-        document.getElementById("btnStrike").innerText = "🔥 Magma Strike";
-        document.getElementById("btnOrb").innerText = "🪶 Solar Strafe";
-        document.getElementById("btnBurst").innerText = "🛡️ Wing Shield";
-      } else if (activeLead === "sundiata") {
-        document.getElementById("btnStrike").innerText = "🦁 Solar Lion";
-        document.getElementById("btnOrb").innerText = "🦁 Bronze Pulse";
-        document.getElementById("btnBurst").innerText = "🛡️ Deflect";
-      } else if (activeLead === "kofi") {
-        document.getElementById("btnStrike").innerText = "⚒️ Anvil Sledge";
-        document.getElementById("btnOrb").innerText = "✨ Molten Shards";
-        document.getElementById("btnBurst").innerText = "🛡️ Crucible Bastion";
-      } else if (activeLead === "amina") {
-        document.getElementById("btnStrike").innerText = "⚡ Electric Spear";
-        document.getElementById("btnOrb").innerText = "🔵 Celestial Arc";
-        document.getElementById("btnBurst").innerText = "🛡️ Deflect";
-      } else if (activeLead === "wacan") {
-        document.getElementById("btnStrike").innerText = "🌊 Tsunami Surge";
-        document.getElementById("btnOrb").innerText = "🐚 Guamo Call";
-        document.getElementById("btnBurst").innerText = "🛡️ Larimar Shield";
-      } else {
-        document.getElementById("btnStrike").innerText = "⚡ Volt Beam";
-        document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
-        document.getElementById("btnBurst").innerText = "🛡️ Deflect";
-      }
     }
 
-    /* SIGNATURE HERO ABILITIES & SPECIAL STRIKES */
     function executeStrike() {
       if (!gameActive) return;
       initAudio();
+      playSound('zap');
 
-      if (activeLead === "marcus") {
-        playSound('zap');
-        generateLightning(leadX + 35, 195, leadX + 180, 195);
-        logBrawler("⚡ Marcus Prime unleashes Bio-Electric Volt Beam!");
-      } else if (activeLead === "sundiata") {
-        playSound('roar');
-        lionRoars.push({ x: leadX + 25, y: 190, vx: 8.5, radius: 55, life: 70 });
-        logBrawler("🦁 Sundiata Prime unleashes the Solar Lion Roar!");
-      } else if (activeLead === "xochitl") {
-        playSound('zap');
-        for (let i = 0; i < 4; i++) {
-          daggers.push({ x: leadX + 30, y: 175 + (i * 6), vx: 10.0, vy: (i - 1.5) * 1.5, length: 24, width: 6 });
-        }
-        logBrawler("🔥 Xochitl releases Obsidian Sun Daggers!");
-      } else if (activeLead === "kofi") {
-        playSound('hit');
-        kofiHammerSwing.active = true;
-        kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
-        hammers.push({ x: leadX + 40, y: 190, vx: 8.0, life: 25 });
-        createBurstParticles(leadX + 50, 210, "#eab308", 16);
-        logBrawler("⚒️ CRUCIBLE ANVIL SLEDGE slams with molten kinetic force!");
-      } else if (activeLead === "amina") {
-        playSound('zap');
+      if (activeLead === "amina") {
         electricSpears.push({ x: leadX + 35, y: 190, vx: 11.0, length: 42, width: 8, life: 60 });
-        logBrawler("⚡ Amina Zazzau hurls her Hard-Light Electric Lightning Spear!");
+        logBrawler("⚡ Amina hurls her Electric Lightning Spear!");
       } else if (activeLead === "wacan") {
-        playSound('tide');
         tsunamis.push({ x: leadX + 20, y: 170, vx: 6.5, width: 140, height: 110, life: 90 });
-        logBrawler("🌊 Wacan blows Guamo conch: Realistic Tsunami Ocean Wave washes enemies away!");
+        logBrawler("🌊 Wacan summons a Tsunami Ocean Wave!");
+      } else if (activeLead === "kofi") {
+        hammers.push({ x: leadX + 40, y: 190, vx: 8.0, life: 25 });
+        logBrawler("⚒️ Crucible Anvil Sledge strike!");
+      } else {
+        lightningBolts.push({ segments: [{x1: leadX+35, y1: 195, x2: leadX+180, y2: 195}], life: 12 });
+        logBrawler("⚡ Volt Beam strikes!");
       }
 
-      applyDamageToTargets(activeLead === "sundiata" || activeLead === "kofi" || activeLead === "wacan" || activeLead === "amina" ? 3 : 2);
+      if (boss.active && Math.abs(boss.x - leadX) < 280) {
+        boss.hp -= 3;
+        updateHUD();
+        if (boss.hp <= 0) onBossDefeated();
+      } else {
+        enemies.forEach(e => {
+          if (e.active && Math.abs(e.x - leadX) < 200) {
+            e.hp -= 3;
+            e.x += 30;
+            if (e.hp <= 0) onEnemyDestroyed(e);
+          }
+        });
+      }
     }
 
     function executePlasmaOrb() {
       if (!gameActive) return;
       initAudio();
       playSound('zap');
-
-      if (activeLead === "kofi") {
-        playSound('hit');
-        createBurstParticles(leadX + 40, 200, "#eab308", 20);
-        logBrawler("✨ Kofi unleashes Molten Shards!");
-      } else if (activeLead === "xochitl") {
-        xochitlFlight.active = true;
-        xochitlFlight.phase = 'UP';
-        xochitlFlight.x = leadX;
-        xochitlFlight.y = 175;
-        xochitlFlight.timer = 0;
-        logBrawler("🪶 Xochitl initiates Solar Strafe Flight!");
-      } else if (activeLead === "wacan") {
-        playSound('tide');
-        tsunamis.push({ x: leadX + 20, y: 165, vx: 7.0, width: 160, height: 125, life: 100 });
-        logBrawler("🐚 Guamo War Horn summons a massive crystal-blue Atlantic Tsunami wave!");
-      } else if (activeLead === "amina") {
-        playSound('celestial');
-        plasmaOrbs.push({ x: leadX + 40, y: 190, vx: 8.0, radius: 15, color: "#a855f7", life: 80 });
-        logBrawler("✨ Amina channels Celestial Arc energy!");
-      } else {
-        plasmaOrbs.push({ x: leadX + 40, y: 195, vx: 7.5, radius: 12, color: "#38bdf8", life: 75 });
-      }
+      plasmaOrbs.push({ x: leadX + 40, y: 195, vx: 7.5, radius: 12, color: "#38bdf8", life: 75 });
+      logBrawler("Plasma Orb launched!");
     }
 
     function executeBurst() {
       if (!gameActive) return;
       initAudio();
       isShieldActive = true;
-      playSound('shield');
       setTimeout(() => isShieldActive = false, 3500);
-      logBrawler(`${ROSTER_CONFIG[activeLead].name} activates Sovereign Energy Shield!`);
+      logBrawler("Sovereign Energy Shield active!");
     }
 
     function executeLuettaAid() {
@@ -828,39 +638,16 @@
       luettaState.timer = 120;
       playerHp = 100;
       updateHUD();
-      playSound('shield');
-      
+
       enemies.forEach(e => {
-        if (e.active) {
-          e.hp = 0;
-          onEnemyDestroyed(e);
-        }
+        if (e.active) { e.hp = 0; onEnemyDestroyed(e); }
       });
       if (boss.active) {
         boss.hp -= 16;
-        boss.hitFlash = 15;
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
       }
-
-      logBrawler("✨ Mother Luetta descends from the heavens, shining a golden healing beam on players and wiping out all enemies! ✨");
-    }
-
-    function applyDamageToTargets(dmg) {
-      if (boss.active && Math.abs(boss.x - leadX) < 280) {
-        boss.hp -= dmg;
-        boss.hitFlash = 8;
-        updateHUD();
-        if (boss.hp <= 0) onBossDefeated();
-      } else {
-        enemies.forEach(e => {
-          if (e.active && Math.abs(e.x - leadX) < 220) {
-            e.hp -= dmg;
-            e.x += 30;
-            if (e.hp <= 0) onEnemyDestroyed(e);
-          }
-        });
-      }
+      logBrawler("✨ Mother Luetta descends with a golden healing beam and board wipe! ✨");
     }
 
     function onEnemyDestroyed(e) {
@@ -868,177 +655,47 @@
       mobsRemaining = Math.max(0, mobsRemaining - 1);
       updateHUD();
       if (mobsRemaining <= 0 && !boss.active) {
-        setTimeout(() => startWave(currentWave + 1), 1200);
+        boss.active = true;
+        boss.x = 380;
+        boss.hp = 24;
+        logBrawler("⚠️ BOSS: Chrono-Lock engaged!");
       }
     }
 
     function onBossDefeated() {
       boss.active = false;
-      playSound('warp');
-      screenShake = 18;
-
-      if (boss.type === "chrono") {
-        logBrawler("💥 Chrono-Lock shattered into a cascade of temporal clockwork gears across the floor!");
-        const symbols = ['⏱️', '⏳', '🕒', '⚙', '⏰', 'XII', 'VI'];
-        for (let i = 0; i < 40; i++) {
-          clockDebris.push({
-            x: boss.x + 35,
-            y: 200,
-            vx: (Math.random() - 0.5) * 12,
-            vy: -(Math.random() * 10 + 4),
-            rot: Math.random() * Math.PI * 2,
-            symbol: symbols[Math.floor(Math.random() * symbols.length)],
-            life: 160
-          });
-        }
-      }
-
-      saveGameProgress(currentWave);
-      if (currentWave === 3) {
-        setTimeout(() => {
-          document.getElementById("bannerTitle").innerText = "STAGE 3 COMPLETED";
-          document.getElementById("bannerDesc").innerText = "Chrono-Lock defeated! Opening portal to Kumasi Forge.";
-          document.getElementById("chapterBanner").style.display = "block";
-        }, 1800);
-      } else {
-        setTimeout(() => {
-          gameActive = false;
-          document.getElementById("trial-modal").style.display = "flex";
-        }, 1800);
-      }
+      logBrawler("🏆 BOSS DEFEATED! Chrono-Lock shattered!");
+      document.getElementById("chapterBanner").style.display = "block";
     }
 
     function dismissChapterBanner() {
       document.getElementById("chapterBanner").style.display = "none";
-      startWave(4);
-    }
-
-    function handlePlayerDefeat() {
-      gameActive = false;
-      document.getElementById("defeat-modal").style.display = "flex";
-    }
-
-    function retryCurrentWave() {
-      document.getElementById("defeat-modal").style.display = "none";
-      playerHp = 100;
-      gameActive = true;
-      startWave(currentWave);
-    }
-
-    function resetCampaignToStage1() {
-      document.getElementById("defeat-modal").style.display = "none";
-      document.getElementById("trial-modal").style.display = "none";
-      playerHp = 100;
-      gameActive = true;
-      startWave(1);
+      currentWave = 2;
+      mobsRemaining = 18;
+      setupSwarm(18);
+      updateHUD();
     }
 
     function updateHUD() {
       document.getElementById("heroHpText").innerText = `${playerHp}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
-
-      if (boss.active) {
-        document.getElementById("enemyTypeLabel").innerText = boss.type === "apex" ? "Apex Volt" : "Chrono-Lock";
-        document.getElementById("enemyHpText").innerText = `${Math.max(0, boss.hp)}/${boss.maxHp}`;
-        document.getElementById("enemyHpBar").style.width = `${(Math.max(0, boss.hp) / boss.maxHp) * 100}%`;
-      } else {
-        document.getElementById("enemyTypeLabel").innerText = "Syndicate Swarm";
-        document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units Remaining`;
-        document.getElementById("enemyHpBar").style.width = `${(mobsRemaining / mobsTotal) * 100}%`;
-      }
+      document.getElementById("enemyHpText").innerText = boss.active ? `${boss.hp}/24` : `${mobsRemaining} Units`;
+      document.getElementById("enemyHpBar").style.width = boss.active ? `${(boss.hp / 24) * 100}%` : `${(mobsRemaining / 14) * 100}%`;
     }
 
     function logBrawler(msg) {
       document.getElementById("combatLog").innerText = msg;
     }
 
-    /* =========================================================================
-       4. RENDERER & ASSET MANAGEMENT
-       ========================================================================= */
-    let screenShake = 0;
+    function renderBrawler() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    function drawEnvironment(ctx) {
-      if (activeZone === "detroit" && ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
-        let parallaxX = (bgScrollOffset % 40) - 20;
-        ctx.drawImage(ASSETS.bg, parallaxX, 0, canvas.width + 40, canvas.height);
+      if (ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
+        ctx.drawImage(ASSETS.bg, 0, 0, canvas.width, canvas.height);
       } else {
-        ctx.fillStyle = activeZone === "sahel" ? "#2d1205" : (activeZone === "forge" ? "#3d0b03" : "#090d16");
+        ctx.fillStyle = "#090d16";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
-
-      chopper.x += chopper.speed;
-      chopper.spotAngle = Math.sin(Date.now() / 500) * 0.25;
-      if (chopper.x > canvas.width + 100) chopper.x = -120;
-
-      ctx.save();
-      ctx.fillStyle = "#1e293b";
-      ctx.fillRect(chopper.x, chopper.y, 35, 14);
-      ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-      ctx.beginPath();
-      ctx.moveTo(chopper.x + 15, chopper.y + 14);
-      ctx.lineTo(chopper.x - 30 + (chopper.spotAngle * 50), 255);
-      ctx.lineTo(chopper.x + 45 + (chopper.spotAngle * 50), 255);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-
-      ctx.save();
-      ctx.strokeStyle = "rgba(148, 163, 184, 0.55)";
-      ctx.lineWidth = 1.2;
-      raindrops.forEach(r => {
-        r.y += r.speed;
-        r.x -= 1.5;
-        if (r.y > canvas.height) { r.y = -10; r.x = Math.random() * canvas.width; }
-        ctx.beginPath();
-        ctx.moveTo(r.x, r.y);
-        ctx.lineTo(r.x - 1.5, r.y + r.len);
-        ctx.stroke();
-      });
-      ctx.restore();
-    }
-
-    function drawCharacterSprite(ctx, x, y, key, color) {
-      const img = ASSETS[key];
-      if (img && img.complete && img.naturalWidth > 0) {
-        ctx.drawImage(img, x, y - 75, 45, 75);
-      } else {
-        ctx.fillStyle = color;
-        ctx.fillRect(x + 5, y - 60, 25, 45);
-        ctx.fillStyle = "#fde047";
-        ctx.beginPath(); ctx.arc(x + 17, y - 68, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#1e293b";
-        ctx.fillRect(x + 8, y - 15, 8, 15);
-        ctx.fillRect(x + 19, y - 15, 8, 15);
-      }
-    }
-
-    function drawWalkingDroid(ctx, e) {
-      e.walkCycle += 0.15;
-      const legOffset = Math.sin(e.walkCycle) * 5;
-      ctx.save();
-      ctx.translate(e.x, e.y);
-      ctx.fillStyle = "#1e293b";
-      ctx.fillRect(6, 12, 18, 26);
-      ctx.fillStyle = "#38bdf8";
-      ctx.fillRect(10, 16, 10, 6);
-      ctx.strokeStyle = "#94a3b8";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(10, 38); ctx.lineTo(10 + legOffset, 50);
-      ctx.moveTo(20, 38); ctx.lineTo(20 - legOffset, 50);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    function renderBrawler() {
-      ctx.save();
-      if (screenShake > 0) {
-        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
-        screenShake *= 0.85;
-      }
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawEnvironment(ctx);
 
       ctx.fillStyle = "#1e293b";
       ctx.fillRect(0, 255, canvas.width, 35);
@@ -1052,96 +709,12 @@
         if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
       }
 
-      const leadCfg = ROSTER_CONFIG[activeLead];
-      drawCharacterSprite(ctx, leadX, 255 - leadY, leadCfg.imgKey, leadCfg.color);
-
-      let partnerKey = unlockedRoster.find(r => r !== activeLead) || "xochitl";
-      drawCharacterSprite(ctx, aiPartner.x, 255, ROSTER_CONFIG[partnerKey].imgKey, ROSTER_CONFIG[partnerKey].color);
-
-      if (isShieldActive) {
-        ctx.save();
-        ctx.strokeStyle = ROSTER_CONFIG[activeLead].color;
-        ctx.lineWidth = 4;
-        ctx.shadowColor = ctx.strokeStyle;
-        ctx.shadowBlur = 18;
-        ctx.beginPath();
-        ctx.arc(leadX + 22, 220 - leadY, 42, 0, Math.PI * 2);
-        ctx.stroke();
-
-        if (activeLead === "xochitl") {
-          ctx.fillStyle = "#ea580c";
-          ctx.beginPath();
-          ctx.moveTo(leadX - 10, 200 - leadY);
-          ctx.lineTo(leadX + 22, 180 - leadY);
-          ctx.lineTo(leadX + 54, 200 - leadY);
-          ctx.fill();
-        }
-        ctx.restore();
-      }
-
-      if (xochitlFlight.active) {
-        xochitlFlight.timer++;
-        if (xochitlFlight.phase === 'UP') {
-          xochitlFlight.y -= 5.0;
-          xochitlFlight.x += 3.5;
-          if (xochitlFlight.y <= 40) xochitlFlight.phase = 'DRIFT';
-        } else {
-          xochitlFlight.x -= 4.5;
-          xochitlFlight.y += 2.0;
-          if (xochitlFlight.timer % 5 === 0) {
-            daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 10, vx: -10.0, vy: 4.0, length: 26, width: 6 });
-          }
-          if (xochitlFlight.y >= 205) xochitlFlight.active = false;
-        }
-
-        ctx.save();
-        ctx.fillStyle = "#f97316";
-        ctx.shadowColor = "#ea580c";
-        ctx.shadowBlur = 20;
-        ctx.fillRect(xochitlFlight.x, xochitlFlight.y, 45, 28);
-        ctx.restore();
-      }
-
-      if (luettaState.active) {
-        luettaState.timer--;
-        if (luettaState.phase === 'DESCEND') {
-          luettaState.y += 5.5;
-          if (luettaState.y >= luettaState.targetY) luettaState.phase = 'ASCEND';
-        } else {
-          luettaState.y -= 4.0;
-        }
-
-        ctx.save();
-        ctx.fillStyle = "rgba(251, 191, 36, 0.32)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const beamGrad = ctx.createLinearGradient(luettaState.x + 37, luettaState.y + 80, leadX + 22, 255);
-        beamGrad.addColorStop(0, "rgba(255, 255, 255, 0.98)");
-        beamGrad.addColorStop(0.5, "rgba(251, 191, 36, 0.85)");
-        beamGrad.addColorStop(1, "rgba(245, 158, 11, 0.30)");
-        ctx.fillStyle = beamGrad;
-        ctx.beginPath();
-        ctx.moveTo(luettaState.x + 10, luettaState.y + 80);
-        ctx.lineTo(luettaState.x + 65, luettaState.y + 80);
-        ctx.lineTo(leadX + 50, 255);
-        ctx.lineTo(leadX - 10, 255);
-        ctx.closePath();
-        ctx.fill();
-
-        if (ASSETS.luetta.complete && ASSETS.luetta.naturalWidth > 0) {
-          ctx.drawImage(ASSETS.luetta, luettaState.x, luettaState.y, 75, 95);
-        } else {
-          ctx.fillStyle = "#f59e0b";
-          ctx.fillRect(luettaState.x, luettaState.y, 50, 80);
-        }
-
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 16px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("✨ MOTHER LUETTA HEAVENLY HEALING BEAM ✨", canvas.width / 2, 35);
-        ctx.restore();
-
-        if (luettaState.timer <= 0) luettaState.active = false;
+      const leadImg = ASSETS[activeLead] || ASSETS.marcus;
+      if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
+        ctx.drawImage(leadImg, leadX, 255 - leadY - 75, 45, 75);
+      } else {
+        ctx.fillStyle = ROSTER_CONFIG[activeLead].color;
+        ctx.fillRect(leadX + 5, 195 - leadY, 25, 45);
       }
 
       enemies.forEach(e => {
@@ -1149,184 +722,49 @@
         e.x -= e.speed;
         if (e.x < leadX + 25) {
           if (!isShieldActive) {
-            playerHp = Math.max(0, playerHp - 4);
+            playerHp = Math.max(0, playerHp - 2);
             updateHUD();
-            if (playerHp <= 0) handlePlayerDefeat();
           }
-          e.x += 45;
+          e.x += 35;
         }
-        if (e.type === 'walker') {
-          drawWalkingDroid(ctx, e);
-        } else {
-          drawVolumetricDrone(ctx, e);
-        }
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(e.x, 205, 26, 50);
       });
 
       if (boss.active) {
         boss.x -= 0.2;
-        const bossImg = boss.type === "apex" ? ASSETS.apex : ASSETS.chrono;
-        if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
-          ctx.drawImage(bossImg, boss.x, 140, 75, 115);
+        if (ASSETS.boss.complete && ASSETS.boss.naturalWidth > 0) {
+          ctx.drawImage(ASSETS.boss, boss.x, 140, 75, 115);
         } else {
           ctx.fillStyle = "#f87171";
           ctx.fillRect(boss.x, 140, 60, 115);
         }
       }
 
-      plasmaOrbs.forEach((po, idx) => {
-        po.x += (po.vx || 0);
-        po.y += (po.vy || 0);
-        ctx.fillStyle = po.color || "#38bdf8";
-        ctx.beginPath(); ctx.arc(po.x, po.y, po.radius, 0, Math.PI * 2); ctx.fill();
-        po.life--;
-        if (po.life <= 0) plasmaOrbs.splice(idx, 1);
-
-        if (boss.active && Math.abs(po.x - boss.x) < 30) {
-          boss.hp -= 2;
-          updateHUD();
-          if (boss.hp <= 0) onBossDefeated();
-          plasmaOrbs.splice(idx, 1);
-        }
-      });
-
-      hammers.forEach((h, idx) => {
-        h.x += h.vx;
-        ctx.save();
-        ctx.fillStyle = "#eab308";
-        ctx.shadowColor = "#facc15";
-        ctx.shadowBlur = 18;
-        ctx.fillRect(h.x, h.y, 32, 16);
-        ctx.restore();
-        h.life--;
-        if (h.life <= 0) hammers.splice(idx, 1);
-
-        if (boss.active && Math.abs(h.x - boss.x) < 40) {
-          boss.hp -= 3;
-          updateHUD();
-          if (boss.hp <= 0) onBossDefeated();
-          hammers.splice(idx, 1);
-        }
-      });
-
+      // Draw active projectiles and effects
       electricSpears.forEach((es, idx) => {
         es.x += es.vx;
-        ctx.save();
         ctx.fillStyle = "#a855f7";
-        ctx.shadowColor = "#38bdf8";
-        ctx.shadowBlur = 15;
         ctx.fillRect(es.x, es.y, es.length, es.width);
-        ctx.restore();
         es.life--;
         if (es.life <= 0) electricSpears.splice(idx, 1);
-
-        if (boss.active && Math.abs(es.x - boss.x) < 35) {
-          boss.hp -= 3;
-          updateHUD();
-          if (boss.hp <= 0) onBossDefeated();
-          electricSpears.splice(idx, 1);
-        }
       });
 
       tsunamis.forEach((tw, idx) => {
         tw.x += tw.vx;
-        ctx.save();
-        const waveGrad = ctx.createLinearGradient(tw.x, tw.y - tw.height, tw.x + tw.width, tw.y + tw.height);
-        waveGrad.addColorStop(0, "rgba(14, 165, 233, 0.85)");
-        waveGrad.addColorStop(0.5, "rgba(2, 132, 199, 0.75)");
-        waveGrad.addColorStop(1, "rgba(3, 105, 161, 0.25)");
-        ctx.fillStyle = waveGrad;
-        ctx.shadowColor = "#38bdf8";
-        ctx.shadowBlur = 22;
-
-        ctx.beginPath();
-        ctx.moveTo(tw.x, tw.y + 50);
-        ctx.bezierCurveTo(tw.x + 25, tw.y - 45, tw.x + tw.width - 25, tw.y - 55, tw.x + tw.width, tw.y + 50);
-        ctx.lineTo(tw.x + tw.width, 255);
-        ctx.lineTo(tw.x, 255);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-
-        enemies.forEach(e => {
-          if (e.active && Math.abs(e.x - tw.x) < tw.width) {
-            e.hp = 0;
-            onEnemyDestroyed(e);
-          }
-        });
-
-        if (boss.active && Math.abs(tw.x - boss.x) < tw.width) {
-          boss.hp -= 4;
-          updateHUD();
-          if (boss.hp <= 0) onBossDefeated();
-        }
-
+        ctx.fillStyle = "rgba(14, 165, 233, 0.8)";
+        ctx.fillRect(tw.x, tw.y, tw.width, tw.height);
         tw.life--;
         if (tw.life <= 0) tsunamis.splice(idx, 1);
       });
 
-      daggers.forEach((d, idx) => {
-        d.x += d.vx;
-        d.y += (d.vy || 0);
-        ctx.fillStyle = "#f97316";
-        ctx.fillRect(d.x, d.y, d.length, d.width);
-        if (boss.active && Math.abs(d.x - boss.x) < 38) {
-          boss.hp -= 2;
-          updateHUD();
-          if (boss.hp <= 0) onBossDefeated();
-          daggers.splice(idx, 1);
-        }
-      });
-
-      lightningBolts.forEach((lb, idx) => {
-        ctx.strokeStyle = "#38bdf8";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        lb.segments.forEach(seg => { ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2); });
-        ctx.stroke();
-        lb.life--;
-        if (lb.life <= 0) lightningBolts.splice(idx, 1);
-      });
-
-      lionRoars.forEach((lr, idx) => {
-        lr.x += lr.vx;
-        ctx.save();
-        if (ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
-          ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - 60, 140, 140);
-        } else {
-          ctx.fillStyle = "rgba(245, 158, 11, 0.75)";
-          ctx.beginPath(); ctx.arc(lr.x, lr.y, lr.radius, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.restore();
-
-        if (boss.active && Math.abs(lr.x - boss.x) < 60) {
-          boss.hp -= 4;
-          updateHUD();
-          if (boss.hp <= 0) onBossDefeated();
-        }
-
-        lr.life--;
-        if (lr.life <= 0) lionRoars.splice(idx, 1);
-      });
-
-      clockDebris.forEach((cd, idx) => {
-        cd.x += cd.vx;
-        cd.y += cd.vy;
-        cd.vy += 0.35;
-        if (cd.y > 245) { cd.y = 245; cd.vy *= -0.5; }
-        ctx.save();
-        ctx.translate(cd.x, cd.y);
-        ctx.rotate(cd.rot);
-        ctx.font = "18px sans-serif";
-        ctx.fillStyle = "#10b981";
-        ctx.fillText(cd.symbol, 0, 0);
-        ctx.restore();
-        cd.life--;
-        if (cd.life <= 0) clockDebris.splice(idx, 1);
-      });
-
-      ctx.restore();
       animationFrameId = requestAnimationFrame(renderBrawler);
     }
+
+    // Touch & Click Event Bindings for Mobile Reliability
+    document.getElementById("leftBtn").addEventListener("click", () => playerMove(-25));
+    document.getElementById("rightBtn").addEventListener("click", () => playerMove(25));
+    document.getElementById("jumpBtn").addEventListener("click", () => playerJump());
 
     document.addEventListener("DOMContentLoaded", initBrawler);
   </script>
