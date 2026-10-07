@@ -299,7 +299,7 @@
         </div>
         <div class="bar-group">
           <div class="bar-label">
-            <span id="enemyTypeLabel">Syndicate Droids</span>
+            <span id="enemyTypeLabel">Syndicate Droids & Bosses</span>
             <span id="enemyHpText">12 Units Remaining</span>
           </div>
           <div class="bar-track">
@@ -365,12 +365,12 @@
 
   <script>
     const ROSTER_CONFIG = {
-      marcus: { name: "Marcus Prime", role: "Grid Channeler", color: "#38bdf8" },
-      xochitl: { name: "Xochitl (Zokito)", role: "Obsidian Sun", color: "#f97316" },
-      sundiata: { name: "Sundiata Prime", role: "Lion Bastion", color: "#f59e0b" },
-      kofi: { name: "Kofi Osei (Gold-Smith)", role: "Forge Hammer", color: "#eab308" },
-      amina: { name: "Amina Zazzau", role: "Spear of the Realm", color: "#a855f7" },
-      wacan: { name: "Wacan (Guacan)", role: "Storm-Tide Sentinel", color: "#0284c7" },
+      marcus: { name: "Marcus Prime", role: "Grid Channeler (vs Chrono-Lock)", color: "#38bdf8" },
+      xochitl: { name: "Xochitl (Zokito)", role: "Obsidian Sun (vs Apex Volt)", color: "#f97316" },
+      sundiata: { name: "Sundiata Prime", role: "Lion Bastion (vs Drill-Tank Mech)", color: "#f59e0b" },
+      kofi: { name: "Kofi Osei (Gold-Smith)", role: "Forge Hammer (vs Dread-Harmonic)", color: "#eab308" },
+      amina: { name: "Amina Zazzau", role: "Spear of the Realm (vs Null-Byte)", color: "#a855f7" },
+      wacan: { name: "Wacan (Guacan)", role: "Storm-Tide Sentinel (vs Vipera)", color: "#0284c7" },
       shadow_kensei: { name: "Shadow Kensei (Unlocked)", role: "Legendary Vanguard", color: "#ec4899" }
     };
 
@@ -453,14 +453,15 @@
     let playerHp = 100, isShieldActive = false;
     let currentWave = 1, mobsRemaining = 12, mobsTotal = 12;
     let enemies = [];
-    let boss = { x: 380, y: 135, hp: 24, maxHp: 24, active: false };
+    
+    // Multi-Phase Boss System (Chrono-Lock, Apex Volt, Drill-Tank Mech, Dread-Harmonic, Null-Byte)
+    let boss = { x: 380, y: 135, hp: 24, maxHp: 24, active: false, phase: 1, type: 'chrono_lock' };
     let gameActive = true;
 
-    // Projectiles and Weather
     let plasmaOrbs = [], lightningBolts = [], daggers = [], lionRoars = [], hammers = [], electricSpears = [], tsunamis = [], raindrops = [];
     let luettaState = { active: false, phase: 'DESCEND', x: 270, y: -100, targetY: 45, timer: 0 };
     let xochitlFlight = { active: false, phase: 'UP', x: 0, y: 0, timer: 0 };
-    let heliX = 120; // Authentic tactical helicopter position
+    let heliX = 120;
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
@@ -481,6 +482,8 @@
       mobsRemaining = count;
       mobsTotal = count;
       boss.active = false;
+      boss.phase = 1;
+      boss.hp = 24;
       for (let i = 0; i < count; i++) {
         enemies.push({ x: 580 + (i * 85), y: 195, hp: 3, maxHp: 3, speed: 0.85, active: true });
       }
@@ -596,29 +599,29 @@
       if (activeLead === "marcus") {
         playSound('zap');
         lightningBolts.push({ segments: [{x1: leadX+35, y1: 190, x2: leadX+220, y2: 190}], life: 14 });
-        logBrawler("⚡ Marcus Prime unleashes Blue-White Electric Volt Beam!");
+        logBrawler("⚡ Marcus Prime unleashes Blue-White Electric Volt Beam vs Chrono-Lock!");
       } else if (activeLead === "sundiata") {
         playSound('roar');
         lionRoars.push({ x: leadX + 25, y: 185, vx: 8.5, radius: 55, life: 70 });
-        logBrawler("🦁 Sundiata Prime unleashes Solar Lion Roar!");
+        logBrawler("🦁 Sundiata Prime unleashes Solar Lion Roar vs Drill-Tank Mech!");
       } else if (activeLead === "xochitl") {
         playSound('zap');
         for (let i = 0; i < 4; i++) {
           daggers.push({ x: leadX + 30, y: 170 + (i * 6), vx: 10.0, vy: (i - 1.5) * 1.5, length: 26, width: 6 });
         }
-        logBrawler("🔥 Zokito releases Obsidian Sun Darts!");
+        logBrawler("🔥 Zokito releases Obsidian Darts vs Apex Volt!");
       } else if (activeLead === "kofi") {
         playSound('hit');
         hammers.push({ x: leadX + 40, y: 185, vx: 8.0, life: 25 });
-        logBrawler("⚒️ Kofi Osei delivers crushing Anvil Sledge strike!");
+        logBrawler("⚒️ Kofi Osei delivers Anvil Sledge vs Dread-Harmonic!");
       } else if (activeLead === "amina") {
         playSound('zap');
         electricSpears.push({ x: leadX + 35, y: 185, vx: 11.0, length: 42, width: 8, life: 60 });
-        logBrawler("⚡ Amina hurls her Electric Lightning Spear!");
+        logBrawler("⚡ Amina hurls her Electric Lightning Spear vs Null-Byte!");
       } else if (activeLead === "wacan") {
         playSound('zap');
         tsunamis.push({ x: leadX + 20, y: 160, vx: 6.5, width: 160, height: 100, life: 90 });
-        logBrawler("🌊 Wacan summons a roaring Tsunami Ocean Wave to wipe out enemies!");
+        logBrawler("🌊 Wacan summons Tsunami Wave vs Vipera!");
       }
 
       applyDamageToTargets(2);
@@ -638,7 +641,7 @@
       initAudio();
       isShieldActive = true;
       setTimeout(() => isShieldActive = false, 4000);
-      logBrawler(`🛡️ ${ROSTER_CONFIG[activeLead].name} activates protective energy/wing shield bubble!`);
+      logBrawler(`🛡️ ${ROSTER_CONFIG[activeLead].name} activates protective shield/wing bubble!`);
     }
 
     function executeLuettaAid() {
@@ -665,9 +668,17 @@
     function applyDamageToTargets(dmg) {
       if (boss.active && Math.abs(boss.x - leadX) < 280) {
         boss.hp -= dmg;
-        addScore(250);
+        addScore(300);
         updateHUD();
-        if (boss.hp <= 0) onBossDefeated();
+        if (boss.hp <= 0) {
+          if (boss.phase === 1 && (boss.type === 'apex_volt' || boss.type === 'drill_tank')) {
+            boss.phase = 2;
+            boss.hp = 16;
+            logBrawler("⚡ BOSS PHASE 2 ENGAGED: Ground grid power transfer activated!");
+          } else {
+            onBossDefeated();
+          }
+        }
       } else {
         let hitAny = false;
         enemies.forEach(e => {
@@ -678,7 +689,7 @@
             if (e.hp <= 0) onEnemyDestroyed(e);
           }
         });
-        if (hitAny) logBrawler("Direct hit on Syndicate droid!");
+        if (hitAny) logBrawler("Direct hit on enemy unit!");
       }
     }
 
@@ -692,21 +703,33 @@
         boss.active = true;
         boss.x = 380;
         boss.hp = 24;
-        logBrawler("⚠️ BOSS: Chrono-Lock engaged!");
+        boss.phase = 1;
+        
+        // Rotate boss type based on current hero nemesis
+        if (activeLead === "marcus") boss.type = 'chrono_lock';
+        else if (activeLead === "xochitl") boss.type = 'apex_volt';
+        else if (activeLead === "sundiata") boss.type = 'drill_tank';
+        else if (activeLead === "kofi") boss.type = 'dread_harmonic';
+        else if (activeLead === "amina") boss.type = 'null_byte';
+        else boss.type = 'vipera';
+
+        logBrawler(`⚠️ ARCH-ENEMY BOSS ENGAGED: ${boss.type.toUpperCase()}!`);
       }
     }
 
     function onBossDefeated() {
       boss.active = false;
-      addScore(10000);
-      logBrawler("🏆 BOSS DEFEATED! Chrono-Lock shattered! +10,000 pts");
+      addScore(12000);
+      logBrawler("🏆 ARCH-ENEMY DEFEATED! Timeline restored with bonus points!");
+      currentWave++;
+      setupSwarm(14);
     }
 
     function updateHUD() {
       document.getElementById("heroHpText").innerText = `${playerHp}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
       document.getElementById("waveDisplay").innerText = `Score: ${playerScore} | Target: ${DAILY_TARGET_SCORE}`;
-      document.getElementById("enemyHpText").innerText = boss.active ? `${Math.max(0, boss.hp)}/24 HP` : `${mobsRemaining} Units`;
+      document.getElementById("enemyHpText").innerText = boss.active ? `${Math.max(0, boss.hp)} HP (Phase ${boss.phase})` : `${mobsRemaining} Units`;
       document.getElementById("enemyHpBar").style.width = boss.active ? `${(Math.max(0, boss.hp) / 24) * 100}%` : `${(mobsRemaining / mobsTotal) * 100}%`;
     }
 
@@ -724,7 +747,6 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // Authentic Detroit Renaissance Center Skyline Detail & Weather
       if (!isPaused) {
         heliX += 0.5;
         if (heliX > canvas.width + 120) heliX = -120;
@@ -744,11 +766,11 @@
       ctx.fillStyle = "#334155";
       ctx.fillRect(heliX - 22, 32, 44, 15);
       ctx.fillStyle = "#1e293b";
-      ctx.fillRect(heliX - 8, 38, 16, 8); // Cockpit windshield
+      ctx.fillRect(heliX - 8, 38, 16, 8);
       ctx.fillStyle = "#94a3b8";
-      ctx.fillRect(heliX - 35, 38, 35, 3); // Tail rotor boom
+      ctx.fillRect(heliX - 35, 38, 35, 3);
       ctx.fillStyle = "#cbd5e1";
-      ctx.fillRect(heliX - 22, 47, 44, 2); // Landing skids
+      ctx.fillRect(heliX - 22, 47, 44, 2);
       ctx.restore();
 
       // Atmospheric Weather Raindrops
@@ -801,7 +823,7 @@
         ctx.restore();
       }
 
-      // Zokito (Xochitl) Flight & Fairy Wings / Feather Darts
+      // Zokito (Xochitl) Flight & Fairy Wings
       if (xochitlFlight.active) {
         if (!isPaused) {
           xochitlFlight.timer++;
@@ -819,7 +841,6 @@
           }
         }
         ctx.save();
-        // Glowing Fairy Wings
         ctx.fillStyle = "rgba(251, 146, 60, 0.85)";
         ctx.beginPath();
         ctx.ellipse(xochitlFlight.x - 12, xochitlFlight.y + 15, 18, 8, -Math.PI / 4, 0, Math.PI * 2);
@@ -854,14 +875,20 @@
         });
       }
 
+      // Boss Rendering with Signature Mechanics (Chrono-Lock, Apex Volt, Drill-Tank Mech, etc.)
       if (boss.active && !isPaused) {
-        boss.x -= 0.12;
-        if (ASSETS.boss.complete && ASSETS.boss.naturalWidth > 0) {
-          ctx.drawImage(ASSETS.boss, boss.x, 130, 75, 115);
-        }
+        boss.x -= 0.10;
+        ctx.save();
+        ctx.fillStyle = boss.type === 'drill_tank' ? "#eab308" : (boss.type === 'chrono_lock' ? "#a855f7" : "#ef4444");
+        ctx.fillRect(boss.x, boss.phase === 2 ? 165 : 130, 80, boss.phase === 2 ? 80 : 115);
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText(boss.type.toUpperCase().replace('_', ' '), boss.x, 120);
+        ctx.restore();
       }
 
-      // Mother Luetta Heavenly Healing Form
+      // Mother Luetta Healing Beam
       if (luettaState.active) {
         if (!isPaused) {
           luettaState.timer--;
@@ -898,7 +925,7 @@
         if (luettaState.timer <= 0) luettaState.active = false;
       }
 
-      // Render Projectiles & Signature Powers
+      // Projectiles & Special Powers
       lightningBolts.forEach((lb, idx) => {
         ctx.strokeStyle = "#38bdf8";
         ctx.lineWidth = 5;
