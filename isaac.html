@@ -398,7 +398,7 @@
     </div>
 
     <div class="combat-log" id="combatLog">
-      Tactical Co-Op active! All signature abilities and character flight mechanics fully operational.
+      Tactical Co-Op active! All signature abilities, flight paths, and clockwork boss mechanics restored.
     </div>
 
     <div class="controls-grid">
@@ -445,7 +445,7 @@
 
   <script>
     /* =========================================================================
-       1. ROSTER & ASSET CONFIGURATION
+       1. FULL ROSTER & ASSET MAPPING
        ========================================================================= */
     const ROSTER_CONFIG = {
       marcus: { name: "Marcus Prime", role: "Grid Channeler", color: "#38bdf8", imgKey: "marcus" },
@@ -483,7 +483,7 @@
     ASSETS.apex.src = "apex-volt.png";
     ASSETS.luetta.src = "mother-luta.png";
 
-    const SAVE_KEY = 'vanguard_isaac_save_v8';
+    const SAVE_KEY = 'vanguard_isaac_save_v9';
     let playerProgress = { highestStageUnlocked: 1, currentStage: 1 };
 
     function loadSavedProgress() {
@@ -551,6 +551,13 @@
         gain.gain.setValueAtTime(0.6, now);
         gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
         osc.start(now); osc.stop(now + 0.5);
+      } else if (type === 'warp') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(900, now + 0.25);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+        osc.start(now); osc.stop(now + 0.25);
       }
     }
 
@@ -574,9 +581,9 @@
     let enemies = [];
     let boss = { x: 380, y: 0, hp: 24, maxHp: 24, active: false, type: "chrono", hitFlash: 0 };
     let gameActive = true;
-    let plasmaOrbs = [], lightningBolts = [], lionRoars = [], daggers = [];
+    let plasmaOrbs = [], lightningBolts = [], lionRoars = [], daggers = [], clockDebris = [];
     let luettaState = { active: false, timer: 0 };
-    let xochitlFlight = { active: false, x: 0, y: 0, timer: 0 };
+    let xochitlFlight = { active: false, phase: 'UP', x: 0, y: 0, timer: 0 };
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
@@ -648,12 +655,14 @@
       initAudio();
       leadVy = -12;
       isGrounded = false;
+
       if (activeLead === "xochitl") {
         xochitlFlight.active = true;
+        xochitlFlight.phase = 'UP';
         xochitlFlight.x = leadX;
-        xochitlFlight.y = 150;
+        xochitlFlight.y = 175;
         xochitlFlight.timer = 0;
-        logBrawler("🔥 Xochitl takes flight and releases fiery obsidian daggers!");
+        logBrawler("🪶 Xochitl takes flight: soaring up and drifting left to release fiery daggers!");
       }
     }
 
@@ -691,6 +700,7 @@
       if (activeLead === "marcus") {
         playSound('zap');
         generateLightning(leadX + 35, 195, leadX + 180, 195);
+        logBrawler("⚡ Marcus Prime unleashes Bio-Electric Volt Beam!");
       } else if (activeLead === "sundiata") {
         playSound('roar');
         lionRoars.push({ x: leadX + 25, y: 190, vx: 8.5, radius: 55, life: 70 });
@@ -700,7 +710,7 @@
         for (let i = 0; i < 4; i++) {
           daggers.push({ x: leadX + 30, y: 175 + (i * 6), vx: 10.0, vy: (i - 1.5) * 1.5, length: 24, width: 6 });
         }
-        logBrawler("🔥 Xochitl fires Obsidian Sun Daggers!");
+        logBrawler("🔥 Xochitl releases Obsidian Sun Daggers!");
       } else if (activeLead === "kofi") {
         playSound('hit');
         createBurstParticles(leadX + 50, 210, "#eab308", 16);
@@ -708,6 +718,7 @@
       } else if (activeLead === "amina") {
         playSound('zap');
         plasmaOrbs.push({ x: leadX + 40, y: 190, vx: 9.0, radius: 14, color: "#a855f7", life: 75 });
+        logBrawler("✨ Amina Zazzau fires a Hard-Light Celestial Spear!");
       }
 
       if (boss.active && Math.abs(boss.x - leadX) < 250) {
@@ -735,6 +746,13 @@
         playSound('hit');
         createBurstParticles(leadX + 40, 200, "#eab308", 20);
         logBrawler("⚒️ Kofi swings his Molten Forge Hammer!");
+      } else if (activeLead === "xochitl") {
+        xochitlFlight.active = true;
+        xochitlFlight.phase = 'UP';
+        xochitlFlight.x = leadX;
+        xochitlFlight.y = 175;
+        xochitlFlight.timer = 0;
+        logBrawler("🪶 Xochitl initiates Solar Strafe Flight!");
       } else {
         let orbColor = activeLead === "amina" ? "#a855f7" : (activeLead === "sundiata" ? "#f59e0b" : "#38bdf8");
         plasmaOrbs.push({ x: leadX + 40, y: 195, vx: 7.5, radius: 12, color: orbColor, life: 75 });
@@ -772,14 +790,37 @@
 
     function onBossDefeated() {
       boss.active = false;
+      playSound('warp');
+      screenShake = 15;
+
+      if (boss.type === "chrono") {
+        logBrawler("💥 Chrono-Lock shattered into a cascade of temporal clockwork gears across the floor!");
+        const symbols = ['⏱️', '⏳', '🕒', '⚙', '⏰'];
+        for (let i = 0; i < 28; i++) {
+          clockDebris.push({
+            x: boss.x + 35,
+            y: 200,
+            vx: (Math.random() - 0.5) * 9,
+            vy: -(Math.random() * 8 + 3),
+            rot: Math.random() * Math.PI * 2,
+            symbol: symbols[Math.floor(Math.random() * symbols.length)],
+            life: 120
+          });
+        }
+      }
+
       saveGameProgress(currentWave);
       if (currentWave === 3) {
-        document.getElementById("bannerTitle").innerText = "STAGE 3 COMPLETED";
-        document.getElementById("bannerDesc").innerText = "Chrono-Lock defeated! Opening portal to Kumasi Forge.";
-        document.getElementById("chapterBanner").style.display = "block";
+        setTimeout(() => {
+          document.getElementById("bannerTitle").innerText = "STAGE 3 COMPLETED";
+          document.getElementById("bannerDesc").innerText = "Chrono-Lock defeated! Opening portal to Kumasi Forge.";
+          document.getElementById("chapterBanner").style.display = "block";
+        }, 1500);
       } else {
-        gameActive = false;
-        document.getElementById("trial-modal").style.display = "flex";
+        setTimeout(() => {
+          gameActive = false;
+          document.getElementById("trial-modal").style.display = "flex";
+        }, 1500);
       }
     }
 
@@ -850,6 +891,8 @@
     /* =========================================================================
        4. RENDERER & ASSET MANAGEMENT
        ========================================================================= */
+    let screenShake = 0;
+
     function drawEnvironment(ctx) {
       if (activeZone === "detroit" && ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
         let parallaxX = (bgScrollOffset % 40) - 20;
@@ -890,8 +933,13 @@
     }
 
     function renderBrawler() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      if (screenShake > 0) {
+        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+        screenShake *= 0.85;
+      }
 
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawEnvironment(ctx);
 
       ctx.fillStyle = "#1e293b";
@@ -925,17 +973,28 @@
         ctx.restore();
       }
 
-      // Xochitl Aerial Flight & Dagger Strafe
+      // Xochitl Flight & Dagger Strafe Pattern (Up-Right, then Drift Left with folded wings)
       if (xochitlFlight.active) {
-        xochitlFlight.x += 3.5;
         xochitlFlight.timer++;
-        ctx.fillStyle = "#f97316";
-        ctx.fillRect(xochitlFlight.x, xochitlFlight.y, 40, 20);
-
-        if (xochitlFlight.timer % 12 === 0) {
-          daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 10, vx: 8.0, vy: 3.0, length: 22, width: 5 });
+        if (xochitlFlight.phase === 'UP') {
+          xochitlFlight.y -= 3.5;
+          xochitlFlight.x += 2.0;
+          if (xochitlFlight.y <= 90) xochitlFlight.phase = 'DRIFT';
+        } else {
+          xochitlFlight.x -= 3.5;
+          xochitlFlight.y += 1.5;
+          if (xochitlFlight.timer % 8 === 0) {
+            daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 10, vx: -8.0, vy: 2.5, length: 22, width: 5 });
+          }
+          if (xochitlFlight.y >= 200) xochitlFlight.active = false;
         }
-        if (xochitlFlight.x > canvas.width) xochitlFlight.active = false;
+
+        ctx.save();
+        ctx.fillStyle = "#f97316";
+        ctx.shadowColor = "#ea580c";
+        ctx.shadowBlur = 12;
+        ctx.fillRect(xochitlFlight.x, xochitlFlight.y, 35, 22);
+        ctx.restore();
       }
 
       enemies.forEach(e => {
@@ -1021,6 +1080,24 @@
         if (lr.life <= 0) lionRoars.splice(idx, 1);
       });
 
+      // Clockwork Debris when Chrono-Lock is defeated
+      clockDebris.forEach((cd, idx) => {
+        cd.x += cd.vx;
+        cd.y += cd.vy;
+        cd.vy += 0.35;
+        if (cd.y > 245) { cd.y = 245; cd.vy *= -0.5; }
+        ctx.save();
+        ctx.translate(cd.x, cd.y);
+        ctx.rotate(cd.rot);
+        ctx.font = "16px sans-serif";
+        ctx.fillStyle = "#10b981";
+        ctx.fillText(cd.symbol, 0, 0);
+        ctx.restore();
+        cd.life--;
+        if (cd.life <= 0) clockDebris.splice(idx, 1);
+      });
+
+      ctx.restore();
       animationFrameId = requestAnimationFrame(renderBrawler);
     }
 
