@@ -398,7 +398,7 @@
     </div>
 
     <div class="combat-log" id="combatLog">
-      Tactical Co-Op active! All signature abilities and boss mechanics restored.
+      Tactical Co-Op active! All signature abilities and character flight mechanics fully operational.
     </div>
 
     <div class="controls-grid">
@@ -483,7 +483,7 @@
     ASSETS.apex.src = "apex-volt.png";
     ASSETS.luetta.src = "mother-luta.png";
 
-    const SAVE_KEY = 'vanguard_isaac_save_v7';
+    const SAVE_KEY = 'vanguard_isaac_save_v8';
     let playerProgress = { highestStageUnlocked: 1, currentStage: 1 };
 
     function loadSavedProgress() {
@@ -576,6 +576,7 @@
     let gameActive = true;
     let plasmaOrbs = [], lightningBolts = [], lionRoars = [], daggers = [];
     let luettaState = { active: false, timer: 0 };
+    let xochitlFlight = { active: false, x: 0, y: 0, timer: 0 };
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
@@ -648,7 +649,11 @@
       leadVy = -12;
       isGrounded = false;
       if (activeLead === "xochitl") {
-        logBrawler("Xochitl leaps into flight, ready to release fiery daggers!");
+        xochitlFlight.active = true;
+        xochitlFlight.x = leadX;
+        xochitlFlight.y = 150;
+        xochitlFlight.timer = 0;
+        logBrawler("🔥 Xochitl takes flight and releases fiery obsidian daggers!");
       }
     }
 
@@ -666,6 +671,16 @@
       document.getElementById("heroNameLabel").innerText = `${ROSTER_CONFIG[activeLead].name} (${ROSTER_CONFIG[activeLead].role})`;
       let nextHero = unlockedRoster[(rosterIdx + 1) % unlockedRoster.length];
       document.getElementById("btnTag").innerText = `TAG: ${nextHero.toUpperCase()}`;
+
+      if (activeLead === "xochitl") {
+        document.getElementById("btnOrb").innerText = "🪶 Solar Strafe";
+      } else if (activeLead === "sundiata") {
+        document.getElementById("btnOrb").innerText = "🦁 Bronze Pulse";
+      } else if (activeLead === "kofi") {
+        document.getElementById("btnOrb").innerText = "⚒️ Anvil Hammer";
+      } else {
+        document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
+      }
     }
 
     /* UNIQUE CHARACTER ABILITIES & SIGNATURE MOVES */
@@ -678,23 +693,25 @@
         generateLightning(leadX + 35, 195, leadX + 180, 195);
       } else if (activeLead === "sundiata") {
         playSound('roar');
-        lionRoars.push({ x: leadX + 25, y: 190, vx: 8.5, radius: 45, life: 60 });
+        lionRoars.push({ x: leadX + 25, y: 190, vx: 8.5, radius: 55, life: 70 });
         logBrawler("🦁 Sundiata Prime unleashes the Solar Lion Roar!");
       } else if (activeLead === "xochitl") {
         playSound('zap');
-        for (let i = 0; i < 3; i++) {
-          daggers.push({ x: leadX + 30, y: 180 + (i * 8), vx: 9.5, vy: (i - 1) * 1.2, length: 22, width: 5 });
+        for (let i = 0; i < 4; i++) {
+          daggers.push({ x: leadX + 30, y: 175 + (i * 6), vx: 10.0, vy: (i - 1.5) * 1.5, length: 24, width: 6 });
         }
-        logBrawler("Xochitl fires a volley of Obsidian Sun Daggers!");
+        logBrawler("🔥 Xochitl fires Obsidian Sun Daggers!");
+      } else if (activeLead === "kofi") {
+        playSound('hit');
+        createBurstParticles(leadX + 50, 210, "#eab308", 16);
+        logBrawler("⚒️ Kofi Osei delivers a massive Crucible Anvil Sledge strike!");
       } else if (activeLead === "amina") {
         playSound('zap');
         plasmaOrbs.push({ x: leadX + 40, y: 190, vx: 9.0, radius: 14, color: "#a855f7", life: 75 });
-      } else {
-        playSound('hit');
       }
 
       if (boss.active && Math.abs(boss.x - leadX) < 250) {
-        boss.hp -= (activeLead === "sundiata" ? 3 : 2);
+        boss.hp -= (activeLead === "sundiata" || activeLead === "kofi" ? 3 : 2);
         boss.hitFlash = 6;
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
@@ -713,8 +730,15 @@
       if (!gameActive) return;
       initAudio();
       playSound('zap');
-      let orbColor = activeLead === "amina" ? "#a855f7" : (activeLead === "sundiata" ? "#f59e0b" : "#38bdf8");
-      plasmaOrbs.push({ x: leadX + 40, y: 195, vx: 7.5, radius: 12, color: orbColor, life: 75 });
+
+      if (activeLead === "kofi") {
+        playSound('hit');
+        createBurstParticles(leadX + 40, 200, "#eab308", 20);
+        logBrawler("⚒️ Kofi swings his Molten Forge Hammer!");
+      } else {
+        let orbColor = activeLead === "amina" ? "#a855f7" : (activeLead === "sundiata" ? "#f59e0b" : "#38bdf8");
+        plasmaOrbs.push({ x: leadX + 40, y: 195, vx: 7.5, radius: 12, color: orbColor, life: 75 });
+      }
     }
 
     function executeBurst() {
@@ -817,8 +841,14 @@
       lightningBolts.push({ segments: segments, life: 12 });
     }
 
+    function createBurstParticles(x, y, color, count) {
+      for (let i = 0; i < count; i++) {
+        plasmaOrbs.push({ x: x, y: y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, radius: 4, color: color, life: 25 });
+      }
+    }
+
     /* =========================================================================
-       4. DETROIT RENCEN BACKDROP & RENDERER
+       4. RENDERER & ASSET MANAGEMENT
        ========================================================================= */
     function drawEnvironment(ctx) {
       if (activeZone === "detroit" && ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
@@ -882,6 +912,32 @@
       let partnerKey = unlockedRoster.find(r => r !== activeLead) || "xochitl";
       drawCharacterSprite(ctx, aiPartner.x, 255, ROSTER_CONFIG[partnerKey].imgKey, ROSTER_CONFIG[partnerKey].color);
 
+      // Sovereign Shield visual effect
+      if (isShieldActive) {
+        ctx.save();
+        ctx.strokeStyle = ROSTER_CONFIG[activeLead].color;
+        ctx.lineWidth = 4;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(leadX + 22, 220 - leadY, 38, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Xochitl Aerial Flight & Dagger Strafe
+      if (xochitlFlight.active) {
+        xochitlFlight.x += 3.5;
+        xochitlFlight.timer++;
+        ctx.fillStyle = "#f97316";
+        ctx.fillRect(xochitlFlight.x, xochitlFlight.y, 40, 20);
+
+        if (xochitlFlight.timer % 12 === 0) {
+          daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 10, vx: 8.0, vy: 3.0, length: 22, width: 5 });
+        }
+        if (xochitlFlight.x > canvas.width) xochitlFlight.active = false;
+      }
+
       enemies.forEach(e => {
         if (!e.active) return;
         e.x -= e.speed;
@@ -906,9 +962,13 @@
       }
 
       plasmaOrbs.forEach((po, idx) => {
-        po.x += po.vx;
+        po.x += (po.vx || 0);
+        po.y += (po.vy || 0);
         ctx.fillStyle = po.color || "#38bdf8";
         ctx.beginPath(); ctx.arc(po.x, po.y, po.radius, 0, Math.PI * 2); ctx.fill();
+        po.life--;
+        if (po.life <= 0) plasmaOrbs.splice(idx, 1);
+
         if (boss.active && Math.abs(po.x - boss.x) < 30) {
           boss.hp -= 2;
           updateHUD();
@@ -919,6 +979,7 @@
 
       daggers.forEach((d, idx) => {
         d.x += d.vx;
+        d.y += (d.vy || 0);
         ctx.fillStyle = "#f97316";
         ctx.fillRect(d.x, d.y, d.length, d.width);
         if (boss.active && Math.abs(d.x - boss.x) < 35) {
@@ -943,12 +1004,19 @@
         lr.x += lr.vx;
         ctx.save();
         if (ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
-          ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - 60, 120, 120);
+          ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - 60, 140, 140);
         } else {
-          ctx.fillStyle = "rgba(245, 158, 11, 0.65)";
+          ctx.fillStyle = "rgba(245, 158, 11, 0.75)";
           ctx.beginPath(); ctx.arc(lr.x, lr.y, lr.radius, 0, Math.PI * 2); ctx.fill();
         }
         ctx.restore();
+
+        if (boss.active && Math.abs(lr.x - boss.x) < 50) {
+          boss.hp -= 3;
+          updateHUD();
+          if (boss.hp <= 0) onBossDefeated();
+        }
+
         lr.life--;
         if (lr.life <= 0) lionRoars.splice(idx, 1);
       });
