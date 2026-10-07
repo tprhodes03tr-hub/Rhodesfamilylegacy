@@ -398,7 +398,7 @@
     </div>
 
     <div class="combat-log" id="combatLog">
-      Tactical Co-Op active! Character abilities and volumetric drone units loaded.
+      Tactical Co-Op active! All signature abilities and boss mechanics restored.
     </div>
 
     <div class="controls-grid">
@@ -445,7 +445,7 @@
 
   <script>
     /* =========================================================================
-       1. ROSTER MAPPING UP TO AMINA ZAZZAU
+       1. ROSTER & ASSET CONFIGURATION
        ========================================================================= */
     const ROSTER_CONFIG = {
       marcus: { name: "Marcus Prime", role: "Grid Channeler", color: "#38bdf8", imgKey: "marcus" },
@@ -460,15 +460,20 @@
     let activeLead = "marcus";
 
     const ASSETS = {
+      bg: new Image(),
+      solarLion: new Image(),
       marcus: new Image(),
       xochitl: new Image(),
       sundiata: new Image(),
       kofi: new Image(),
       amina: new Image(),
       chrono: new Image(),
-      apex: new Image()
+      apex: new Image(),
+      luetta: new Image()
     };
 
+    ASSETS.bg.src = "bg-detroit.jpg";
+    ASSETS.solarLion.src = "solar-lion-roar.png";
     ASSETS.marcus.src = "marcus.png";
     ASSETS.xochitl.src = "xochitl.png";
     ASSETS.sundiata.src = "sundiata-prime.png";
@@ -476,8 +481,9 @@
     ASSETS.amina.src = "amina-zazzau.png";
     ASSETS.chrono.src = "chrono-lock.png";
     ASSETS.apex.src = "apex-volt.png";
+    ASSETS.luetta.src = "mother-luta.png";
 
-    const SAVE_KEY = 'vanguard_isaac_save_v6';
+    const SAVE_KEY = 'vanguard_isaac_save_v7';
     let playerProgress = { highestStageUnlocked: 1, currentStage: 1 };
 
     function loadSavedProgress() {
@@ -559,6 +565,7 @@
        ========================================================================= */
     let activeZone = "detroit";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
+    let bgScrollOffset = 0;
 
     let aiPartner = { x: 35, y: 0, vy: 0, isGrounded: true };
     let playerHp = 100, isShieldActive = false;
@@ -567,7 +574,7 @@
     let enemies = [];
     let boss = { x: 380, y: 0, hp: 24, maxHp: 24, active: false, type: "chrono", hitFlash: 0 };
     let gameActive = true;
-    let plasmaOrbs = [], lightningBolts = [], lionRoars = [];
+    let plasmaOrbs = [], lightningBolts = [], lionRoars = [], daggers = [];
     let luettaState = { active: false, timer: 0 };
 
     function initBrawler() {
@@ -625,13 +632,14 @@
       boss.maxHp = boss.hp;
       enemies = [];
       mobsRemaining = 0;
-      logBrawler(type === "apex" ? "⚠️ Boss Apex Volt engaged!" : "⚠️ Boss Chrono-Lock engaged!");
+      logBrawler(type === "apex" ? "⚠️ BOSS: Apex Volt engaged!" : "⚠️ BOSS: Chrono-Lock engaged!");
     }
 
     function playerMove(dx) {
       if (!gameActive) return;
       initAudio();
       leadX = Math.max(50, Math.min(340, leadX + dx));
+      bgScrollOffset -= (dx * 0.15);
     }
 
     function playerJump() {
@@ -639,6 +647,9 @@
       initAudio();
       leadVy = -12;
       isGrounded = false;
+      if (activeLead === "xochitl") {
+        logBrawler("Xochitl leaps into flight, ready to release fiery daggers!");
+      }
     }
 
     function executeTagSwap() {
@@ -668,9 +679,16 @@
       } else if (activeLead === "sundiata") {
         playSound('roar');
         lionRoars.push({ x: leadX + 25, y: 190, vx: 8.5, radius: 45, life: 60 });
+        logBrawler("🦁 Sundiata Prime unleashes the Solar Lion Roar!");
+      } else if (activeLead === "xochitl") {
+        playSound('zap');
+        for (let i = 0; i < 3; i++) {
+          daggers.push({ x: leadX + 30, y: 180 + (i * 8), vx: 9.5, vy: (i - 1) * 1.2, length: 22, width: 5 });
+        }
+        logBrawler("Xochitl fires a volley of Obsidian Sun Daggers!");
       } else if (activeLead === "amina") {
         playSound('zap');
-        plasmaOrbs.push({ x: leadX + 40, y: 190, vx: 9.0, radius: 14, color: "#a855f7" });
+        plasmaOrbs.push({ x: leadX + 40, y: 190, vx: 9.0, radius: 14, color: "#a855f7", life: 75 });
       } else {
         playSound('hit');
       }
@@ -800,8 +818,18 @@
     }
 
     /* =========================================================================
-       4. VOLUMETRIC RENDERER & ASSET FALLBACKS
+       4. DETROIT RENCEN BACKDROP & RENDERER
        ========================================================================= */
+    function drawEnvironment(ctx) {
+      if (activeZone === "detroit" && ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
+        let parallaxX = (bgScrollOffset % 40) - 20;
+        ctx.drawImage(ASSETS.bg, parallaxX, 0, canvas.width + 40, canvas.height);
+      } else {
+        ctx.fillStyle = activeZone === "sahel" ? "#2d1205" : (activeZone === "forge" ? "#3d0b03" : "#090d16");
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
     function drawCharacterSprite(ctx, x, y, key, color) {
       const img = ASSETS[key];
       if (img && img.complete && img.naturalWidth > 0) {
@@ -834,8 +862,7 @@
     function renderBrawler() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = activeZone === "sahel" ? "#2d1205" : (activeZone === "forge" ? "#3d0b03" : "#090d16");
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawEnvironment(ctx);
 
       ctx.fillStyle = "#1e293b";
       ctx.fillRect(0, 255, canvas.width, 35);
@@ -871,10 +898,10 @@
         boss.x -= 0.2;
         const bossImg = boss.type === "apex" ? ASSETS.apex : ASSETS.chrono;
         if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
-          ctx.drawImage(bossImg, boss.x, 160, 60, 95);
+          ctx.drawImage(bossImg, boss.x, 140, 75, 115);
         } else {
           ctx.fillStyle = "#f87171";
-          ctx.fillRect(boss.x, 160, 50, 95);
+          ctx.fillRect(boss.x, 140, 60, 115);
         }
       }
 
@@ -890,6 +917,18 @@
         }
       });
 
+      daggers.forEach((d, idx) => {
+        d.x += d.vx;
+        ctx.fillStyle = "#f97316";
+        ctx.fillRect(d.x, d.y, d.length, d.width);
+        if (boss.active && Math.abs(d.x - boss.x) < 35) {
+          boss.hp -= 1;
+          updateHUD();
+          if (boss.hp <= 0) onBossDefeated();
+          daggers.splice(idx, 1);
+        }
+      });
+
       lightningBolts.forEach((lb, idx) => {
         ctx.strokeStyle = "#38bdf8";
         ctx.lineWidth = 3;
@@ -902,8 +941,14 @@
 
       lionRoars.forEach((lr, idx) => {
         lr.x += lr.vx;
-        ctx.fillStyle = "rgba(245, 158, 11, 0.45)";
-        ctx.beginPath(); ctx.arc(lr.x, lr.y, lr.radius, 0, Math.PI * 2); ctx.fill();
+        ctx.save();
+        if (ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
+          ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - 60, 120, 120);
+        } else {
+          ctx.fillStyle = "rgba(245, 158, 11, 0.65)";
+          ctx.beginPath(); ctx.arc(lr.x, lr.y, lr.radius, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
         lr.life--;
         if (lr.life <= 0) lionRoars.splice(idx, 1);
       });
