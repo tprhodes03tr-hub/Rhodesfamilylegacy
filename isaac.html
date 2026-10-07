@@ -379,7 +379,7 @@
         <div class="bar-group">
           <div class="bar-label">
             <span id="enemyTypeLabel">Syndicate Swarm</span>
-            <span id="enemyHpText">14 Units Remaining</span>
+            <span id="enemyHpText">12 Units Remaining</span>
           </div>
           <div class="bar-track">
             <div id="enemyHpBar" class="bar-fill-enemy"></div>
@@ -398,7 +398,7 @@
     </div>
 
     <div class="combat-log" id="combatLog">
-      Tactical Co-Op active! 16-Operative Roster framework initialized.
+      Tactical Co-Op active! Mapped to repository sprite assets.
     </div>
 
     <div class="controls-grid">
@@ -436,7 +436,7 @@
     <div class="modal-content">
       <div style="font-size: 32px; margin-bottom: 6px;">🏆</div>
       <h2>MARROW RESONANCE RESTORED!</h2>
-      <p>All 16 operatives successfully synchronized across global ley-lines. The timeline is secured!</p>
+      <p>All operatives successfully synchronized across global ley-lines. The timeline is secured!</p>
       <div class="modal-actions">
         <button class="replay-btn" onclick="resetCampaignToStage1()">🔄 PLAY AGAIN FROM STAGE 1</button>
       </div>
@@ -445,23 +445,52 @@
 
   <script>
     /* =========================================================================
-       1. EXTENDED 16-OPERATIVE ROSTER CONFIGURATION
+       1. EXACT ASSET MAPPING TO REPOSITORY SPRITES & IMAGES
        ========================================================================= */
     const ROSTER_CONFIG = {
-      marcus: { name: "Marcus Prime", role: "Grid Channeler", color: "#38bdf8" },
-      xochitl: { name: "Xochitl", role: "Obsidian Sun", color: "#f97316" },
-      sundiata: { name: "Sundiata Prime", role: "Lion Bastion", color: "#f59e0b" },
-      kofi: { name: "Kofi Osei", role: "Gold-Smith", color: "#eab308" },
-      amina: { name: "Amina Zazzau", role: "Spear of the Realm", color: "#a855f7" },
-      elena: { name: "Elena", role: "Vanguard Sentinel", color: "#22c55e" },
-      kineticBridge: { name: "The Kinetic Bridge", role: "Phase Bulwark (Tier-0)", color: "#ec4899" }
+      marcus: { name: "Marcus Prime", role: "Grid Channeler", color: "#38bdf8", imgKey: "marcus" },
+      xochitl: { name: "Xochitl", role: "Obsidian Sun", color: "#f97316", imgKey: "xochitl" },
+      sundiata: { name: "Sundiata Prime", role: "Lion Bastion", color: "#f59e0b", imgKey: "sundiata" },
+      kofi: { name: "Kofi Osei", role: "Gold-Smith", color: "#eab308", imgKey: "kofi" },
+      amina: { name: "Amina Zazzau", role: "Spear of the Realm", color: "#a855f7", imgKey: "amina" },
+      elena: { name: "Elena", role: "Vanguard Sentinel", color: "#22c55e", imgKey: "elena" },
+      akecheta: { name: "Akecheta", role: "Temporal Tracker", color: "#d97706", imgKey: "akecheta" }
     };
 
-    let unlockedRoster = ["marcus", "xochitl", "sundiata", "kofi", "amina", "elena", "kineticBridge"];
+    let unlockedRoster = ["marcus", "xochitl", "sundiata", "kofi", "amina", "elena", "akecheta"];
     let rosterIdx = 0;
     let activeLead = "marcus";
 
-    const SAVE_KEY = 'vanguard_isaac_save_v2';
+    // Direct mapping to your uploaded repository assets
+    const ASSETS = {
+      marcus: new Image(),
+      xochitl: new Image(),
+      sundiata: new Image(),
+      kofi: new Image(),
+      amina: new Image(),
+      elena: new Image(),
+      akecheta: new Image(),
+      chrono: new Image(),
+      apex: new Image(),
+      marcusSheet: new Image(),
+      xochitlSheet: new Image(),
+      chronolockSheet: new Image()
+    };
+
+    ASSETS.marcus.src = "marcus.png";
+    ASSETS.xochitl.src = "xochitl.png";
+    ASSETS.sundiata.src = "sundiata-prime.png";
+    ASSETS.kofi.src = "kofi.png";
+    ASSETS.amina.src = "amina-zazzau.png";
+    ASSETS.elena.src = "elena.png";
+    ASSETS.akecheta.src = "akecheta.png";
+    ASSETS.chrono.src = "chrono-lock.png";
+    ASSETS.apex.src = "apex-volt.png";
+    ASSETS.marcusSheet.src = "marcus_prime_spritesheet.png";
+    ASSETS.xochitlSheet.src = "xochitl_spritesheet.png";
+    ASSETS.chronolockSheet.src = "chronolock_spritesheet.png";
+
+    const SAVE_KEY = 'vanguard_isaac_save_v5';
     let playerProgress = { highestStageUnlocked: 1, currentStage: 1 };
 
     function loadSavedProgress() {
@@ -481,7 +510,7 @@
     }
 
     /* =========================================================================
-       2. CANVAS & AUDIO ENGINE
+       2. AUDIO & CANVAS ENGINE
        ========================================================================= */
     let canvas, ctx;
     let animationFrameId = null;
@@ -532,20 +561,20 @@
     }
 
     /* =========================================================================
-       3. BRAWLER STATE & GAME LOOP
+       3. GAME STATE & LOOP
        ========================================================================= */
     let activeZone = "detroit";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
-    let leadLean = 0, walkCadence = 0;
+    let walkCadence = 0;
 
-    let aiPartner = { x: 35, y: 0, vy: 0, isGrounded: true, attackCooldown: 0 };
-    let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
+    let aiPartner = { x: 35, y: 0, vy: 0, isGrounded: true };
+    let playerHp = 100, isShieldActive = false;
 
     let currentWave = 1, mobsRemaining = 12, mobsTotal = 12;
     let enemies = [];
     let boss = { x: 380, y: 0, hp: 20, maxHp: 20, active: false, type: "chrono", hitFlash: 0 };
-    let screenShake = 0, gameActive = true;
-    let particles = [], enemyBullets = [], plasmaOrbs = [];
+    let gameActive = true;
+    let plasmaOrbs = [];
     let luettaState = { active: false, timer: 0 };
 
     function initBrawler() {
@@ -749,10 +778,27 @@
       document.getElementById("combatLog").innerText = msg;
     }
 
+    /* =========================================================================
+       4. SPRITE RENDERER WITH AUTOMATIC REPOSITORY ASSET FALLBACK
+       ========================================================================= */
+    function drawCharacterSprite(ctx, x, y, key, color) {
+      const img = ASSETS[key];
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, x, y - 75, 45, 75);
+      } else {
+        ctx.fillStyle = color;
+        ctx.fillRect(x + 5, y - 60, 25, 45);
+        ctx.fillStyle = "#fde047";
+        ctx.beginPath(); ctx.arc(x + 17, y - 68, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(x + 8, y - 15, 8, 15);
+        ctx.fillRect(x + 19, y - 15, 8, 15);
+      }
+    }
+
     function renderBrawler() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Background Environment Grid
       ctx.fillStyle = activeZone === "sahel" ? "#2d1205" : (activeZone === "forge" ? "#3d0b03" : "#090d16");
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -762,22 +808,18 @@
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(0, 255); ctx.lineTo(canvas.width, 255); ctx.stroke();
 
-      // Physics update
       if (!isGrounded) {
         leadY -= leadVy;
         leadVy += 0.8;
         if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
       }
 
-      // Draw Lead Operative
-      ctx.fillStyle = ROSTER_CONFIG[activeLead].color;
-      ctx.fillRect(leadX, 175 - leadY, 35, 70);
+      const leadCfg = ROSTER_CONFIG[activeLead];
+      drawCharacterSprite(ctx, leadX, 255 - leadY, leadCfg.imgKey, leadCfg.color);
 
-      // Draw AI Partner
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillRect(aiPartner.x, 175, 30, 65);
+      let partnerKey = unlockedRoster.find(r => r !== activeLead) || "xochitl";
+      drawCharacterSprite(ctx, aiPartner.x, 255, ROSTER_CONFIG[partnerKey].imgKey, ROSTER_CONFIG[partnerKey].color);
 
-      // Draw Enemies
       enemies.forEach(e => {
         if (!e.active) return;
         e.x -= e.speed;
@@ -788,17 +830,20 @@
           if (playerHp <= 0) handlePlayerDefeat();
         }
         ctx.fillStyle = "#ef4444";
-        ctx.fillRect(e.x, 180, 32, 60);
+        ctx.fillRect(e.x, 195, 30, 60);
       });
 
-      // Draw Boss if active
       if (boss.active) {
         boss.x -= 0.2;
-        ctx.fillStyle = "#f87171";
-        ctx.fillRect(boss.x, 155, 60, 85);
+        const bossImg = boss.type === "apex" ? ASSETS.apex : ASSETS.chrono;
+        if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
+          ctx.drawImage(bossImg, boss.x, 160, 60, 95);
+        } else {
+          ctx.fillStyle = "#f87171";
+          ctx.fillRect(boss.x, 160, 50, 95);
+        }
       }
 
-      // Draw Projectiles
       plasmaOrbs.forEach((po, idx) => {
         po.x += po.vx;
         ctx.fillStyle = "#38bdf8";
