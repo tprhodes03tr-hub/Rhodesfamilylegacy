@@ -719,7 +719,7 @@
     <div class="tab-bar">
       <button class="tab-btn" onclick="openTab('codex', this)">🎴 Card Codex</button>
       <button class="tab-btn" onclick="openTab('clash', this)">⚔️ Card Clash</button>
-      <button class="tab-btn active" onclick="openTab('brawler', this)">🕹️️ Side Brawler</button>
+      <button class="tab-btn active" onclick="openTab('brawler', this)">🕹 Side Brawler</button>
     </div>
   </header>
 
@@ -832,15 +832,15 @@
         </div>
       </div>
 
-      <!-- Kofi Osei -->
+      <!-- Elena -->
       <div class="card-flipper-container" onclick="toggleCardFlip(this)">
         <div class="card-flipper-inner">
           <div class="card-face card-face-front card-foil foil-gold">
-            <img src="kofi.png" class="card-img" alt="Kofi Osei">
-            <div class="card-name">Kofi Osei</div>
-            <div class="card-title">The Gold-Smith • Kumasi Forge</div>
-            <div class="stat-row"><span class="stat-badge">PWR: 90</span><span class="stat-badge">DEF: 95</span><span class="stat-badge">WILL: 91</span></div>
-            <span class="worth-badge worth-gold">Gold Relic Foil • Master Smith</span>
+            <img src="elena.png" class="card-img" alt="Elena">
+            <div class="card-name">Elena</div>
+            <div class="card-title">Vanguard Sentinel • Heritage Guard</div>
+            <div class="stat-row"><span class="stat-badge">PWR: 88</span><span class="stat-badge">DEF: 76</span><span class="stat-badge">WILL: 85</span></div>
+            <span class="worth-badge worth-gold">Gold Relic Foil • Vanguard Sentinel</span>
           </div>
           <div class="card-face card-face-back">
             <div class="back-brand-title">RHODES FAMILY LEGACY</div>
@@ -1125,7 +1125,7 @@
     loadSavedProgress();
 
     /* =========================================================================
-       2. TAB NAVIGATION & 3D CARD FLIPPER
+       2. TAB NAVIGATION & 3D CARD FLIPPER (GLOBALLY EXPOSED)
        ========================================================================= */
     let brawlerInitialized = false;
 
@@ -1165,7 +1165,7 @@
     }
 
     /* =========================================================================
-       3. TAB 2: CARD CLASH (4v4 ENGINE)
+       3. TAB 2: CARD CLASH (4v4 ENGINE WITH TAG-BACK COUNTER-ATTACK FIX)
        ========================================================================= */
     let currentRound = 1;
     let selectedTargetIndex = null;
@@ -1190,6 +1190,28 @@
       document.querySelectorAll('.battle-row .foil-syndicate').forEach(c => c.classList.remove('targeted'));
       document.getElementById('enemy-' + index).classList.add('targeted');
       document.getElementById('clash-status').innerText = `Target locked: ${clashEnemies[index].name}. Choose a hero action!`;
+    }
+
+    function executeAiCounterAttack() {
+      const liveEnemies = clashEnemies.filter(e => e.hp > 0);
+      const retaliator = liveEnemies[Math.floor(Math.random() * liveEnemies.length)] || clashEnemies[0];
+      const aliveHeroIndices = clashHeroes.map((h, i) => h.hp > 0 ? i : -1).filter(i => i !== -1);
+
+      if (aliveHeroIndices.length === 0) {
+        document.getElementById('clash-status').innerText = "Vanguard squad exhausted! Resetting match...";
+        setTimeout(resetCardArena, 2000);
+        return;
+      }
+
+      const heroTargetIndex = aliveHeroIndices[Math.floor(Math.random() * aliveHeroIndices.length)];
+      const heroTarget = clashHeroes[heroTargetIndex];
+
+      const enemyDmg = Math.max(Math.round(retaliator.pwr - (heroTarget.def / 2)), 6);
+      heroTarget.hp = Math.max(0, heroTarget.hp - enemyDmg);
+      document.getElementById('vanguard-hp-' + heroTargetIndex).style.width = (heroTarget.hp / heroTarget.maxHp * 100) + '%';
+
+      currentRound++;
+      document.getElementById('round-display').innerText = `Round ${currentRound}`;
     }
 
     function executeHeroAction(heroIndex, actionType) {
@@ -1217,25 +1239,7 @@
       }
 
       setTimeout(() => {
-        const liveEnemies = clashEnemies.filter(e => e.hp > 0);
-        const retaliator = liveEnemies[Math.floor(Math.random() * liveEnemies.length)] || clashEnemies[0];
-        const aliveHeroIndices = clashHeroes.map((h, i) => h.hp > 0 ? i : -1).filter(i => i !== -1);
-
-        if (aliveHeroIndices.length === 0) {
-          document.getElementById('clash-status').innerText = "Vanguard squad exhausted! Resetting match...";
-          setTimeout(resetCardArena, 2000);
-          return;
-        }
-
-        const heroTargetIndex = aliveHeroIndices[Math.floor(Math.random() * aliveHeroIndices.length)];
-        const heroTarget = clashHeroes[heroTargetIndex];
-
-        const enemyDmg = Math.max(Math.round(retaliator.pwr - (heroTarget.def / 2)), 6);
-        heroTarget.hp = Math.max(0, heroTarget.hp - enemyDmg);
-        document.getElementById('vanguard-hp-' + heroTargetIndex).style.width = (heroTarget.hp / heroTarget.maxHp * 100) + '%';
-
-        currentRound++;
-        document.getElementById('round-display').innerText = `Round ${currentRound}`;
+        executeAiCounterAttack();
       }, 700);
     }
 
@@ -1369,6 +1373,36 @@
       luetta: new Image()
     };
 
+    let assetsLoaded = false;
+    let loadedCount = 0;
+    const totalAssets = Object.keys(ASSETS).length;
+
+    function handleAssetLoad() {
+      loadedCount++;
+      if (loadedCount >= totalAssets) {
+        assetsLoaded = true;
+      }
+    }
+
+    Object.values(ASSETS).forEach(img => {
+      img.onload = handleAssetLoad;
+      img.onerror = handleAssetLoad;
+    });
+
+    ASSETS.bg.src = "bg-detroit.jpg";
+    ASSETS.ouroborosSkyline.src = "ouroboros-skyline.png";
+    ASSETS.groundPlate.src = "niani-ground-plate.png";
+    ASSETS.solarLion.src = "solar-lion-roar.png";
+
+    ASSETS.marcus.src = "marcus.png";
+    ASSETS.xochitl.src = "xochitl.png";
+    ASSETS.sundiata.src = "sundiata-prime.png";
+    ASSETS.kofi.src = "kofi.png";
+    ASSETS.boss.src = "chrono-lock.png";
+    ASSETS.ironclad.src = "ironclad.png";
+    ASSETS.apex.src = "apex-volt.png";
+    ASSETS.luetta.src = "mother-luta.png";
+
     let activeZone = "detroit"; 
     let unlockedRoster = playerProgress.unlockedOperatives;
     let rosterIdx = 0;
@@ -1392,17 +1426,15 @@
     let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
     let bgScrollOffset = 0, groundScrollOffset = 0;
 
-    // KOFI OSEI CRUCIBLE ANVIL SLEDGE TRACKER
     let kofiHammerSwing = {
       active: false,
       timer: 0,
       maxTimer: 14
     };
 
-    // XOCHITL ADVANCED FLIGHT ENGINE (RIGHT -> LEFT STRAFE -> ARROW BARRAGE)
     let xochitlFlight = {
       active: false,
-      state: 'INACTIVE', // 'ASCENT', 'STRAFE', 'BARRAGE', 'TOUCHDOWN'
+      state: 'INACTIVE',
       x: 0,
       y: 0,
       timer: 0,
@@ -1477,20 +1509,6 @@
       ctx = canvas.getContext("2d");
 
       resizeBrawlerCanvas();
-
-      ASSETS.bg.src = "bg-detroit.jpg";
-      ASSETS.ouroborosSkyline.src = "ouroboros-skyline.png";
-      ASSETS.groundPlate.src = "niani-ground-plate.png";
-      ASSETS.solarLion.src = "solar-lion-roar.png";
-
-      ASSETS.marcus.src = "marcus.png";
-      ASSETS.xochitl.src = "xochitl.png";
-      ASSETS.sundiata.src = "sundiata-prime.png";
-      ASSETS.kofi.src = "kofi.png";
-      ASSETS.boss.src = "chrono-lock.png";
-      ASSETS.ironclad.src = "ironclad.png";
-      ASSETS.apex.src = "apex-volt.png";
-      ASSETS.luetta.src = "mother-luta.png";
 
       let launchWave = 1;
       if (playerProgress.highestStageUnlocked === 2) launchWave = 4;
@@ -1665,7 +1683,6 @@
           boss.x = Math.random() > 0.5 ? Math.max(30, leadX - 70) : leadX + 85;
           createBurstParticles(boss.x + 30, 210, "#10b981", 18);
           
-          // Enhanced: Release Temporal Distortion Dials that slow and damage
           enemyBullets.push({
             x: boss.x + 20,
             y: 195,
@@ -1707,7 +1724,6 @@
           screenShake = 16;
           logBrawler(`${bossType === "krieg" ? "Baron Krieg" : "Ironclad Prime"} executes Molten Iron Quake! (JUMP to dodge!)`);
           
-          // Enhanced: Launches twin molten ground shockwaves
           groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#f97316" });
           setTimeout(() => {
             if (boss.active) groundShockwaves.push({ x: boss.x, vx: -7.5, radius: 24, color: "#ef4444" });
@@ -1760,7 +1776,6 @@
             screenShake = 18;
             groundShockwaves.push({ x: boss.x, vx: -6.5, radius: 22, color: "#38bdf8" });
             
-            // Enhanced: Tesla Lightning Strike down directly above the player
             setTimeout(() => {
               if (boss.active) {
                 generateLightning(leadX + 30, 0, leadX + 30, 255, 6);
@@ -1784,8 +1799,7 @@
         logBrawler("💥 Chrono-Lock shattered into a cascade of temporal clockwork gears!");
         playSound('warp');
         
-        // RESTORED: EXPLODE INTO BOUNCING WATCHES, CLOCKS, AND GEARS
-        const clockSymbols = ['⏱️', '⏳', '🕒', '⌛', '⏰', '⚙️️', 'XII', 'VI'];
+        const clockSymbols = ['⏱️', '⏳', '🕒', '⌛', '⏰', '⚙', 'XII', 'VI'];
         for (let i = 0; i < 35; i++) {
           particles.push({
             type: "clock",
@@ -2021,7 +2035,6 @@
         sundiataShockwave.x = leadX + 35;
         sundiataShockwave.radius = 10;
       } else if (activeLead === "kofi") {
-        // TRIGGER CRUCIBLE ANVIL SLEDGE ANIMATION
         playSound('hit');
         screenShake = 14;
         kofiHammerSwing.active = true;
@@ -2373,7 +2386,6 @@
       ctx.restore();
     }
 
-    // DRAW KOFI OSEI'S CRUCIBLE ANVIL SLEDGE (ANIMATED COMBAT SWING)
     function drawKofiAnvilHammer(ctx, originX, originY) {
       if (!kofiHammerSwing.active) return;
 
@@ -2384,14 +2396,12 @@
       ctx.translate(originX + 38, originY + 30);
       ctx.rotate(swingAngle);
 
-      // Shaft
       ctx.fillStyle = "#451a03";
       ctx.fillRect(-3, -52, 6, 68);
       ctx.strokeStyle = "#d97706";
       ctx.lineWidth = 1.2;
       ctx.strokeRect(-3, -52, 6, 68);
 
-      // Dark-Iron Sledge Head
       const ironGrad = ctx.createLinearGradient(-26, -74, 26, -48);
       ironGrad.addColorStop(0, "#0f172a");
       ironGrad.addColorStop(0.5, "#334155");
@@ -2402,14 +2412,12 @@
       ctx.lineWidth = 1.5;
       ctx.strokeRect(-22, -74, 44, 26);
 
-      // Molten Gold Conduits & Anvil Striking Face
       ctx.fillStyle = "#fbbf24";
       ctx.shadowColor = "#f59e0b";
       ctx.shadowBlur = 16;
       ctx.fillRect(-20, -64, 40, 5);
       ctx.fillRect(16, -72, 6, 22);
 
-      // Ground Slam Particle Flash
       if (progress > 0.6) {
         ctx.shadowColor = "#facc15";
         ctx.shadowBlur = 24;
@@ -3072,7 +3080,6 @@
       drawDropShadow(ctx, aiPartner.x + 28, 256, 21 * aiShadowScale, 6 * aiShadowScale, 0.55 * aiShadowScale);
       drawDropShadow(ctx, leadX + 32, 256, 25 * leadShadowScale, 7 * leadShadowScale, 0.65 * leadShadowScale);
 
-      // PARTNER RENDER
       let partnerRole = unlockedRoster.find(r => r !== activeLead) || "xochitl";
       let aiImg = ASSETS[partnerRole];
       ctx.save();
@@ -3082,10 +3089,12 @@
       if (partnerRole === "xochitl") drawFieryWings(ctx, -29, -76, 0, xochitlWingWave);
       if (aiImg && aiImg.complete && aiImg.naturalWidth > 0) {
         ctx.drawImage(aiImg, -29, -76, 58, 76);
+      } else {
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillRect(-15, -60, 30, 60);
       }
       ctx.restore();
 
-      // LEAD HERO RENDER
       let shouldDrawLead = !xochitlFlight.active;
       if (shouldDrawLead) {
         let leadImg = ASSETS[activeLead];
@@ -3103,16 +3112,17 @@
 
         if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
           ctx.drawImage(leadImg, -32, -80, 65, 80);
+        } else {
+          ctx.fillStyle = "#f59e0b";
+          ctx.fillRect(-16, -70, 32, 70);
         }
         ctx.restore();
 
-        // KOFI OSEI ANVIL SLEDGE ATTACK OVERLAY
         if (activeLead === "kofi") {
           drawKofiAnvilHammer(ctx, leadX, drawLeadY);
         }
       }
 
-      // XOCHITL 4-STAGE AERIAL ASSAULT (ASCENT -> STRAFE -> ARROW BARRAGE -> LAND)
       if (xochitlFlight.active) {
         xochitlFlight.timer++;
 
@@ -3197,7 +3207,6 @@
         ctx.restore();
       }
 
-      // SUNDIATA DRUM SHOCKWAVE
       if (sundiataShockwave.active) {
         sundiataShockwave.radius += 9;
         ctx.save();
@@ -3210,7 +3219,6 @@
         if (sundiataShockwave.radius >= sundiataShockwave.maxRadius) sundiataShockwave.active = false;
       }
 
-      // ADVANCING SOLAR LION ROAR PROJECTILE
       for (let r = lionRoars.length - 1; r >= 0; r--) {
         const lr = lionRoars[r];
         lr.x += lr.vx;
@@ -3246,7 +3254,6 @@
         if (lr.x > canvas.width + 120 || lr.life <= 0) lionRoars.splice(r, 1);
       }
 
-      // GROUND SHOCKWAVES
       for (let g = groundShockwaves.length - 1; g >= 0; g--) {
         const sw = groundShockwaves[g];
         sw.x += sw.vx;
@@ -3280,7 +3287,6 @@
         if (sw.x < 0) groundShockwaves.splice(g, 1);
       }
 
-      // ACTIVE MARCUS & KOFI DEFLECT SHIELDS
       if (isShieldActive && activeLead !== "xochitl") {
         ctx.save();
         ctx.strokeStyle = activeLead === "marcus" ? "#38bdf8" : "#fbbf24";
@@ -3293,7 +3299,6 @@
         ctx.restore();
       }
 
-      // ENEMIES
       enemies.forEach(e => {
         if (!e.active) return;
         const frontDefender = Math.max(leadX, aiPartner.x);
@@ -3335,7 +3340,6 @@
         ctx.restore();
       });
 
-      // BOSS RENDER
       if (boss.active) {
         if (boss.type === "chrono") {
           drawDropShadow(ctx, boss.x + 36, 256, 32, 10, 0.6);
@@ -3354,7 +3358,6 @@
         }
       }
 
-      // PROJECTILES: ORBS & LION PULSES
       for (let i = plasmaOrbs.length - 1; i >= 0; i--) {
         const po = plasmaOrbs[i];
         po.x += po.vx;
@@ -3402,7 +3405,6 @@
         if (po.x > canvas.width || po.life <= 0) plasmaOrbs.splice(i, 1);
       }
 
-      // PROJECTILES: OBSIDIAN DAGGERS & SOLAR ARROWS
       for (let i = daggers.length - 1; i >= 0; i--) {
         const d = daggers[i];
         d.x += d.vx;
@@ -3439,7 +3441,6 @@
         if (d.x > canvas.width || d.x < 0 || d.y > 260) daggers.splice(i, 1);
       }
 
-      // PROJECTILES: ENEMY BULLETS & CHRONO CLOCKS
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const b = enemyBullets[i];
         b.x += b.vx;
@@ -3449,7 +3450,7 @@
           ctx.font = "18px sans-serif";
           ctx.shadowColor = "#10b981";
           ctx.shadowBlur = 12;
-          ctx.fillText("⏱️️", b.x, b.y);
+          ctx.fillText("⏱", b.x, b.y);
           ctx.restore();
         } else if (b.isLightningArc) {
           ctx.save();
@@ -3488,7 +3489,6 @@
         if (b.x < 0) enemyBullets.splice(i, 1);
       }
 
-      // LIGHTNING BOLTS (MARCUS VOLT BEAM & APEX DETONATIONS)
       for (let i = lightningBolts.length - 1; i >= 0; i--) {
         const bolt = lightningBolts[i];
         ctx.strokeStyle = "#ffffff";
@@ -3512,7 +3512,6 @@
 
       drawCelestialLightCone(ctx);
 
-      // PARTICLES (INCLUDING CHRONO-LOCK SHATTER PIECES)
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
