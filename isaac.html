@@ -85,7 +85,7 @@
         ctx.restore();
       }
 
-      // Fixed Xochitl Zokito Flight & Signature Move Render
+      // Xochitl Zokito Flight & Signature Move Render
       if (xochitlFlight.active) {
         if (!isPaused) {
           xochitlFlight.timer++;
@@ -125,7 +125,7 @@
           }
 
           ctx.save();
-          if (ASSETS.droid.complete && ASSETS.droid.naturalWidth > 0) {
+          if (ASSETS.droid && ASSETS.droid.complete && ASSETS.droid.naturalWidth > 0) {
             ctx.drawImage(ASSETS.droid, e.x, 155, 38, 50);
           } else {
             ctx.fillStyle = "#ef4444";
@@ -135,7 +135,7 @@
         });
       }
 
-      // Fixed Boss Coordinate Clamping
+      // Boss Coordinate Clamping
       if (boss.active && !isPaused) {
         if (boss.x > 320) boss.x -= 0.5;
         ctx.save();
@@ -152,13 +152,123 @@
         ctx.restore();
       }
 
-      // Render Hammer Projectiles for Kofi
+      // Mother Luetta Support Beam
+      if (luettaState.active) {
+        if (!isPaused) {
+          luettaState.timer--;
+          if (luettaState.phase === 'DESCEND') {
+            luettaState.y += 4.5;
+            if (luettaState.y >= luettaState.targetY) luettaState.phase = 'ASCEND';
+          } else {
+            luettaState.y -= 4.0;
+          }
+        }
+
+        ctx.save();
+        ctx.fillStyle = "rgba(251, 191, 36, 0.30)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const beamGrad = ctx.createLinearGradient(luettaState.x + 37, luettaState.y + 80, leadX + 22, 245);
+        beamGrad.addColorStop(0, "rgba(255, 255, 255, 0.98)");
+        beamGrad.addColorStop(0.5, "rgba(251, 191, 36, 0.85)");
+        beamGrad.addColorStop(1, "rgba(245, 158, 11, 0.30)");
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(luettaState.x + 10, luettaState.y + 80);
+        ctx.lineTo(luettaState.x + 65, luettaState.y + 80);
+        ctx.lineTo(leadX + 50, 245);
+        ctx.lineTo(leadX - 10, 245);
+        ctx.closePath();
+        ctx.fill();
+
+        if (ASSETS.luetta.complete && ASSETS.luetta.naturalWidth > 0) {
+          ctx.drawImage(ASSETS.luetta, luettaState.x, luettaState.y, 75, 95);
+        }
+        ctx.restore();
+
+        if (luettaState.timer <= 0) luettaState.active = false;
+      }
+
+      // Projectiles & Special Attacks Rendering
+      lightningBolts.forEach((lb, idx) => {
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 4;
+        ctx.shadowColor = "#93c5fd";
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.moveTo(lb.points[0].x, lb.points[0].y);
+        for(let i=1; i<lb.points.length; i++) {
+          ctx.lineTo(lb.points[i].x, lb.points[i].y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        if (!isPaused) lb.life--;
+        if (lb.life <= 0) lightningBolts.splice(idx, 1);
+      });
+
+      lionRoars.forEach((lr, idx) => {
+        if (!isPaused) lr.x += lr.vx;
+        ctx.save();
+        if (ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
+          ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - 60, 140, 140);
+        } else {
+          ctx.fillStyle = "rgba(245, 158, 11, 0.85)";
+          ctx.beginPath(); ctx.arc(lr.x, lr.y, lr.radius, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+        if (!isPaused) lr.life--;
+        if (lr.life <= 0) lionRoars.splice(idx, 1);
+      });
+
       hammers.forEach((h, idx) => {
         if (!isPaused) h.x += h.vx;
         ctx.fillStyle = "#eab308";
         ctx.fillRect(h.x, h.y, 40, 16);
         if (!isPaused) h.life--;
         if (h.life <= 0) hammers.splice(idx, 1);
+      });
+
+      daggers.forEach((d, idx) => {
+        if (!isPaused) { d.x += d.vx; d.y += d.vy; }
+        ctx.fillStyle = "#f97316";
+        ctx.fillRect(d.x, d.y, d.length, d.width);
+        if (d.x > canvas.width || d.x < 0) daggers.splice(idx, 1);
+      });
+
+      electricSpears.forEach((es, idx) => {
+        if (!isPaused) es.x += es.vx;
+        ctx.fillStyle = "#a855f7";
+        ctx.fillRect(es.x, es.y, es.length, es.width);
+        if (!isPaused) es.life--;
+        if (es.life <= 0) electricSpears.splice(idx, 1);
+      });
+
+      tsunamis.forEach((tw, idx) => {
+        if (!isPaused) tw.x += tw.vx;
+        ctx.save();
+        const waveGrad = ctx.createLinearGradient(tw.x, tw.y, tw.x + tw.width, tw.y + tw.height);
+        waveGrad.addColorStop(0, "rgba(14, 165, 233, 0.98)");
+        waveGrad.addColorStop(0.5, "rgba(3, 105, 161, 0.90)");
+        waveGrad.addColorStop(1, "rgba(8, 47, 73, 0.80)");
+        ctx.fillStyle = waveGrad;
+        ctx.beginPath();
+        ctx.moveTo(tw.x, tw.y + 120);
+        ctx.bezierCurveTo(tw.x + 40, tw.y - 60, tw.x + 130, tw.y - 40, tw.x + 180, tw.y + 30);
+        ctx.bezierCurveTo(tw.x + 210, tw.y + 80, tw.x + 190, tw.y + 140, tw.x + 150, tw.y + 140);
+        ctx.lineTo(tw.x, tw.y + 140);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        if (!isPaused) tw.life--;
+        if (tw.life <= 0) tsunamis.splice(idx, 1);
+      });
+
+      plasmaOrbs.forEach((po, idx) => {
+        if (!isPaused) po.x += po.vx;
+        ctx.fillStyle = po.color;
+        ctx.beginPath(); ctx.arc(po.x, po.y, po.radius, 0, Math.PI * 2); ctx.fill();
+        if (!isPaused) po.life--;
+        if (po.life <= 0) plasmaOrbs.splice(idx, 1);
       });
 
       animationFrameId = requestAnimationFrame(renderBrawler);
