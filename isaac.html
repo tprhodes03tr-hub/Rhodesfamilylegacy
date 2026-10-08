@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Vanguard Universe: Side Brawler Arcade (Isaac Sandbox)</title>
+  <title>Vanguard Universe: Side Brawler Arcade</title>
   <style>
     :root {
       --bg-dark: #07090e;
@@ -565,6 +565,19 @@
       luetta: new Image()
     };
 
+    ASSETS.bg.src = "bg-detroit.jpg";
+    ASSETS.ouroborosSkyline.src = "ouroboros-skyline.png";
+    ASSETS.groundPlate.src = "niani-ground-plate.png";
+    ASSETS.solarLion.src = "solar-lion-roar.png";
+    ASSETS.marcus.src = "marcus.png";
+    ASSETS.xochitl.src = "xochitl.png";
+    ASSETS.sundiata.src = "sundiata-prime.png";
+    ASSETS.kofi.src = "kofi.png";
+    ASSETS.boss.src = "chrono-lock.png";
+    ASSETS.ironclad.src = "ironclad.png";
+    ASSETS.apex.src = "apex-volt.png";
+    ASSETS.luetta.src = "mother-luta.png";
+
     let activeZone = "detroit";
     let unlockedRoster = playerProgress.unlockedOperatives;
     let rosterIdx = 0;
@@ -593,7 +606,7 @@
     let screenShake = 0, gameActive = true, bossActionTimer = null;
 
     let lightningBolts = [], daggers = [], particles = [], enemyBullets = [], plasmaOrbs = [];
-    let celestialParticles = [], sahelDust = [], groundShockwaves = [];
+    let celestialParticles = [], sahelDust = [];
     let luettaState = { active: false, timer: 0 };
 
     function initBrawler() {
@@ -793,6 +806,25 @@
       const partner = getPartner();
       const names = { marcus: "Marcus Prime", xochitl: "Xochitl", sundiata: "Sundiata Prime", kofi: "Kofi Osei" };
       document.getElementById("heroNameLabel").innerText = `${names[activeLead]} (Lead) & ${names[partner]} (AI)`;
+      
+      if (activeLead === "marcus") {
+        document.getElementById("btnStrike").innerText = "⚡ Volt Beam";
+        document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
+        document.getElementById("btnBurst").innerText = "🛡️ Deflect";
+      } else if (activeLead === "xochitl") {
+        document.getElementById("btnStrike").innerText = "🔥 Magma Strike";
+        document.getElementById("btnOrb").innerText = "🪶 Solar Strafe";
+        document.getElementById("btnBurst").innerText = "🛡️ Wing Shield";
+      } else if (activeLead === "sundiata") {
+        document.getElementById("btnStrike").innerText = "🔨 Drum Tremor";
+        document.getElementById("btnOrb").innerText = "🦁 Bronze Pulse";
+        document.getElementById("btnBurst").innerText = "🦁 Solar Lion Roar";
+      } else if (activeLead === "kofi") {
+        document.getElementById("btnStrike").innerText = "⚒️ Anvil Sledge";
+        document.getElementById("btnOrb").innerText = "✨ Molten Shards";
+        document.getElementById("btnBurst").innerText = "🛡️ Crucible Bastion";
+      }
+      
       document.getElementById("btnTag").innerText = `TAG: ${unlockedRoster[(rosterIdx + 1) % unlockedRoster.length].toUpperCase()}`;
     }
 
@@ -800,11 +832,19 @@
       if (!gameActive) return;
       initAudio();
       let target = getClosestTarget(leadX);
-      let targetX = target ? target.x : (boss.active ? boss.x : 400);
 
-      if (activeLead === "marcus") { playSound('zap'); }
-      else if (activeLead === "sundiata") { playSound('drum'); screenShake = 11; sundiataShockwave.active = true; sundiataShockwave.x = leadX + 35; sundiataShockwave.radius = 10; }
-      else if (activeLead === "kofi") { playSound('hit'); kofiHammerSwing.active = true; kofiHammerSwing.timer = kofiHammerSwing.maxTimer; }
+      if (activeLead === "marcus") {
+        playSound('zap');
+        generateLightning(leadX + 45, 205 - leadY, target ? target.x : 400, 205, absorbedCharge);
+      } else if (activeLead === "sundiata") {
+        playSound('drum'); screenShake = 11;
+        sundiataShockwave.active = true; sundiataShockwave.x = leadX + 35; sundiataShockwave.radius = 10;
+      } else if (activeLead === "kofi") {
+        playSound('hit');
+        kofiHammerSwing.active = true; kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
+      } else if (activeLead === "xochitl") {
+        playSound('hit');
+      }
 
       if (boss.active && Math.abs(boss.x - leadX) < 280) {
         boss.hp -= 2; boss.hitFlash = 6; screenShake = 8; updateHUD();
@@ -828,6 +868,9 @@
       } else if (activeLead === "sundiata") {
         playSound('drum');
         plasmaOrbs.push({ x: leadX + 45, y: 200 - leadY, vx: 6.8, vy: 0, radius: 18, life: 95, color: "#f59e0b", isLionPulse: true });
+      } else if (activeLead === "kofi") {
+        playSound('zap');
+        plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 6.5, vy: 0, radius: 14, life: 85, color: "#eab308" });
       }
     }
 
@@ -883,9 +926,31 @@
       }
     }
 
+    function generateLightning(x1, y1, x2, y2, powerBoost = 0) {
+      let segments = [];
+      const steps = 10;
+      const dx = (x2 - x1) / steps;
+      const dy = (y2 - y1) / steps;
+      let curX = x1, curY = y1;
+      for (let i = 0; i < steps; i++) {
+        let nxtX = curX + dx, nxtY = curY + dy;
+        if (i < steps - 1) {
+          nxtX += (Math.random() - 0.5) * (18 + powerBoost * 0.4);
+          nxtY += (Math.random() - 0.5) * (18 + powerBoost * 0.4);
+        }
+        segments.push({ x1: curX, y1: curY, x2: nxtX, y2: nxtY });
+        curX = nxtX; curY = nxtY;
+      }
+      lightningBolts.push({ segments: segments, weight: 4, life: 10 });
+    }
+
     function drawEnvironment(ctx) {
-      ctx.fillStyle = "#090d16";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (activeZone === "detroit" && ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
+        ctx.drawImage(ASSETS.bg, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = activeZone === "sahel" ? "#300c36" : "#090d16";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
       const deckGrad = ctx.createLinearGradient(0, 255, 0, canvas.height);
       deckGrad.addColorStop(0, "#0b1220");
       deckGrad.addColorStop(1, "#030712");
@@ -913,8 +978,28 @@
       leadLean *= 0.88;
       const drawLeadY = (175 - leadY) + Math.sin(walkCadence) * 3;
 
-      ctx.fillStyle = activeLead === "marcus" ? "#38bdf8" : (activeLead === "sundiata" ? "#f59e0b" : "#f97316");
-      ctx.fillRect(leadX, drawLeadY, 32, 70);
+      let leadImg = ASSETS[activeLead];
+      ctx.save();
+      ctx.translate(leadX + 32, drawLeadY + 40);
+      if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
+        ctx.drawImage(leadImg, -32, -40, 65, 80);
+      } else {
+        ctx.fillStyle = activeLead === "marcus" ? "#38bdf8" : (activeLead === "sundiata" ? "#f59e0b" : "#f97316");
+        ctx.fillRect(-16, -35, 32, 70);
+      }
+      ctx.restore();
+
+      let partnerRole = unlockedRoster.filter(r => r !== activeLead)[0] || "xochitl";
+      let aiImg = ASSETS[partnerRole];
+      ctx.save();
+      ctx.translate(aiPartner.x + 29, 175 + 38);
+      if (aiImg && aiImg.complete && aiImg.naturalWidth > 0) {
+        ctx.drawImage(aiImg, -29, -38, 58, 76);
+      } else {
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillRect(-15, -30, 30, 60);
+      }
+      ctx.restore();
 
       enemies.forEach(e => {
         if (!e.active) return;
@@ -924,8 +1009,31 @@
       });
 
       if (boss.active) {
-        ctx.fillStyle = "#a855f7";
-        ctx.fillRect(boss.x, 165, 75, 90);
+        let bossImg = boss.type === "chrono" ? ASSETS.boss : ASSETS.ironclad;
+        if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
+          ctx.drawImage(bossImg, boss.x, 165, 75, 90);
+        } else {
+          ctx.fillStyle = "#a855f7";
+          ctx.fillRect(boss.x, 165, 75, 90);
+        }
+      }
+
+      for (let i = plasmaOrbs.length - 1; i >= 0; i--) {
+        let po = plasmaOrbs[i];
+        po.x += po.vx; po.life--;
+        ctx.fillStyle = po.color || "#38bdf8";
+        ctx.beginPath(); ctx.arc(po.x, po.y, po.radius, 0, Math.PI * 2); ctx.fill();
+        if (po.x > canvas.width || po.life <= 0) plasmaOrbs.splice(i, 1);
+      }
+
+      for (let i = lightningBolts.length - 1; i >= 0; i--) {
+        let bolt = lightningBolts[i];
+        ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = bolt.weight;
+        ctx.beginPath();
+        bolt.segments.forEach(seg => { ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2); });
+        ctx.stroke();
+        bolt.life--;
+        if (bolt.life <= 0) lightningBolts.splice(i, 1);
       }
 
       ctx.restore();
