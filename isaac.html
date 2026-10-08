@@ -875,6 +875,8 @@
       } else if (activeLead === "wakan") {
         playSound('orb');
         tsunamis.push({ x: leadX + 35, y: 195 - leadY, vx: 7.0, width: 90, height: 75, life: 70 });
+      } else if (activeLead === "xochitl") {
+        playSound('hit');
       }
 
       if (boss.active && Math.abs(boss.x - leadX) < 280) {
@@ -1073,16 +1075,47 @@
       leadLean *= 0.88;
       const drawLeadY = (175 - leadY) + Math.sin(walkCadence) * 3;
 
-      let leadImg = ASSETS[activeLead];
-      ctx.save();
-      ctx.translate(leadX + 32, drawLeadY + 40);
-      if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
-        ctx.drawImage(leadImg, -32, -40, 65, 80);
-      } else {
-        ctx.fillStyle = "#f59e0b";
-        ctx.fillRect(-16, -35, 32, 70);
+      let shouldDrawLead = !xochitlFlight.active;
+      if (shouldDrawLead) {
+        let leadImg = ASSETS[activeLead];
+        ctx.save();
+        ctx.translate(leadX + 32, drawLeadY + 40);
+        if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
+          ctx.drawImage(leadImg, -32, -40, 65, 80);
+        } else {
+          ctx.fillStyle = "#f59e0b";
+          ctx.fillRect(-16, -35, 32, 70);
+        }
+        ctx.restore();
       }
-      ctx.restore();
+
+      if (xochitlFlight.active) {
+        xochitlFlight.timer++;
+        if (xochitlFlight.state === 'ASCENT') {
+          xochitlFlight.x += (440 - xochitlFlight.x) * 0.12;
+          xochitlFlight.y += (45 - xochitlFlight.y) * 0.12;
+          if (Math.hypot(440 - xochitlFlight.x, 45 - xochitlFlight.y) < 8) {
+            xochitlFlight.state = 'STRAFE';
+            xochitlFlight.timer = 0;
+          }
+        } else if (xochitlFlight.state === 'STRAFE') {
+          xochitlFlight.x -= 3.8;
+          if (xochitlFlight.timer % 8 === 0) {
+            daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 30, vx: -5, vy: 6, length: 22, width: 5 });
+          }
+          if (xochitlFlight.x <= 100) xochitlFlight.state = 'TOUCHDOWN';
+        } else if (xochitlFlight.state === 'TOUCHDOWN') {
+          xochitlFlight.active = false;
+          xochitlFlight.state = 'INACTIVE';
+        }
+
+        ctx.save();
+        ctx.translate(xochitlFlight.x + 30, xochitlFlight.y + 37);
+        if (ASSETS.xochitl.complete && ASSETS.xochitl.naturalWidth > 0) {
+          ctx.drawImage(ASSETS.xochitl, -30, -37, 60, 75);
+        }
+        ctx.restore();
+      }
 
       let partnerRole = unlockedRoster.filter(r => r !== activeLead)[0] || "xochitl";
       let aiImg = ASSETS[partnerRole];
@@ -1098,7 +1131,19 @@
 
       enemies.forEach(e => {
         if (!e.active) return;
-        e.x -= e.speed;
+        const frontDefender = Math.max(leadX, aiPartner.x);
+        if (e.x > frontDefender + 45) {
+          e.x -= e.speed;
+        } else {
+          screenShake = 6;
+          playSound('hit');
+          if (!isShieldActive) {
+            playerHp = Math.max(0, playerHp - 6);
+            updateHUD();
+            if (playerHp <= 0) handlePlayerDefeat();
+          }
+          e.x += 42;
+        }
         drawVolumetricDrone(ctx, e);
       });
 
