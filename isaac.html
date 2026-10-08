@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Vanguard Universe: Side Brawler Arcade</title>
+  <title>Vanguard Universe: Side Brawler Arcade (Isaac Sandbox)</title>
   <style>
     :root {
       --bg-dark: #07090e;
@@ -450,7 +450,7 @@
     let playerProgress = {
       highestStageUnlocked: 1,
       currentStage: 1,
-      unlockedOperatives: ["marcus", "xochitl"]
+      unlockedOperatives: ["marcus", "xochitl", "sundiata", "kofi", "amina", "wakan"]
     };
 
     function loadSavedProgress() {
@@ -559,6 +559,8 @@
       xochitl: new Image(),
       sundiata: new Image(),
       kofi: new Image(),
+      amina: new Image(),
+      wakan: new Image(),
       boss: new Image(),
       ironclad: new Image(),
       apex: new Image(),
@@ -573,6 +575,8 @@
     ASSETS.xochitl.src = "xochitl.png";
     ASSETS.sundiata.src = "sundiata-prime.png";
     ASSETS.kofi.src = "kofi.png";
+    ASSETS.amina.src = "amina-zazzau.png";
+    ASSETS.wakan.src = "wakan.png";
     ASSETS.boss.src = "chrono-lock.png";
     ASSETS.ironclad.src = "ironclad.png";
     ASSETS.apex.src = "apex-volt.png";
@@ -598,6 +602,8 @@
     let xochitlFlight = { active: false, state: 'INACTIVE', x: 0, y: 0, timer: 0, diveAngle: 0 };
     let sundiataShockwave = { active: false, x: 0, radius: 0, maxRadius: 180 };
     let lionRoars = [];
+    let tsunamis = [];
+    let laserSpears = [];
 
     let currentWave = 1, mobsRemaining = 14, mobsTotal = 14;
     let pendingSpawns = 0, spawnIntervalTimer = null;
@@ -608,6 +614,12 @@
     let lightningBolts = [], daggers = [], particles = [], enemyBullets = [], plasmaOrbs = [];
     let celestialParticles = [], sahelDust = [];
     let luettaState = { active: false, timer: 0 };
+
+    let chopper = { x: -140, y: 38, speed: 1.3, rotorAngle: 0, spotSweep: 0 };
+    let windLines = [];
+    for (let i = 0; i < 22; i++) {
+      windLines.push({ x: Math.random() * 540, y: Math.random() * 240, len: Math.random() * 35 + 20, speed: Math.random() * 5 + 6 });
+    }
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
@@ -696,7 +708,7 @@
         let type = "drone", spawnY = 205, hp = 2, speed = 1.15;
         if (profile === "heavy") { type = "enforcer"; hp = 4; spawnY = 202; }
         else if (profile === "ouroboros") { type = "crawler"; hp = 5; spawnY = 212; }
-        enemies.push({ type, x: 520 + (i * 75) + Math.random() * 30, y: spawnY, hp, speed, active: true, walkCycle: 0, rotorPhase: 0 });
+        enemies.push({ type, x: 520 + (i * 75) + Math.random() * 30, y: spawnY, hp, speed, active: true, walkCycle: 0, rotorPhase: Math.random() * Math.PI * 2 });
       }
     }
 
@@ -804,7 +816,14 @@
     function updateControlsUI() {
       const getPartner = () => unlockedRoster.filter(r => r !== activeLead)[0] || "xochitl";
       const partner = getPartner();
-      const names = { marcus: "Marcus Prime", xochitl: "Xochitl", sundiata: "Sundiata Prime", kofi: "Kofi Osei" };
+      const names = {
+        marcus: "Marcus Prime",
+        xochitl: "Xochitl",
+        sundiata: "Sundiata Prime",
+        kofi: "Kofi Osei",
+        amina: "Amina Zazzau",
+        wakan: "Wakan"
+      };
       document.getElementById("heroNameLabel").innerText = `${names[activeLead]} (Lead) & ${names[partner]} (AI)`;
       
       if (activeLead === "marcus") {
@@ -823,6 +842,14 @@
         document.getElementById("btnStrike").innerText = "⚒️ Anvil Sledge";
         document.getElementById("btnOrb").innerText = "✨ Molten Shards";
         document.getElementById("btnBurst").innerText = "🛡️ Crucible Bastion";
+      } else if (activeLead === "amina") {
+        document.getElementById("btnStrike").innerText = "✨ Spear Strike";
+        document.getElementById("btnOrb").innerText = "⚡ Laser Spear";
+        document.getElementById("btnBurst").innerText = "🛡️ Star Barrier";
+      } else if (activeLead === "wakan") {
+        document.getElementById("btnStrike").innerText = "🌊 Tidal Wave";
+        document.getElementById("btnOrb").innerText = "🌀 Tsunami Vortex";
+        document.getElementById("btnBurst").innerText = "🛡️ Hydro Shield";
       }
       
       document.getElementById("btnTag").innerText = `TAG: ${unlockedRoster[(rosterIdx + 1) % unlockedRoster.length].toUpperCase()}`;
@@ -842,8 +869,12 @@
       } else if (activeLead === "kofi") {
         playSound('hit');
         kofiHammerSwing.active = true; kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
-      } else if (activeLead === "xochitl") {
-        playSound('hit');
+      } else if (activeLead === "amina") {
+        playSound('zap');
+        laserSpears.push({ x: leadX + 40, y: 200 - leadY, vx: 10.0, life: 60 });
+      } else if (activeLead === "wakan") {
+        playSound('orb');
+        tsunamis.push({ x: leadX + 35, y: 195 - leadY, vx: 7.0, width: 90, height: 75, life: 70 });
       }
 
       if (boss.active && Math.abs(boss.x - leadX) < 280) {
@@ -868,9 +899,12 @@
       } else if (activeLead === "sundiata") {
         playSound('drum');
         plasmaOrbs.push({ x: leadX + 45, y: 200 - leadY, vx: 6.8, vy: 0, radius: 18, life: 95, color: "#f59e0b", isLionPulse: true });
-      } else if (activeLead === "kofi") {
+      } else if (activeLead === "amina") {
         playSound('zap');
-        plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 6.5, vy: 0, radius: 14, life: 85, color: "#eab308" });
+        laserSpears.push({ x: leadX + 40, y: 200 - leadY, vx: 12.0, life: 75, isLaserBeam: true });
+      } else if (activeLead === "wakan") {
+        playSound('orb');
+        tsunamis.push({ x: leadX + 35, y: 195 - leadY, vx: 8.5, width: 140, height: 95, life: 85, isTsunami: true });
       }
     }
 
@@ -944,6 +978,52 @@
       lightningBolts.push({ segments: segments, weight: 4, life: 10 });
     }
 
+    function drawDetailedHelicopter(ctx) {
+      chopper.x += chopper.speed;
+      chopper.rotorAngle += 0.85;
+      if (chopper.x > 640) { chopper.x = -150; chopper.y = 32 + Math.random() * 25; }
+
+      ctx.save();
+      ctx.translate(chopper.x, chopper.y);
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(-16, -8, 28, 19);
+      ctx.fillStyle = "rgba(56, 189, 248, 0.75)";
+      ctx.fillRect(2, -5, 12, 10);
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(-45, -2, 30, 4);
+
+      const rotorSpan = Math.cos(chopper.rotorAngle) * 45;
+      ctx.strokeStyle = "rgba(241, 245, 249, 0.85)";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(-rotorSpan, -10); ctx.lineTo(rotorSpan, -10);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawVolumetricDrone(ctx, e) {
+      e.rotorPhase += 0.85;
+      const droneBob = Math.sin(Date.now() / 140 + e.x) * 4.5;
+      const currentY = e.y + droneBob;
+
+      ctx.save();
+      ctx.translate(e.x, currentY);
+      ctx.fillStyle = "#1e293b";
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(8, 2); ctx.lineTo(28, 2); ctx.lineTo(34, 8);
+      ctx.lineTo(26, 16); ctx.lineTo(10, 16); ctx.lineTo(2, 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath(); ctx.arc(18, 9, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
     function drawEnvironment(ctx) {
       if (activeZone === "detroit" && ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
         ctx.drawImage(ASSETS.bg, 0, 0, canvas.width, canvas.height);
@@ -951,6 +1031,21 @@
         ctx.fillStyle = activeZone === "sahel" ? "#300c36" : "#090d16";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.45)";
+      ctx.lineWidth = 1.2;
+      windLines.forEach(w => {
+        w.x -= w.speed;
+        if (w.x + w.len < 0) { w.x = 540 + w.len; w.y = Math.random() * 230; }
+        ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(w.x + w.len, w.y); ctx.stroke();
+      });
+      ctx.restore();
+
+      if (activeZone === "detroit") {
+        drawDetailedHelicopter(ctx);
+      }
+
       const deckGrad = ctx.createLinearGradient(0, 255, 0, canvas.height);
       deckGrad.addColorStop(0, "#0b1220");
       deckGrad.addColorStop(1, "#030712");
@@ -984,7 +1079,7 @@
       if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
         ctx.drawImage(leadImg, -32, -40, 65, 80);
       } else {
-        ctx.fillStyle = activeLead === "marcus" ? "#38bdf8" : (activeLead === "sundiata" ? "#f59e0b" : "#f97316");
+        ctx.fillStyle = "#f59e0b";
         ctx.fillRect(-16, -35, 32, 70);
       }
       ctx.restore();
@@ -1004,8 +1099,7 @@
       enemies.forEach(e => {
         if (!e.active) return;
         e.x -= e.speed;
-        ctx.fillStyle = "#ef4444";
-        ctx.fillRect(e.x, e.y, 30, 30);
+        drawVolumetricDrone(ctx, e);
       });
 
       if (boss.active) {
@@ -1024,6 +1118,24 @@
         ctx.fillStyle = po.color || "#38bdf8";
         ctx.beginPath(); ctx.arc(po.x, po.y, po.radius, 0, Math.PI * 2); ctx.fill();
         if (po.x > canvas.width || po.life <= 0) plasmaOrbs.splice(i, 1);
+      }
+
+      for (let i = laserSpears.length - 1; i >= 0; i--) {
+        let ls = laserSpears[i];
+        ls.x += ls.vx; ls.life--;
+        ctx.fillStyle = ls.isLaserBeam ? "#38bdf8" : "#fbbf24";
+        ctx.fillRect(ls.x, ls.y, ls.isLaserBeam ? 25 : 18, ls.isLaserBeam ? 4 : 6);
+        if (ls.x > canvas.width || ls.life <= 0) laserSpears.splice(i, 1);
+      }
+
+      for (let i = tsunamis.length - 1; i >= 0; i--) {
+        let ts = tsunamis[i];
+        ts.x += ts.vx; ts.life--;
+        ctx.fillStyle = "rgba(56, 189, 248, 0.75)";
+        ctx.beginPath();
+        ctx.arc(ts.x, ts.y, ts.width / 2, 0, Math.PI * 2);
+        ctx.fill();
+        if (ts.x > canvas.width || ts.life <= 0) tsunamis.splice(i, 1);
       }
 
       for (let i = lightningBolts.length - 1; i >= 0; i--) {
