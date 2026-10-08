@@ -1,275 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Isaac Rhodes Adventures: Side Brawler Portal</title>
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --gold-border: #d4af37;
+      --gold-glow: rgba(212, 175, 55, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding: 8px;
+    }
+
+    header {
+      width: 100%;
+      max-width: 540px;
+      background: #0f172a;
+      border: 2px solid #1e293b;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 0;
+      margin-bottom: 8px;
+    }
+
+    .portal-title {
+      font-size: 0.95rem;
+      letter-spacing: 1.5px;
+      color: #f59e0b;
+      text-transform: uppercase;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .brawler-wrapper {
+      width: 100%;
+      max-width: 540px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+    }
+
+    .hud-header {
+      background: #0d1322;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+    }
+
+    .hud-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hero-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .wave-badge {
+      font-size: 11px;
+      color: #f59e0b;
+      font-weight: 800;
+      background: rgba(245, 158, 11, 0.15);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .bars-container {
+      display: flex;
+      gap: 10px;
+    }
+
+    .bar-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .bar-label {
+      font-size: 10px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 8px;
+      background: #1e293b;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-fill-hero { width: 100%; height: 100%; background: #10b981; transition: width 0.1s ease; }
+    .bar-fill-enemy { width: 100%; height: 100%; background: #ef4444; transition: width 0.1s ease; }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 290px;
+      background: #000;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+    }
+
+    #gameCanvas { display: block; width: 100%; height: 100%; }
+
+    .chapter-banner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      background: rgba(15, 23, 42, 0.96);
+      border: 2px solid var(--gold-border);
+      box-shadow: 0 0 35px var(--gold-glow);
+      border-radius: 10px;
+      padding: 18px 14px;
+      text-align: center;
+      display: none;
+      z-index: 50;
+    }
+
+    .chapter-banner h3 { color: #facc15; font-size: 1.1rem; margin-bottom: 6px; letter-spacing: 1.5px; text-transform: uppercase; }
+    .chapter-banner p { font-size: 0.82rem; color: #cbd5e1; margin-bottom: 14px; line-height: 1.4; }
+    .chapter-banner button { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; font-weight: 800; font-size: 0.9rem; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+
+    .combat-log {
+      font-family: monospace;
+      font-size: 11px;
+      background: #090e18;
+      border: 1px solid #1e293b;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: #38bdf8;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .dpad-cluster, .action-cluster {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+
+    .btn {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      min-height: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 6px 3px;
+      transition: background 0.1s, transform 0.05s;
+    }
+
+    .btn:active { transform: scale(0.96); background: #334155; }
+    .btn-action { background: linear-gradient(180deg, #1e293b, #0f172a); border-color: #38bdf8; color: #38bdf8; }
+    .btn-orb { background: linear-gradient(180deg, #0369a1, #0c4a6e); border-color: #38bdf8; color: #bae6fd; }
+    .btn-tag { background: linear-gradient(180deg, #7c3aed, #5b21b6); border-color: #a78bfa; color: #fff; }
+    .btn-ultimate {
+      grid-column: span 3;
+      background: linear-gradient(180deg, #f59e0b, #b45309);
+      border-color: #fbbf24;
+      color: #fff;
+      font-size: 11px;
+      min-height: 38px;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.94);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .modal-content {
+      background: #111827;
+      border: 2px solid var(--gold-border);
+      box-shadow: 0 0 25px var(--gold-glow);
+      border-radius: 12px;
+      max-width: 500px;
+      width: 100%;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .modal-content h2 { font-size: 1.35rem; color: #facc15; margin-bottom: 10px; }
+    .modal-content p { color: #cbd5e1; font-size: 0.88rem; line-height: 1.5; margin-bottom: 16px; }
+    .modal-actions { display: flex; flex-direction: column; gap: 10px; }
+
+    .replay-btn { background: #2563eb; color: #ffffff; border: 1px solid #60a5fa; padding: 11px; border-radius: 6px; font-weight: 800; cursor: pointer; }
+    .defeat-btn { background: #dc2626; color: #ffffff; border: 1px solid #f87171; padding: 11px; border-radius: 6px; font-weight: 800; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="portal-title">Isaac Rhodes Adventures: Side Brawler Portal</div>
+  </header>
+
+  <div class="brawler-wrapper">
+    <div class="hud-header">
+      <div class="hud-top-row">
+        <span id="heroNameLabel" class="hero-title">Marcus Prime (Lead) & Xochitl (Tactical AI)</span>
+        <span id="waveDisplay" class="wave-badge">Wave 1: Scout Vanguard</span>
+      </div>
+      <div class="bars-container">
+        <div class="bar-group">
+          <div class="bar-label">
+            <span>Team Health</span>
+            <span id="heroHpText">100/100</span>
+          </div>
+          <div class="bar-track">
+            <div id="heroHpBar" class="bar-fill-hero"></div>
+          </div>
+        </div>
+        <div class="bar-group">
+          <div class="bar-label">
+            <span id="enemyTypeLabel">Syndicate Swarm</span>
+            <span id="enemyHpText">14 Units Remaining</span>
+          </div>
+          <div class="bar-track">
+            <div id="enemyHpBar" class="bar-fill-enemy"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-container" id="canvasContainer">
+      <canvas id="gameCanvas" width="540" height="290"></canvas>
+      <div class="chapter-banner" id="chapterBanner">
+        <h3 id="bannerTitle">CHAPTER 1 COMPLETED</h3>
+        <p id="bannerDesc">Detroit 313 Grid Secured!</p>
+        <button id="bannerBtn" onclick="dismissChapterBanner()">ENTER NEXT STAGE</button>
+      </div>
+    </div>
+
+    <div class="combat-log" id="combatLog">
+      Tactical Co-Op active! Your partner maneuvers and fights autonomously.
+    </div>
+
+    <div class="controls-grid">
+      <div class="dpad-cluster">
+        <button class="btn" onclick="playerMove(-25)">◄ LEFT</button>
+        <button class="btn" onclick="playerJump()">▲ JUMP</button>
+        <button class="btn" onclick="playerMove(25)">RIGHT ►</button>
+      </div>
+
+      <div class="action-cluster">
+        <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">⚡ Volt Beam</button>
+        <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">🔵 Plasma Orb</button>
+        <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Deflect</button>
+        <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: XOCHITL</button>
+        <button id="btnLuetta" class="btn btn-ultimate" onclick="executeLuettaAid()">★ SUMMON MOTHER LUETTA ★</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VICTORY MODAL -->
+  <div class="modal-overlay" id="trial-modal">
+    <div class="modal-content">
+      <div style="font-size: 32px; margin-bottom: 6px;">🦁</div>
+      <h2 id="modalTitle">MARROW RESONANCE RESTORED!</h2>
+      <p id="modalBody">Sundiata Prime's Solar Lion Roar shattered Apex Volt and sealed the Sahel temporal rift!</p>
+      <div class="modal-actions">
+        <button class="replay-btn" onclick="resetCampaignToStage1()">🔄 PLAY AGAIN: RESTART FROM CHAPTER 1</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEFEAT MODAL -->
+  <div class="modal-overlay" id="defeat-modal">
+    <div class="modal-content">
+      <div style="font-size: 32px; margin-bottom: 6px;">⚠️</div>
+      <h2 style="color: #ef4444;">RESONANCE SEVERED!</h2>
+      <p>Your squad took lethal kinetic damage and the living codex barrier collapsed!</p>
+      <div class="modal-actions">
+        <button class="defeat-btn" onclick="retryCurrentWave()">⚔️ RETRY CHECKPOINT</button>
+        <button class="replay-btn" onclick="resetCampaignToStage1()">🔄 RESTART FROM CHAPTER 1</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SAVE_KEY = 'vanguard_universe_save_v1';
+    let playerProgress = { highestStageUnlocked: 1, currentStage: 1, unlockedOperatives: ["marcus", "xochitl"] };
+
+    function loadSavedProgress() {
+      const saved = localStorage.getItem(SAVE_KEY);
+      if (saved) {
+        try { playerProgress = Object.assign(playerProgress, JSON.parse(saved)); } catch (e) {}
+      }
+    }
+    loadSavedProgress();
+
+    let canvas, ctx;
+    let animationFrameId = null;
+
+    const ASSETS = {
+      bg: new Image(),
+      ouroborosSkyline: new Image(),
+      groundPlate: new Image(),
+      solarLion: new Image(),
+      marcus: new Image(),
+      xochitl: new Image(),
+      sundiata: new Image(),
+      kofi: new Image(),
+      boss: new Image(),
+      ironclad: new Image(),
+      apex: new Image(),
+      luetta: new Image()
+    };
+
+    ASSETS.bg.src = "bg-detroit.jpg";
+    ASSETS.ouroborosSkyline.src = "ouroboros-skyline.png";
+    ASSETS.groundPlate.src = "niani-ground-plate.png";
+    ASSETS.solarLion.src = "solar-lion-roar.png";
+    ASSETS.marcus.src = "marcus.png";
+    ASSETS.xochitl.src = "xochitl.png";
+    ASSETS.sundiata.src = "sundiata-prime.png";
+    ASSETS.kofi.src = "kofi.png";
+    ASSETS.boss.src = "chrono-lock.png";
+    ASSETS.ironclad.src = "ironclad.png";
+    ASSETS.apex.src = "apex-volt.png";
+    ASSETS.luetta.src = "mother-luta.png";
+
+    let activeZone = "detroit";
+    let unlockedRoster = playerProgress.unlockedOperatives;
+    let rosterIdx = 0;
+    let activeLead = "marcus";
+
+    let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
+    let leadLean = 0, leadLandSquash = 0, walkCadence = 0;
+
+    let aiPartner = { x: 35, y: 0, vy: 0, isGrounded: true, attackCooldown: 0, desiredDistance: 65, wanderTimer: 0, lean: 0, landSquash: 0 };
+    let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
+    let bgScrollOffset = 0, groundScrollOffset = 0;
+
+    let kofiHammerSwing = { active: false, timer: 0, maxTimer: 14 };
+    let xochitlFlight = { active: false, state: 'INACTIVE', x: 0, y: 0, timer: 0, diveAngle: 0 };
+    let sundiataShockwave = { active: false, x: 0, radius: 0, maxRadius: 180 };
+    let lionRoars = [];
+
+    let currentWave = 1, mobsRemaining = 14, mobsTotal = 14;
+    let pendingSpawns = 0, spawnIntervalTimer = null;
+    let enemies = [];
+    let boss = { x: 380, y: 0, vy: 0, hp: 24, maxHp: 24, active: false, type: "chrono", hitFlash: 0, phase: 1 };
+    let screenShake = 0, gameActive = true;
+    let bossActionTimer = null;
+
+    let lightningBolts = [], daggers = [], particles = [], enemyBullets = [], plasmaOrbs = [];
+    let celestialParticles = [], sahelDust = [], groundShockwaves = [];
+    let luettaState = { active: false, timer: 0 };
+
+    const bystanders = [{ x: 18, y: 228, width: 14, height: 26 }, { x: 36, y: 231, width: 13, height: 23 }];
+    let windLines = [];
+    for (let i = 0; i < 22; i++) {
+      windLines.push({ x: Math.random() * 540, y: Math.random() * 240, len: Math.random() * 35 + 20, speed: Math.random() * 5 + 6 });
+    }
+    for (let i = 0; i < 30; i++) {
+      sahelDust.push({ x: Math.random() * 540, y: Math.random() * 260, radius: Math.random() * 2.5 + 1.2, speedX: Math.random() * 3.5 + 2.5, speedY: (Math.random() - 0.5) * 0.8 });
+    }
+    let chopper = { x: -140, y: 38, speed: 1.3, rotorAngle: 0, spotSweep: 0 };
+
+    function initBrawler() {
+      canvas = document.getElementById("gameCanvas");
+      ctx = canvas.getContext("2d");
+      startWave(1);
+      if (!animationFrameId) animationFrameId = requestAnimationFrame(renderBrawler);
+    }
+
+    function startWave(num) {
+      currentWave = num;
+      if (spawnIntervalTimer) clearInterval(spawnIntervalTimer);
+      if (num === 1) { activeZone = "detroit"; mobsRemaining = 14; mobsTotal = 14; boss.active = false; setupProgressiveWave("swarm", 14); }
+      else if (num === 3) { startBossFight("chrono"); }
+      updateHUD();
+    }
+
+    function setupProgressiveWave(profile, totalCount) {
+      enemies = [];
+      pendingSpawns = totalCount;
+      spawnNextBatch(profile, 4);
+    }
+
+    function spawnNextBatch(profile, count) {
+      for (let i = 0; i < count; i++) {
+        if (pendingSpawns <= 0) break;
+        pendingSpawns--;
+        enemies.push({ type: "drone", x: 520 + (i * 75), y: 205, hp: 2, speed: 1.15, active: true, walkCycle: 0, rotorPhase: 0 });
+      }
+    }
+
+    function startBossFight(bossType) {
+      boss.active = true;
+      boss.type = bossType;
+      boss.x = 380; boss.hp = 24; boss.maxHp = 24;
+      enemies = [];
+      mobsRemaining = 0;
+      updateHUD();
+    }
+
+    function onBossDefeated() {
+      boss.active = false;
+      document.getElementById("bannerTitle").innerText = "STAGE 1 COMPLETED";
+      document.getElementById("chapterBanner").style.display = "block";
+    }
+
+    function dismissChapterBanner() {
+      document.getElementById("chapterBanner").style.display = "none";
+      startWave(1);
+    }
+
+    function handlePlayerDefeat() {
+      gameActive = false;
+      document.getElementById("defeat-modal").style.display = "flex";
+    }
+
+    function retryCurrentWave() {
+      document.getElementById("defeat-modal").style.display = "none";
+      playerHp = 100;
+      gameActive = true;
+      startWave(currentWave);
+    }
+
+    function resetCampaignToStage1() {
+      document.getElementById("trial-modal").style.display = "none";
+      document.getElementById("defeat-modal").style.display = "none";
+      gameActive = true;
+      playerHp = 100;
+      activeZone = "detroit";
+      activeLead = "marcus";
+      startWave(1);
+    }
+
+    function playerMove(dx) {
+      if (!gameActive) return;
+      leadX = Math.max(65, Math.min(330, leadX + dx));
+    }
+
+    function playerJump() {
+      if (!gameActive || !isGrounded) return;
+      leadVy = -13;
+      isGrounded = false;
+    }
+
+    function executeTagSwap() {
+      if (!gameActive) return;
+      rosterIdx = (rosterIdx + 1) % unlockedRoster.length;
+      activeLead = unlockedRoster[rosterIdx];
+      updateControlsUI();
+    }
+
+    function updateControlsUI() {
+      document.getElementById("heroNameLabel").innerText = `${activeLead.toUpperCase()} (Lead)`;
+    }
+
+    function executeStrike() { if (!gameActive) return; }
+    function executePlasmaOrb() { if (!gameActive) return; }
+    function executeBurst() { if (!gameActive) return; }
+    function executeLuettaAid() { if (!gameActive) return; playerHp = 100; updateHUD(); }
+
+    function updateAIPartner() {
+      if (!gameActive) return;
+      const targetAIX = Math.max(30, leadX - 55);
+      aiPartner.x += (targetAIX - aiPartner.x) * 0.045;
+    }
+
+    function updateHUD() {
+      document.getElementById("heroHpText").innerText = `${playerHp}/100`;
+      document.getElementById("heroHpBar").style.width = `${playerHp}%`;
+      document.getElementById("enemyHpText").innerText = boss.active ? `${boss.hp}/${boss.maxHp}` : `${mobsRemaining} Units`;
+      document.getElementById("enemyHpBar").style.width = boss.active ? `${(boss.hp / boss.maxHp) * 100}%` : `${(mobsRemaining / mobsTotal) * 100}%`;
+    }
+
+    function logBrawler(msg) { document.getElementById("combatLog").innerText = msg; }
+
     function renderBrawler() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#090d16";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      if (ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
-        ctx.drawImage(ASSETS.bg, 0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.fillStyle = "#090d16";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(0, 255, canvas.width, 35);
+
+      if (!isGrounded) {
+        leadY -= leadVy;
+        leadVy += 0.8;
+        if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
       }
 
-      if (!isPaused) {
-        heliX += 0.5;
-        if (heliX > canvas.width + 120) heliX = -120;
-      }
+      updateAIPartner();
 
-      // Helicopter & Spotlight
+      let leadImg = ASSETS[activeLead];
       ctx.save();
-      const spotGrad = ctx.createLinearGradient(heliX, 45, heliX - 40, 245);
-      spotGrad.addColorStop(0, "rgba(255, 255, 220, 0.38)");
-      spotGrad.addColorStop(1, "rgba(255, 255, 200, 0.02)");
-      ctx.fillStyle = spotGrad;
-      ctx.beginPath();
-      ctx.moveTo(heliX, 45);
-      ctx.lineTo(heliX - 70, 245);
-      ctx.lineTo(heliX + 70, 245);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = "#475569";
-      ctx.beginPath();
-      ctx.ellipse(heliX, 38, 26, 12, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#38bdf8";
-      ctx.beginPath();
-      ctx.arc(heliX + 10, 36, 7, 0, Math.PI * 2);
-      ctx.fill();
+      if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
+        ctx.drawImage(leadImg, leadX, 175 - leadY, 50, 75);
+      } else {
+        ctx.fillStyle = "#f59e0b";
+        ctx.fillRect(leadX, 175 - leadY, 30, 70);
+      }
       ctx.restore();
 
-      raindrops.forEach(drop => {
-        if (!isPaused) {
-          drop.y += drop.speed;
-          if (drop.y > canvas.height) drop.y = 0;
-        }
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.55)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(drop.x, drop.y);
-        ctx.lineTo(drop.x - 2, drop.y + drop.len);
-        ctx.stroke();
-      });
-
-      // Ground Stage Floor
-      ctx.fillStyle = "#1e293b";
-      ctx.fillRect(0, 245, canvas.width, 30);
-      ctx.strokeStyle = ROSTER_CONFIG[activeLead].color;
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(0, 245); ctx.lineTo(canvas.width, 245); ctx.stroke();
-
-      if (!isPaused) {
-        if (!isGrounded) {
-          leadY -= leadVy;
-          leadVy += 0.8;
-          if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
-        }
-      }
-
-      const leadImg = ASSETS[activeLead] || ASSETS.marcus;
-      if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
-        ctx.drawImage(leadImg, leadX, 245 - leadY - 75, 45, 75);
-      } else {
-        ctx.fillStyle = ROSTER_CONFIG[activeLead].color;
-        ctx.fillRect(leadX + 5, 185 - leadY, 25, 45);
-      }
-
-      if (isShieldActive) {
-        ctx.save();
-        ctx.strokeStyle = activeLead === 'xochitl' ? "#f97316" : "#38bdf8";
-        ctx.lineWidth = 3;
-        ctx.fillStyle = activeLead === 'xochitl' ? "rgba(249, 115, 22, 0.25)" : "rgba(56, 189, 248, 0.25)";
-        ctx.beginPath();
-        ctx.arc(leadX + 22, 245 - leadY - 37, 42, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Xochitl Zokito Flight & Signature Move Render
-      if (xochitlFlight.active) {
-        if (!isPaused) {
-          xochitlFlight.timer++;
-          if (xochitlFlight.phase === 'UP') {
-            xochitlFlight.y -= 4.5;
-            xochitlFlight.x += 3.0;
-            if (xochitlFlight.y <= 40) xochitlFlight.phase = 'DRIFT';
-          } else {
-            xochitlFlight.x -= 4.0;
-            xochitlFlight.y += 2.0;
-            if (xochitlFlight.timer % 6 === 0) {
-              daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 10, vx: -10.0, vy: 3.5, length: 26, width: 6 });
-            }
-            if (xochitlFlight.y >= 195) xochitlFlight.active = false;
-          }
-        }
-        ctx.save();
-        ctx.fillStyle = "rgba(251, 146, 60, 0.9)";
-        ctx.beginPath();
-        ctx.ellipse(xochitlFlight.x - 14, xochitlFlight.y + 15, 22, 10, -Math.PI / 4, 0, Math.PI * 2);
-        ctx.ellipse(xochitlFlight.x + 38, xochitlFlight.y + 15, 22, 10, Math.PI / 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // Render Active Droid Swarm Properly
-      if (!boss.active && !isPaused) {
-        enemies.forEach(e => {
-          if (!e.active) return;
-          e.x -= e.speed;
-          if (e.x < leadX + 25) {
-            if (!isShieldActive) {
-              playerHp = Math.max(0, playerHp - 1);
-              updateHUD();
-            }
-            e.x += 50;
-          }
-
-          ctx.save();
-          if (ASSETS.droid && ASSETS.droid.complete && ASSETS.droid.naturalWidth > 0) {
-            ctx.drawImage(ASSETS.droid, e.x, 155, 38, 50);
-          } else {
-            ctx.fillStyle = "#ef4444";
-            ctx.fillRect(e.x, 160, 26, 42);
-          }
-          ctx.restore();
-        });
-      }
-
-      // Boss Coordinate Clamping
-      if (boss.active && !isPaused) {
-        if (boss.x > 320) boss.x -= 0.5;
-        ctx.save();
-        let bossImg = boss.type === 'null_byte' ? ASSETS.nullByte : (boss.type === 'vipera' ? ASSETS.vipera : ASSETS.boss);
-        if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
-          ctx.drawImage(bossImg, boss.x, boss.phase === 2 ? 150 : 120, 65, 95);
-        } else {
-          ctx.fillStyle = "#ef4444";
-          ctx.fillRect(boss.x, boss.phase === 2 ? 165 : 130, 80, 80);
-        }
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 11px sans-serif";
-        ctx.fillText(boss.type.toUpperCase().replace('_', ' '), boss.x, 110);
-        ctx.restore();
-      }
-
-      // Mother Luetta Support Beam
-      if (luettaState.active) {
-        if (!isPaused) {
-          luettaState.timer--;
-          if (luettaState.phase === 'DESCEND') {
-            luettaState.y += 4.5;
-            if (luettaState.y >= luettaState.targetY) luettaState.phase = 'ASCEND';
-          } else {
-            luettaState.y -= 4.0;
-          }
-        }
-
-        ctx.save();
-        ctx.fillStyle = "rgba(251, 191, 36, 0.30)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const beamGrad = ctx.createLinearGradient(luettaState.x + 37, luettaState.y + 80, leadX + 22, 245);
-        beamGrad.addColorStop(0, "rgba(255, 255, 255, 0.98)");
-        beamGrad.addColorStop(0.5, "rgba(251, 191, 36, 0.85)");
-        beamGrad.addColorStop(1, "rgba(245, 158, 11, 0.30)");
-        ctx.fillStyle = beamGrad;
-        ctx.beginPath();
-        ctx.moveTo(luettaState.x + 10, luettaState.y + 80);
-        ctx.lineTo(luettaState.x + 65, luettaState.y + 80);
-        ctx.lineTo(leadX + 50, 245);
-        ctx.lineTo(leadX - 10, 245);
-        ctx.closePath();
-        ctx.fill();
-
-        if (ASSETS.luetta.complete && ASSETS.luetta.naturalWidth > 0) {
-          ctx.drawImage(ASSETS.luetta, luettaState.x, luettaState.y, 75, 95);
-        }
-        ctx.restore();
-
-        if (luettaState.timer <= 0) luettaState.active = false;
-      }
-
-      // Projectiles & Special Attacks Rendering
-      lightningBolts.forEach((lb, idx) => {
-        ctx.strokeStyle = "#38bdf8";
-        ctx.lineWidth = 4;
-        ctx.shadowColor = "#93c5fd";
-        ctx.shadowBlur = 15;
-        ctx.beginPath();
-        ctx.moveTo(lb.points[0].x, lb.points[0].y);
-        for(let i=1; i<lb.points.length; i++) {
-          ctx.lineTo(lb.points[i].x, lb.points[i].y);
-        }
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        if (!isPaused) lb.life--;
-        if (lb.life <= 0) lightningBolts.splice(idx, 1);
-      });
-
-      lionRoars.forEach((lr, idx) => {
-        if (!isPaused) lr.x += lr.vx;
-        ctx.save();
-        if (ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
-          ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - 60, 140, 140);
-        } else {
-          ctx.fillStyle = "rgba(245, 158, 11, 0.85)";
-          ctx.beginPath(); ctx.arc(lr.x, lr.y, lr.radius, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.restore();
-        if (!isPaused) lr.life--;
-        if (lr.life <= 0) lionRoars.splice(idx, 1);
-      });
-
-      hammers.forEach((h, idx) => {
-        if (!isPaused) h.x += h.vx;
-        ctx.fillStyle = "#eab308";
-        ctx.fillRect(h.x, h.y, 40, 16);
-        if (!isPaused) h.life--;
-        if (h.life <= 0) hammers.splice(idx, 1);
-      });
-
-      daggers.forEach((d, idx) => {
-        if (!isPaused) { d.x += d.vx; d.y += d.vy; }
-        ctx.fillStyle = "#f97316";
-        ctx.fillRect(d.x, d.y, d.length, d.width);
-        if (d.x > canvas.width || d.x < 0) daggers.splice(idx, 1);
-      });
-
-      electricSpears.forEach((es, idx) => {
-        if (!isPaused) es.x += es.vx;
-        ctx.fillStyle = "#a855f7";
-        ctx.fillRect(es.x, es.y, es.length, es.width);
-        if (!isPaused) es.life--;
-        if (es.life <= 0) electricSpears.splice(idx, 1);
-      });
-
-      tsunamis.forEach((tw, idx) => {
-        if (!isPaused) tw.x += tw.vx;
-        ctx.save();
-        const waveGrad = ctx.createLinearGradient(tw.x, tw.y, tw.x + tw.width, tw.y + tw.height);
-        waveGrad.addColorStop(0, "rgba(14, 165, 233, 0.98)");
-        waveGrad.addColorStop(0.5, "rgba(3, 105, 161, 0.90)");
-        waveGrad.addColorStop(1, "rgba(8, 47, 73, 0.80)");
-        ctx.fillStyle = waveGrad;
-        ctx.beginPath();
-        ctx.moveTo(tw.x, tw.y + 120);
-        ctx.bezierCurveTo(tw.x + 40, tw.y - 60, tw.x + 130, tw.y - 40, tw.x + 180, tw.y + 30);
-        ctx.bezierCurveTo(tw.x + 210, tw.y + 80, tw.x + 190, tw.y + 140, tw.x + 150, tw.y + 140);
-        ctx.lineTo(tw.x, tw.y + 140);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-        if (!isPaused) tw.life--;
-        if (tw.life <= 0) tsunamis.splice(idx, 1);
-      });
-
-      plasmaOrbs.forEach((po, idx) => {
-        if (!isPaused) po.x += po.vx;
-        ctx.fillStyle = po.color;
-        ctx.beginPath(); ctx.arc(po.x, po.y, po.radius, 0, Math.PI * 2); ctx.fill();
-        if (!isPaused) po.life--;
-        if (po.life <= 0) plasmaOrbs.splice(idx, 1);
+      enemies.forEach(e => {
+        if (!e.active) return;
+        e.x -= e.speed;
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(e.x, e.y, 28, 40);
       });
 
       animationFrameId = requestAnimationFrame(renderBrawler);
     }
+
+    document.addEventListener("DOMContentLoaded", initBrawler);
+  </script>
+</body>
+</html>
