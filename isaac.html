@@ -1,202 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Vanguard Universe: Side Brawler Arcade (Isaac Sandbox)</title>
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --gold-border: #d4af37;
+      --gold-glow: rgba(212, 175, 55, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    header {
+      width: 100%;
+      background: #0f172a;
+      border-bottom: 2px solid #1e293b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .portal-title {
+      font-size: 1.05rem;
+      letter-spacing: 2px;
+      color: #f59e0b;
+      text-transform: uppercase;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .portal-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 96%;
+      max-width: 560px;
+      margin: 16px auto;
+    }
+
+    .brawler-wrapper {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+    }
+
+    .hud-header {
+      background: #0d1322;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+    }
+
+    .hud-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hero-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .wave-badge {
+      font-size: 11px;
+      color: #f59e0b;
+      font-weight: 800;
+      background: rgba(245, 158, 11, 0.15);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .bars-container {
+      display: flex;
+      gap: 10px;
+    }
+
+    .bar-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .bar-label {
+      font-size: 10px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 8px;
+      background: #1e293b;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-fill-hero {
+      width: 100%;
+      height: 100%;
+      background: #10b981;
+      transition: width 0.1s ease;
+    }
+
+    .bar-fill-enemy {
+      width: 100%;
+      height: 100%;
+      background: #ef4444;
+      transition: width 0.1s ease;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 290px;
+      background: #000;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .combat-log {
+      font-family: monospace;
+      font-size: 11px;
+      background: #090e18;
+      border: 1px solid #1e293b;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: #38bdf8;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .dpad-cluster, .action-cluster {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+
+    .btn {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      min-height: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 6px 3px;
+      transition: background 0.1s, transform 0.05s;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+      background: #334155;
+    }
+
+    .btn-action {
+      background: linear-gradient(180deg, #1e293b, #0f172a);
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+
+    .btn-orb {
+      background: linear-gradient(180deg, #0369a1, #0c4a6e);
+      border-color: #38bdf8;
+      color: #bae6fd;
+    }
+
+    .btn-tag {
+      grid-column: span 1;
+      background: linear-gradient(180deg, #7c3aed, #5b21b6);
+      border-color: #a78bfa;
+      color: #fff;
+    }
+
+    .btn-ultimate {
+      grid-column: span 3;
+      background: linear-gradient(180deg, #f59e0b, #b45309);
+      border-color: #fbbf24;
+      color: #fff;
+      font-size: 11px;
+      min-height: 38px;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+    }
+
+    .chapter-banner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      background: rgba(15, 23, 42, 0.96);
+      border: 2px solid var(--gold-border);
+      box-shadow: 0 0 35px var(--gold-glow);
+      border-radius: 10px;
+      padding: 18px 14px;
+      text-align: center;
+      display: none;
+      z-index: 50;
+    }
+
+    .chapter-banner h3 {
+      color: #facc15;
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .chapter-banner p {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+
+    .chapter-banner button {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #000;
+      border: none;
+      font-weight: 800;
+      font-size: 0.9rem;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.94);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .modal-content {
+      background: #111827;
+      border: 2px solid var(--gold-border);
+      box-shadow: 0 0 25px var(--gold-glow);
+      border-radius: 12px;
+      max-width: 500px;
+      width: 100%;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .modal-content h2 {
+      font-size: 1.35rem;
+      color: #facc15;
+      margin-bottom: 10px;
+    }
+
+    .modal-content p {
+      color: #cbd5e1;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .replay-btn {
+      background: #2563eb;
+      color: #ffffff;
+      border: 1px solid #60a5fa;
+      padding: 11px;
+      border-radius: 6px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
+    }
+
+    .defeat-btn {
+      background: #dc2626;
+      color: #ffffff;
+      border: 1px solid #f87171;
+      padding: 11px;
+      border-radius: 6px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(220, 38, 38, 0.5);
+    }
+
+    @media (max-width: 600px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="portal-title">Vanguard Universe: Side Brawler Arcade</div>
+  </header>
+
+  <section class="portal-section">
+    <div class="brawler-wrapper">
+      <div class="hud-header">
+        <div class="hud-top-row">
+          <span id="heroNameLabel" class="hero-title">Marcus Prime (Lead) & Xochitl (Tactical AI)</span>
+          <span id="waveDisplay" class="wave-badge">Wave 1: Scout Vanguard</span>
+        </div>
+        <div class="bars-container">
+          <div class="bar-group">
+            <div class="bar-label">
+              <span>Team Health</span>
+              <span id="heroHpText">100/100</span>
+            </div>
+            <div class="bar-track">
+              <div id="heroHpBar" class="bar-fill-hero"></div>
+            </div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label">
+              <span id="enemyTypeLabel">Syndicate Swarm</span>
+              <span id="enemyHpText">14 Units Remaining</span>
+            </div>
+            <div class="bar-track">
+              <div id="enemyHpBar" class="bar-fill-enemy"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="gameCanvas" width="540" height="290"></canvas>
+        <div class="chapter-banner" id="chapterBanner">
+          <h3 id="bannerTitle">CHAPTER 1 COMPLETED</h3>
+          <p id="bannerDesc">Detroit 313 Grid Secured! Transmitting resonance beacon to West Africa. Sundiata Prime has awakened!</p>
+          <button id="bannerBtn" onclick="dismissChapterBanner()">ENTER NEXT STAGE</button>
+        </div>
+      </div>
+
+      <div class="combat-log" id="combatLog">
+        Tactical Co-Op active! Your partner maneuvers and fights autonomously.
+      </div>
+
+      <div class="controls-grid">
+        <div class="dpad-cluster">
+          <button class="btn" onclick="playerMove(-25)">◄ LEFT</button>
+          <button class="btn" onclick="playerJump()">▲ JUMP</button>
+          <button class="btn" onclick="playerMove(25)">RIGHT ►</button>
+        </div>
+
+        <div class="action-cluster">
+          <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">⚡ Volt Beam</button>
+          <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">🔵 Plasma Orb</button>
+          <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Deflect</button>
+          <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: XOCHITL</button>
+          <button id="btnLuetta" class="btn btn-ultimate" onclick="executeLuettaAid()">★ SUMMON MOTHER LUETTA ★</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VICTORY MODAL -->
+  <div class="modal-overlay" id="trial-modal">
+    <div class="modal-content">
+      <div style="font-size: 32px; margin-bottom: 6px;">🦁</div>
+      <h2 id="modalTitle">MARROW RESONANCE RESTORED!</h2>
+      <p id="modalBody">
+        Sundiata Prime's Solar Lion Roar shattered Apex Volt and sealed the Sahel temporal rift!
+      </p>
+      <div class="modal-actions">
+        <button class="replay-btn" onclick="resetCampaignToStage1()">🔄 PLAY AGAIN: RESTART FROM CHAPTER 1</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEFEAT MODAL -->
+  <div class="modal-overlay" id="defeat-modal">
+    <div class="modal-content">
+      <div style="font-size: 32px; margin-bottom: 6px;">⚠️</div>
+      <h2 style="color: #ef4444;">RESONANCE SEVERED!</h2>
+      <p id="defeatBody">
+        Your squad took lethal kinetic damage and the living codex barrier collapsed!
+      </p>
+      <div class="modal-actions">
+        <button class="defeat-btn" onclick="retryCurrentWave()">⚔️ RETRY CHECKPOINT</button>
+        <button class="replay-btn" onclick="resetCampaignToStage1()">🔄 RESTART FROM CHAPTER 1</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SAVE_KEY = 'vanguard_universe_brawler_v1';
+    let playerProgress = {
+      highestStageUnlocked: 1,
+      currentStage: 1,
+      unlockedOperatives: ["marcus", "xochitl"]
+    };
+
+    function loadSavedProgress() {
+      const saved = localStorage.getItem(SAVE_KEY);
+      if (saved) {
+        try { playerProgress = Object.assign(playerProgress, JSON.parse(saved)); } catch (e) {}
+      }
+    }
+
+    function saveGameProgress(stageCleared, newHero = null) {
+      if (stageCleared >= playerProgress.highestStageUnlocked) {
+        playerProgress.highestStageUnlocked = Math.min(5, stageCleared + 1);
+      }
+      playerProgress.currentStage = playerProgress.highestStageUnlocked;
+      if (newHero && !playerProgress.unlockedOperatives.includes(newHero)) {
+        playerProgress.unlockedOperatives.push(newHero);
+      }
+      localStorage.setItem(SAVE_KEY, JSON.stringify(playerProgress));
+    }
+
+    loadSavedProgress();
+
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playSound(type) {
+      initAudio();
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+
+      if (type === 'zap') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(950, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.22);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
+        osc.start(now); osc.stop(now + 0.22);
+      } else if (type === 'orb') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.35);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+        osc.start(now); osc.stop(now + 0.35);
+      } else if (type === 'hit') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+      } else if (type === 'celestial') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.linearRampToValueAtTime(1200, now + 0.7);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.8);
+        osc.start(now); osc.stop(now + 0.8);
+      } else if (type === 'shield') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.setValueAtTime(640, now + 0.12);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+        osc.start(now); osc.stop(now + 0.25);
+      } else if (type === 'warp') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(250, now);
+        osc.frequency.exponentialRampToValueAtTime(950, now + 0.22);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
+        osc.start(now); osc.stop(now + 0.22);
+      } else if (type === 'drum') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(35, now + 0.45);
+        gain.gain.setValueAtTime(0.75, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+        osc.start(now); osc.stop(now + 0.45);
+      } else if (type === 'roar') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(65, now + 0.65);
+        gain.gain.setValueAtTime(0.85, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.65);
+        osc.start(now); osc.stop(now + 0.65);
+      }
+    }
+
+    let canvas, ctx;
+    let animationFrameId = null;
+
+    const ASSETS = {
+      bg: new Image(),
+      ouroborosSkyline: new Image(),
+      groundPlate: new Image(),
+      solarLion: new Image(),
+      marcus: new Image(),
+      xochitl: new Image(),
+      sundiata: new Image(),
+      kofi: new Image(),
+      boss: new Image(),
+      ironclad: new Image(),
+      apex: new Image(),
+      luetta: new Image()
+    };
+
+    let activeZone = "detroit";
+    let unlockedRoster = playerProgress.unlockedOperatives;
+    let rosterIdx = 0;
+    let activeLead = "marcus";
+
+    let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
+    let leadLean = 0, walkCadence = 0;
+
+    let aiPartner = {
+      x: 35, y: 0, vy: 0, isGrounded: true,
+      attackCooldown: 0, desiredDistance: 65, wanderTimer: 0, lean: 0
+    };
+
+    let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
+    let bgScrollOffset = 0, groundScrollOffset = 0;
+
+    let kofiHammerSwing = { active: false, timer: 0, maxTimer: 14 };
+    let xochitlFlight = { active: false, state: 'INACTIVE', x: 0, y: 0, timer: 0, diveAngle: 0 };
+    let sundiataShockwave = { active: false, x: 0, radius: 0, maxRadius: 180 };
+    let lionRoars = [];
+
+    let currentWave = 1, mobsRemaining = 14, mobsTotal = 14;
+    let pendingSpawns = 0, spawnIntervalTimer = null;
+    let enemies = [];
+    let boss = { x: 380, y: 0, vy: 0, hp: 24, maxHp: 24, active: false, type: "chrono", hitFlash: 0, phase: 1 };
+    let screenShake = 0, gameActive = true, bossActionTimer = null;
+
+    let lightningBolts = [], daggers = [], particles = [], enemyBullets = [], plasmaOrbs = [];
+    let celestialParticles = [], sahelDust = [], groundShockwaves = [];
+    let luettaState = { active: false, timer: 0 };
+
+    function initBrawler() {
+      canvas = document.getElementById("gameCanvas");
+      ctx = canvas.getContext("2d");
+      canvas.width = 540;
+      canvas.height = 290;
+
+      let launchWave = 1;
+      if (playerProgress.highestStageUnlocked === 2) launchWave = 4;
+      if (playerProgress.highestStageUnlocked === 3) launchWave = 6;
+      if (playerProgress.highestStageUnlocked === 4) launchWave = 8;
+      if (playerProgress.highestStageUnlocked === 5) launchWave = 9;
+
+      startWave(launchWave);
+      if (!animationFrameId) animationFrameId = requestAnimationFrame(renderBrawler);
+    }
+
+    function startWave(num) {
+      currentWave = num;
+      if (spawnIntervalTimer) clearInterval(spawnIntervalTimer);
+
+      if (num === 1) {
+        activeZone = "detroit";
+        document.getElementById("waveDisplay").innerText = "Stage 1 • Wave 1: Scout Vanguard";
+        mobsRemaining = 14; mobsTotal = 14; boss.active = false;
+        setupProgressiveWave("swarm", 14);
+      } else if (num === 2) {
+        document.getElementById("waveDisplay").innerText = "Stage 1 • Wave 2: Heavy Enforcers";
+        mobsRemaining = 18; mobsTotal = 18; boss.active = false;
+        setupProgressiveWave("heavy", 18);
+      } else if (num === 3) {
+        document.getElementById("waveDisplay").innerText = "BOSS: Chrono-Lock";
+        startBossFight("chrono");
+      } else if (num === 4) {
+        activeZone = "sahel";
+        document.getElementById("waveDisplay").innerText = "Stage 2 • Wave 4: Subterranean Drills";
+        mobsRemaining = 18; mobsTotal = 18; boss.active = false;
+        setupProgressiveWave("ouroboros", 18);
+      } else if (num === 5) {
+        document.getElementById("waveDisplay").innerText = "BOSS: Dreadnought";
+        startBossFight("dreadnought");
+      } else if (num === 6) {
+        activeZone = "forge";
+        document.getElementById("waveDisplay").innerText = "Stage 3 • Wave 6: Forge Breakers";
+        mobsRemaining = 18; mobsTotal = 18; boss.active = false;
+        setupProgressiveWave("forge", 18);
+      } else if (num === 7) {
+        document.getElementById("waveDisplay").innerText = "BOSS: Ironclad Prime";
+        startBossFight("ironclad");
+      } else if (num === 8) {
+        activeZone = "forge";
+        document.getElementById("waveDisplay").innerText = "Stage 4: Baron Krieg";
+        startBossFight("krieg");
+      } else if (num === 9) {
+        activeZone = "sahel_rift";
+        document.getElementById("waveDisplay").innerText = "Stage 5 • Wave 9: Vault Swarm";
+        mobsRemaining = 16; mobsTotal = 16; boss.active = false;
+        setupProgressiveWave("vault", 16);
+      } else if (num === 10) {
+        document.getElementById("waveDisplay").innerText = "BOSS: Apex Volt";
+        startBossFight("apex");
+      }
+      updateHUD();
+    }
+
+    function setupProgressiveWave(profile, totalCount) {
+      enemies = [];
+      pendingSpawns = totalCount;
+      spawnNextBatch(profile, 4);
+
+      spawnIntervalTimer = setInterval(() => {
+        if (!gameActive || pendingSpawns <= 0) {
+          clearInterval(spawnIntervalTimer);
+          return;
+        }
+        if (enemies.filter(e => e.active).length < 4) {
+          spawnNextBatch(profile, Math.min(3, pendingSpawns));
+        }
+      }, 2500);
+    }
+
+    function spawnNextBatch(profile, count) {
+      for (let i = 0; i < count; i++) {
+        if (pendingSpawns <= 0) break;
+        pendingSpawns--;
+        let type = "drone", spawnY = 205, hp = 2, speed = 1.15;
+        if (profile === "heavy") { type = "enforcer"; hp = 4; spawnY = 202; }
+        else if (profile === "ouroboros") { type = "crawler"; hp = 5; spawnY = 212; }
+        enemies.push({ type, x: 520 + (i * 75) + Math.random() * 30, y: spawnY, hp, speed, active: true, walkCycle: 0, rotorPhase: 0 });
+      }
+    }
+
+    function startBossFight(bossType) {
+      boss.active = true;
+      boss.type = bossType;
+      boss.x = 380; boss.y = 0; boss.vy = 0;
+      boss.hp = bossType === "chrono" ? 24 : (bossType === "dreadnought" ? 34 : 36);
+      boss.maxHp = boss.hp; boss.hitFlash = 0; boss.phase = 1;
+      enemies = []; mobsRemaining = 0; pendingSpawns = 0;
+      updateHUD();
+    }
+
+    function onBossDefeated() {
+      boss.active = false;
+      if (bossActionTimer) clearInterval(bossActionTimer);
+      playSound('hit'); screenShake = 26;
+
+      if (boss.type === "chrono") {
+        saveGameProgress(1, "sundiata");
+        document.getElementById("bannerTitle").innerText = "STAGE 1 COMPLETED";
+        document.getElementById("bannerDesc").innerText = "Detroit 313 Grid Secured! Sundiata Prime awakens.";
+        document.getElementById("bannerBtn").innerText = "ENTER STAGE 2";
+        document.getElementById("chapterBanner").style.display = "block";
+      } else if (boss.type === "dreadnought") {
+        saveGameProgress(2, "kofi");
+        document.getElementById("bannerTitle").innerText = "STAGE 2 COMPLETED";
+        document.getElementById("bannerDesc").innerText = "Sahel Nexus secured! Kofi Osei joins the frontline.";
+        document.getElementById("bannerBtn").innerText = "ENTER STAGE 3";
+        document.getElementById("chapterBanner").style.display = "block";
+      } else if (boss.type === "ironclad") {
+        saveGameProgress(3);
+        document.getElementById("bannerTitle").innerText = "STAGE 3 COMPLETED";
+        document.getElementById("bannerDesc").innerText = "Kumasi Forge stabilized!";
+        document.getElementById("bannerBtn").innerText = "ENTER STAGE 4";
+        document.getElementById("chapterBanner").style.display = "block";
+      } else if (boss.type === "krieg") {
+        saveGameProgress(4);
+        document.getElementById("bannerTitle").innerText = "STAGE 4 COMPLETED";
+        document.getElementById("bannerDesc").innerText = "Baron Krieg defeated! The Vault ruptures.";
+        document.getElementById("bannerBtn").innerText = "ENTER STAGE 5";
+        document.getElementById("chapterBanner").style.display = "block";
+      } else if (boss.type === "apex") {
+        saveGameProgress(5);
+        gameActive = false;
+        document.getElementById("modalTitle").innerText = "MARROW RESONANCE RESTORED!";
+        document.getElementById("trial-modal").style.display = "flex";
+      }
+    }
+
+    function dismissChapterBanner() {
+      document.getElementById("chapterBanner").style.display = "none";
+      if (currentWave === 3) { activeZone = "sahel"; activeLead = "sundiata"; startWave(4); }
+      else if (currentWave === 5) { activeZone = "forge"; activeLead = "kofi"; startWave(6); }
+      else if (currentWave === 7) { startWave(8); }
+      else if (currentWave === 8) { activeZone = "sahel_rift"; activeLead = "sundiata"; startWave(9); }
+    }
+
+    function handlePlayerDefeat() {
+      gameActive = false;
+      if (bossActionTimer) clearInterval(bossActionTimer);
+      if (spawnIntervalTimer) clearInterval(spawnIntervalTimer);
+      document.getElementById("defeat-modal").style.display = "flex";
+    }
+
+    function retryCurrentWave() {
+      document.getElementById("defeat-modal").style.display = "none";
+      playerHp = 100; updateHUD(); gameActive = true; startWave(currentWave);
+    }
+
+    function resetCampaignToStage1() {
+      document.getElementById("trial-modal").style.display = "none";
+      document.getElementById("defeat-modal").style.display = "none";
+      gameActive = true; playerHp = 100; activeZone = "detroit"; activeLead = "marcus"; rosterIdx = 0;
+      playerProgress.currentStage = 1; playerProgress.highestStageUnlocked = 1;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(playerProgress));
+      startWave(1);
+    }
+
+    function playerMove(dx) {
+      if (!gameActive) return;
+      initAudio();
+      leadX = Math.max(65, Math.min(330, leadX + dx));
+      bgScrollOffset -= (dx * 0.15);
+      groundScrollOffset -= (dx * 0.6);
+      leadLean = dx > 0 ? 0.08 : -0.08;
+      walkCadence += 1.4;
+    }
+
+    function playerJump() {
+      if (!gameActive || !isGrounded) return;
+      initAudio();
+      leadVy = -13; isGrounded = false; leadLean = 0.04;
+    }
+
     function executeTagSwap() {
       if (!gameActive) return;
+      initAudio();
+      if (xochitlFlight.active) { xochitlFlight.active = false; xochitlFlight.state = 'INACTIVE'; }
       rosterIdx = (rosterIdx + 1) % unlockedRoster.length;
       activeLead = unlockedRoster[rosterIdx];
-      
-      let nameMap = { marcus: "Marcus Prime", amina: "Amina Zazzau", wacan: "Wacan", sundiata: "Sundiata Prime" };
-      let nextLead = (rosterIdx + 1) % unlockedRoster.length;
-      document.getElementById("heroNameLabel").innerText = `${nameMap[activeLead]} (Lead) & ${nameMap[unlockedRoster[nextLead]]} (Tactical AI)`;
-      document.getElementById("btnTag").innerText = `TAG: ${nameMap[unlockedRoster[nextLead]].split(' ')[0].toUpperCase()}`;
-      playSound('shield');
+      updateControlsUI();
+    }
+
+    function updateControlsUI() {
+      const getPartner = () => unlockedRoster.filter(r => r !== activeLead)[0] || "xochitl";
+      const partner = getPartner();
+      const names = { marcus: "Marcus Prime", xochitl: "Xochitl", sundiata: "Sundiata Prime", kofi: "Kofi Osei" };
+      document.getElementById("heroNameLabel").innerText = `${names[activeLead]} (Lead) & ${names[partner]} (AI)`;
+      document.getElementById("btnTag").innerText = `TAG: ${unlockedRoster[(rosterIdx + 1) % unlockedRoster.length].toUpperCase()}`;
     }
 
     function executeStrike() {
       if (!gameActive) return;
-      playSound('zap');
-      screenShake = 6;
-      electricSpears.push({ x: leadX + 30, y: 195, vx: 12 });
-      document.getElementById("combatLog").innerText = `${activeLead.toUpperCase()} unleashes signature strike!`;
+      initAudio();
+      let target = getClosestTarget(leadX);
+      let targetX = target ? target.x : (boss.active ? boss.x : 400);
+
+      if (activeLead === "marcus") { playSound('zap'); }
+      else if (activeLead === "sundiata") { playSound('drum'); screenShake = 11; sundiataShockwave.active = true; sundiataShockwave.x = leadX + 35; sundiataShockwave.radius = 10; }
+      else if (activeLead === "kofi") { playSound('hit'); kofiHammerSwing.active = true; kofiHammerSwing.timer = kofiHammerSwing.maxTimer; }
+
+      if (boss.active && Math.abs(boss.x - leadX) < 280) {
+        boss.hp -= 2; boss.hitFlash = 6; screenShake = 8; updateHUD();
+        if (boss.hp <= 0) onBossDefeated();
+      } else if (target && Math.abs(target.x - leadX) < 220) {
+        target.hp -= 1; target.x += 25;
+        if (target.hp <= 0) onEnemyDestroyed(target);
+      }
     }
 
     function executePlasmaOrb() {
       if (!gameActive) return;
-      playSound('zap');
-      plasmaOrbs.push({ x: leadX + 30, y: 190, vx: 7 });
-      document.getElementById("combatLog").innerText = `Tactical Co-Op deployed tracking energy projectile!`;
+      initAudio();
+      if (activeLead === "marcus") {
+        playSound('orb');
+        plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 7.5, vy: 0, radius: 12, life: 80, color: "#38bdf8" });
+      } else if (activeLead === "xochitl" && !xochitlFlight.active) {
+        playSound('celestial');
+        xochitlFlight.active = true; xochitlFlight.state = 'ASCENT';
+        xochitlFlight.x = leadX; xochitlFlight.y = 175 - leadY; xochitlFlight.timer = 0;
+      } else if (activeLead === "sundiata") {
+        playSound('drum');
+        plasmaOrbs.push({ x: leadX + 45, y: 200 - leadY, vx: 6.8, vy: 0, radius: 18, life: 95, color: "#f59e0b", isLionPulse: true });
+      }
     }
 
     function executeBurst() {
       if (!gameActive) return;
-      isShieldActive = true;
-      playSound('shield');
-      setTimeout(() => { isShieldActive = false; }, 900);
-      document.getElementById("combatLog").innerText = `Deflective shield activated! Incoming threat negated.`;
+      initAudio();
+      if (activeLead === "sundiata") {
+        playSound('roar'); screenShake = 18;
+        lionRoars.push({ x: leadX + 25, y: 195 - leadY, vx: 9.0, width: 175, height: 125, scale: 0.70, alpha: 0.85, life: 85 });
+      } else {
+        isShieldActive = true;
+        setTimeout(() => isShieldActive = false, 3500);
+      }
     }
 
     function executeLuettaAid() {
-      if (!gameActive) return;
-      playSound('zap');
-      screenShake = 14;
-      playerHp = Math.min(100, playerHp + 35);
-      enemies.forEach(e => { e.hp -= 3; });
-      document.getElementById("combatLog").innerText = `★ Mother Luetta invoked! Living Codex pulse restores resonance! ★`;
+      if (!gameActive || luettaState.active) return;
+      initAudio();
+      luettaState.active = true; luettaState.timer = 110;
+      playSound('celestial'); playerHp = 100; updateHUD();
     }
 
-    function updateBrawlerPhysics() {
-      if (!gameActive) return;
+    function updateAIPartner() {
+      if (!gameActive || xochitlFlight.active) return;
+      const targetAIX = Math.max(30, leadX - 65);
+      aiPartner.x += (targetAIX - aiPartner.x) * 0.045;
+    }
 
-      // Gravity and jump mechanics
-      leadVy += 0.65;
-      leadY += leadVy;
-      if (leadY >= 0) {
-        leadY = 0;
-        leadVy = 0;
-        isGrounded = true;
-      }
-      leadLean *= 0.9;
-
-      // Screen Shake damping
-      if (screenShake > 0) screenShake--;
-
-      // Projectiles update
-      electricSpears.forEach(s => { s.x += s.vx; });
-      electricSpears = electricSpears.filter(s => s.x < 500);
-
-      plasmaOrbs.forEach(p => { p.x += p.vx; });
-      plasmaOrbs = plasmaOrbs.filter(p => p.x < 500);
-
-      // Enemy logic
-      if (boss.active) {
-        boss.y = Math.sin(Date.now() / 300) * 15;
-        // Check projectile hits on boss
-        electricSpears.forEach((s, sIdx) => {
-          if (s.x >= boss.x && s.x <= boss.x + 40) {
-            boss.hp--;
-            electricSpears.splice(sIdx, 1);
-            if (boss.hp <= 0) onBossDefeated();
-          }
-        });
-      } else {
-        enemies.forEach(e => {
-          e.x -= e.speed;
-          // Check hits from player projectiles
-          electricSpears.forEach((s, sIdx) => {
-            if (Math.abs(s.x - e.x) < 20) {
-              e.hp -= 2;
-              electricSpears.splice(sIdx, 1);
-            }
-          });
-        });
-
-        // Filter defeated enemies and spawn boss if wave 3
-        let activeEnemies = enemies.filter(e => e.hp > 0);
-        mobsRemaining = activeEnemies.length;
-        if (mobsRemaining === 0 && currentWave === 1) {
-          startBossFight("chrono");
+    function getClosestTarget(originX) {
+      if (boss.active) return boss;
+      let closest = null, minDst = 9999;
+      enemies.forEach(e => {
+        if (e.active) {
+          let dst = Math.abs(e.x - originX);
+          if (dst < minDst) { minDst = dst; closest = e; }
         }
-      }
+      });
+      return closest;
+    }
 
-      // Update HUD elements
-      document.getElementById("heroHpBar").style.width = playerHp + '%';
-      document.getElementById("heroHpText").innerText = `${playerHp}/100`;
+    function onEnemyDestroyed(enemy) {
+      if (!enemy.active) return;
+      enemy.active = false;
+      mobsRemaining = Math.max(0, mobsRemaining - 1);
+      updateHUD();
 
-      if (boss.active) {
-        document.getElementById("enemyTypeLabel").innerText = "Chrono-Lock Boss";
-        document.getElementById("enemyHpText").innerText = `${boss.hp}/${boss.maxHp} HP`;
-        document.getElementById("enemyHpBar").style.width = (boss.hp / boss.maxHp * 100) + '%';
-      } else {
-        document.getElementById("enemyTypeLabel").innerText = "Syndicate Swarm";
-        document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units Remaining`;
-        document.getElementById("enemyHpBar").style.width = (mobsRemaining / mobsTotal * 100) + '%';
+      if (mobsRemaining <= 0 && !boss.active) {
+        if (currentWave === 1) setTimeout(() => startWave(2), 1200);
+        else if (currentWave === 2) setTimeout(() => startWave(3), 1400);
+        else if (currentWave === 4) setTimeout(() => startWave(5), 1400);
+        else if (currentWave === 6) setTimeout(() => startWave(7), 1400);
+        else if (currentWave === 9) setTimeout(() => startWave(10), 1400);
       }
+    }
+
+    function drawEnvironment(ctx) {
+      ctx.fillStyle = "#090d16";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const deckGrad = ctx.createLinearGradient(0, 255, 0, canvas.height);
+      deckGrad.addColorStop(0, "#0b1220");
+      deckGrad.addColorStop(1, "#030712");
+      ctx.fillStyle = deckGrad;
+      ctx.fillRect(0, 255, canvas.width, canvas.height - 255);
+      ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, 255); ctx.lineTo(canvas.width, 255); ctx.stroke();
     }
 
     function renderBrawler() {
-      if (!ctx) return;
       ctx.save();
       if (screenShake > 0) {
-        let sx = (Math.random() - 0.5) * screenShake;
-        let sy = (Math.random() - 0.5) * screenShake;
-        ctx.translate(sx, sy);
+        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+        screenShake *= 0.88;
       }
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawEnvironment(ctx);
+      updateAIPartner();
 
-      // Draw background sky gradient & Detroit skyline silhouette
-      let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      grad.addColorStop(0, '#04060b');
-      grad.addColorStop(1, '#111827');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Draw ground line
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(0, 235);
-      ctx.lineTo(canvas.width, 235);
-      ctx.stroke();
-
-      // Draw active Lead character
-      ctx.save();
-      ctx.translate(leadX, 235 + leadY);
-      ctx.rotate(leadLean);
-      let activeImg = ASSETS[activeLead] || ASSETS.marcus;
-      if (activeImg.complete && activeImg.naturalWidth !== 0) {
-        ctx.drawImage(activeImg, -20, -55, 42, 55);
-      } else {
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(-15, -45, 30, 45);
+      if (!isGrounded) {
+        leadY -= leadVy; leadVy += 0.8;
+        if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
       }
-      if (isShieldActive) {
-        ctx.strokeStyle = '#60a5fa';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, -25, 32, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.restore();
 
-      // Draw projectiles
-      ctx.fillStyle = '#38bdf8';
-      electricSpears.forEach(s => {
-        ctx.fillRect(s.x, 200, 14, 5);
-      });
-      plasmaOrbs.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, 195, 7, 0, Math.PI * 2);
-        ctx.fillStyle = '#60a5fa';
-        ctx.fill();
+      leadLean *= 0.88;
+      const drawLeadY = (175 - leadY) + Math.sin(walkCadence) * 3;
+
+      ctx.fillStyle = activeLead === "marcus" ? "#38bdf8" : (activeLead === "sundiata" ? "#f59e0b" : "#f97316");
+      ctx.fillRect(leadX, drawLeadY, 32, 70);
+
+      enemies.forEach(e => {
+        if (!e.active) return;
+        e.x -= e.speed;
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(e.x, e.y, 30, 30);
       });
 
-      // Draw Enemies or Boss
       if (boss.active) {
-        let bossImg = ASSETS.boss;
-        if (bossImg.complete && bossImg.naturalWidth !== 0) {
-          ctx.drawImage(bossImg, boss.x, 175 + boss.y, 50, 60);
-        } else {
-          ctx.fillStyle = '#ef4444';
-          ctx.fillRect(boss.x, 175 + boss.y, 40, 60);
-        }
-      } else {
-        enemies.forEach(e => {
-          if (e.hp > 0) {
-            let droneImg = ASSETS.ironclad;
-            if (droneImg.complete && droneImg.naturalWidth !== 0) {
-              ctx.drawImage(droneImg, e.x, 190, 32, 45);
-            } else {
-              ctx.fillStyle = '#ef4444';
-              ctx.fillRect(e.x, 190, 25, 45);
-            }
-          }
-        });
+        ctx.fillStyle = "#a855f7";
+        ctx.fillRect(boss.x, 165, 75, 90);
       }
 
       ctx.restore();
-
-      updateBrawlerPhysics();
       animationFrameId = requestAnimationFrame(renderBrawler);
     }
+
+    function updateHUD() {
+      document.getElementById("heroHpText").innerText = `${playerHp}/100`;
+      document.getElementById("heroHpBar").style.width = `${playerHp}%`;
+      if (boss.active) {
+        document.getElementById("enemyHpText").innerText = `${Math.max(0, boss.hp)}/${boss.maxHp}`;
+        document.getElementById("enemyHpBar").style.width = `${(Math.max(0, boss.hp) / boss.maxHp) * 100}%`;
+      } else {
+        document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units`;
+        document.getElementById("enemyHpBar").style.width = `${(mobsRemaining / mobsTotal) * 100}%`;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => { initBrawler(); });
   </script>
 </body>
 </html>
