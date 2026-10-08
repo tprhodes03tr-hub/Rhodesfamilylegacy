@@ -408,7 +408,7 @@
         <div class="action-cluster">
           <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">⚡ Volt Beam</button>
           <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">🔵 Plasma Orb</button>
-          <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Kinetic Shield</button>
+          <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Kinetic Counter</button>
           <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: XOCHITL</button>
           <button id="btnLuetta" class="btn btn-ultimate" onclick="executeLuettaAid()">★ SUMMON MOTHER LUETTA ★</button>
         </div>
@@ -871,12 +871,12 @@
         document.getElementById("btnOrb").innerText = "✨ Molten Shards";
         document.getElementById("btnBurst").innerText = "🛡️ Crucible Bastion";
       } else if (activeLead === "amina") {
-        document.getElementById("btnStrike").innerText = "⚡ Call Lightning";
+        document.getElementById("btnStrike").innerText = "⚡ Spread Lightning";
         document.getElementById("btnOrb").innerText = "🎯 Throw Spear";
         document.getElementById("btnBurst").innerText = "🛡️ Star Barrier";
       } else if (activeLead === "wakan") {
         document.getElementById("btnStrike").innerText = "🌊 Tidal Wave";
-        document.getElementById("btnOrb").innerText = "🌀 Real Tsunami";
+        document.getElementById("btnOrb").innerText = "🌀 Hurricane Tsunami";
         document.getElementById("btnBurst").innerText = "🛡️ Hydro Shield";
       }
       
@@ -899,21 +899,23 @@
         kofiHammerSwing.active = true; kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
       } else if (activeLead === "amina") {
         playSound('zap');
+        let hitAny = false;
         enemies.forEach(e => {
           if (e.active) {
-            generateLightning(e.x + 15, 0, e.x + 15, e.y, 6);
+            hitAny = true;
+            generateLightning(e.x + 15, 0, e.x + 15, e.y, 7);
             e.hp -= 3;
             if (e.hp <= 0) onEnemyDestroyed(e);
           }
         });
-        if (boss.active) {
-          generateLightning(boss.x + 35, 0, boss.x + 35, 190, 8);
+        if (!hitAny && boss.active) {
+          generateLightning(boss.x + 35, 0, boss.x + 35, 190, 9);
           boss.hp -= 4; boss.hitFlash = 6; updateHUD();
           if (boss.hp <= 0) onBossDefeated();
         }
       } else if (activeLead === "wakan") {
         playSound('orb');
-        tsunamis.push({ x: leadX + 35, y: 195 - leadY, vx: 7.0, width: 120, height: 90, life: 75 });
+        tsunamis.push({ x: leadX + 35, y: 195 - leadY, vx: 7.0, width: 120, height: 90, life: 75, hurricane: false });
       } else if (activeLead === "xochitl") {
         playSound('hit');
       }
@@ -945,7 +947,7 @@
         laserSpears.push({ x: leadX + 40, y: 200 - leadY, vx: 12.0, vy: 0, life: 90, isBoomerangSpear: true, returning: false });
       } else if (activeLead === "wakan") {
         playSound('orb');
-        tsunamis.push({ x: leadX + 35, y: 195 - leadY, vx: 8.5, width: 170, height: 115, life: 90, vortex: true });
+        tsunamis.push({ x: leadX + 35, y: 195 - leadY, vx: 8.5, width: 180, height: 125, life: 95, hurricane: true });
       }
     }
 
@@ -958,11 +960,15 @@
       } else if (activeLead === "marcus" && absorbedCharge > 0) {
         playSound('zap');
         screenShake = 18;
-        generateLightning(leadX + 32, 200, leadX - 150, 200, absorbedCharge);
-        generateLightning(leadX + 32, 200, leadX + 220, 200, absorbedCharge);
+        
+        let targetMob = getClosestTarget(leadX);
+        let targetX = targetMob ? targetMob.x : (boss.active ? boss.x : leadX + 200);
+        let strikeTargetX = targetX > leadX ? targetX : leadX + 200;
+
+        generateLightning(leadX + 32, 200, strikeTargetX, 200, absorbedCharge);
         
         enemies.forEach(e => {
-          if (e.active && Math.abs(e.x - leadX) < 200) {
+          if (e.active && Math.abs(e.x - leadX) < 220) {
             e.hp -= Math.floor(absorbedCharge / 2) + 3;
             if (e.hp <= 0) onEnemyDestroyed(e);
           }
@@ -974,7 +980,7 @@
           if (boss.hp <= 0) onBossDefeated();
         }
         absorbedCharge = 0;
-        logBrawler("Marcus discharged stored kinetic force field energy!");
+        logBrawler("Marcus discharged stored kinetic force field energy directly at enemies!");
       } else {
         isShieldActive = true;
         setTimeout(() => isShieldActive = false, 3500);
@@ -991,7 +997,6 @@
       updateHUD();
       logBrawler("✨ Mother Luetta descends in golden celestial light: full heal and field wipe! ✨");
 
-      // Wipe out all active enemies & boss damage
       enemies.forEach(e => {
         if (e.active) onEnemyDestroyed(e);
       });
@@ -1146,33 +1151,58 @@
     function drawRealisticTsunami(ctx, ts) {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
+      const time = Date.now() / 70;
+
+      // Clean ocean wave gradient without top glare
       const waveGrad = ctx.createLinearGradient(ts.x, ts.y - ts.height, ts.x, ts.y + ts.height);
-      waveGrad.addColorStop(0, "rgba(186, 230, 253, 0.95)");
-      waveGrad.addColorStop(0.3, "rgba(2, 132, 199, 0.85)");
-      waveGrad.addColorStop(0.8, "rgba(3, 105, 161, 0.65)");
-      waveGrad.addColorStop(1, "rgba(12, 74, 110, 0.15)");
+      waveGrad.addColorStop(0, "rgba(14, 165, 233, 0.85)");
+      waveGrad.addColorStop(0.5, "rgba(2, 132, 199, 0.80)");
+      waveGrad.addColorStop(1, "rgba(7, 89, 133, 0.2)");
 
       ctx.fillStyle = waveGrad;
-      ctx.shadowColor = "#38bdf8";
-      ctx.shadowBlur = 22;
+      ctx.shadowColor = "#0284c7";
+      ctx.shadowBlur = 20;
 
       ctx.beginPath();
       ctx.moveTo(ts.x - ts.width / 2, ts.y + ts.height / 2);
       ctx.bezierCurveTo(
-        ts.x - ts.width / 4, ts.y - ts.height * 1.5,
-        ts.x + ts.width / 3, ts.y - ts.height * 1.2,
+        ts.x - ts.width / 3 + Math.sin(time) * 12, ts.y - ts.height * 1.6,
+        ts.x + ts.width / 3 + Math.cos(time) * 12, ts.y - ts.height * 1.3,
         ts.x + ts.width / 2, ts.y + ts.height / 2
       );
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.arc(ts.x + ts.width / 4, ts.y - ts.height * 0.8, 14, 0, Math.PI * 2);
-      ctx.arc(ts.x + ts.width / 6, ts.y - ts.height * 0.95, 9, 0, Math.PI * 2);
-      ctx.fill();
+      // Hurricane swirling vortex rings around the wave
+      if (ts.hurricane) {
+        ctx.strokeStyle = "rgba(186, 230, 253, 0.7)";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(ts.x, ts.y - ts.height * 0.4, ts.width * 0.3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
       ctx.restore();
+    }
+
+    function drawKofiAnvilHammer(ctx, originX, originY) {
+      if (!kofiHammerSwing.active) return;
+      const progress = 1 - (kofiHammerSwing.timer / kofiHammerSwing.maxTimer);
+      const swingAngle = -1.1 + (progress * 1.9);
+
+      ctx.save();
+      ctx.translate(originX + 38, originY + 30);
+      ctx.rotate(swingAngle);
+      ctx.fillStyle = "#451a03";
+      ctx.fillRect(-3, -52, 6, 68);
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(-22, -74, 44, 26);
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillRect(-20, -64, 40, 5);
+      ctx.restore();
+
+      kofiHammerSwing.timer--;
+      if (kofiHammerSwing.timer <= 0) kofiHammerSwing.active = false;
     }
 
     function drawEnvironment(ctx) {
@@ -1236,17 +1266,18 @@
           ctx.fillRect(-16, -35, 32, 70);
         }
         ctx.restore();
+        if (activeLead === "kofi") drawKofiAnvilHammer(ctx, leadX, drawLeadY);
       }
 
-      // Render Marcus force field aura when charge is stored
+      // Render Marcus force field aura tightly around his body when charge is stored
       if (activeLead === "marcus" && absorbedCharge > 0) {
         ctx.save();
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.9)";
+        ctx.lineWidth = 3.0;
         ctx.shadowColor = "#00f0ff";
-        ctx.shadowBlur = 18;
+        ctx.shadowBlur = 12;
         ctx.beginPath();
-        ctx.arc(leadX + 32, drawLeadY + 20, 50 + (absorbedCharge * 0.3), 0, Math.PI * 2);
+        ctx.arc(leadX + 32, drawLeadY + 40, 28 + Math.min(6, absorbedCharge * 0.2), 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
@@ -1264,7 +1295,18 @@
           xochitlFlight.x -= 3.8;
           if (xochitlFlight.timer % 8 === 0) {
             playSound('zap');
-            daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 30, vx: -6, vy: 5, length: 22, width: 5 });
+            let targetMob = getClosestTarget(xochitlFlight.x);
+            let aimX = targetMob ? targetMob.x : leadX;
+            let aimY = targetMob ? (targetMob.y || 205) : 205;
+            let angle = Math.atan2(aimY - xochitlFlight.y, aimX - xochitlFlight.x);
+            daggers.push({
+              x: xochitlFlight.x,
+              y: xochitlFlight.y + 30,
+              vx: Math.cos(angle) * 7.5,
+              vy: Math.sin(angle) * 7.5,
+              length: 22,
+              width: 5
+            });
           }
           if (xochitlFlight.x <= 100) xochitlFlight.state = 'TOUCHDOWN';
         } else if (xochitlFlight.state === 'TOUCHDOWN') {
@@ -1274,6 +1316,15 @@
 
         ctx.save();
         ctx.translate(xochitlFlight.x + 30, xochitlFlight.y + 37);
+        // Render fiery wings behind Xochitl during flight
+        ctx.fillStyle = "#f97316";
+        ctx.shadowColor = "#ea580c";
+        ctx.shadowBlur = 22;
+        ctx.beginPath();
+        ctx.ellipse(-26, 0, 16, 32, -0.5, 0, Math.PI * 2);
+        ctx.ellipse(26, 0, 16, 32, 0.5, 0, Math.PI * 2);
+        ctx.fill();
+
         if (ASSETS.xochitl.complete && ASSETS.xochitl.naturalWidth > 0) {
           ctx.drawImage(ASSETS.xochitl, -30, -37, 60, 75);
         }
@@ -1436,7 +1487,7 @@
         if (bolt.life <= 0) lightningBolts.splice(i, 1);
       }
 
-      // Render Mother Luetta golden healing beam effect
+      // Render Mother Luetta golden healing beam effect & board wipe
       if (luettaState.active) {
         luettaState.timer--;
         ctx.save();
