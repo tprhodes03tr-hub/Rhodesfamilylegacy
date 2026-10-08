@@ -1,857 +1,202 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Vanguard Universe: Unified Combat Portal</title>
-  <style>
-    :root {
-      --bg-dark: #07090e;
-      --panel-bg: rgba(15, 23, 42, 0.95);
-      --gold-border: #d4af37;
-      --gold-glow: rgba(212, 175, 55, 0.45);
-      --plat-border: #e5e4e2;
-      --plat-glow: rgba(229, 228, 226, 0.5);
-      --cosmic-border: #8b5cf6;
-      --cosmic-glow: rgba(139, 92, 246, 0.5);
-      --syndicate-border: #ef4444;
-      --syndicate-glow: rgba(239, 68, 68, 0.45);
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-
-    body {
-      background-color: var(--bg-dark);
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-    header {
-      width: 100%;
-      background: #0f172a;
-      border-bottom: 2px solid #1e293b;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px 0 12px;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-    }
-
-    .portal-title {
-      font-size: 1rem;
-      letter-spacing: 2px;
-      color: #f59e0b;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      font-weight: 800;
-      text-align: center;
-    }
-
-    .tab-bar {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-      width: 95%;
-      max-width: 600px;
-    }
-
-    .tab-btn {
-      flex: 1;
-      background: #1e293b;
-      color: #94a3b8;
-      border: 1px solid #334155;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      text-decoration: none;
-    }
-
-    .tab-btn.active {
-      background: #2563eb;
-      color: #ffffff;
-      border-color: #60a5fa;
-      box-shadow: 0 0 12px rgba(37, 99, 235, 0.5);
-    }
-
-    .portal-section {
-      display: none;
-      width: 96%;
-      max-width: 1100px;
-      margin: 16px auto;
-    }
-
-    .portal-section.active {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    /* 3D CARD FLIPPER FOR CODEX */
-    .card-flipper-container {
-      perspective: 1000px;
-      width: 100%;
-      min-height: 285px;
-    }
-
-    .card-flipper-inner {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      transform-style: preserve-3d;
-      transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-      cursor: pointer;
-    }
-
-    .card-flipper-inner.is-flipped {
-      transform: rotateY(180deg);
-    }
-
-    .card-face {
-      width: 100%;
-      height: 100%;
-      backface-visibility: hidden;
-      -webkit-backface-visibility: hidden;
-      border-radius: 10px;
-    }
-
-    .card-face-front {
-      position: relative;
-      z-index: 2;
-      transform: rotateY(0deg);
-    }
-
-    .card-face-back {
-      position: absolute;
-      inset: 0;
-      transform: rotateY(180deg);
-      background: radial-gradient(circle at center, #1b1335 0%, #060810 100%);
-      border: 2px solid var(--gold-border);
-      box-shadow: 0 0 18px var(--gold-glow), inset 0 0 15px rgba(212, 175, 55, 0.35);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 10px;
-      overflow: hidden;
-    }
-
-    .card-emblem-wrap {
-      flex: 1;
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 4px 0;
-    }
-
-    .card-tree-emblem {
-      max-width: 82%;
-      max-height: 145px;
-      object-fit: contain;
-      filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.75));
-    }
-
-    .back-brand-title {
-      font-size: 0.72rem;
-      font-weight: 900;
-      letter-spacing: 2px;
-      color: #facc15;
-      text-transform: uppercase;
-      text-align: center;
-    }
-
-    .back-motto {
-      font-size: 0.64rem;
-      letter-spacing: 1.5px;
-      color: #94a3b8;
-      font-weight: 700;
-      text-transform: uppercase;
-      text-align: center;
-    }
-
-    .back-footer-marrow {
-      font-family: monospace;
-      font-size: 0.62rem;
-      color: #38bdf8;
-      letter-spacing: 1.2px;
-      text-align: center;
-    }
-
-    .card-foil {
-      position: relative;
-      background: #111827;
-      border-radius: 10px;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      cursor: pointer;
-      overflow: hidden;
-    }
-
-    .foil-gold {
-      border: 2px solid var(--gold-border);
-      box-shadow: 0 0 14px var(--gold-glow), inset 0 0 8px rgba(212, 175, 55, 0.2);
-    }
-
-    .foil-platinum {
-      border: 2px solid var(--plat-border);
-      box-shadow: 0 0 14px var(--plat-glow), inset 0 0 8px rgba(255, 255, 255, 0.2);
-    }
-
-    .foil-cosmic {
-      border: 2px solid var(--cosmic-border);
-      box-shadow: 0 0 14px var(--cosmic-glow), inset 0 0 8px rgba(139, 92, 246, 0.2);
-    }
-
-    .foil-syndicate {
-      border: 2px solid var(--syndicate-border);
-      box-shadow: 0 0 12px var(--syndicate-glow);
-    }
-
-    .card-img {
-      width: 100%;
-      max-width: 130px;
-      height: 125px;
-      object-fit: contain;
-      margin-bottom: 6px;
-    }
-
-    .card-name { font-weight: 800; font-size: 0.9rem; text-align: center; }
-    .card-title { font-size: 0.72rem; color: #94a3b8; text-align: center; margin-bottom: 6px; }
-    .stat-row { display: flex; gap: 6px; font-size: 0.7rem; font-weight: 700; margin-bottom: 6px; }
-    .stat-badge { background: #0b0f19; padding: 2px 5px; border-radius: 4px; border: 1px solid #334155; }
-    .hp-bar-container { width: 100%; background: #334155; height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
-    .hp-bar { height: 100%; background: #22c55e; width: 100%; transition: width 0.3s ease; }
-    .codex-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; width: 100%; perspective: 1000px; }
-    .worth-badge { font-size: 0.7rem; padding: 4px 8px; border-radius: 10px; margin-top: 6px; font-weight: 800; text-transform: uppercase; text-align: center; }
-    .worth-gold { background: #b45309; color: #fef3c7; }
-    .worth-plat { background: #475569; color: #f8fafc; }
-    .worth-cosmic { background: #581c87; color: #f3e8ff; }
-
-    /* CARD CLASH */
-    .clash-board { width: 100%; display: flex; flex-direction: column; gap: 12px; align-items: center; }
-    .clash-status-box { width: 100%; background: #111827; border: 1px solid #374151; border-radius: 8px; padding: 8px 12px; text-align: center; font-size: 0.88rem; color: #38bdf8; font-weight: 600; }
-    .round-indicator { color: #f59e0b; margin-left: 8px; font-weight: 800; }
-    .battle-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; }
-    .battle-card { width: 100%; min-width: 0; }
-    .battle-card.targeted { outline: 3px solid #facc15; box-shadow: 0 0 20px rgba(250, 204, 21, 0.8) !important; transform: scale(1.02); }
-    .card-actions { display: flex; flex-direction: column; gap: 5px; width: 100%; margin-top: 4px; }
-    .action-btn { padding: 6px 4px; font-size: 0.70rem; font-weight: 800; border-radius: 4px; cursor: pointer; border: 1px solid #475569; background: #1e293b; color: #f8fafc; text-align: center; }
-    .action-btn.primary-atk { background: #15803d; border-color: #22c55e; }
-    .action-btn.special-atk { background: #7e22ce; border-color: #a855f7; }
-
-    /* BRAWLER */
-    .brawler-wrapper { width: 100%; max-width: 540px; display: flex; flex-direction: column; gap: 8px; position: relative; }
-    .hud-header { background: #0d1322; border: 1px solid #1e293b; border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; gap: 4px; width: 100%; }
-    .hud-top-row { display: flex; justify-content: space-between; align-items: center; }
-    .hero-title { font-size: 13px; font-weight: 800; color: #38bdf8; }
-    .wave-badge { font-size: 11px; color: #f59e0b; font-weight: 800; background: rgba(245, 158, 11, 0.15); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .bars-container { display: flex; gap: 10px; }
-    .bar-group { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-    .bar-label { font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; font-weight: 700; }
-    .bar-track { width: 100%; height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden; }
-    .bar-fill-hero { width: 100%; height: 100%; background: #10b981; transition: width 0.1s ease; }
-    .bar-fill-enemy { width: 100%; height: 100%; background: #ef4444; transition: width 0.1s ease; }
-
-    .canvas-container {
-      position: relative;
-      width: 100%;
-      height: 290px;
-      background: #000;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
-    }
-    #gameCanvas { display: block; width: 100%; height: 100%; }
-
-    .combat-log {
-      font-family: monospace;
-      font-size: 11px;
-      background: #090e18;
-      border: 1px solid #1e293b;
-      padding: 6px 10px;
-      border-radius: 6px;
-      color: #38bdf8;
-      min-height: 28px;
-      display: flex;
-      align-items: center;
-      width: 100%;
-    }
-
-    .controls-grid { display: grid; grid-template-columns: 1fr 1.35fr; gap: 6px; width: 100%; }
-    .dpad-cluster, .action-cluster { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
-    .btn {
-      background: #1e293b;
-      color: #f8fafc;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 800;
-      min-height: 48px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      padding: 6px 3px;
-    }
-    .btn:active { transform: scale(0.96); background: #334155; }
-    .btn-action { background: linear-gradient(180deg, #1e293b, #0f172a); border-color: #38bdf8; color: #38bdf8; }
-    .btn-orb { background: linear-gradient(180deg, #0369a1, #0c4a6e); border-color: #38bdf8; color: #bae6fd; }
-    .btn-tag { background: linear-gradient(180deg, #7c3aed, #5b21b6); border-color: #a78bfa; color: #fff; }
-    .btn-ultimate { grid-column: span 3; background: linear-gradient(180deg, #f59e0b, #b45309); border-color: #fbbf24; color: #fff; font-size: 11px; min-height: 38px; }
-
-    .chapter-banner {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 90%;
-      background: rgba(15, 23, 42, 0.96);
-      border: 2px solid var(--gold-border);
-      border-radius: 10px;
-      padding: 18px 14px;
-      text-align: center;
-      display: none;
-      z-index: 50;
-    }
-    .chapter-banner h3 { color: #facc15; font-size: 1.1rem; margin-bottom: 6px; text-transform: uppercase; }
-    .chapter-banner p { font-size: 0.82rem; color: #cbd5e1; margin-bottom: 14px; }
-    .chapter-banner button { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; font-weight: 800; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.94);
-      z-index: 100;
-      justify-content: center;
-      align-items: center;
-      padding: 16px;
-    }
-    .modal-content { background: #111827; border: 2px solid var(--gold-border); border-radius: 12px; max-width: 500px; width: 100%; padding: 24px; text-align: center; }
-    .modal-content h2 { font-size: 1.35rem; color: #facc15; margin-bottom: 10px; }
-    .modal-content p { color: #cbd5e1; font-size: 0.88rem; line-height: 1.5; margin-bottom: 16px; }
-    .modal-features { background: rgba(15, 23, 42, 0.85); border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 18px; text-align: left; font-size: 0.82rem; color: #cbd5e1; }
-    .modal-actions { display: flex; flex-direction: column; gap: 10px; }
-    .payhip-btn { display: block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #000; font-weight: 800; padding: 12px; border-radius: 6px; text-decoration: none; text-transform: uppercase; }
-    .replay-btn { background: #2563eb; color: #fff; border: 1px solid #60a5fa; padding: 11px; border-radius: 6px; font-weight: 800; cursor: pointer; }
-    .defeat-btn { background: #dc2626; color: #fff; border: 1px solid #f87171; padding: 11px; border-radius: 6px; font-weight: 800; cursor: pointer; }
-
-    @media (max-width: 600px) {
-      .card-img { height: 85px; }
-      .battle-row { grid-template-columns: repeat(2, 1fr); }
-      .controls-grid { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-
-  <header>
-    <div class="portal-title">Vanguard Universe: Unified Combat Portal</div>
-    <div class="tab-bar">
-      <button class="tab-btn" onclick="openTab('codex', this)">🎴 Card Codex</button>
-      <button class="tab-btn" onclick="openTab('clash', this)">⚔️ Card Clash</button>
-      <button class="tab-btn active" onclick="openTab('brawler', this)">🕹 Side Brawler</button>
-    </div>
-  </header>
-
-  <!-- TAB 1: CARD CODEX -->
-  <section id="tab-codex" class="portal-section">
-    <div class="codex-grid">
-      <div class="card-flipper-container" onclick="toggleCardFlip(this)">
-        <div class="card-flipper-inner">
-          <div class="card-face card-face-front card-foil foil-cosmic">
-            <img src="mother-luta.png" class="card-img" alt="Mother Luetta">
-            <div class="card-name">Mother Luetta</div>
-            <div class="card-title">Root Ancestor • Living Codex</div>
-            <div class="stat-row"><span class="stat-badge">PWR: 99</span><span class="stat-badge">DEF: 99</span><span class="stat-badge">WILL: 100</span></div>
-            <span class="worth-badge worth-cosmic">Cosmic Singularity • 1/100 Prismatic</span>
-          </div>
-          <div class="card-face card-face-back">
-            <div class="back-brand-title">RHODES FAMILY LEGACY</div>
-            <div class="back-motto">The Living Codex</div>
-            <div class="card-emblem-wrap">
-              <img src="packed-marrow-tree.png" alt="Packed in the Marrow Tree" class="card-tree-emblem">
-            </div>
-            <div class="back-footer-marrow">• PACKED IN THE MARROW •</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card-flipper-container" onclick="toggleCardFlip(this)">
-        <div class="card-flipper-inner">
-          <div class="card-face card-face-front card-foil foil-gold">
-            <img src="marcus.png" class="card-img" alt="Marcus Prime">
-            <div class="card-name">Marcus Prime</div>
-            <div class="card-title">Detroit Diaspora • Urban Dynamo</div>
-            <div class="stat-row"><span class="stat-badge">PWR: 91</span><span class="stat-badge">DEF: 88</span><span class="stat-badge">WILL: 90</span></div>
-            <span class="worth-badge worth-gold">Gold Relic Foil • 1st Edition</span>
-          </div>
-          <div class="card-face card-face-back">
-            <div class="back-brand-title">RHODES FAMILY LEGACY</div>
-            <div class="back-motto">The Living Codex</div>
-            <div class="card-emblem-wrap">
-              <img src="packed-marrow-tree.png" alt="Packed in the Marrow Tree" class="card-tree-emblem">
-            </div>
-            <div class="back-footer-marrow">• PACKED IN THE MARROW •</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card-flipper-container" onclick="toggleCardFlip(this)">
-        <div class="card-flipper-inner">
-          <div class="card-face card-face-front card-foil foil-platinum">
-            <img src="amina-zazzau.png" class="card-img" alt="Amina Zazzau">
-            <div class="card-name">Amina Zazzau</div>
-            <div class="card-title">Spear of the Realm • High Ground</div>
-            <div class="stat-row"><span class="stat-badge">PWR: 88</span><span class="stat-badge">DEF: 74</span><span class="stat-badge">WILL: 85</span></div>
-            <span class="worth-badge worth-plat">Platinum Starlight • Ultra Rare</span>
-          </div>
-          <div class="card-face card-face-back">
-            <div class="back-brand-title">RHODES FAMILY LEGACY</div>
-            <div class="back-motto">The Living Codex</div>
-            <div class="card-emblem-wrap">
-              <img src="packed-marrow-tree.png" alt="Packed in the Marrow Tree" class="card-tree-emblem">
-            </div>
-            <div class="back-footer-marrow">• PACKED IN THE MARROW •</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card-flipper-container" onclick="toggleCardFlip(this)">
-        <div class="card-flipper-inner">
-          <div class="card-face card-face-front card-foil foil-gold">
-            <img src="guacan-sheet.png" class="card-img" alt="Wacan">
-            <div class="card-name">Wacan (Guacan)</div>
-            <div class="card-title">Tidal Guardian • Guamo Horn</div>
-            <div class="stat-row"><span class="stat-badge">PWR: 90</span><span class="stat-badge">DEF: 91</span><span class="stat-badge">WILL: 88</span></div>
-            <span class="worth-badge worth-gold">Gold Relic Foil • Tidal Anchor</span>
-          </div>
-          <div class="card-face card-face-back">
-            <div class="back-brand-title">RHODES FAMILY LEGACY</div>
-            <div class="back-motto">The Living Codex</div>
-            <div class="card-emblem-wrap">
-              <img src="packed-marrow-tree.png" alt="Packed in the Marrow Tree" class="card-tree-emblem">
-            </div>
-            <div class="back-footer-marrow">• PACKED IN THE MARROW •</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- TAB 2: CARD CLASH -->
-  <section id="tab-clash" class="portal-section">
-    <div class="clash-board">
-      <div class="clash-status-box" id="clash-status">
-        Select a Syndicate enemy target card, then press an action button below.
-        <span class="round-indicator" id="round-display">Round 1</span>
-      </div>
-
-      <div class="battle-row">
-        <div class="card-foil foil-syndicate battle-card" id="enemy-0" onclick="selectTarget(0)">
-          <img src="chrono-lock.png" class="card-img" alt="Chrono-Lock">
-          <div class="card-name">Chrono-Lock</div>
-          <div class="hp-bar-container"><div class="hp-bar" id="enemy-hp-0"></div></div>
-        </div>
-        <div class="card-foil foil-syndicate battle-card" id="enemy-1" onclick="selectTarget(1)">
-          <img src="ironclad.png" class="card-img" alt="Ironclad">
-          <div class="card-name">Ironclad Brute</div>
-          <div class="hp-bar-container"><div class="hp-bar" id="enemy-hp-1"></div></div>
-        </div>
-        <div class="card-foil foil-syndicate battle-card" id="enemy-2" onclick="selectTarget(2)">
-          <img src="dread-harmonic.png" class="card-img" alt="Dread-Harmonic">
-          <div class="card-name">Dread-Harmonic</div>
-          <div class="hp-bar-container"><div class="hp-bar" id="enemy-hp-2"></div></div>
-        </div>
-        <div class="card-foil foil-syndicate battle-card" id="enemy-3" onclick="selectTarget(3)">
-          <img src="apex-volt.png" class="card-img" alt="Apex Volt">
-          <div class="card-name">Apex Volt</div>
-          <div class="hp-bar-container"><div class="hp-bar" id="enemy-hp-3"></div></div>
-        </div>
-      </div>
-
-      <div class="battle-row">
-        <div class="card-foil foil-platinum battle-card" id="vanguard-0">
-          <img src="amina-zazzau.png" class="card-img" alt="Amina Zazzau">
-          <div class="card-name">Amina Zazzau</div>
-          <div class="hp-bar-container"><div class="hp-bar" id="vanguard-hp-0"></div></div>
-          <div class="card-actions">
-            <button class="action-btn primary-atk" onclick="executeHeroAction(0, 'strike')">Spear Thrust</button>
-            <button class="action-btn special-atk" onclick="executeHeroAction(0, 'special')">Electric Spear</button>
-          </div>
-        </div>
-        <div class="card-foil foil-gold battle-card" id="vanguard-1">
-          <img src="marcus.png" class="card-img" alt="Marcus Prime">
-          <div class="card-name">Marcus Prime</div>
-          <div class="hp-bar-container"><div class="hp-bar" id="vanguard-hp-1"></div></div>
-          <div class="card-actions">
-            <button class="action-btn primary-atk" onclick="executeHeroAction(1, 'strike')">Volt Strike</button>
-            <button class="action-btn special-atk" onclick="executeHeroAction(1, 'special')">Volt Beam</button>
-          </div>
-        </div>
-        <div class="card-foil foil-gold battle-card" id="vanguard-2">
-          <img src="guacan-sheet.png" class="card-img" alt="Wacan">
-          <div class="card-name">Wacan</div>
-          <div class="hp-bar-container"><div class="hp-bar" id="vanguard-hp-2"></div></div>
-          <div class="card-actions">
-            <button class="action-btn primary-atk" onclick="executeHeroAction(2, 'strike')">Guamo Horn</button>
-            <button class="action-btn special-atk" onclick="executeHeroAction(2, 'special')">Tsunami Wave</button>
-          </div>
-        </div>
-        <div class="card-foil foil-gold battle-card" id="vanguard-3">
-          <img src="sundiata-prime.png" class="card-img" alt="Sundiata Prime">
-          <div class="card-name">Sundiata Prime</div>
-          <div class="hp-bar-container"><div class="hp-bar" id="vanguard-hp-3"></div></div>
-          <div class="card-actions">
-            <button class="action-btn primary-atk" onclick="executeHeroAction(3, 'strike')">Dundun Shock</button>
-            <button class="action-btn special-atk" onclick="executeHeroAction(3, 'special')">Solar Lion Roar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- TAB 3: SIDE BRAWLER -->
-  <section id="tab-brawler" class="portal-section active">
-    <div class="brawler-wrapper">
-      <div class="hud-header">
-        <div class="hud-top-row">
-          <span id="heroNameLabel" class="hero-title">Marcus Prime (Lead) & Amina Zazzau (Tactical AI)</span>
-          <span id="waveDisplay" class="wave-badge">Wave 1: Scout Vanguard</span>
-        </div>
-        <div class="bars-container">
-          <div class="bar-group">
-            <div class="bar-label"><span>Team Health</span><span id="heroHpText">100/100</span></div>
-            <div class="bar-track"><div id="heroHpBar" class="bar-fill-hero"></div></div>
-          </div>
-          <div class="bar-group">
-            <div class="bar-label"><span id="enemyTypeLabel">Syndicate Swarm</span><span id="enemyHpText">14 Units Remaining</span></div>
-            <div class="bar-track"><div id="enemyHpBar" class="bar-fill-enemy"></div></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="canvas-container" id="canvasContainer">
-        <canvas id="gameCanvas" width="540" height="290"></canvas>
-        <div class="chapter-banner" id="chapterBanner">
-          <h3 id="bannerTitle">CHAPTER 1 COMPLETED</h3>
-          <p id="bannerDesc">Detroit 313 Grid Secured!</p>
-          <button id="bannerBtn" onclick="dismissChapterBanner()">ENTER NEXT STAGE</button>
-        </div>
-      </div>
-
-      <div class="combat-log" id="combatLog">Tactical Co-Op active! Your partner maneuvers and fights autonomously.</div>
-
-      <div class="controls-grid">
-        <div class="dpad-cluster">
-          <button class="btn" onclick="playerMove(-25)">◄ LEFT</button>
-          <button class="btn" onclick="playerJump()">▲ JUMP</button>
-          <button class="btn" onclick="playerMove(25)">RIGHT ►</button>
-        </div>
-        <div class="action-cluster">
-          <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">⚡ Volt Beam</button>
-          <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">🔵 Plasma Orb</button>
-          <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Deflect</button>
-          <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: AMINA</button>
-          <button id="btnLuetta" class="btn btn-ultimate" onclick="executeLuettaAid()">★ SUMMON MOTHER LUETTA ★</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- VICTORY MODAL -->
-  <div class="modal-overlay" id="trial-modal">
-    <div class="modal-content">
-      <div style="font-size: 32px; margin-bottom: 6px;">🦁</div>
-      <h2 id="modalTitle">MARROW RESONANCE RESTORED!</h2>
-      <p id="modalBody">Vanguard forces secured the timeline!</p>
-      <div class="modal-actions">
-        <button class="replay-btn" onclick="resetCampaignToStage1()">🔄 PLAY AGAIN</button>
-        <a href="https://payhip.com" target="_blank" rel="noopener noreferrer" class="payhip-btn">GET NOVELS ON PAYHIP</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- DEFEAT MODAL -->
-  <div class="modal-overlay" id="defeat-modal">
-    <div class="modal-content">
-      <div style="font-size: 32px; margin-bottom: 6px;">⚠️</div>
-      <h2 style="color: #ef4444;">RESONANCE SEVERED!</h2>
-      <div class="modal-actions">
-        <button class="defeat-btn" onclick="retryCurrentWave()">⚔️ RETRY CHECKPOINT</button>
-        <button class="replay-btn" onclick="resetCampaignToStage1()">🔄 RESTART</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const SAVE_KEY = 'vanguard_universe_save_v1';
-    let playerProgress = { highestStageUnlocked: 1, currentStage: 1, unlockedOperatives: ["marcus", "amina", "wacan", "sundiata"] };
-
-    function loadSavedProgress() {
-      const saved = localStorage.getItem(SAVE_KEY);
-      if (saved) {
-        try { playerProgress = Object.assign(playerProgress, JSON.parse(saved)); } catch (e) {}
-      }
-    }
-    loadSavedProgress();
-
-    let brawlerInitialized = false;
-    function resizeBrawlerCanvas() {
-      if (!canvas) return;
-      canvas.width = 540;
-      canvas.height = 290;
-    }
-
-    function openTab(tabName, btn) {
-      document.querySelectorAll('.portal-section').forEach(sec => sec.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('tab-' + tabName).classList.add('active');
-      btn.classList.add('active');
-
-      if (tabName === 'brawler') {
-        if (!brawlerInitialized) {
-          initBrawler();
-        } else {
-          resizeBrawlerCanvas();
-          if (!animationFrameId) animationFrameId = requestAnimationFrame(renderBrawler);
-        }
-      }
-    }
-
-    function toggleCardFlip(container) {
-      const inner = container.querySelector('.card-flipper-inner');
-      if (inner) { inner.classList.toggle('is-flipped'); playSound('shield'); }
-    }
-
-    /* CARD CLASH (TABLE BATTLE WITH RETALIATION TECH-BACK) */
-    let currentRound = 1, selectedTargetIndex = null;
-    const clashEnemies = [
-      { name: "Chrono-Lock", pwr: 92, def: 86, maxHp: 100, hp: 100 },
-      { name: "Ironclad Brute", pwr: 85, def: 92, maxHp: 100, hp: 100 },
-      { name: "Dread-Harmonic", pwr: 95, def: 78, maxHp: 100, hp: 100 },
-      { name: "Apex Volt", pwr: 92, def: 80, maxHp: 110, hp: 110 }
-    ];
-    const clashHeroes = [
-      { name: "Amina Zazzau", pwr: 88, def: 74, maxHp: 100, hp: 100 },
-      { name: "Marcus Prime", pwr: 91, def: 88, maxHp: 100, hp: 100 },
-      { name: "Wacan", pwr: 90, def: 91, maxHp: 100, hp: 100 },
-      { name: "Sundiata Prime", pwr: 94, def: 96, maxHp: 110, hp: 110 }
-    ];
-
-    function selectTarget(index) {
-      if (clashEnemies[index].hp <= 0) return;
-      selectedTargetIndex = index;
-      document.querySelectorAll('.battle-row .foil-syndicate').forEach(c => c.classList.remove('targeted'));
-      document.getElementById('enemy-' + index).classList.add('targeted');
-      document.getElementById('clash-status').innerText = `Target locked: ${clashEnemies[index].name}. Press hero action!`;
-    }
-
-    function executeAiCounterAttack() {
-      const liveEnemies = clashEnemies.filter(e => e.hp > 0);
-      if (liveEnemies.length === 0) return;
-      const attacker = liveEnemies[Math.floor(Math.random() * liveEnemies.length)];
-      const aliveHeroIndices = clashHeroes.map((h, i) => h.hp > 0 ? i : -1).filter(i => i !== -1);
-      if (aliveHeroIndices.length === 0) return;
-
-      const heroTargetIdx = aliveHeroIndices[Math.floor(Math.random() * aliveHeroIndices.length)];
-      const heroTarget = clashHeroes[heroTargetIdx];
-
-      const enemyDmg = Math.max(Math.round(attacker.pwr - (heroTarget.def / 2)), 6);
-      heroTarget.hp = Math.max(0, heroTarget.hp - enemyDmg);
-      document.getElementById('vanguard-hp-' + heroTargetIdx).style.width = (heroTarget.hp / heroTarget.maxHp * 100) + '%';
-
-      currentRound++;
-      document.getElementById('round-display').innerText = `Round ${currentRound}`;
-      document.getElementById('clash-status').innerText = `⚠️ ${attacker.name} teched back and struck ${heroTarget.name} for ${enemyDmg} damage!`;
-    }
-
-    function executeHeroAction(heroIndex, actionType) {
-      if (selectedTargetIndex === null) {
-        document.getElementById('clash-status').innerText = "⚠️ Select an enemy card target first!";
-        return;
-      }
-      const hero = clashHeroes[heroIndex];
-      const target = clashEnemies[selectedTargetIndex];
-      let dmg = Math.max(Math.round(hero.pwr - (target.def / 2)), 8);
-      if (actionType === 'special') dmg = Math.round(dmg * 1.35);
-      
-      target.hp = Math.max(0, target.hp - dmg);
-      document.getElementById('enemy-hp-' + selectedTargetIndex).style.width = (target.hp / target.maxHp * 100) + '%';
-      document.getElementById('clash-status').innerText = `${hero.name} hit ${target.name} for ${dmg} damage!`;
-
-      if (clashEnemies.every(e => e.hp <= 0)) {
-        setTimeout(() => {
-          document.getElementById('clash-status').innerText = "🏆 Victory! Syndicate battle line cleared!";
-        }, 800);
-        return;
-      }
-
-      setTimeout(executeAiCounterAttack, 700);
-    }
-
-    /* AUDIO */
-    let audioCtx = null;
-    function initAudio() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-    }
-    function playSound(type) {
-      initAudio();
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      const now = audioCtx.currentTime;
-      osc.type = type === 'zap' ? 'sawtooth' : 'sine';
-      osc.frequency.setValueAtTime(type === 'zap' ? 800 : 440, now);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
-      osc.start(now);
-      osc.stop(now + 0.18);
-    }
-
-    /* BRAWLER ENGINE */
-    let canvas, ctx;
-    let animationFrameId = null;
-    const ASSETS = {
-      marcus: new Image(), xochitl: new Image(), sundiata: new Image(), kofi: new Image(),
-      amina: new Image(), wacan: new Image(),
-      boss: new Image(), ironclad: new Image(), apex: new Image(), luetta: new Image()
-    };
-    ASSETS.marcus.src = "marcus.png";
-    ASSETS.xochitl.src = "xochitl.png";
-    ASSETS.sundiata.src = "sundiata-prime.png";
-    ASSETS.kofi.src = "kofi.png";
-    ASSETS.amina.src = "amina-zazzau.png";
-    ASSETS.wacan.src = "guacan-sheet.png";
-    ASSETS.boss.src = "chrono-lock.png";
-    ASSETS.ironclad.src = "ironclad.png";
-    ASSETS.apex.src = "apex-volt.png";
-    ASSETS.luetta.src = "mother-luta.png";
-
-    let activeZone = "detroit", unlockedRoster = playerProgress.unlockedOperatives, rosterIdx = 0, activeLead = "marcus";
-    let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true, leadLean = 0;
-    let playerHp = 100, isShieldActive = false, bgScrollOffset = 0, groundScrollOffset = 0;
-    let currentWave = 1, mobsRemaining = 14, mobsTotal = 14, enemies = [], gameActive = true;
-    let boss = { x: 380, y: 0, hp: 24, maxHp: 24, active: false, type: "chrono", hitFlash: 0 };
-    let screenShake = 0, electricSpears = [], tsunamis = [], plasmaOrbs = [];
-
-    function initBrawler() {
-      brawlerInitialized = true;
-      canvas = document.getElementById("gameCanvas");
-      ctx = canvas.getContext("2d");
-      resizeBrawlerCanvas();
-      startWave(1);
-      if (!animationFrameId) animationFrameId = requestAnimationFrame(renderBrawler);
-    }
-
-    function startWave(num) {
-      currentWave = num;
-      enemies = [];
-      boss.active = false;
-      if (num === 1) { mobsRemaining = 14; mobsTotal = 14; setupProgressiveWave(14); }
-      else if (num === 3) { startBossFight("chrono"); }
-      updateHUD();
-    }
-
-    function setupProgressiveWave(count) {
-      enemies = [];
-      for (let i = 0; i < count; i++) {
-        enemies.push({ type: "drone", x: 520 + (i * 75), y: 205, hp: 2, speed: 1.35, active: true });
-      }
-    }
-
-    function startBossFight(type) {
-      boss.active = true;
-      boss.type = type;
-      boss.x = 380;
-      boss.y = 0;
-      boss.hp = 24;
-      boss.maxHp = 24;
-      enemies = [];
-      mobsRemaining = 0;
-      updateHUD();
-    }
-
-    function onBossDefeated() {
-      boss.active = false;
-      playSound('hit');
-      screenShake = 20;
-      document.getElementById("bannerTitle").innerText = "STAGE COMPLETED";
-      document.getElementById("chapterBanner").style.display = "block";
-    }
-
-    function dismissChapterBanner() {
-      document.getElementById("chapterBanner").style.display = "none";
-      startWave(2);
-    }
-
-    function handlePlayerDefeat() {
-      gameActive = false;
-      playSound('hit');
-      document.getElementById("defeat-modal").style.display = "flex";
-    }
-
-    function retryCurrentWave() {
-      document.getElementById("defeat-modal").style.display = "none";
-      playerHp = 100;
-      gameActive = true;
-      startWave(currentWave);
-    }
-
-    function resetCampaignToStage1() {
-      document.getElementById("trial-modal").style.display = "none";
-      document.getElementById("defeat-modal").style.display = "none";
-      gameActive = true;
-      playerHp = 100;
-      activeLead = "marcus";
-      rosterIdx = 0;
-      updateControlsUI();
-      startWave(1);
-    }
-
-    function playerMove(dx) {
-      if (!gameActive) return;
-      initAudio();
-      leadX = Math.max(65, Math.min(330, leadX + dx));
-      bgScrollOffset -= (dx * 0.15);
-      groundScrollOffset -= (dx * 0.6);
-      leadLean = dx > 0 ? 0.08 : -0.08;
-    }
-
-    function playerJump() {
-      if (!gameActive || !isGrounded) return;
-      initAudio();
-      leadVy = -13;
-      isGrounded = false;
-    }
-
     function executeTagSwap() {
       if (!gameActive) return;
-      rosterIdx = (ro
+      rosterIdx = (rosterIdx + 1) % unlockedRoster.length;
+      activeLead = unlockedRoster[rosterIdx];
+      
+      let nameMap = { marcus: "Marcus Prime", amina: "Amina Zazzau", wacan: "Wacan", sundiata: "Sundiata Prime" };
+      let nextLead = (rosterIdx + 1) % unlockedRoster.length;
+      document.getElementById("heroNameLabel").innerText = `${nameMap[activeLead]} (Lead) & ${nameMap[unlockedRoster[nextLead]]} (Tactical AI)`;
+      document.getElementById("btnTag").innerText = `TAG: ${nameMap[unlockedRoster[nextLead]].split(' ')[0].toUpperCase()}`;
+      playSound('shield');
+    }
+
+    function executeStrike() {
+      if (!gameActive) return;
+      playSound('zap');
+      screenShake = 6;
+      electricSpears.push({ x: leadX + 30, y: 195, vx: 12 });
+      document.getElementById("combatLog").innerText = `${activeLead.toUpperCase()} unleashes signature strike!`;
+    }
+
+    function executePlasmaOrb() {
+      if (!gameActive) return;
+      playSound('zap');
+      plasmaOrbs.push({ x: leadX + 30, y: 190, vx: 7 });
+      document.getElementById("combatLog").innerText = `Tactical Co-Op deployed tracking energy projectile!`;
+    }
+
+    function executeBurst() {
+      if (!gameActive) return;
+      isShieldActive = true;
+      playSound('shield');
+      setTimeout(() => { isShieldActive = false; }, 900);
+      document.getElementById("combatLog").innerText = `Deflective shield activated! Incoming threat negated.`;
+    }
+
+    function executeLuettaAid() {
+      if (!gameActive) return;
+      playSound('zap');
+      screenShake = 14;
+      playerHp = Math.min(100, playerHp + 35);
+      enemies.forEach(e => { e.hp -= 3; });
+      document.getElementById("combatLog").innerText = `★ Mother Luetta invoked! Living Codex pulse restores resonance! ★`;
+    }
+
+    function updateBrawlerPhysics() {
+      if (!gameActive) return;
+
+      // Gravity and jump mechanics
+      leadVy += 0.65;
+      leadY += leadVy;
+      if (leadY >= 0) {
+        leadY = 0;
+        leadVy = 0;
+        isGrounded = true;
+      }
+      leadLean *= 0.9;
+
+      // Screen Shake damping
+      if (screenShake > 0) screenShake--;
+
+      // Projectiles update
+      electricSpears.forEach(s => { s.x += s.vx; });
+      electricSpears = electricSpears.filter(s => s.x < 500);
+
+      plasmaOrbs.forEach(p => { p.x += p.vx; });
+      plasmaOrbs = plasmaOrbs.filter(p => p.x < 500);
+
+      // Enemy logic
+      if (boss.active) {
+        boss.y = Math.sin(Date.now() / 300) * 15;
+        // Check projectile hits on boss
+        electricSpears.forEach((s, sIdx) => {
+          if (s.x >= boss.x && s.x <= boss.x + 40) {
+            boss.hp--;
+            electricSpears.splice(sIdx, 1);
+            if (boss.hp <= 0) onBossDefeated();
+          }
+        });
+      } else {
+        enemies.forEach(e => {
+          e.x -= e.speed;
+          // Check hits from player projectiles
+          electricSpears.forEach((s, sIdx) => {
+            if (Math.abs(s.x - e.x) < 20) {
+              e.hp -= 2;
+              electricSpears.splice(sIdx, 1);
+            }
+          });
+        });
+
+        // Filter defeated enemies and spawn boss if wave 3
+        let activeEnemies = enemies.filter(e => e.hp > 0);
+        mobsRemaining = activeEnemies.length;
+        if (mobsRemaining === 0 && currentWave === 1) {
+          startBossFight("chrono");
+        }
+      }
+
+      // Update HUD elements
+      document.getElementById("heroHpBar").style.width = playerHp + '%';
+      document.getElementById("heroHpText").innerText = `${playerHp}/100`;
+
+      if (boss.active) {
+        document.getElementById("enemyTypeLabel").innerText = "Chrono-Lock Boss";
+        document.getElementById("enemyHpText").innerText = `${boss.hp}/${boss.maxHp} HP`;
+        document.getElementById("enemyHpBar").style.width = (boss.hp / boss.maxHp * 100) + '%';
+      } else {
+        document.getElementById("enemyTypeLabel").innerText = "Syndicate Swarm";
+        document.getElementById("enemyHpText").innerText = `${mobsRemaining} Units Remaining`;
+        document.getElementById("enemyHpBar").style.width = (mobsRemaining / mobsTotal * 100) + '%';
+      }
+    }
+
+    function renderBrawler() {
+      if (!ctx) return;
+      ctx.save();
+      if (screenShake > 0) {
+        let sx = (Math.random() - 0.5) * screenShake;
+        let sy = (Math.random() - 0.5) * screenShake;
+        ctx.translate(sx, sy);
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw background sky gradient & Detroit skyline silhouette
+      let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, '#04060b');
+      grad.addColorStop(1, '#111827');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw ground line
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 235);
+      ctx.lineTo(canvas.width, 235);
+      ctx.stroke();
+
+      // Draw active Lead character
+      ctx.save();
+      ctx.translate(leadX, 235 + leadY);
+      ctx.rotate(leadLean);
+      let activeImg = ASSETS[activeLead] || ASSETS.marcus;
+      if (activeImg.complete && activeImg.naturalWidth !== 0) {
+        ctx.drawImage(activeImg, -20, -55, 42, 55);
+      } else {
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(-15, -45, 30, 45);
+      }
+      if (isShieldActive) {
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, -25, 32, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Draw projectiles
+      ctx.fillStyle = '#38bdf8';
+      electricSpears.forEach(s => {
+        ctx.fillRect(s.x, 200, 14, 5);
+      });
+      plasmaOrbs.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, 195, 7, 0, Math.PI * 2);
+        ctx.fillStyle = '#60a5fa';
+        ctx.fill();
+      });
+
+      // Draw Enemies or Boss
+      if (boss.active) {
+        let bossImg = ASSETS.boss;
+        if (bossImg.complete && bossImg.naturalWidth !== 0) {
+          ctx.drawImage(bossImg, boss.x, 175 + boss.y, 50, 60);
+        } else {
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(boss.x, 175 + boss.y, 40, 60);
+        }
+      } else {
+        enemies.forEach(e => {
+          if (e.hp > 0) {
+            let droneImg = ASSETS.ironclad;
+            if (droneImg.complete && droneImg.naturalWidth !== 0) {
+              ctx.drawImage(droneImg, e.x, 190, 32, 45);
+            } else {
+              ctx.fillStyle = '#ef4444';
+              ctx.fillRect(e.x, 190, 25, 45);
+            }
+          }
+        });
+      }
+
+      ctx.restore();
+
+      updateBrawlerPhysics();
+      animationFrameId = requestAnimationFrame(renderBrawler);
+    }
+  </script>
+</body>
+</html>
