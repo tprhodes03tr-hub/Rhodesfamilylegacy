@@ -446,7 +446,7 @@
   </div>
 
   <script>
-    const SAVE_KEY = 'vanguard_universe_brawler_v1';
+    const SAVE_KEY = 'vanguard_universe_brawler_v3';
     let playerProgress = {
       highestStageUnlocked: 1,
       currentStage: 1,
@@ -608,11 +608,11 @@
     let currentWave = 1, mobsRemaining = 14, mobsTotal = 14;
     let pendingSpawns = 0, spawnIntervalTimer = null;
     let enemies = [];
-    let boss = { x: 380, y: 0, vy: 0, hp: 24, maxHp: 24, active: false, type: "chrono", hitFlash: 0, phase: 1 };
-    let screenShake = 0, gameActive = true, bossActionTimer = null;
+    let boss = { x: 380, y: 0, vy: 0, hp: 24, maxHp: 24, active: false, type: "chrono", hitFlash: 0, phase: 1, attackCooldown: 0, warpTimer: 0 };
+    let screenShake = 0, gameActive = true;
 
     let lightningBolts = [], daggers = [], particles = [], enemyBullets = [], plasmaOrbs = [];
-    let celestialParticles = [], sahelDust = [];
+    let celestialParticles = [];
     let luettaState = { active: false, timer: 0 };
 
     let chopper = { x: -140, y: 38, speed: 1.3, rotorAngle: 0, spotSweep: 0 };
@@ -643,9 +643,6 @@
             enemyBullets.push({ x: e.x, y: e.y + 10, vx: -4.5 });
           }
         });
-        if (boss.active && boss.x > leadX + 40) {
-          enemyBullets.push({ x: boss.x, y: 195, vx: -5.5 });
-        }
       }, 1500);
     }
 
@@ -729,14 +726,13 @@
       boss.type = bossType;
       boss.x = 380; boss.y = 0; boss.vy = 0;
       boss.hp = bossType === "chrono" ? 24 : (bossType === "dreadnought" ? 34 : 36);
-      boss.maxHp = boss.hp; boss.hitFlash = 0; boss.phase = 1;
+      boss.maxHp = boss.hp; boss.hitFlash = 0; boss.phase = 1; boss.attackCooldown = 0; boss.warpTimer = 0;
       enemies = []; mobsRemaining = 0; pendingSpawns = 0;
       updateHUD();
     }
 
     function onBossDefeated() {
       boss.active = false;
-      if (bossActionTimer) clearInterval(bossActionTimer);
       playSound('hit'); screenShake = 26;
 
       if (boss.type === "chrono") {
@@ -797,7 +793,6 @@
 
     function handlePlayerDefeat() {
       gameActive = false;
-      if (bossActionTimer) clearInterval(bossActionTimer);
       if (spawnIntervalTimer) clearInterval(spawnIntervalTimer);
       document.getElementById("defeat-modal").style.display = "flex";
     }
@@ -864,7 +859,7 @@
         document.getElementById("btnBurst").innerText = "🛡️ Wing Shield";
       } else if (activeLead === "sundiata") {
         document.getElementById("btnStrike").innerText = "🔨 Drum Tremor";
-        document.getElementById("btnOrb").innerText = "🦁 Bronze Pulse";
+        document.getElementById("btnOrb").innerText = "🔵 Plasma Blast";
         document.getElementById("btnBurst").innerText = "🦁 Solar Lion Roar";
       } else if (activeLead === "kofi") {
         document.getElementById("btnStrike").innerText = "⚒️ Anvil Sledge";
@@ -916,8 +911,6 @@
       } else if (activeLead === "wakan") {
         playSound('orb');
         tsunamis.push({ x: leadX + 35, y: 195 - leadY, vx: 7.0, width: 120, height: 90, life: 75, hurricane: false });
-      } else if (activeLead === "xochitl") {
-        playSound('hit');
       }
 
       if (boss.active && Math.abs(boss.x - leadX) < 280 && activeLead !== "amina") {
@@ -932,16 +925,13 @@
     function executePlasmaOrb() {
       if (!gameActive) return;
       initAudio();
-      if (activeLead === "marcus") {
+      if (activeLead === "marcus" || activeLead === "sundiata" || activeLead === "kofi") {
         playSound('orb');
-        plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 7.5, vy: 0, radius: 12, life: 80, color: "#38bdf8" });
+        plasmaOrbs.push({ x: leadX + 40, y: 200 - leadY, vx: 7.5, vy: 0, radius: activeLead === "sundiata" ? 16 : 12, life: 80, color: activeLead === "sundiata" ? "#f59e0b" : "#38bdf8", isLionPulse: activeLead === "sundiata" });
       } else if (activeLead === "xochitl" && !xochitlFlight.active) {
         playSound('celestial');
         xochitlFlight.active = true; xochitlFlight.state = 'ASCENT';
         xochitlFlight.x = leadX; xochitlFlight.y = 175 - leadY; xochitlFlight.timer = 0;
-      } else if (activeLead === "sundiata") {
-        playSound('drum');
-        plasmaOrbs.push({ x: leadX + 45, y: 200 - leadY, vx: 6.8, vy: 0, radius: 18, life: 95, color: "#f59e0b", isLionPulse: true });
       } else if (activeLead === "amina") {
         playSound('zap');
         laserSpears.push({ x: leadX + 40, y: 200 - leadY, vx: 12.0, vy: 0, life: 90, isBoomerangSpear: true, returning: false });
@@ -980,7 +970,6 @@
           if (boss.hp <= 0) onBossDefeated();
         }
         absorbedCharge = 0;
-        logBrawler("Marcus discharged stored kinetic force field energy directly at enemies!");
       } else {
         isShieldActive = true;
         setTimeout(() => isShieldActive = false, 3500);
@@ -995,7 +984,6 @@
       screenShake = 18;
       playerHp = 100;
       updateHUD();
-      logBrawler("✨ Mother Luetta descends in golden celestial light: full heal and field wipe! ✨");
 
       enemies.forEach(e => {
         if (e.active) onEnemyDestroyed(e);
@@ -1153,7 +1141,6 @@
       ctx.globalCompositeOperation = 'lighter';
       const time = Date.now() / 70;
 
-      // Clean ocean wave gradient without top glare
       const waveGrad = ctx.createLinearGradient(ts.x, ts.y - ts.height, ts.x, ts.y + ts.height);
       waveGrad.addColorStop(0, "rgba(14, 165, 233, 0.85)");
       waveGrad.addColorStop(0.5, "rgba(2, 132, 199, 0.80)");
@@ -1173,7 +1160,6 @@
       ctx.closePath();
       ctx.fill();
 
-      // Hurricane swirling vortex rings around the wave
       if (ts.hurricane) {
         ctx.strokeStyle = "rgba(186, 230, 253, 0.7)";
         ctx.lineWidth = 2.5;
@@ -1269,7 +1255,6 @@
         if (activeLead === "kofi") drawKofiAnvilHammer(ctx, leadX, drawLeadY);
       }
 
-      // Render Marcus force field aura tightly around his body when charge is stored
       if (activeLead === "marcus" && absorbedCharge > 0) {
         ctx.save();
         ctx.strokeStyle = "rgba(56, 189, 248, 0.9)";
@@ -1278,6 +1263,18 @@
         ctx.shadowBlur = 12;
         ctx.beginPath();
         ctx.arc(leadX + 32, drawLeadY + 40, 28 + Math.min(6, absorbedCharge * 0.2), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (isShieldActive) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.85)";
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = "#ef4444";
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(leadX + 32, drawLeadY + 40, 35, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
@@ -1316,7 +1313,6 @@
 
         ctx.save();
         ctx.translate(xochitlFlight.x + 30, xochitlFlight.y + 37);
-        // Render fiery wings behind Xochitl during flight
         ctx.fillStyle = "#f97316";
         ctx.shadowColor = "#ea580c";
         ctx.shadowBlur = 22;
@@ -1353,7 +1349,7 @@
           playSound('hit');
           if (!isShieldActive) {
             playerHp = Math.max(0, playerHp - 6);
-            absorbedCharge += 6; // Marcus builds up force field counter-energy when taking damage!
+            absorbedCharge += 6;
             updateHUD();
             if (playerHp <= 0) handlePlayerDefeat();
           }
@@ -1363,6 +1359,26 @@
       });
 
       if (boss.active) {
+        boss.attackCooldown++;
+        boss.warpTimer++;
+
+        // Chrono-Lock Temporal Shifting behavior: teleports in front/behind and shoots time-pulses
+        if (boss.warpTimer >= 140) {
+          boss.warpTimer = 0;
+          playSound('warp');
+          screenShake = 10;
+          // Shift position dynamically ahead of or behind player space
+          const shiftSide = Math.random() > 0.5 ? 1 : -1;
+          boss.x = leadX + (shiftSide * (120 + Math.random() * 80));
+          boss.x = Math.max(200, Math.min(460, boss.x));
+        }
+
+        if (boss.attackCooldown >= 80) {
+          boss.attackCooldown = 0;
+          playSound('zap');
+          enemyBullets.push({ x: boss.x, y: 195, vx: boss.x < leadX ? 5.5 : -5.5 });
+        }
+
         let bossImg = boss.type === "chrono" ? ASSETS.boss : ASSETS.ironclad;
         if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
           ctx.drawImage(bossImg, boss.x, 165, 75, 90);
@@ -1370,6 +1386,25 @@
           ctx.fillStyle = "#a855f7";
           ctx.fillRect(boss.x, 165, 75, 90);
         }
+      }
+
+      for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        let eb = enemyBullets[i];
+        eb.x += eb.vx;
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath(); ctx.arc(eb.x, eb.y, 6, 0, Math.PI * 2); ctx.fill();
+
+        if (Math.abs(eb.x - leadX) < 30) {
+          if (!isShieldActive) {
+            playerHp = Math.max(0, playerHp - 8);
+            absorbedCharge += 4;
+            updateHUD();
+            if (playerHp <= 0) handlePlayerDefeat();
+          }
+          enemyBullets.splice(i, 1);
+          continue;
+        }
+        if (eb.x < -20 || eb.x > canvas.width + 20) enemyBullets.splice(i, 1);
       }
 
       for (let r = lionRoars.length - 1; r >= 0; r--) {
@@ -1408,6 +1443,13 @@
           plasmaOrbs.splice(i, 1);
           continue;
         }
+        enemies.forEach(mob => {
+          if (mob.active && Math.abs(mob.x - po.x) < 35) {
+            mob.hp -= 2;
+            if (mob.hp <= 0) onEnemyDestroyed(mob);
+            plasmaOrbs.splice(i, 1);
+          }
+        });
         if (po.x > canvas.width || po.life <= 0) plasmaOrbs.splice(i, 1);
       }
 
@@ -1468,12 +1510,20 @@
         d.x += d.vx; d.y += d.vy;
         ctx.fillStyle = "#f97316";
         ctx.fillRect(d.x, d.y, d.length, d.width);
-        if (boss.active && Math.abs(d.x - (boss.x + 35)) < 35) {
+
+        if (boss.active && Math.abs(d.x - (boss.x + 35)) < 35 && Math.abs(d.y - 195) < 40) {
           boss.hp -= 1; boss.hitFlash = 6; updateHUD();
           if (boss.hp <= 0) onBossDefeated();
           daggers.splice(i, 1);
           continue;
         }
+        enemies.forEach(mob => {
+          if (mob.active && Math.abs(mob.x - d.x) < 25) {
+            mob.hp -= 1;
+            if (mob.hp <= 0) onEnemyDestroyed(mob);
+            daggers.splice(i, 1);
+          }
+        });
         if (d.x > canvas.width || d.y > 260) daggers.splice(i, 1);
       }
 
@@ -1487,7 +1537,6 @@
         if (bolt.life <= 0) lightningBolts.splice(i, 1);
       }
 
-      // Render Mother Luetta golden healing beam effect & board wipe
       if (luettaState.active) {
         luettaState.timer--;
         ctx.save();
