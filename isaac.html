@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Vanguard Universe: Side Brawler Arcade</title>
+  <title>Isaac's Sandbox: Side Brawler & Sports Lounge</title>
   <style>
     :root {
       --bg-dark: #07090e;
@@ -56,18 +56,25 @@
 
     .header-controls {
       display: flex;
-      gap: 8px;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
     .sys-btn {
       background: #1e293b;
       color: #38bdf8;
       border: 1px solid #334155;
-      padding: 4px 10px;
+      padding: 5px 10px;
       font-size: 10px;
       font-weight: 800;
       border-radius: 4px;
       cursor: pointer;
+    }
+    .sys-btn.active-mode {
+      background: #f59e0b;
+      color: #000;
+      border-color: #fbbf24;
     }
 
     .portal-section {
@@ -161,7 +168,7 @@
       box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
     }
 
-    #gameCanvas {
+    #gameCanvas, #sportCanvas {
       display: block;
       width: 100%;
       height: 100%;
@@ -215,6 +222,17 @@
     .btn-tag { grid-column: span 1; background: linear-gradient(180deg, #7c3aed, #5b21b6); border-color: #a78bfa; color: #fff; }
     .btn-ultimate { grid-column: span 3; background: linear-gradient(180deg, #f59e0b, #b45309); border-color: #fbbf24; color: #fff; font-size: 10px; min-height: 36px; }
 
+    .sport-tabs {
+      display: flex;
+      gap: 6px;
+      width: 100%;
+      margin-bottom: 6px;
+    }
+    .sport-tab {
+      flex: 1; background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 7px 4px; border-radius: 6px; font-weight: 800; font-size: 9.5px; cursor: pointer; text-align: center;
+    }
+    .sport-tab.active { background: #f59e0b; color: #000; border-color: #fbbf24; }
+
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9);
       display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px;
@@ -228,15 +246,18 @@
 <body>
 
   <header>
-    <div class="portal-title">Vanguard Universe: Side Brawler Arcade</div>
+    <div class="portal-title">Isaac's Sandbox & Sports Lounge</div>
     <div class="header-controls">
       <button class="sys-btn" onclick="toggleGamePause()" id="pauseBtn">⏸️ PAUSE</button>
-      <button class="sys-btn" onclick="openDailyModal()">🎯 DAILY CHALLENGE (35K)</button>
+      <button class="sys-btn active-mode" onclick="switchSandboxMode('brawler')" id="modeBrawlerBtn">⚔️ SIDE BRAWLER</button>
+      <button class="sys-btn" onclick="switchSandboxMode('sports')" id="modeSportsBtn">🏀 SPORTS LOUNGE</button>
+      <button class="sys-btn" onclick="openDailyModal()">🎯 CHALLENGE</button>
     </div>
   </header>
 
   <section class="portal-section">
-    <div class="brawler-wrapper">
+    <!-- SIDE BRAWLER VIEW -->
+    <div class="brawler-wrapper" id="brawlerView">
       <div class="hud-header">
         <div class="hud-top-row">
           <span id="heroNameLabel" class="hero-title">Marcus Prime (Lead) & Xochitl (AI)</span>
@@ -276,20 +297,51 @@
         </div>
       </div>
     </div>
+
+    <!-- SPORTS LOUNGE VIEW -->
+    <div class="brawler-wrapper" id="sportsView" style="display: none;">
+      <div class="sport-tabs">
+        <button class="sport-tab active" id="tabBasketball" onclick="switchSport('basketball')">🏀 BASKETBALL</button>
+        <button class="sport-tab" id="tabPool" onclick="switchSport('pool')">🎱 POOL TABLE</button>
+        <button class="sport-tab" id="tabBowling" onclick="switchSport('bowling')">🎳 BOWLING</button>
+      </div>
+
+      <div class="canvas-container">
+        <canvas id="sportCanvas" width="540" height="230"></canvas>
+      </div>
+
+      <div class="hud-header" style="flex-direction: row; justify-content: space-around; margin-top: 6px;">
+        <span style="font-size: 11px; font-weight: 800; color: #38bdf8;">SCORE: <span id="sportScore" style="color:#fff;">0</span></span>
+        <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
+      </div>
+
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Ready to play! Click action button below.</div>
+      <button class="btn btn-ultimate" style="margin-top: 6px; min-height: 42px;" id="sportActionBtn" onclick="triggerSportAction()">SHOOT HOOP</button>
+    </div>
   </section>
 
   <div class="modal-overlay" id="dailyModal">
     <div class="modal-content">
       <h2>DAILY CHALLENGE: 35,000 PTS</h2>
-      <p style="color: #cbd5e1; font-size: 12px; margin: 10px 0;">Reach 35,000 score to unlock Wakan and win a free e-book voucher!</p>
+      <p style="color: #cbd5e1; font-size: 12px; margin: 10px 0;">Reach 35,000 score across the sandbox to win a free e-book voucher!</p>
       <button class="btn" style="background: #f59e0b; color: #000; width: 100%; padding: 10px; font-weight: 800;" onclick="closeDailyModal()">CLOSE</button>
     </div>
   </div>
 
   <script>
-    const SAVE_KEY = 'vanguard_brawler_v6';
-    let globalData = { score: 0, highestStageUnlocked: 1, unlockedOperatives: ["marcus", "xochitl", "sundiata", "kofi", "amina", "wakan"] };
+    let activeSandboxMode = 'brawler';
 
+    function switchSandboxMode(mode) {
+      activeSandboxMode = mode;
+      document.getElementById("brawlerView").style.display = mode === 'brawler' ? "flex" : "none";
+      document.getElementById("sportsView").style.display = mode === 'sports' ? "flex" : "none";
+      document.getElementById("modeBrawlerBtn").classList.toggle("active-mode", mode === 'brawler');
+      document.getElementById("modeSportsBtn").classList.toggle("active-mode", mode === 'sports');
+
+      if (mode === 'sports') initSportScene();
+    }
+
+    // --- SIDE BRAWLER ENGINE ---
     let canvas, ctx;
     let animationFrameId = null;
     let isPaused = false;
@@ -306,11 +358,8 @@
     ASSETS.kofi.src = "kofi.png";
     ASSETS.amina.src = "amina-zazzau.png";
     ASSETS.wakan.src = "wakan.png";
-    ASSETS.boss.src = "chrono-lock.png";
-    ASSETS.ironclad.src = "ironclad.png";
-    ASSETS.luetta.src = "mother-luta.png";
 
-    let unlockedRoster = globalData.unlockedOperatives;
+    let unlockedRoster = ["marcus", "xochitl", "sundiata", "kofi", "amina", "wakan"];
     let rosterIdx = 0;
     let activeLead = "marcus";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
@@ -321,9 +370,7 @@
     let xochitlFlight = { active: false, state: 'INACTIVE', x: 0, y: 0, timer: 0 };
     let sundiataShockwave = { active: false, x: 0, radius: 0 };
     let tsunamis = [], daggers = [], lightningBolts = [], enemies = [], boss = { x: 380, hp: 24, maxHp: 24, active: false };
-    let currentWave = 1, mobsRemaining = 14, mobsTotal = 14, gameActive = true;
-    let windLines = [];
-    for (let i = 0; i < 20; i++) windLines.push({ x: Math.random() * 540, y: Math.random() * 240, len: Math.random() * 30 + 15, speed: Math.random() * 4 + 5 });
+    let currentWave = 1, gameActive = true;
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
@@ -340,7 +387,6 @@
     function startWave(num) {
       currentWave = num;
       if (num === 1) {
-        mobsRemaining = 14; mobsTotal = 14; boss.active = false;
         enemies = [];
         for (let i = 0; i < 14; i++) enemies.push({ type: "drone", x: 520 + (i * 65), y: 200, hp: 2, speed: 1.15, active: true });
       }
@@ -394,9 +440,9 @@
       } else if (activeLead === "sundiata") {
         sundiataShockwave.active = true; sundiataShockwave.x = leadX + 30; sundiataShockwave.radius = 10;
       } else if (activeLead === "wakan") {
-        tsunamis.push({ x: leadX + 30, y: 195, vx: 7.0, width: 120, height: 45, life: 65, waveShape: true });
+        tsunamis.push({ x: leadX + 30, y: 195, vx: 7.0, width: 120, height: 45, life: 65 });
       } else {
-        lightningBolts.push({ segments: [{x1:leadX+40, y1:180, x2:leadX+120, y2:180}], weight: 3, life: 8 });
+        lightningBolts.push({ segments: [{x1:leadX+40, y1:180, x2:leadX+120, y2:180}], life: 8 });
       }
     }
 
@@ -406,7 +452,7 @@
         xochitlFlight.active = true; xochitlFlight.state = 'ASCENT';
         xochitlFlight.x = leadX; xochitlFlight.y = 165; xochitlFlight.timer = 0;
       } else if (activeLead === "wakan") {
-        tsunamis.push({ x: leadX + 30, y: 185, vx: 8.5, width: 170, height: 60, life: 80, waveShape: true });
+        tsunamis.push({ x: leadX + 30, y: 185, vx: 8.5, width: 170, height: 60, life: 80 });
       }
     }
 
@@ -426,7 +472,7 @@
     }
 
     function renderBrawler() {
-      if (!isPaused) {
+      if (!isPaused && activeSandboxMode === 'brawler') {
         ctx.save();
         if (ASSETS.bg.complete && ASSETS.bg.naturalWidth > 0) {
           ctx.drawImage(ASSETS.bg, 0, 0, canvas.width, canvas.height);
@@ -434,7 +480,6 @@
           ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Ground platform
         ctx.fillStyle = "#030712"; ctx.fillRect(0, 240, canvas.width, 40);
         ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.moveTo(0, 240); ctx.lineTo(canvas.width, 240); ctx.stroke();
@@ -443,7 +488,6 @@
 
         const currentLeadY = (165 - leadY);
 
-        // Render Active Lead Character (with Wakan sprite support)
         if (!xochitlFlight.active) {
           let leadImg = ASSETS[activeLead];
           ctx.save();
@@ -455,41 +499,8 @@
             ctx.fillRect(-14, -30, 28, 60);
           }
           ctx.restore();
-
-          // Kofi Sledgehammer Rendering
-          if (activeLead === "kofi") {
-            ctx.save();
-            ctx.fillStyle = "#d4af37";
-            ctx.fillRect(leadX + 32, currentLeadY + 10, 24, 12);
-            ctx.restore();
-            if (kofiHammerSwing.active) {
-              ctx.save();
-              ctx.strokeStyle = "rgba(245, 158, 11, 0.9)";
-              ctx.lineWidth = 3;
-              ctx.beginPath();
-              ctx.arc(leadX + 28, 240, 15 + (14 - kofiHammerSwing.timer) * 3, 0, Math.PI);
-              ctx.stroke();
-              ctx.restore();
-              kofiHammerSwing.timer--;
-              if (kofiHammerSwing.timer <= 0) kofiHammerSwing.active = false;
-            }
-          }
-
-          // Sundiata / Drum Shockwave Ground Beat
-          if (activeLead === "sundiata" && sundiataShockwave.active) {
-            ctx.save();
-            ctx.strokeStyle = "rgba(245, 158, 11, 0.9)";
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(sundiataShockwave.x, 235, sundiataShockwave.radius, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-            sundiataShockwave.radius += 6;
-            if (sundiataShockwave.radius > 90) sundiataShockwave.active = false;
-          }
         }
 
-        // Protective Shield (Locks to character whether grounded or flying)
         if (isShieldActive || xochitlFlight.active) {
           ctx.save();
           ctx.strokeStyle = "rgba(249, 115, 22, 0.85)";
@@ -500,7 +511,6 @@
           ctx.restore();
         }
 
-        // Xochitl Aerial Flight & Dagger Volley
         if (xochitlFlight.active) {
           xochitlFlight.timer++;
           if (xochitlFlight.state === 'ASCENT') {
@@ -515,7 +525,6 @@
           ctx.drawImage(ASSETS.xochitl, xochitlFlight.x, xochitlFlight.y, 56, 72);
         }
 
-        // Render AI Partner (Supports Wakan sprite)
         let partnerRole = unlockedRoster.filter(r => r !== activeLead)[0] || "xochitl";
         let aiImg = ASSETS[partnerRole];
         ctx.save();
@@ -527,7 +536,6 @@
         }
         ctx.restore();
 
-        // Enemies
         enemies.forEach(e => {
           if (!e.active) return;
           e.x -= e.speed;
@@ -535,7 +543,6 @@
           ctx.fillRect(e.x, e.y, 24, 16);
         });
 
-        // Tsunami Crest Waves (Vector Water Waves instead of Bubbles)
         for (let i = tsunamis.length - 1; i >= 0; i--) {
           let t = tsunamis[i];
           t.x += t.vx; t.life--;
@@ -567,6 +574,133 @@
     function updateHUD() {
       document.getElementById("heroHpText").innerText = `${playerHp}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
+    }
+
+    // --- SPORTS LOUNGE ENGINE ---
+    let sportCanvas, sportCtx;
+    let currentSport = 'basketball';
+    let sportScore = 0, sportME = 0;
+    let sportAnimId = null;
+
+    let bbBall = { x: 60, y: 170, vx: 0, vy: 0, active: false };
+    let cueBall = { x: 100, y: 115, vx: 0, vy: 0 };
+    let targetBall = { x: 380, y: 115, potted: false };
+    let bowlBall = { x: 270, y: 190, vx: 0, vy: 0, active: false };
+    let pins = [
+      {x: 270, y: 50, hit: false},
+      {x: 255, y: 65, hit: false}, {x: 285, y: 65, hit: false},
+      {x: 240, y: 80, hit: false}, {x: 270, y: 80, hit: false}, {x: 300, y: 80, hit: false}
+    ];
+
+    function switchSport(sport) {
+      currentSport = sport;
+      document.getElementById("tabBasketball").classList.toggle("active", sport === 'basketball');
+      document.getElementById("tabPool").classList.toggle("active", sport === 'pool');
+      document.getElementById("tabBowling").classList.toggle("active", sport === 'bowling');
+
+      const btn = document.getElementById("sportActionBtn");
+      if (sport === 'basketball') btn.innerText = "SHOOT HOOP";
+      if (sport === 'pool') btn.innerText = "BREAK CUE";
+      if (sport === 'bowling') btn.innerText = "ROLL BALL";
+
+      initSportScene();
+    }
+
+    function initSportScene() {
+      sportCanvas = document.getElementById("sportCanvas");
+      sportCtx = sportCanvas.getContext("2d");
+      sportScore = 0; sportME = 0; updateSportStats();
+
+      if (currentSport === 'basketball') {
+        bbBall = { x: 60, y: 170, vx: 0, vy: 0, active: false };
+      } else if (currentSport === 'pool') {
+        cueBall = { x: 100, y: 115, vx: 0, vy: 0 };
+        targetBall = { x: 380, y: 115, potted: false };
+      } else if (currentSport === 'bowling') {
+        bowlBall = { x: 270, y: 190, vx: 0, vy: 0, active: false };
+        pins.forEach(p => p.hit = false);
+      }
+      if (!sportAnimId) renderSportLoop();
+    }
+
+    function triggerSportAction() {
+      if (currentSport === 'basketball' && !bbBall.active) {
+        bbBall.vx = 8; bbBall.vy = -11; bbBall.active = true;
+      } else if (currentSport === 'pool' && cueBall.vx === 0) {
+        cueBall.vx = 9;
+      } else if (currentSport === 'bowling' && !bowlBall.active) {
+        bowlBall.vy = -10; bowlBall.active = true;
+      }
+    }
+
+    function renderSportLoop() {
+      if (activeSandboxMode === 'sports' && sportCtx) {
+        sportCtx.fillStyle = "#020617";
+        sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
+
+        if (currentSport === 'basketball') {
+          sportCtx.strokeStyle = "#f59e0b"; sportCtx.lineWidth = 4;
+          sportCtx.beginPath(); sportCtx.arc(440, 75, 22, Math.PI, 0, true); sportCtx.stroke();
+          sportCtx.fillStyle = "rgba(56, 189, 248, 0.3)"; sportCtx.fillRect(425, 75, 30, 35);
+
+          if (bbBall.active) {
+            bbBall.x += bbBall.vx; bbBall.y += bbBall.vy; bbBall.vy += 0.55;
+            if (bbBall.x > 418 && bbBall.x < 462 && bbBall.y > 70 && bbBall.y < 85 && bbBall.vy > 0) {
+              sportScore += 2; sportME += 10; updateSportStats();
+              bbBall.active = false; bbBall.x = 60; bbBall.y = 170; bbBall.vx = 0; bbBall.vy = 0;
+            }
+            if (bbBall.y > 230 || bbBall.x > 540) {
+              bbBall.active = false; bbBall.x = 60; bbBall.y = 170; bbBall.vx = 0; bbBall.vy = 0;
+            }
+          }
+          sportCtx.fillStyle = "#f97316"; sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
+
+        } else if (currentSport === 'pool') {
+          sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(20, 15, 500, 200);
+          sportCtx.strokeStyle = "#022c22"; sportCtx.lineWidth = 8; sportCtx.strokeRect(20, 15, 500, 200);
+
+          cueBall.x += cueBall.vx;
+          if (cueBall.vx > 0) cueBall.vx *= 0.96;
+          if (!targetBall.potted && Math.hypot(cueBall.x - targetBall.x, cueBall.y - targetBall.y) < 18) {
+            targetBall.potted = true; sportScore += 100; sportME += 25; updateSportStats();
+          }
+
+          sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, 8, 0, Math.PI * 2); sportCtx.fill();
+          if (!targetBall.potted) {
+            sportCtx.fillStyle = "#dc2626"; sportCtx.beginPath(); sportCtx.arc(targetBall.x, targetBall.y, 8, 0, Math.PI * 2); sportCtx.fill();
+          }
+
+        } else if (currentSport === 'bowling') {
+          sportCtx.fillStyle = "#78350f"; sportCtx.fillRect(190, 15, 160, 200);
+
+          if (bowlBall.active) {
+            bowlBall.y += bowlBall.vy;
+            pins.forEach(p => {
+              if (!p.hit && Math.hypot(bowlBall.x - p.x, bowlBall.y - p.y) < 18) {
+                p.hit = true; sportScore += 30; sportME += 15; updateSportStats();
+              }
+            });
+            if (bowlBall.y < 10) {
+              bowlBall.active = false; bowlBall.x = 270; bowlBall.y = 190; bowlBall.vy = 0;
+            }
+          }
+
+          pins.forEach(p => {
+            if (!p.hit) {
+              sportCtx.fillStyle = "#fff"; sportCtx.beginPath(); sportCtx.arc(p.x, p.y, 7, 0, Math.PI * 2); sportCtx.fill();
+              sportCtx.strokeStyle = "#ef4444"; sportCtx.lineWidth = 2; sportCtx.stroke();
+            }
+          });
+
+          sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(bowlBall.x, bowlBall.y, 11, 0, Math.PI * 2); sportCtx.fill();
+        }
+      }
+      sportAnimId = requestAnimationFrame(renderSportLoop);
+    }
+
+    function updateSportStats() {
+      document.getElementById("sportScore").innerText = sportScore;
+      document.getElementById("sportME").innerText = `${sportME} ME`;
     }
 
     window.addEventListener("DOMContentLoaded", () => { initBrawler(); updateControlsUI(); });
