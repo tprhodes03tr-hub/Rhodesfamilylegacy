@@ -371,7 +371,7 @@
     <div class="portal-title">Vanguard Universe: Side Brawler Arcade</div>
     <div class="header-controls">
       <button class="sys-btn" onclick="toggleGamePause()" id="pauseBtn">⏸️ PAUSE</button>
-      <button class="sys-btn" onclick="triggerDailyChallenge()">🎯 DAILY CHALLENGE (35K)</button>
+      <button class="sys-btn" onclick="triggerDailyChallenge()" id="dailyChallengeBtn">🎯 DAILY CHALLENGE: <span id="currentScoreLabel">0</span> / 35K</button>
     </div>
   </header>
 
@@ -804,6 +804,7 @@
       document.getElementById("defeat-modal").style.display = "none";
       gameActive = true; isDailyChallengeMode = false; playerHp = 100; activeZone = "detroit"; activeLead = "marcus"; rosterIdx = 0;
       playerProgress.currentStage = 1; playerProgress.highestStageUnlocked = 1;
+      playerProgress.score = 0;
       localStorage.setItem(SAVE_KEY, JSON.stringify(playerProgress));
       startWave(1);
     }
@@ -1079,17 +1080,36 @@
           }
           ctx.restore();
 
-          // Kofi Hammer Ground Tremor
-          if (activeLead === "kofi" && kofiHammerSwing.active) {
+          // Kofi Hammer Ground Tremor & Weapon Rendering
+          if (activeLead === "kofi") {
             ctx.save();
-            ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
-            ctx.lineWidth = 2.5;
+            ctx.fillStyle = "#d4af37";
+            ctx.fillRect(leadX + 32, drawLeadY + 10, 24, 12);
+            ctx.restore();
+            if (kofiHammerSwing.active) {
+              ctx.save();
+              ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.arc(leadX + 28, 240, 15 + (14 - kofiHammerSwing.timer) * 3, 0, Math.PI);
+              ctx.stroke();
+              ctx.restore();
+              kofiHammerSwing.timer--;
+              if (kofiHammerSwing.timer <= 0) kofiHammerSwing.active = false;
+            }
+          }
+
+          // Sundiata Solar Lion Roar Aura & Shockwave
+          if (activeLead === "sundiata" && sundiataShockwave.active) {
+            ctx.save();
+            ctx.strokeStyle = "rgba(245, 158, 11, 0.9)";
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(leadX + 28, 240, 15 + (14 - kofiHammerSwing.timer) * 3, 0, Math.PI);
+            ctx.arc(sundiataShockwave.x, 230, sundiataShockwave.radius, 0, Math.PI * 2);
             ctx.stroke();
             ctx.restore();
-            kofiHammerSwing.timer--;
-            if (kofiHammerSwing.timer <= 0) kofiHammerSwing.active = false;
+            sundiataShockwave.radius += 5;
+            if (sundiataShockwave.radius > 90) sundiataShockwave.active = false;
           }
         }
 
@@ -1104,7 +1124,7 @@
           ctx.restore();
         }
 
-        // Xochitl Aerial Flight & Dagger Volley Finisher
+        // Xochitl Aerial Flight & Dagger Volley Finisher (Targeting Enemies)
         if (xochitlFlight.active) {
           xochitlFlight.timer++;
           if (xochitlFlight.state === 'ASCENT') {
@@ -1118,7 +1138,9 @@
             xochitlFlight.x -= 3.5;
             if (xochitlFlight.timer % 6 === 0) {
               playSound('zap');
-              daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 25, vx: 7.0, vy: 4.0, length: 18, width: 4 });
+              let tgt = getClosestTarget(xochitlFlight.x);
+              let angle = tgt ? Math.atan2((tgt.y || 190) - xochitlFlight.y, tgt.x - xochitlFlight.x) : 0.2;
+              daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 25, vx: Math.cos(angle) * 8, vy: Math.sin(angle) * 8, length: 18, width: 4 });
             }
             if (xochitlFlight.x <= 120) xochitlFlight.state = 'TOUCHDOWN';
           } else if (xochitlFlight.state === 'TOUCHDOWN') {
@@ -1185,7 +1207,25 @@
           }
         }
 
-        // Projectiles & Daggers rendering
+        // Projectiles, Tsunami Waves & Daggers rendering
+        for (let i = tsunamis.length - 1; i >= 0; i--) {
+          let t = tsunamis[i];
+          t.x += t.vx; t.life--;
+          ctx.save();
+          ctx.fillStyle = t.hurricane ? "rgba(56, 189, 248, 0.6)" : "rgba(3, 105, 161, 0.7)";
+          ctx.beginPath();
+          ctx.ellipse(t.x, t.y, t.width / 2, t.height / 2, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          if (boss.active && Math.abs(t.x - boss.x) < 40) {
+            boss.hp -= 2; updateHUD();
+            if (boss.hp <= 0) onBossDefeated();
+            tsunamis.splice(i, 1);
+          } else if (t.life <= 0 || t.x > canvas.width) {
+            tsunamis.splice(i, 1);
+          }
+        }
+
         for (let i = daggers.length - 1; i >= 0; i--) {
           let d = daggers[i];
           d.x += d.vx; d.y += d.vy;
@@ -1217,6 +1257,7 @@
     function updateHUD() {
       document.getElementById("heroHpText").innerText = `${playerHp}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
+      document.getElementById("currentScoreLabel").innerText = playerProgress.score.toLocaleString();
       if (boss.active) {
         document.getElementById("enemyHpText").innerText = `${Math.max(0, boss.hp)}/${boss.maxHp}`;
         document.getElementById("enemyHpBar").style.width = `${(Math.max(0, boss.hp) / boss.maxHp) * 100}%`;
