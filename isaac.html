@@ -312,10 +312,11 @@
 
       <div class="hud-header" style="flex-direction: row; justify-content: space-around; margin-top: 6px;">
         <span style="font-size: 11px; font-weight: 800; color: #38bdf8;">SCORE: <span id="sportScore" style="color:#fff;">0</span></span>
+        <span style="font-size: 11px; font-weight: 800; color: #facc15;">TIME: <span id="sportTimer" style="color:#f59e0b;">30s</span></span>
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Adjust aim, hold power meter, and release for Class-A action!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Beat the 30-second timer against the moving backboard!</div>
       <div style="display: flex; gap: 6px; margin-top: 6px;">
         <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ ADJUST AIM</button>
         <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
@@ -665,7 +666,7 @@
       if (barEl) barEl.style.width = `${playerHp}%`;
     }
 
-    // --- SPORTS LOUNGE ENGINE ---
+    // --- SPORTS LOUNGE ENGINE (30s TIMER & MOVING BACKBOARD) ---
     let sportCanvas, sportCtx;
     let currentSport = 'basketball';
     let sportScore = 0, sportME = 0;
@@ -675,6 +676,9 @@
     let sportAimAngle = 0;
     let consecutiveBaskets = 0;
     let flashMessageTimer = 0;
+    let basketballTimer = 30;
+    let gameTimerInterval = null;
+    let backboardOffset = 0;
 
     let bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
     let cueBall = { x: 100, y: 115, vx: 0, vy: 0, active: false };
@@ -707,10 +711,22 @@
       sportCanvas = document.getElementById("sportCanvas");
       if (!sportCanvas) return;
       sportCtx = sportCanvas.getContext("2d");
-      sportScore = 0; sportME = 0; consecutiveBaskets = 0; updateSportStats();
+      sportScore = 0; sportME = 0; consecutiveBaskets = 0; basketballTimer = 30; updateSportStats();
 
+      if (gameTimerInterval) clearInterval(gameTimerInterval);
       if (currentSport === 'basketball') {
         bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
+        gameTimerInterval = setInterval(() => {
+          if (activeSandboxMode === 'sports' && currentSport === 'basketball' && basketballTimer > 0) {
+            basketballTimer--;
+            const timerEl = document.getElementById("sportTimer");
+            if (timerEl) timerEl.innerText = `${basketballTimer}s`;
+            if (basketballTimer <= 0) {
+              clearInterval(gameTimerInterval);
+              document.getElementById("sportLog").innerText = `Time's up! Final Score: ${sportScore}. Great shooting!`;
+            }
+          }
+        }, 1000);
       } else if (currentSport === 'pool') {
         cueBall = { x: 100, y: 115, vx: 0, vy: 0, active: false };
         targetBalls = [
@@ -735,6 +751,7 @@
     }
 
     function startPowerCharge() {
+      if (currentSport === 'basketball' && basketballTimer <= 0) return;
       isCharging = true;
       chargePower = 0;
       let chargeInterval = setInterval(() => {
@@ -744,7 +761,7 @@
     }
 
     function releasePowerCharge() {
-      if (!isCharging) return;
+      if (!isCharging || (currentSport === 'basketball' && basketballTimer <= 0)) return;
       isCharging = false;
       let power = Math.max(20, chargePower);
 
@@ -795,11 +812,16 @@
           sportCtx.fillStyle = "#1e3a8a"; sportCtx.fillRect(0, 160, sportCanvas.width, 70);
           sportCtx.strokeStyle = "#dc2626"; sportCtx.lineWidth = 2; sportCtx.strokeRect(0, 160, sportCanvas.width, 70);
 
-          sportCtx.fillStyle = "rgba(56, 189, 248, 0.35)"; sportCtx.fillRect(452, 28, 12, 82);
-          sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.strokeRect(452, 28, 12, 82);
-          sportCtx.fillStyle = "#dc2626"; sportCtx.fillRect(450, 50, 16, 26);
+          // Moving Backboard (Oscillating closer and further away)
+          backboardOffset = Math.sin(Date.now() / 800) * 35;
+          let boardX = 452 + backboardOffset;
+          let rimX = 430 + backboardOffset;
+
+          sportCtx.fillStyle = "rgba(56, 189, 248, 0.35)"; sportCtx.fillRect(boardX, 28, 12, 82);
+          sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.strokeRect(boardX, 28, 12, 82);
+          sportCtx.fillStyle = "#dc2626"; sportCtx.fillRect(boardX - 2, 50, 16, 26);
           sportCtx.strokeStyle = "#f59e0b"; sportCtx.lineWidth = 4;
-          sportCtx.beginPath(); sportCtx.arc(430, 76, 22, Math.PI, 0, true); sportCtx.stroke();
+          sportCtx.beginPath(); sportCtx.arc(rimX, 76, 22, Math.PI, 0, true); sportCtx.stroke();
 
           if (ASSETS.marcus.complete && ASSETS.marcus.naturalWidth > 0) {
             sportCtx.drawImage(ASSETS.marcus, 45, 105, 52, 65);
@@ -810,11 +832,11 @@
 
           if (bbBall.active) {
             bbBall.x += bbBall.vx; bbBall.y += bbBall.vy; bbBall.vy += 0.45;
-            if (bbBall.x >= 450 && bbBall.y <= 110) {
+            if (bbBall.x >= boardX && bbBall.y <= 110) {
               bbBall.vx = -Math.abs(bbBall.vx) * 0.6;
               bbBall.vy += 2;
             }
-            if (bbBall.x > 415 && bbBall.x < 445 && bbBall.y > 70 && bbBall.y < 86 && bbBall.vy > 0) {
+            if (bbBall.x > rimX - 15 && bbBall.x < rimX + 15 && bbBall.y > 70 && bbBall.y < 86 && bbBall.vy > 0 && basketballTimer > 0) {
               sportScore += 2; sportME += 10; consecutiveBaskets++;
               if (consecutiveBaskets >= 5) flashMessageTimer = 90;
               updateSportStats();
@@ -834,7 +856,13 @@
             sportCtx.fillText("🔥 WOW! YOU'RE DOING GREAT! 10 IN A ROW! 🔥", 270, 55);
           }
 
-          if (!bbBall.active) {
+          if (basketballTimer <= 0) {
+            sportCtx.fillStyle = "rgba(239, 68, 68, 0.9)"; sportCtx.font = "bold 20px sans-serif";
+            sportCtx.textAlign = "center";
+            sportCtx.fillText("TIME'S UP! FINAL SCORE: " + sportScore, 270, 115);
+          }
+
+          if (!bbBall.active && basketballTimer > 0) {
             sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
             sportCtx.beginPath(); sportCtx.moveTo(75, 145); sportCtx.lineTo(165 + (sportAimAngle * 120), 100); sportCtx.stroke();
             sportCtx.setLineDash([]);
@@ -973,6 +1001,7 @@
             sportCtx.setLineDash([]);
           }
 
+pkl = null;
           sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(bowlBall.x + bowlBall.aimOffset, bowlBall.rollingThrough ? 20 : bowlBall.y, 11, 0, Math.PI * 2); sportCtx.fill();
 
           sportCtx.fillStyle = "#020617"; sportCtx.fillRect(15, 15, 130, 45);
