@@ -168,7 +168,7 @@
       border-radius: 4px;
       font-size: 11px;
       font-weight: bold;
-      width: 130px;
+      width: 150px;
       text-align: center;
     }
 
@@ -281,7 +281,9 @@
       text-align: center;
       font-size: 8px;
       font-weight: 700;
+      cursor: pointer;
     }
+    .tile:hover { border-color: #00f0ff; }
 
     .tile-header { width: 100%; height: 6px; border-radius: 2px 2px 0 0; margin-bottom: 1px; }
     .th-gold   { background: #f59e0b; }
@@ -308,7 +310,9 @@
       justify-content: center;
       padding: 6px;
       gap: 4px;
+      cursor: pointer;
     }
+    .board-center:hover { border-color: #38bdf8; }
 
     .center-logo { font-size: 10px; font-weight: 900; color: #facc15; }
     .dice-box { display: flex; gap: 8px; perspective: 400px; }
@@ -322,7 +326,7 @@
       border: 2px solid #38bdf8;
     }
 
-    /* TETRIS ARCADE VIEW WITH HIGH SCORE BOARD */
+    /* TETRIS ARCADE VIEW */
     #tetrisView {
       display: none;
       width: 100%;
@@ -335,13 +339,41 @@
       box-shadow: 0 0 25px rgba(245, 158, 11, 0.3);
     }
 
+    .tetris-flex-layout {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
     #tetrisCanvas {
       background: #020617;
       border: 2px solid #334155;
       border-radius: 6px;
       display: block;
-      margin: 0 auto;
     }
+
+    .tetris-side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100px;
+      text-align: left;
+    }
+
+    .next-piece-box {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      height: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    #nextCanvas { display: block; }
 
     .tetris-controls {
       display: grid;
@@ -358,6 +390,7 @@
       padding: 8px;
       font-size: 11px;
       color: #facc15;
+      text-align: center;
     }
 
     .log-box {
@@ -399,9 +432,10 @@
     .btn-auction { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; }
     .btn-mp      { background: linear-gradient(135deg, #38bdf8, #0284c7); color: #000; }
 
+    /* AR CAMERA MODAL */
     .ar-deed-overlay {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(5, 5, 15, 0.85);
+      background: rgba(5, 5, 15, 0.92);
       display: none; align-items: center; justify-content: center; z-index: 250;
       padding: 16px;
     }
@@ -410,19 +444,44 @@
       background: #0f172a;
       border: 2px solid #00f0ff;
       border-radius: 16px;
-      padding: 24px;
-      max-width: 340px;
+      padding: 20px;
+      max-width: 360px;
       width: 100%;
       text-align: center;
       color: #f8fafc;
       font-family: 'Courier New', monospace;
-      display: flex; flex-direction: column; gap: 12px;
+      display: flex; flex-direction: column; gap: 10px;
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.35);
     }
 
-    .emblem-badge {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: rgba(0, 240, 255, 0.15); border: 1px solid #00f0ff;
-      margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 20px;
+    .ar-camera-viewport {
+      width: 100%;
+      height: 180px;
+      background: #000;
+      border: 1px solid #00f0ff;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #arVideo {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    .ar-3d-overlay-box {
+      position: relative;
+      z-index: 2;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #facc15;
+      padding: 8px 12px;
+      border-radius: 6px;
     }
   </style>
 </head>
@@ -448,13 +507,21 @@
     </div>
   </div>
 
-  <!-- AR DEED MODAL -->
+  <!-- AR CAMERA 3D VIEWER MODAL (PROPERTY OR DICE) -->
   <div class="ar-deed-overlay" id="arDeedModal">
     <div class="ar-deed-card">
-      <div class="emblem-badge">🔮</div>
-      <h3 id="arDeedTitle" style="color: #f8fafc; font-size: 1.3rem;">Property Name</h3>
-      <p id="arDeedPrice" style="color: #00f0ff; font-weight: bold;">$0</p>
-      <button class="btn btn-roll" style="background: #00f0ff; color: #0f172a;" onclick="closeArDeed()">CLOSE FEED</button>
+      <div style="font-size: 12px; color: #00f0ff; font-weight: bold;" id="arModalHeader">🔮 LIVE AR CAMERA FEED</div>
+      
+      <div class="ar-camera-viewport">
+        <video id="arVideo" autoplay playsinline muted></video>
+        <div class="ar-3d-overlay-box">
+          <div style="font-size: 14px;" id="arEmblemIcon">🏨</div>
+          <div id="arDeedTitle" style="color: #facc15; font-size: 11px; font-weight: bold;">Property Name</div>
+          <div id="arDeedPrice" style="color: #10b981; font-size: 10px;">$0 Valuation</div>
+        </div>
+      </div>
+
+      <button class="btn btn-roll" style="background: #00f0ff; color: #0f172a;" onclick="closeArDeed()">CLOSE AR FEED</button>
     </div>
   </div>
 
@@ -476,10 +543,10 @@
       </label>
     </div>
     <div class="mp-row" style="margin-top: 4px;">
-      <button class="btn btn-mp" style="padding: 6px 12px;" onclick="hostTable()">Host P2P</button>
+      <button class="btn btn-mp" style="padding: 6px 10px;" onclick="hostP2PMatch()">Host Room</button>
       <div style="display: flex; gap: 4px; align-items: center;">
-        <input type="text" id="joinCodeInput" class="mp-input" placeholder="Enter Host Code" />
-        <button class="btn btn-mp" style="padding: 6px 12px;" onclick="joinTable()">Join P2P</button>
+        <input type="text" id="joinCodeInput" class="mp-input" placeholder="e.g. DETROIT-LEGACY" />
+        <button class="btn btn-mp" style="padding: 6px 10px;" onclick="joinP2PMatch()">Join Room</button>
       </div>
     </div>
   </div>
@@ -501,11 +568,26 @@
     <div class="board-frame" id="boardTrack"></div>
   </div>
 
-  <!-- TETRIS VIEW WITH HIGH SCORE BOARD -->
+  <!-- TETRIS VIEW -->
   <div id="tetrisView">
-    <div style="font-weight: 800; color: #facc15; margin-bottom: 6px; font-size: 12px;">LINEAGE TETRIS (Earn Marrow Energy)</div>
-    <canvas id="tetrisCanvas" width="240" height="400"></canvas>
-    <div style="font-size: 11px; margin-top: 6px; color: #38bdf8;">Score: <span id="tetrisScore">0</span> | ME Earned: <span id="tetrisME">0</span></div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <span style="font-weight: 800; color: #facc15; font-size: 12px;">LINEAGE TETRIS BATTLE</span>
+      <button class="btn btn-mp" style="padding: 4px 10px; font-size: 9px;" onclick="toggleTetrisPause()" id="tetrisPauseBtn">⏸️ PAUSE</button>
+    </div>
+
+    <div class="tetris-flex-layout">
+      <canvas id="tetrisCanvas" width="200" height="340"></canvas>
+      <div class="tetris-side-panel">
+        <div style="font-size: 10px; color: #94a3b8; font-weight: 800;">NEXT PIECE:</div>
+        <div class="next-piece-box">
+          <canvas id="nextCanvas" width="70" height="70"></canvas>
+        </div>
+        <div style="font-size: 10px; color: #38bdf8; font-weight: 800; margin-top: 4px;">SCORE:</div>
+        <div style="font-size: 14px; font-weight: 900; color: #fff;" id="tetrisScore">0</div>
+        <div style="font-size: 10px; color: #c084fc; font-weight: 800; margin-top: 4px;">ME EARNED:</div>
+        <div style="font-size: 14px; font-weight: 900; color: #facc15;" id="tetrisME">0</div>
+      </div>
+    </div>
     
     <div class="leaderboard-box">
       🏆 **HIGH SCORE OF THE DAY**<br>
@@ -520,12 +602,12 @@
     </div>
   </div>
 
-  <div class="log-box" id="gameLog">Welcome! Ready to play.</div>
+  <div class="log-box" id="gameLog">Welcome! Click board center for AR Dice or any tile for AR Property.</div>
 
   <div class="control-actions" id="tycoonControls">
     <button class="btn btn-roll" id="btnRoll" onclick="rollDice()">🎲 Roll Dice</button>
     <button class="btn btn-buy" id="btnBuy" onclick="buyProperty()" disabled>🏛️ Buy Deed</button>
-    <button class="btn btn-auction" id="btnAuction" disabled>📢 Auction</button>
+    <button class="btn btn-auction" onclick="upgradeProperty()">🏠 Upgrade ($50)</button>
   </div>
 
   <script>
@@ -579,6 +661,73 @@
       }
     }
 
+    const COMPOUND_PREFIXES = ["DETROIT", "SAGINAW", "MARROW", "VANGUARD", "LEGACY", "ATWATER", "WOODWARD"];
+    const COMPOUND_SUFFIXES = ["RISING", "PRIME", "SHIELD", "VAULT", "TITAN", "ARENA", "GRID"];
+    
+    function generateWordCode() {
+      const pre = COMPOUND_PREFIXES[Math.floor(Math.random() * COMPOUND_PREFIXES.length)];
+      const suf = COMPOUND_SUFFIXES[Math.floor(Math.random() * COMPOUND_SUFFIXES.length)];
+      return `${pre}-${suf}`;
+    }
+
+    let peer = null, conn = null, isHost = false, myPlayerId = 0;
+
+    function hostP2PMatch() {
+      playVsAI = false; document.getElementById("aiToggle").checked = false;
+      const customCode = generateWordCode();
+      peer = new Peer(customCode);
+      peer.on('open', (id) => {
+        isHost = true; myPlayerId = 0;
+        players = [{ id: 0, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] }, { id: 1, name: "Opponent", color: "#f472b6", cash: 1500, pos: 0, deeds: [] }];
+        buildHUD();
+        document.getElementById("joinCodeInput").value = id;
+        alert(`Room hosted successfully! Share this compound word code with your opponent: ${id}`);
+      });
+      peer.on('connection', (connection) => { 
+        conn = connection; 
+        setupConnectionEvents(); 
+        log("Opponent connected to room!");
+      });
+    }
+
+    function joinP2PMatch() {
+      playVsAI = false; document.getElementById("aiToggle").checked = false;
+      const code = document.getElementById("joinCodeInput").value.trim().toUpperCase();
+      if (!code) { alert("Please enter a valid room word code."); return; }
+      
+      peer = new Peer();
+      peer.on('open', () => {
+        conn = peer.connect(code);
+        isHost = false; myPlayerId = 1;
+        players = [{ id: 0, name: "Host", color: "#38bdf8", cash: 1500, pos: 0, deeds: [] }, { id: 1, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] }];
+        buildHUD();
+        setupConnectionEvents();
+        log(`Connected to room: ${code}`);
+      });
+    }
+
+    function setupConnectionEvents() {
+      conn.on('data', (data) => {
+        if (data.type === 'TYCOON_SYNC') {
+          players = data.players; currentTurn = data.currentTurn; playerMarrowEnergy = data.marrowEnergy;
+          data.tiles.forEach((syncTile, idx) => { 
+            if (TILES[idx]) {
+              TILES[idx].owner = syncTile.owner;
+              TILES[idx].houses = syncTile.houses;
+              TILES[idx].hotel = syncTile.hotel;
+            } 
+          });
+          buildBoard(); updateHUD(); updateMarrowDisplay(); checkTurnControl();
+        } else if (data.type === 'TETRIS_ATTACK') {
+          addGarbageLines(data.lines);
+        }
+      });
+    }
+
+    function broadcastState(msg = "") {
+      if (conn) conn.send({ type: 'TYCOON_SYNC', players, tiles: TILES, currentTurn, marrowEnergy: playerMarrowEnergy, logMsg: msg });
+    }
+
     const TILES = [
       { id: 0, name: "START (+$200)", type: "corner", color: "th-corner", price: 0, rent: 0, houses: 0, hotel: false, row: 5, col: 5 },
       { id: 1, name: "Woodward Ave", type: "prop", color: "th-blue", price: 100, rent: 18, houses: 0, hotel: false, row: 5, col: 4, owner: null },
@@ -600,7 +749,6 @@
 
     let players = [];
     let currentTurn = 0;
-    let peer = null, conn = null, isHost = false, myPlayerId = 0;
 
     function initGame() {
       players = [
@@ -612,51 +760,6 @@
       buildBoard();
       updateHUD();
       checkTurnControl();
-    }
-
-    function hostTable() {
-      playVsAI = false; document.getElementById("aiToggle").checked = false;
-      peer = new Peer();
-      peer.on('open', (id) => {
-        isHost = true; myPlayerId = 0;
-        players = [{ id: 0, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] }, { id: 1, name: "Opponent", color: "#f472b6", cash: 1500, pos: 0, deeds: [] }];
-        buildHUD();
-        prompt("Send match code to opponent:", id);
-      });
-      peer.on('connection', (connection) => { conn = connection; setupConnectionEvents(); });
-    }
-
-    function joinTable() {
-      playVsAI = false; document.getElementById("aiToggle").checked = false;
-      const code = document.getElementById("joinCodeInput").value.trim();
-      peer = new Peer();
-      peer.on('open', () => {
-        conn = peer.connect(code);
-        isHost = false; myPlayerId = 1;
-        players = [{ id: 0, name: "Host", color: "#38bdf8", cash: 1500, pos: 0, deeds: [] }, { id: 1, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] }];
-        buildHUD();
-        setupConnectionEvents();
-      });
-    }
-
-    function setupConnectionEvents() {
-      conn.on('data', (data) => {
-        if (data.type === 'STATE_SYNC') {
-          players = data.players; currentTurn = data.currentTurn; playerMarrowEnergy = data.marrowEnergy;
-          data.tiles.forEach((syncTile, idx) => { 
-            if (TILES[idx]) {
-              TILES[idx].owner = syncTile.owner;
-              TILES[idx].houses = syncTile.houses;
-              TILES[idx].hotel = syncTile.hotel;
-            } 
-          });
-          buildBoard(); updateHUD(); updateMarrowDisplay(); checkTurnControl();
-        }
-      });
-    }
-
-    function broadcastState(msg = "") {
-      if (conn) conn.send({ type: 'STATE_SYNC', players, tiles: TILES, currentTurn, marrowEnergy: playerMarrowEnergy, logMsg: msg });
     }
 
     function checkTurnControl() {
@@ -695,8 +798,8 @@
 
     function buildBoard() {
       const board = document.getElementById("boardTrack");
-      board.innerHTML = `<div class="board-center"><div class="center-logo">DETROIT & SAGINAW</div><div class="dice-box"><div class="dice-3d" id="d1">🎲</div><div class="dice-3d" id="d2">🎲</div></div></div>`;
-      TILES.forEach(t => {
+      board.innerHTML = `<div class="board-center" onclick="openArDiceCamera()"><div class="center-logo">DETROIT & SAGINAW</div><div class="dice-box"><div class="dice-3d" id="d1">🎲</div><div class="dice-3d" id="d2">🎲</div></div></div>`;
+      TILES.forEach((t, index) => {
         let upgradeInfo = "";
         if (t.hotel) {
           upgradeInfo = `<div style="color: #ef4444; font-size: 7px; font-weight: bold;">🏨 HOTEL</div>`;
@@ -704,7 +807,7 @@
           upgradeInfo = `<div style="color: #10b981; font-size: 7px;">🏠 x${t.houses}</div>`;
         }
 
-        board.innerHTML += `<div class="tile" style="grid-row: ${t.row}; grid-column: ${t.col};">
+        board.innerHTML += `<div class="tile" style="grid-row: ${t.row}; grid-column: ${t.col};" onclick="openArPropertyCamera(${index})">
           <div class="tile-header ${t.color}"></div>
           <div class="tile-name">${t.name}</div>
           ${upgradeInfo}
@@ -723,10 +826,54 @@
       });
     }
 
+    // AR CAMERA FEED HANDLERS FOR PROPERTY & DICE
+    let activeCameraStream = null;
+
+    function openArPropertyCamera(tileIndex) {
+      const tile = TILES[tileIndex];
+      document.getElementById("arModalHeader").innerText = "🔮 LIVE AR PROPERTY FEED";
+      document.getElementById("arDeedTitle").innerText = tile.name;
+      document.getElementById("arDeedPrice").innerText = tile.price > 0 ? `$${tile.price} Valuation` : "Public Sanctuary";
+      document.getElementById("arEmblemIcon").innerText = tile.hotel ? "🏨" : (tile.houses > 0 ? "🏠" : "🏛️");
+      document.getElementById("arDeedModal").style.display = "flex";
+      startCameraStream();
+    }
+
+    function openArDiceCamera() {
+      document.getElementById("arModalHeader").innerText = "🎲 LIVE AR 3D DICE ROLL";
+      let d1Val = Math.floor(Math.random() * 6) + 1;
+      let d2Val = Math.floor(Math.random() * 6) + 1;
+      document.getElementById("arDeedTitle").innerText = `Rolled: [${d1Val}] & [${d2Val}]`;
+      document.getElementById("arDeedPrice").innerText = `Total Move: ${d1Val + d2Val} Steps`;
+      document.getElementById("arEmblemIcon").innerText = "🎲";
+      document.getElementById("arDeedModal").style.display = "flex";
+      startCameraStream();
+    }
+
+    function startCameraStream() {
+      const video = document.getElementById("arVideo");
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(stream => { activeCameraStream = stream; video.srcObject = stream; })
+        .catch(err => { console.warn("Camera unavailable:", err); });
+    }
+
+    function closeArDeed() {
+      if (activeCameraStream) {
+        activeCameraStream.getTracks().forEach(track => track.stop());
+        activeCameraStream = null;
+      }
+      document.getElementById("arDeedModal").style.display = "none";
+    }
+
     function rollDice() {
       if (currentTurn !== myPlayerId) return;
       document.getElementById("btnRoll").disabled = true;
-      const total = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const total = d1 + d2;
+      document.getElementById("d1").innerText = d1;
+      document.getElementById("d2").innerText = d2;
+
       const p = players[currentTurn];
       const oldPos = p.pos;
       p.pos = (p.pos + total) % 16;
@@ -757,9 +904,7 @@
       const tile = TILES[p.pos];
       tile.owner = p.id; p.cash -= tile.price; p.deeds.push(tile.name);
       playerMarrowEnergy += 25; updateMarrowDisplay();
-      document.getElementById("arDeedTitle").innerText = tile.name;
-      document.getElementById("arDeedPrice").innerText = `$${tile.price} Deed Secured`;
-      document.getElementById("arDeedModal").style.display = "flex";
+      openArPropertyCamera(p.pos);
       document.getElementById("btnBuy").disabled = true;
       buildBoard(); updateHUD(); broadcastState();
     }
@@ -770,21 +915,14 @@
       const upgradeCost = 50;
       if (tile.type === "prop" && tile.owner === p.id && p.cash >= upgradeCost) {
         p.cash -= upgradeCost;
-        if (tile.houses < 4) {
-          tile.houses++;
-          log(`${p.name} built a house on ${tile.name}! 🏠`);
-        } else if (!tile.hotel) {
-          tile.houses = 0;
-          tile.hotel = true;
-          log(`${p.name} upgraded to a HOTEL on ${tile.name}! 🏨`);
-        }
+        if (tile.houses < 4) { tile.houses++; log(`${p.name} built a house on ${tile.name}! 🏠`); }
+        else if (!tile.hotel) { tile.houses = 0; tile.hotel = true; log(`${p.name} upgraded to a HOTEL on ${tile.name}! 🏨`); }
         buildBoard(); updateHUD(); broadcastState();
       } else {
         log("Cannot upgrade: You do not own this tile or lack funds ($50).");
       }
     }
 
-    function closeArDeed() { document.getElementById("arDeedModal").style.display = "none"; setTimeout(endTurn, 500); }
     function triggerChronoLeap() { if (playerMarrowEnergy >= 100) { playerMarrowEnergy -= 100; updateMarrowDisplay(); players[currentTurn].pos = (players[currentTurn].pos + 3) % 16; renderTokens(); } }
     function triggerLegacyShield() { if (playerMarrowEnergy >= 75) { playerMarrowEnergy -= 75; updateMarrowDisplay(); shieldActive = true; } }
     function endTurn() { document.getElementById("btnBuy").disabled = true; currentTurn = (currentTurn + 1) % players.length; updateHUD(); checkTurnControl(); broadcastState(); }
@@ -792,10 +930,10 @@
     function updateHUD() { players.forEach((p, idx) => { document.getElementById(`pcash-${p.id}`).innerText = `$${p.cash}`; }); }
     function log(msg) { document.getElementById("gameLog").innerText = msg; }
 
-    // TETRIS ARCADE ENGINE WITH HIGH SCORE OF THE DAY
-    let tetrisCanvas, tetrisCtx;
-    let grid = Array(20).fill(0).map(() => Array(12).fill(0));
-    let tScore = 0, tME = 0, tetrisInterval = null, curPiece = null;
+    // TETRIS ARCADE ENGINE
+    let tetrisCanvas, tetrisCtx, nextCanvas, nextCtx;
+    let grid = Array(17).fill(0).map(() => Array(10).fill(0));
+    let tScore = 0, tME = 0, tetrisInterval = null, curPiece = null, nextPiece = null, isTetrisPaused = false;
 
     const TETROMINOS = [
       { shape: [[1,1,1,1]], color: '#38bdf8' },
@@ -808,11 +946,25 @@
     function startTetris() {
       tetrisCanvas = document.getElementById("tetrisCanvas");
       tetrisCtx = tetrisCanvas.getContext("2d");
-      grid = Array(20).fill(0).map(() => Array(12).fill(0));
-      tScore = 0; tME = 0;
+      nextCanvas = document.getElementById("nextCanvas");
+      nextCtx = nextCanvas.getContext("2d");
+      grid = Array(17).fill(0).map(() => Array(10).fill(0));
+      tScore = 0; tME = 0; isTetrisPaused = false;
+      
+      nextPiece = getRandomTetromino();
       spawnTetromino();
       if (tetrisInterval) clearInterval(tetrisInterval);
       tetrisInterval = setInterval(tetrisTick, 450);
+    }
+
+    function getRandomTetromino() {
+      const template = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
+      return { shape: template.shape, color: template.color };
+    }
+
+    function toggleTetrisPause() {
+      isTetrisPaused = !isTetrisPaused;
+      document.getElementById("tetrisPauseBtn").innerText = isTetrisPaused ? "▶️ RESUME" : "⏸️ PAUSE";
     }
 
     function loadDailyHighScore() {
@@ -835,13 +987,27 @@
     }
 
     function spawnTetromino() {
-      const template = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
-      curPiece = { shape: template.shape, color: template.color, x: 4, y: 0 };
+      curPiece = { shape: nextPiece.shape, color: nextPiece.color, x: 3, y: 0 };
+      nextPiece = getRandomTetromino();
+      drawNextPiece();
+
       if (checkCollision(curPiece.x, curPiece.y, curPiece.shape)) {
-        log("Tetris Game Over!");
         clearInterval(tetrisInterval);
         checkDailyHighScore();
       }
+    }
+
+    function drawNextPiece() {
+      nextCtx.fillStyle = "#020617";
+      nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+      nextCtx.fillStyle = nextPiece.color;
+      let offsetX = (70 - nextPiece.shape[0].length * 14) / 2;
+      let offsetY = (70 - nextPiece.shape.length * 14) / 2;
+      nextPiece.shape.forEach((row, r) => {
+        row.forEach((val, c) => {
+          if (val) nextCtx.fillRect(offsetX + c * 14, offsetY + r * 14, 13, 13);
+        });
+      });
     }
 
     function checkCollision(nx, ny, shape) {
@@ -849,7 +1015,7 @@
         for (let c = 0; c < shape[r].length; c++) {
           if (shape[r][c]) {
             let px = nx + c, py = ny + r;
-            if (px < 0 || px >= 12 || py >= 20 || (py >= 0 && grid[py][px])) return true;
+            if (px < 0 || px >= 10 || py >= 17 || (py >= 0 && grid[py][px])) return true;
           }
         }
       }
@@ -857,7 +1023,7 @@
     }
 
     function tetrisTick() {
-      if (!curPiece) return;
+      if (isTetrisPaused || !curPiece) return;
       if (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) {
         curPiece.y++;
       } else {
@@ -878,10 +1044,10 @@
 
     function clearLines() {
       let cleared = 0;
-      for (let r = 19; r >= 0; r--) {
+      for (let r = 16; r >= 0; r--) {
         if (grid[r].every(cell => cell !== 0)) {
           grid.splice(r, 1);
-          grid.unshift(Array(12).fill(0));
+          grid.unshift(Array(10).fill(0));
           cleared++; r++;
         }
       }
@@ -892,17 +1058,32 @@
         updateMarrowDisplay();
         document.getElementById("tetrisScore").innerText = tScore;
         document.getElementById("tetrisME").innerText = tME;
+
+        if (cleared >= 2 && conn) {
+          conn.send({ type: 'TETRIS_ATTACK', lines: cleared - 1 });
+        }
       }
     }
 
+    function addGarbageLines(numLines) {
+      for (let i = 0; i < numLines; i++) {
+        grid.shift();
+        let garbageRow = Array(10).fill('#475569');
+        garbageRow[Math.floor(Math.random() * 10)] = 0;
+        grid.push(garbageRow);
+      }
+      log(`⚠️ Received ${numLines} garbage attack line(s) from opponent!`);
+    }
+
     function tetrisMove(dir) {
-      if (curPiece && !checkCollision(curPiece.x + dir, curPiece.y, curPiece.shape)) {
+      if (isTetrisPaused || !curPiece) return;
+      if (!checkCollision(curPiece.x + dir, curPiece.y, curPiece.shape)) {
         curPiece.x += dir; drawTetris();
       }
     }
 
     function tetrisRotate() {
-      if (!curPiece) return;
+      if (isTetrisPaused || !curPiece) return;
       const rotated = curPiece.shape[0].map((_, i) => curPiece.shape.map(row => row[i]).reverse());
       if (!checkCollision(curPiece.x, curPiece.y, rotated)) {
         curPiece.shape = rotated; drawTetris();
@@ -910,7 +1091,7 @@
     }
 
     function tetrisDrop() {
-      if (!curPiece) return;
+      if (isTetrisPaused || !curPiece) return;
       while (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) curPiece.y++;
       mergePiece(); clearLines(); spawnTetromino(); drawTetris();
     }
