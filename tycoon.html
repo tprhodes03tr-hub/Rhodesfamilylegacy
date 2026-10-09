@@ -849,4 +849,300 @@
       document.getElementById("arDeedTitle").innerText = `Rolled: [${d1Val}] & [${d2Val}]`;
       document.getElementById("arDeedPrice").innerText = `Total Move: ${d1Val + d2Val} Steps`;
       document.getElementById("arEmblemIcon").innerText = "🎲";
-      document.getElementById("arDeedModal
+      document.getElementById("arDeedModal").style.display = "flex";
+      startCameraStream();
+    }
+
+    function startCameraStream() {
+      const video = document.getElementById("arVideo");
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(stream => { activeCameraStream = stream; video.srcObject = stream; })
+        .catch(err => { console.warn("Camera unavailable:", err); });
+    }
+
+    function closeArDeed() {
+      if (activeCameraStream) {
+        activeCameraStream.getTracks().forEach(track => track.stop());
+        activeCameraStream = null;
+      }
+      document.getElementById("arDeedModal").style.display = "none";
+    }
+
+    function rollDice() {
+      if (currentTurn !== myPlayerId) return;
+      document.getElementById("btnRoll").disabled = true;
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const total = d1 + d2;
+      document.getElementById("d1").innerText = d1;
+      document.getElementById("d2").innerText = d2;
+
+      const p = players[currentTurn];
+      const oldPos = p.pos;
+      p.pos = (p.pos + total) % 16;
+      if (p.pos < oldPos) { p.cash += 200; playerMarrowEnergy += 50; updateMarrowDisplay(); }
+      renderTokens();
+      handleTileLand(p);
+    }
+
+    function handleTileLand(p) {
+      const tile = TILES[p.pos];
+      updateHUD();
+      if (tile.type === "prop" && tile.owner === null) {
+        document.getElementById("btnBuy").disabled = (p.cash < tile.price);
+        log(`Landed on unowned ${tile.name}. Click 'Buy Deed' to purchase.`);
+        return;
+      } else if (tile.type === "prop" && tile.owner !== null && tile.owner !== p.id) {
+        let rentDue = tile.rent;
+        if (tile.hotel) rentDue *= 4;
+        else if (tile.houses > 0) rentDue *= (1 + tile.houses * 0.5);
+        p.cash -= rentDue; players[tile.owner].cash += rentDue;
+        log(`Paid $${rentDue} rent to ${players[tile.owner].name}.`);
+        setTimeout(endTurn, 1500);
+      } else if (tile.type === "suitcase") {
+        const rewards = [
+          { cash: 150, text: "Found a Family Legacy archive with $150!" },
+          { cash: -50, text: "Repaired Detroit community center (-$50)." },
+          { marrow: 50, text: "Discovered ancient ley lines (+50 Marrow Energy)!" }
+        ];
+        const reward = rewards[Math.floor(Math.random() * rewards.length)];
+        if (reward.cash) p.cash += reward.cash;
+        if (reward.marrow) { playerMarrowEnergy += reward.marrow; updateMarrowDisplay(); }
+        
+        log(`🎁 Mystery Suitcase: ${reward.text}`);
+        alert(`🎁 MYSTERY SUITCASE EVENT:\n${reward.text}`);
+        setTimeout(endTurn, 1000);
+      } else {
+        setTimeout(endTurn, 1500);
+      }
+    }
+
+    function buyProperty() {
+      const p = players[currentTurn];
+      const tile = TILES[p.pos];
+      if (tile.type === "prop" && tile.owner === null && p.cash >= tile.price) {
+        tile.owner = p.id; 
+        p.cash -= tile.price; 
+        p.deeds.push(tile.name);
+        playerMarrowEnergy += 25; 
+        updateMarrowDisplay();
+        openArPropertyCamera(p.pos);
+        document.getElementById("btnBuy").disabled = true;
+        buildBoard(); 
+        updateHUD(); 
+        broadcastState();
+        setTimeout(endTurn, 1000);
+      }
+    }
+
+    function upgradeProperty() {
+      const p = players[currentTurn];
+      const tile = TILES[p.pos];
+      const upgradeCost = 50;
+      if (tile.type === "prop" && tile.owner === p.id && p.cash >= upgradeCost) {
+        p.cash -= upgradeCost;
+        if (tile.houses < 4) { tile.houses++; log(`${p.name} built a house on ${tile.name}! 🏠`); }
+        else if (!tile.hotel) { tile.houses = 0; tile.hotel = true; log(`${p.name} upgraded to a HOTEL on ${tile.name}! 🏨`); }
+        buildBoard(); updateHUD(); broadcastState();
+      } else {
+        log("Cannot upgrade: You do not own this tile or lack funds ($50).");
+      }
+    }
+
+    function triggerChronoLeap() { if (playerMarrowEnergy >= 100) { playerMarrowEnergy -= 100; updateMarrowDisplay(); players[currentTurn].pos = (players[currentTurn].pos + 3) % 16; renderTokens(); } }
+    function triggerLegacyShield() { if (playerMarrowEnergy >= 75) { playerMarrowEnergy -= 75; updateMarrowDisplay(); shieldActive = true; } }
+    function endTurn() { document.getElementById("btnBuy").disabled = true; currentTurn = (currentTurn + 1) % players.length; updateHUD(); checkTurnControl(); broadcastState(); }
+    function updateMarrowDisplay() { document.getElementById("marrowCounter").innerText = `${playerMarrowEnergy} ME`; }
+    function updateHUD() { players.forEach((p, idx) => { document.getElementById(`pcash-${p.id}`).innerText = `$${p.cash}`; }); }
+    function log(msg) { document.getElementById("gameLog").innerText = msg; }
+
+    // TETRIS ARCADE ENGINE
+    let tetrisCanvas, tetrisCtx, nextCanvas, nextCtx;
+    let grid = Array(19).fill(0).map(() => Array(10).fill(0));
+    let tScore = 0, tME = 0, tetrisInterval = null, curPiece = null, nextPiece = null, isTetrisPaused = false;
+
+    const TETROMINOS = [
+      { shape: [[1,1,1,1]], color: '#38bdf8' },
+      { shape: [[1,1],[1,1]], color: '#facc15' },
+      { shape: [[0,1,0],[1,1,1]], color: '#a855f7' },
+      { shape: [[1,0,0],[1,1,1]], color: '#f97316' },
+      { shape: [[0,0,1],[1,1,1]], color: '#2563eb' }
+    ];
+
+    function startTetris() {
+      tetrisCanvas = document.getElementById("tetrisCanvas");
+      tetrisCtx = tetrisCanvas.getContext("2d");
+      nextCanvas = document.getElementById("nextCanvas");
+      nextCtx = nextCanvas.getContext("2d");
+      grid = Array(19).fill(0).map(() => Array(10).fill(0));
+      tScore = 0; tME = 0; isTetrisPaused = false;
+      
+      nextPiece = getRandomTetromino();
+      spawnTetromino();
+      if (tetrisInterval) clearInterval(tetrisInterval);
+      tetrisInterval = setInterval(tetrisTick, 420);
+    }
+
+    function getRandomTetromino() {
+      const template = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
+      return { shape: template.shape, color: template.color };
+    }
+
+    function toggleTetrisPause() {
+      isTetrisPaused = !isTetrisPaused;
+      document.getElementById("tetrisPauseBtn").innerText = isTetrisPaused ? "▶️ RESUME" : "⏸️ PAUSE";
+    }
+
+    function loadDailyHighScore() {
+      const saved = localStorage.getItem("rhodes_daily_highscore");
+      if (saved) {
+        const hs = JSON.parse(saved);
+        document.getElementById("dailyHighScore").innerText = `${hs.name} — ${hs.score} pts`;
+      }
+    }
+
+    function checkDailyHighScore() {
+      const saved = localStorage.getItem("rhodes_daily_highscore");
+      let currentHigh = saved ? JSON.parse(saved).score : 0;
+      if (tScore > currentHigh) {
+        let hsData = { name: myCustomName, score: tScore };
+        localStorage.setItem("rhodes_daily_highscore", JSON.stringify(hsData));
+        loadDailyHighScore();
+        alert(`🌟 NEW HIGH SCORE OF THE DAY! ${myCustomName} set a record of ${tScore} pts!`);
+      }
+    }
+
+    function spawnTetromino() {
+      curPiece = { shape: nextPiece.shape, color: nextPiece.color, x: 3, y: 0 };
+      nextPiece = getRandomTetromino();
+      drawNextPiece();
+
+      if (checkCollision(curPiece.x, curPiece.y, curPiece.shape)) {
+        clearInterval(tetrisInterval);
+        checkDailyHighScore();
+      }
+    }
+
+    function drawNextPiece() {
+      nextCtx.fillStyle = "#020617";
+      nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+      nextCtx.fillStyle = nextPiece.color;
+      let offsetX = (80 - nextPiece.shape[0].length * 16) / 2;
+      let offsetY = (80 - nextPiece.shape.length * 16) / 2;
+      nextPiece.shape.forEach((row, r) => {
+        row.forEach((val, c) => {
+          if (val) nextCtx.fillRect(offsetX + c * 16, offsetY + r * 16, 15, 15);
+        });
+      });
+    }
+
+    function checkCollision(nx, ny, shape) {
+      for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+          if (shape[r][c]) {
+            let px = nx + c, py = ny + r;
+            if (px < 0 || px >= 10 || py >= 19 || (py >= 0 && grid[py][px])) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function tetrisTick() {
+      if (isTetrisPaused || !curPiece) return;
+      if (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) {
+        curPiece.y++;
+      } else {
+        mergePiece();
+        clearLines();
+        spawnTetromino();
+      }
+      drawTetris();
+    }
+
+    function mergePiece() {
+      curPiece.shape.forEach((row, r) => {
+        row.forEach((val, c) => {
+          if (val && curPiece.y + r >= 0) grid[curPiece.y + r][curPiece.x + c] = curPiece.color;
+        });
+      });
+    }
+
+    function clearLines() {
+      let cleared = 0;
+      for (let r = 18; r >= 0; r--) {
+        if (grid[r].every(cell => cell !== 0)) {
+          grid.splice(r, 1);
+          grid.unshift(Array(10).fill(0));
+          cleared++; r++;
+        }
+      }
+      if (cleared > 0) {
+        tScore += cleared * 100;
+        tME += cleared * 25;
+        playerMarrowEnergy += cleared * 25;
+        updateMarrowDisplay();
+        document.getElementById("tetrisScore").innerText = tScore;
+        document.getElementById("tetrisME").innerText = tME;
+
+        if (cleared >= 2 && conn) {
+          conn.send({ type: 'TETRIS_ATTACK', lines: cleared - 1 });
+        }
+      }
+    }
+
+    function addGarbageLines(numLines) {
+      for (let i = 0; i < numLines; i++) {
+        grid.shift();
+        let garbageRow = Array(10).fill('#475569');
+        garbageRow[Math.floor(Math.random() * 10)] = 0;
+        grid.push(garbageRow);
+      }
+      log(`⚠️ Received ${numLines} garbage attack line(s) from opponent!`);
+    }
+
+    function tetrisMove(dir) {
+      if (isTetrisPaused || !curPiece) return;
+      if (!checkCollision(curPiece.x + dir, curPiece.y, curPiece.shape)) {
+        curPiece.x += dir; drawTetris();
+      }
+    }
+
+    function tetrisRotate() {
+      if (isTetrisPaused || !curPiece) return;
+      const rotated = curPiece.shape[0].map((_, i) => curPiece.shape.map(row => row[i]).reverse());
+      if (!checkCollision(curPiece.x, curPiece.y, rotated)) {
+        curPiece.shape = rotated; drawTetris();
+      }
+    }
+
+    function tetrisDrop() {
+      if (isTetrisPaused || !curPiece) return;
+      while (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) curPiece.y++;
+      mergePiece(); clearLines(); spawnTetromino(); drawTetris();
+    }
+
+    function drawTetris() {
+      tetrisCtx.fillStyle = "#020617";
+      tetrisCtx.fillRect(0, 0, tetrisCanvas.width, tetrisCanvas.height);
+      grid.forEach((row, r) => {
+        row.forEach((cell, c) => {
+          if (cell) { tetrisCtx.fillStyle = cell; tetrisCtx.fillRect(c * 22, r * 20, 21, 19); }
+        });
+      });
+      if (curPiece) {
+        tetrisCtx.fillStyle = curPiece.color;
+        curPiece.shape.forEach((row, r) => {
+          row.forEach((val, c) => {
+            if (val && curPiece.y + r >= 0) {
+              tetrisCtx.fillRect((curPiece.x + c) * 22, (curPiece.y + r) * 20, 21, 19);
+            }
+          });
+        });
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => { updateMarrowDisplay(); buildBoard(); });
+  </script>
+</body>
+</html>
