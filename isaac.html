@@ -261,7 +261,7 @@
       <div class="hud-header">
         <div class="hud-top-row">
           <span id="heroNameLabel" class="hero-title">Marcus Prime (Lead) & Xochitl (AI)</span>
-          <span id="waveDisplay" class="wave-badge">Wave 1: Scout Vanguard</span>
+          <span id="waveDisplay" class="wave-badge">Wave 1: Detroit Vanguard</span>
         </div>
         <div class="bars-container">
           <div class="bar-group">
@@ -269,7 +269,7 @@
             <div class="bar-track"><div id="heroHpBar" class="bar-fill-hero"></div></div>
           </div>
           <div class="bar-group">
-            <div class="bar-label"><span id="enemyTypeLabel">Syndicate Droids</span><span id="enemyHpText">14 Units</span></div>
+            <div class="bar-label"><span id="enemyTypeLabel">Walking Droids</span><span id="enemyHpText">14 Units</span></div>
             <div class="bar-track"><div id="enemyHpBar" class="bar-fill-enemy"></div></div>
           </div>
         </div>
@@ -279,7 +279,7 @@
         <canvas id="gameCanvas" width="540" height="280"></canvas>
       </div>
 
-      <div class="combat-log" id="combatLog">Tactical Co-Op active! Droids attacking from Detroit skyline.</div>
+      <div class="combat-log" id="combatLog">Tactical Co-Op active! Droids advancing across Detroit skyline.</div>
 
       <div class="controls-grid">
         <div class="dpad-cluster">
@@ -315,8 +315,12 @@
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Hold power meter to set shot force and release!</div>
-      <button class="btn btn-ultimate" style="margin-top: 6px; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE TO SHOOT</button>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Hold power meter and release to execute shot!</div>
+      <div style="display: flex; gap: 6px; margin-top: 6px;">
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ ADJUST AIM</button>
+        <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(1)">ADJUST AIM ►</button>
+      </div>
     </div>
   </section>
 
@@ -390,9 +394,9 @@
         for (let i = 0; i < 14; i++) {
           enemies.push({ 
             x: 540 + (i * 75), 
-            y: 205, 
+            y: 202, 
             hp: 3, 
-            speed: 1.2, 
+            speed: 1.1, 
             active: true, 
             walkCycle: Math.random() * Math.PI 
           });
@@ -450,9 +454,9 @@
       } else if (activeLead === "wakan") {
         tsunamis.push({ x: leadX + 30, y: 195, vx: 7.0, width: 120, height: 45, life: 65 });
       } else {
-        lightningBolts.push({ segments: [{x1:leadX+40, y1:180, x2:leadX+120, y2:180}], life: 8 });
+        lightningBolts.push({ startX: leadX + 40, startY: 160, targetX: leadX + 220, life: 12 });
       }
-      checkDroidHits();
+      checkDroidDamage(2);
     }
 
     function executePlasmaOrb() {
@@ -462,8 +466,10 @@
         xochitlFlight.x = leadX; xochitlFlight.y = 165; xochitlFlight.timer = 0;
       } else if (activeLead === "wakan") {
         tsunamis.push({ x: leadX + 30, y: 185, vx: 8.5, width: 170, height: 60, life: 80 });
+      } else {
+        daggers.push({ x: leadX + 30, y: 170, vx: 8, vy: 0, length: 18, width: 4 });
       }
-      checkDroidHits();
+      checkDroidDamage(2);
     }
 
     function executeBurst() {
@@ -473,22 +479,21 @@
       } else {
         isShieldActive = true; setTimeout(() => isShieldActive = false, 3000);
       }
-      checkDroidHits();
+      checkDroidDamage(3);
     }
 
     function executeLuettaAid() {
       if (!gameActive || isPaused) return;
       playerHp = 100; updateHUD();
-      // Mother Luetta fiery daggers lock on and wipe active droids
-      enemies.forEach(e => e.active = false);
-      document.getElementById("combatLog").innerText = "★ Mother Luetta summons Solar Purge! All droids incinerated! ★";
-      setTimeout(() => { document.getElementById("combatLog").innerText = "Tactical Co-Op active! Droids re-arming..."; startWave(1); }, 2000);
+      enemies.forEach(e => { e.hp = 0; e.active = false; });
+      document.getElementById("combatLog").innerText = "★ Mother Luetta summons Solar Purge! All walking droids neutralized! ★";
+      setTimeout(() => { document.getElementById("combatLog").innerText = "Tactical Co-Op active! Reinforcements arriving..."; startWave(1); }, 2000);
     }
 
-    function checkDroidHits() {
+    function checkDroidDamage(dmg) {
       enemies.forEach(e => {
-        if (e.active && Math.abs(e.x - leadX) < 140) {
-          e.hp--;
+        if (e.active && Math.abs(e.x - leadX) < 180) {
+          e.hp -= dmg;
           if (e.hp <= 0) e.active = false;
         }
       });
@@ -547,7 +552,7 @@
             xochitlFlight.x -= 3.5;
             let targetDroid = enemies.find(e => e.active);
             let targetX = targetDroid ? targetDroid.x : 100;
-            if (xochitlFlight.timer % 6 === 0) daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 25, vx: (targetX - xochitlFlight.x) * 0.08, vy: 4, length: 18, width: 4 });
+            if (xochitlFlight.timer % 6 === 0) daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 25, vx: (targetX - xochitlFlight.x) * 0.08, vy: 3, length: 18, width: 4 });
             if (xochitlFlight.x <= 120) xochitlFlight.state = 'TOUCHDOWN';
           } else if (xochitlFlight.state === 'TOUCHDOWN') { xochitlFlight.active = false; xochitlFlight.state = 'INACTIVE'; }
           
@@ -565,18 +570,23 @@
         }
         ctx.restore();
 
-        // Walking Droids with mechanical limbs and glowing optic sensors
+        // Walking Droids with mechanical limbs, glowing optic sensors, and active collision
         enemies.forEach(e => {
           if (!e.active) return;
           e.x -= e.speed;
           e.walkCycle += 0.15;
           let legOffset = Math.sin(e.walkCycle) * 6;
 
+          // Collision check with hero lead
+          if (Math.abs(e.x - leadX) < 25 && isGrounded) {
+            playerHp = Math.max(0, playerHp - 0.25);
+            updateHUD();
+          }
+
           ctx.save();
           ctx.fillStyle = "#334155";
           ctx.strokeStyle = "#38bdf8";
           ctx.lineWidth = 1.5;
-          // Droid Body
           ctx.fillRect(e.x, e.y, 24, 26);
           ctx.strokeRect(e.x, e.y, 24, 26);
           // Optic Sensor Eye
@@ -591,6 +601,22 @@
           ctx.stroke();
           ctx.restore();
         });
+
+        // Lightning Bolts
+        for (let i = lightningBolts.length - 1; i >= 0; i--) {
+          let lb = lightningBolts[i];
+          lb.life--;
+          ctx.save();
+          ctx.strokeStyle = "#facc15";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(lb.startX, lb.startY);
+          ctx.lineTo(lb.startX + 80, lb.startY - 30);
+          ctx.lineTo(lb.targetX, lb.startY + 40);
+          ctx.stroke();
+          ctx.restore();
+          if (lb.life <= 0) lightningBolts.splice(i, 1);
+        }
 
         for (let i = tsunamis.length - 1; i >= 0; i--) {
           let t = tsunamis[i];
@@ -613,9 +639,8 @@
         daggers.forEach((d, idx) => {
           d.x += d.vx; d.y += d.vy;
           ctx.fillStyle = "#f97316"; ctx.fillRect(d.x, d.y, d.length, d.width);
-          // Check Dagger collision against droids
           enemies.forEach(e => {
-            if (e.active && Math.hypot(e.x - d.x, e.y - d.y) < 25) {
+            if (e.active && Math.hypot(e.x - d.x, e.y - d.y) < 30) {
               e.hp--;
               if (e.hp <= 0) e.active = false;
               daggers.splice(idx, 1);
@@ -629,7 +654,7 @@
     }
 
     function updateHUD() {
-      document.getElementById("heroHpText").innerText = `${playerHp}/100`;
+      document.getElementById("heroHpText").innerText = `${Math.ceil(playerHp)}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
     }
 
@@ -640,10 +665,11 @@
     let sportAnimId = null;
     let chargePower = 0;
     let isCharging = false;
+    let sportAimAngle = 0;
 
     let bbBall = { x: 70, y: 170, vx: 0, vy: 0, active: false };
-    let cueBall = { x: 100, y: 115, vx: 0, vy: 0, pulledBack: 0 };
-    let targetBall = { x: 380, y: 115, potted: false };
+    let cueBall = { x: 100, y: 115, vx: 0, vy: 0 };
+    let targetBalls = [{x: 380, y: 115, potted: false, num: 8}, {x: 410, y: 100, potted: false, num: 1}, {x: 410, y: 130, potted: false, num: 9}];
     let bowlBall = { x: 270, y: 190, vx: 0, vy: 0, active: false, aimOffset: 0 };
     let pins = [
       {x: 270, y: 50, hit: false},
@@ -657,11 +683,7 @@
       document.getElementById("tabPool").classList.toggle("active", sport === 'pool');
       document.getElementById("tabBowling").classList.toggle("active", sport === 'bowling');
 
-      const btn = document.getElementById("sportActionBtn");
-      if (sport === 'basketball') btn.innerText = "HOLD & RELEASE TO SHOOT";
-      if (sport === 'pool') btn.innerText = "PULL CUE & STRIKE";
-      if (sport === 'bowling') btn.innerText = "AIM & ROLL BALL";
-
+      sportAimAngle = 0;
       initSportScene();
     }
 
@@ -673,13 +695,19 @@
       if (currentSport === 'basketball') {
         bbBall = { x: 70, y: 170, vx: 0, vy: 0, active: false };
       } else if (currentSport === 'pool') {
-        cueBall = { x: 100, y: 115, vx: 0, vy: 0, pulledBack: 0 };
-        targetBall = { x: 380, y: 115, potted: false };
+        cueBall = { x: 100, y: 115, vx: 0, vy: 0 };
+        targetBalls = [{x: 380, y: 115, potted: false, num: 8}, {x: 410, y: 100, potted: false, num: 1}, {x: 410, y: 130, potted: false, num: 9}];
       } else if (currentSport === 'bowling') {
         bowlBall = { x: 270, y: 190, vx: 0, vy: 0, active: false, aimOffset: 0 };
         pins.forEach(p => p.hit = false);
       }
       if (!sportAnimId) renderSportLoop();
+    }
+
+    function adjustSportAim(dir) {
+      if (currentSport === 'basketball') sportAimAngle = Math.max(-0.3, Math.min(0.3, sportAimAngle + (dir * 0.05)));
+      else if (currentSport === 'pool') sportAimAngle = Math.max(-0.5, Math.min(0.5, sportAimAngle + (dir * 0.08)));
+      else if (currentSport === 'bowling') bowlBall.aimOffset = Math.max(-50, Math.min(50, bowlBall.aimOffset + (dir * 12)));
     }
 
     function startPowerCharge() {
@@ -688,18 +716,20 @@
       let chargeInterval = setInterval(() => {
         if (!isCharging) { clearInterval(chargeInterval); return; }
         chargePower = (chargePower + 2) % 100;
-      }, 30);
+      }, 25);
     }
 
     function releasePowerCharge() {
       if (!isCharging) return;
       isCharging = false;
-      let power = Math.max(15, chargePower);
+      let power = Math.max(20, chargePower);
 
       if (currentSport === 'basketball' && !bbBall.active) {
-        bbBall.vx = power * 0.12; bbBall.vy = -power * 0.16; bbBall.active = true;
+        bbBall.vx = (power * 0.13) + (sportAimAngle * 5); 
+        bbBall.vy = -power * 0.17; 
+        bbBall.active = true;
       } else if (currentSport === 'pool' && cueBall.vx === 0) {
-        cueBall.vx = power * 0.15;
+        cueBall.vx = power * 0.16;
       } else if (currentSport === 'bowling' && !bowlBall.active) {
         bowlBall.vy = -power * 0.18; bowlBall.active = true;
       }
@@ -712,77 +742,124 @@
         sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
 
         if (currentSport === 'basketball') {
-          // Gym Background
-          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(0, 0, sportCanvas.width, 180);
-          sportCtx.fillStyle = "#334155"; sportCtx.fillRect(0, 180, sportCanvas.width, 50);
-          // Hoop & Backboard
-          sportCtx.fillStyle = "#f8fafc"; sportCtx.fillRect(450, 40, 10, 70);
+          // Professional Gym Background & Hardwood Flooring
+          sportCtx.fillStyle = "#0f172a"; sportCtx.fillRect(0, 0, sportCanvas.width, 175);
+          sportCtx.fillStyle = "#78350f"; sportCtx.fillRect(0, 175, sportCanvas.width, 55);
+          sportCtx.strokeStyle = "#b45309"; sportCtx.lineWidth = 2;
+          for (let i = 1; i < 10; i++) {
+            sportCtx.beginPath(); sportCtx.moveTo(i * 60, 175); sportCtx.lineTo(i * 60, 230); sportCtx.stroke();
+          }
+
+          // Solid Backboard & Woven Net
+          sportCtx.fillStyle = "#f8fafc"; sportCtx.fillRect(455, 35, 10, 75);
+          sportCtx.fillStyle = "#ef4444"; sportCtx.fillRect(453, 55, 14, 25); // Target square
+          // Rim
           sportCtx.strokeStyle = "#f59e0b"; sportCtx.lineWidth = 4;
-          sportCtx.beginPath(); sportCtx.arc(430, 80, 22, Math.PI, 0, true); sportCtx.stroke();
+          sportCtx.beginPath(); sportCtx.arc(433, 80, 22, Math.PI, 0, true); sportCtx.stroke();
+          // Woven Net
+          sportCtx.strokeStyle = "rgba(248, 250, 252, 0.7)"; sportCtx.lineWidth = 1.5;
+          sportCtx.beginPath();
+          sportCtx.moveTo(413, 82); sportCtx.lineTo(423, 115);
+          sportCtx.moveTo(453, 82); sportCtx.lineTo(443, 115);
+          sportCtx.moveTo(423, 115); sportCtx.lineTo(443, 115);
+          sportCtx.stroke();
 
           if (bbBall.active) {
             bbBall.x += bbBall.vx; bbBall.y += bbBall.vy; bbBall.vy += 0.45;
-            if (bbBall.x > 415 && bbBall.x < 445 && bbBall.y > 75 && bbBall.y < 90 && bbBall.vy > 0) {
+            // Solid backboard collision
+            if (bbBall.x >= 450 && bbBall.y <= 110) {
+              bbBall.vx = -Math.abs(bbBall.vx) * 0.6;
+              bbBall.vy += 2;
+            }
+            // Hoop score check
+            if (bbBall.x > 418 && bbBall.x < 448 && bbBall.y > 75 && bbBall.y < 90 && bbBall.vy > 0) {
               sportScore += 2; sportME += 10; updateSportStats();
               bbBall.active = false; bbBall.x = 70; bbBall.y = 170; bbBall.vx = 0; bbBall.vy = 0;
             }
-            if (bbBall.y > 210 || bbBall.x > 540) {
+            if (bbBall.y > 220 || bbBall.x > 540 || bbBall.x < 0) {
               bbBall.active = false; bbBall.x = 70; bbBall.y = 170; bbBall.vx = 0; bbBall.vy = 0;
             }
           }
           sportCtx.fillStyle = "#f97316"; sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
 
+          // Aiming trajectory line
+          if (!bbBall.active) {
+            sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
+            sportCtx.beginPath(); sportCtx.moveTo(70, 170); sportCtx.lineTo(150 + (sportAimAngle * 100), 120); sportCtx.stroke();
+            sportCtx.setLineDash([]);
+          }
+
           // Power Meter Bar
-          sportCtx.fillStyle = "#334155"; sportCtx.fillRect(20, 195, 120, 12);
-          sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(20, 195, (chargePower / 100) * 120, 12);
-          sportCtx.fillStyle = "#fff"; sportCtx.font = "9px monospace"; sportCtx.fillText("POWER METER", 22, 204);
+          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(20, 195, 140, 14);
+          sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(20, 195, (chargePower / 100) * 140, 14);
+          sportCtx.fillStyle = "#fff"; sportCtx.font = "9px monospace"; sportCtx.fillText("POWER METER", 24, 205);
 
         } else if (currentSport === 'pool') {
-          // Pool Table with Wood Rails and Pockets
-          sportCtx.fillStyle = "#451a03"; sportCtx.fillRect(15, 10, 510, 210); // Wood border
-          sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(30, 25, 480, 180); // Felt
+          // Pool Table with Wood Rails, Felt, and 6 Pockets
+          sportCtx.fillStyle = "#451a03"; sportCtx.fillRect(10, 10, 520, 210);
+          sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(25, 25, 490, 180);
 
-          // Pocket Holes (6 Pockets)
+          // Pockets (Corner & Side)
           sportCtx.fillStyle = "#000";
-          let pockets = [{x:32, y:27}, {x:270, y:22}, {x:508, y:27}, {x:32, y:203}, {x:270, y:208}, {x:508, y:203}];
+          let pockets = [{x:28, y:28}, {x:270, y:22}, {x:512, y:28}, {x:28, y:202}, {x:270, y:208}, {x:512, y:202}];
           pockets.forEach(pk => {
-            sportCtx.beginPath(); sportCtx.arc(pk.x, pk.y, 9, 0, Math.PI * 2); sportCtx.fill();
+            sportCtx.beginPath(); sportCtx.arc(pk.x, pk.y, 10, 0, Math.PI * 2); sportCtx.fill();
           });
 
           cueBall.x += cueBall.vx;
           if (cueBall.vx > 0) cueBall.vx *= 0.95;
-          if (!targetBall.potted && Math.hypot(cueBall.x - targetBall.x, cueBall.y - targetBall.y) < 18) {
-            targetBall.potted = true; sportScore += 100; sportME += 25; updateSportStats();
-          }
 
-          // Render Pool Cue Stick
+          targetBalls.forEach((tb, idx) => {
+            if (!tb.potted && Math.hypot(cueBall.x - tb.x, cueBall.y - tb.y) < 18) {
+              tb.potted = true; sportScore += 100; sportME += 25; updateSportStats();
+            }
+          });
+
+          // Aiming / Trajectory Arrow
           if (cueBall.vx === 0) {
-            sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 4;
-            sportCtx.beginPath(); sportCtx.moveTo(cueBall.x - 60 - (chargePower * 0.5), cueBall.y); sportCtx.lineTo(cueBall.x - 12, cueBall.y); sportCtx.stroke();
+            sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([3, 3]);
+            sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + 120, cueBall.y + (sportAimAngle * 80)); sportCtx.stroke();
+            sportCtx.setLineDash([]);
+
+            // Pool Cue Stick with pull-back indicator
+            let pullBack = (chargePower * 0.6);
+            sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 5;
+            sportCtx.beginPath(); 
+            sportCtx.moveTo(cueBall.x - 70 - pullBack, cueBall.y + (sportAimAngle * 40)); 
+            sportCtx.lineTo(cueBall.x - 12, cueBall.y); 
+            sportCtx.stroke();
           }
 
+          // Cue Ball (White)
           sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, 8, 0, Math.PI * 2); sportCtx.fill();
-          if (!targetBall.potted) {
-            sportCtx.fillStyle = "#dc2626"; sportCtx.beginPath(); sportCtx.arc(targetBall.x, targetBall.y, 8, 0, Math.PI * 2); sportCtx.fill();
-          }
+
+          // Numbered Target Balls
+          targetBalls.forEach(tb => {
+            if (!tb.potted) {
+              sportCtx.fillStyle = tb.num === 8 ? "#111" : "#dc2626";
+              sportCtx.beginPath(); sportCtx.arc(tb.x, tb.y, 8, 0, Math.PI * 2); sportCtx.fill();
+              sportCtx.fillStyle = "#fff"; sportCtx.font = "8px sans-serif"; sportCtx.fillText(tb.num, tb.x - 3, tb.y + 3);
+            }
+          });
 
           // Power Meter
-          sportCtx.fillStyle = "#334155"; sportCtx.fillRect(30, 190, 100, 10);
-          sportCtx.fillStyle = "#10b981"; sportCtx.fillRect(30, 190, (chargePower / 100) * 100, 10);
+          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(30, 190, 110, 12);
+          sportCtx.fillStyle = "#10b981"; sportCtx.fillRect(30, 190, (chargePower / 100) * 110, 12);
+          sportCtx.fillStyle = "#fff"; sportCtx.font = "8px monospace"; sportCtx.fillText("CUE POWER", 34, 198);
 
         } else if (currentSport === 'bowling') {
           // Bowling Alley Floor & Background
-          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
-          sportCtx.fillStyle = "#b45309"; sportCtx.fillRect(170, 10, 200, 210);
+          sportCtx.fillStyle = "#0f172a"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
+          sportCtx.fillStyle = "#b45309"; sportCtx.fillRect(170, 10, 200, 215);
           sportCtx.strokeStyle = "#78350f"; sportCtx.lineWidth = 2;
           for (let i = 1; i < 5; i++) {
-            sportCtx.beginPath(); sportCtx.moveTo(170 + (i * 40), 10); sportCtx.lineTo(170 + (i * 40), 220); sportCtx.stroke();
+            sportCtx.beginPath(); sportCtx.moveTo(170 + (i * 40), 10); sportCtx.lineTo(170 + (i * 40), 225); sportCtx.stroke();
           }
 
           if (bowlBall.active) {
             bowlBall.y += bowlBall.vy;
             pins.forEach(p => {
-              if (!p.hit && Math.hypot(bowlBall.x - p.x, bowlBall.y - p.y) < 16) {
+              if (!p.hit && Math.hypot((bowlBall.x + bowlBall.aimOffset) - p.x, bowlBall.y - p.y) < 16) {
                 p.hit = true; sportScore += 30; sportME += 15; updateSportStats();
               }
             });
@@ -791,7 +868,7 @@
             }
           }
 
-          // Render Pins
+          // Pins
           pins.forEach(p => {
             if (!p.hit) {
               sportCtx.fillStyle = "#fff"; sportCtx.beginPath(); sportCtx.arc(p.x, p.y, 6, 0, Math.PI * 2); sportCtx.fill();
@@ -799,15 +876,25 @@
             }
           });
 
+          // Aiming arrow for strike guidance
+          if (!bowlBall.active) {
+            sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
+            sportCtx.beginPath(); sportCtx.moveTo(bowlBall.x + bowlBall.aimOffset, bowlBall.y); sportCtx.lineTo(270, 60); sportCtx.stroke();
+            sportCtx.setLineDash([]);
+          }
+
           sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(bowlBall.x + bowlBall.aimOffset, bowlBall.y, 11, 0, Math.PI * 2); sportCtx.fill();
 
-          // Score & Power Meter Overlay
-          sportCtx.fillStyle = "#0f172a"; sportCtx.fillRect(10, 10, 110, 40);
-          sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "10px monospace"; sportCtx.fillText(`PINS LEFT: ${pins.filter(p=>!p.hit).length}`, 16, 25);
-          sportCtx.fillText(`SCORE: ${sportScore}`, 16, 40);
+          // Digital Score & Pins Left Board in Background
+          sportCtx.fillStyle = "#020617"; sportCtx.fillRect(15, 15, 130, 45);
+          sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 1; sportCtx.strokeRect(15, 15, 130, 45);
+          sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "10px monospace"; 
+          sportCtx.fillText(`PINS LEFT: ${pins.filter(p=>!p.hit).length}`, 22, 32);
+          sportCtx.fillText(`SCORE: ${sportScore}`, 22, 48);
 
-          sportCtx.fillStyle = "#334155"; sportCtx.fillRect(170, 212, 200, 10);
-          sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(170, 212, (chargePower / 100) * 200, 10);
+          // Throw Power Meter
+          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(170, 215, 200, 10);
+          sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(170, 215, (chargePower / 100) * 200, 10);
         }
       }
       sportAnimId = requestAnimationFrame(renderSportLoop);
