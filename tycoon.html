@@ -817,7 +817,7 @@
       if (isMyTurn) log(`Your turn (${players[currentTurn].name})! Roll dice.`);
       else {
         log(`Waiting for ${players[currentTurn].name}...`);
-        if (playVsAI && currentTurn === 1) setTimeout(runAITurn, 1000);
+        if (playVsAI && currentTurn === 1) setTimeout(runAITurn, 800);
       }
     }
 
@@ -838,7 +838,7 @@
           log(`🤖 Saginaw Bot opened a Mystery Suitcase and found $${reward}!`);
         } else { log(`🤖 Saginaw Bot landed on ${tile.name}.`); }
         buildBoard(); updateHUD(); currentTurn = 0; checkTurnControl();
-      }, 1000);
+      }, 800);
     }
 
     function buildHUD() {
@@ -947,7 +947,7 @@
         else if (tile.houses > 0) rentDue *= (1 + tile.houses * 0.5);
         p.cash -= rentDue; players[tile.owner].cash += rentDue;
         log(`Paid $${rentDue} rent to ${players[tile.owner].name}.`);
-        setTimeout(endTurn, 1500);
+        setTimeout(endTurn, 1000);
       } else if (tile.type === "suitcase") {
         const rewards = [
           { cash: 150, text: "Found a Family Legacy archive with $150!" },
@@ -959,10 +959,9 @@
         if (reward.marrow) { playerMarrowEnergy += reward.marrow; updateMarrowDisplay(); }
         
         log(`🎁 Mystery Suitcase: ${reward.text}`);
-        alert(`🎁 MYSTERY SUITCASE EVENT:\n${reward.text}`);
-        setTimeout(endTurn, 1000);
+        setTimeout(endTurn, 800);
       } else {
-        setTimeout(endTurn, 1500);
+        setTimeout(endTurn, 800);
       }
     }
 
@@ -980,7 +979,7 @@
         buildBoard(); 
         updateHUD(); 
         broadcastState();
-        setTimeout(endTurn, 1000);
+        setTimeout(endTurn, 800);
       }
     }
 
@@ -1057,7 +1056,6 @@
         let hsData = { name: myCustomName, score: tScore };
         localStorage.setItem("rhodes_daily_highscore", JSON.stringify(hsData));
         loadDailyHighScore();
-        alert(`🌟 NEW HIGH SCORE OF THE DAY! ${myCustomName} set a record of ${tScore} pts!`);
       }
     }
 
@@ -1080,4 +1078,190 @@
       let offsetY = (80 - nextPiece.shape.length * 16) / 2;
       nextPiece.shape.forEach((row, r) => {
         row.forEach((val, c) => {
-          if (val) nextCtx.fillRect(offsetX + c * 16, offsetY +
+          if (val) nextCtx.fillRect(offsetX + c * 16, offsetY + r * 16, 15, 15);
+        });
+      });
+    }
+
+    function checkCollision(nx, ny, shape) {
+      for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+          if (shape[r][c]) {
+            let px = nx + c, py = ny + r;
+            if (px < 0 || px >= 10 || py >= 19 || (py >= 0 && grid[py][px])) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function tetrisTick() {
+      if (isTetrisPaused || !curPiece) return;
+      if (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) {
+        curPiece.y++;
+      } else {
+        mergePiece();
+        clearLines();
+        spawnTetromino();
+      }
+      drawTetris();
+    }
+
+    function mergePiece() {
+      curPiece.shape.forEach((row, r) => {
+        row.forEach((val, c) => {
+          if (val && curPiece.y + r >= 0) grid[curPiece.y + r][curPiece.x + c] = curPiece.color;
+        });
+      });
+    }
+
+    function clearLines() {
+      let cleared = 0;
+      let sameColorFiveBonus = false;
+
+      for (let r = 0; r < 19; r++) {
+        let count = 1;
+        for (let c = 1; c < 10; c++) {
+          if (grid[r][c] && grid[r][c] === grid[r][c-1]) {
+            count++;
+            if (count >= 5) sameColorFiveBonus = true;
+          } else {
+            count = 1;
+          }
+        }
+      }
+
+      for (let r = 18; r >= 0; r--) {
+        if (grid[r].every(cell => cell !== 0)) {
+          grid.splice(r, 1);
+          grid.unshift(Array(10).fill(0));
+          cleared++; r++;
+        }
+      }
+
+      if (cleared > 0 || sameColorFiveBonus) {
+        let pointsEarned = cleared * 100;
+        if (sameColorFiveBonus) pointsEarned += 500;
+        tScore += pointsEarned;
+        tME += (cleared * 25) + (sameColorFiveBonus ? 50 : 0);
+        playerMarrowEnergy += (cleared * 25);
+        updateMarrowDisplay();
+        document.getElementById("tetrisScore").innerText = tScore;
+        document.getElementById("tetrisME").innerText = tME;
+
+        if (cleared >= 2 && conn) {
+          conn.send({ type: 'TETRIS_ATTACK', lines: cleared - 1 });
+        }
+      }
+    }
+
+    function addGarbageLines(numLines) {
+      for (let i = 0; i < numLines; i++) {
+        grid.shift();
+        let garbageRow = Array(10).fill('#475569');
+        garbageRow[Math.floor(Math.random() * 10)] = 0;
+        grid.push(garbageRow);
+      }
+    }
+
+    function tetrisMove(dir) {
+      if (isTetrisPaused || !curPiece) return;
+      if (!checkCollision(curPiece.x + dir, curPiece.y, curPiece.shape)) {
+        curPiece.x += dir; drawTetris();
+      }
+    }
+
+    function tetrisRotate() {
+      if (isTetrisPaused || !curPiece) return;
+      const rotated = curPiece.shape[0].map((_, i) => curPiece.shape.map(row => row[i]).reverse());
+      if (!checkCollision(curPiece.x, curPiece.y, rotated)) {
+        curPiece.shape = rotated; drawTetris();
+      }
+    }
+
+    function tetrisDrop() {
+      if (isTetrisPaused || !curPiece) return;
+      while (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) curPiece.y++;
+      mergePiece(); clearLines(); spawnTetromino(); drawTetris();
+    }
+
+    function drawTetris() {
+      tetrisCtx.fillStyle = "#020617";
+      tetrisCtx.fillRect(0, 0, tetrisCanvas.width, tetrisCanvas.height);
+      grid.forEach((row, r) => {
+        row.forEach((cell, c) => {
+          if (cell) { tetrisCtx.fillStyle = cell; tetrisCtx.fillRect(c * 22, r * 20, 21, 19); }
+        });
+      });
+      if (curPiece) {
+        tetrisCtx.fillStyle = curPiece.color;
+        curPiece.shape.forEach((row, r) => {
+          row.forEach((val, c) => {
+            if (val && curPiece.y + r >= 0) {
+              tetrisCtx.fillRect((curPiece.x + c) * 22, (curPiece.y + r) * 20, 21, 19);
+            }
+          });
+        });
+      }
+    }
+
+    // WORD SEARCH TRIVIA ENGINE
+    const HIDDEN_WORDS = ["LEGACY", "MARROW", "DETROIT"];
+    let foundWords = [];
+    let wordSearchScore = 0;
+
+    function initWordSearch() {
+      foundWords = [];
+      wordSearchScore = 0;
+      document.getElementById("wordListText").innerText = HIDDEN_WORDS.join(", ");
+      document.getElementById("wordStatus").innerText = `Words Found: 0 / ${HIDDEN_WORDS.length} | Score: 0`;
+      
+      const gridContainer = document.getElementById("wordGridContainer");
+      gridContainer.innerHTML = "";
+      
+      const letters = [
+        ['L','E','G','A','C','Y'],
+        ['M','A','R','R','O','W'],
+        ['D','E','T','R','O','I'],
+        ['T','X','Z','K','P','T'],
+        ['F','A','M','I','L','Y'],
+        ['S','A','G','I','N','A']
+      ];
+
+      letters.forEach((row) => {
+        row.forEach((char) => {
+          const cell = document.createElement("div");
+          cell.className = "word-cell";
+          cell.innerText = char;
+          cell.onclick = () => {
+            cell.classList.toggle("selected");
+            checkFoundWords();
+          };
+          gridContainer.appendChild(cell);
+        });
+      });
+    }
+
+    function checkFoundWords() {
+      const selectedCells = document.querySelectorAll(".word-cell.selected");
+      let selectedStr = Array.from(selectedCells).map(el => el.innerText).join("");
+      
+      HIDDEN_WORDS.forEach(word => {
+        if (selectedStr.includes(word) && !foundWords.includes(word)) {
+          foundWords.push(word);
+          wordSearchScore += 100;
+          playerMarrowEnergy += 50;
+          updateMarrowDisplay();
+          document.getElementById("wordStatus").innerText = `Words Found: ${foundWords.length} / ${HIDDEN_WORDS.length} | Score: ${wordSearchScore}`;
+          
+          if (conn) {
+            conn.send({ type: 'WORD_ATTACK', word: word, score: wordSearchScore });
+          }
+        }
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", () => { updateMarrowDisplay(); buildBoard(); });
+  </script>
+</body>
+</html>
