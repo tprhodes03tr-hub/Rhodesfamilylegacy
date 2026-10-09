@@ -702,3 +702,594 @@
       document.getElementById("tabTetris").classList.toggle("active", view === 'tetris');
       document.getElementById("tabWordSearch").classList.toggle("active", view === 'wordsearch');
       
+      document.getElementById("tycoonControls").style.display = view === 'tycoon' ? "grid" : "none";
+      
+      if (view === 'tetris') startTetris();
+      if (view === 'wordsearch') initWordSearch();
+    }
+
+    const COMPOUND_PREFIXES = ["DETROIT", "SAGINAW", "MARROW", "VANGUARD", "LEGACY", "ATWATER", "WOODWARD"];
+    const COMPOUND_SUFFIXES = ["RISING", "PRIME", "SHIELD", "VAULT", "TITAN", "ARENA", "GRID"];
+    
+    function generateWordCode() {
+      const pre = COMPOUND_PREFIXES[Math.floor(Math.random() * COMPOUND_PREFIXES.length)];
+      const suf = COMPOUND_SUFFIXES[Math.floor(Math.random() * COMPOUND_SUFFIXES.length)];
+      return `${pre}-${suf}`;
+    }
+
+    let peer = null, conn = null, isHost = false, myPlayerId = 0;
+
+    function hostP2PMatch() {
+      playVsAI = false; document.getElementById("aiToggle").checked = false;
+      const customCode = generateWordCode();
+      peer = new Peer(customCode);
+      peer.on('open', (id) => {
+        isHost = true; myPlayerId = 0;
+        players = [{ id: 0, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] }, { id: 1, name: "Opponent", color: "#f472b6", cash: 1500, pos: 0, deeds: [] }];
+        buildHUD();
+        document.getElementById("joinCodeInput").value = id;
+        alert(`Room hosted successfully! Share this compound word code with your opponent: ${id}`);
+      });
+      peer.on('connection', (connection) => { 
+        conn = connection; 
+        setupConnectionEvents(); 
+        log("Opponent connected to room!");
+      });
+    }
+
+    function joinP2PMatch() {
+      playVsAI = false; document.getElementById("aiToggle").checked = false;
+      const code = document.getElementById("joinCodeInput").value.trim().toUpperCase();
+      if (!code) { alert("Please enter a valid room word code."); return; }
+      
+      peer = new Peer();
+      peer.on('open', () => {
+        conn = peer.connect(code);
+        isHost = false; myPlayerId = 1;
+        players = [{ id: 0, name: "Host", color: "#38bdf8", cash: 1500, pos: 0, deeds: [] }, { id: 1, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] }];
+        buildHUD();
+        setupConnectionEvents();
+        log(`Connected to room: ${code}`);
+      });
+    }
+
+    function setupConnectionEvents() {
+      conn.on('data', (data) => {
+        if (data.type === 'TYCOON_SYNC') {
+          players = data.players; currentTurn = data.currentTurn; playerMarrowEnergy = data.marrowEnergy;
+          data.tiles.forEach((syncTile, idx) => { 
+            if (TILES[idx]) {
+              TILES[idx].owner = syncTile.owner;
+              TILES[idx].houses = syncTile.houses;
+              TILES[idx].hotel = syncTile.hotel;
+            } 
+          });
+          buildBoard(); updateHUD(); updateMarrowDisplay(); checkTurnControl();
+        } else if (data.type === 'TETRIS_ATTACK') {
+          addGarbageLines(data.lines);
+        } else if (data.type === 'WORD_ATTACK') {
+          log(`⚠️ Opponent found word: ${data.word}! They gained +100 score.`);
+        }
+      });
+    }
+
+    function broadcastState(msg = "") {
+      if (conn) conn.send({ type: 'TYCOON_SYNC', players, tiles: TILES, currentTurn, marrowEnergy: playerMarrowEnergy, logMsg: msg });
+    }
+
+    const TILES = [
+      { id: 0, name: "START (+$200)", type: "corner", color: "th-corner", price: 0, rent: 0, houses: 0, hotel: false, row: 5, col: 5 },
+      { id: 1, name: "Woodward Ave", type: "prop", color: "th-blue", price: 100, rent: 18, houses: 0, hotel: false, row: 5, col: 4, owner: null },
+      { id: 2, name: "Grand River Depot", type: "prop", color: "th-blue", price: 120, rent: 22, houses: 0, hotel: false, row: 5, col: 3, owner: null },
+      { id: 3, name: "Mystery Suitcase", type: "suitcase", color: "th-purple", price: 0, rent: 0, houses: 0, hotel: false, row: 5, col: 2 },
+      { id: 4, name: "MICHIGAN TRANSIT", type: "corner", color: "th-corner", price: 0, rent: 0, houses: 0, hotel: false, row: 5, col: 1 },
+      { id: 5, name: "West Grand Blvd", type: "prop", color: "th-blue", price: 140, rent: 26, houses: 0, hotel: false, row: 4, col: 1, owner: null },
+      { id: 6, name: "Conant Gardens", type: "prop", color: "th-blue", price: 160, rent: 30, houses: 0, hotel: false, row: 3, col: 1, owner: null },
+      { id: 7, name: "I-75 Northway", type: "prop", color: "th-green", price: 180, rent: 34, houses: 0, hotel: false, row: 2, col: 1, owner: null },
+      { id: 8, name: "SAGINAW REUNION", type: "corner", color: "th-corner", price: 0, rent: 0, houses: 0, hotel: false, row: 1, col: 1 },
+      { id: 9, name: "Hoyt Public Library", type: "prop", color: "th-green", price: 200, rent: 38, houses: 0, hotel: false, row: 1, col: 2, owner: null },
+      { id: 10, name: "Mystery Suitcase", type: "suitcase", color: "th-purple", price: 0, rent: 0, houses: 0, hotel: false, row: 1, col: 3 },
+      { id: 11, name: "Ojibway Island Park", type: "prop", color: "th-green", price: 240, rent: 45, houses: 0, hotel: false, row: 1, col: 4, owner: null },
+      { id: 12, name: "LINEAGE VAULT", type: "corner", color: "th-corner", price: 0, rent: 0, houses: 0, hotel: false, row: 1, col: 5 },
+      { id: 13, name: "Saginaw Riverwalk", type: "prop", color: "th-gold", price: 260, rent: 50, houses: 0, hotel: false, row: 2, col: 5, owner: null },
+      { id: 14, name: "Atwater Street", type: "prop", color: "th-gold", price: 300, rent: 60, houses: 0, hotel: false, row: 3, col: 5, owner: null },
+      { id: 15, name: "The Atwater Estate", type: "prop", color: "th-gold", price: 350, rent: 75, houses: 0, hotel: false, row: 4, col: 5, owner: null }
+    ];
+
+    let players = [];
+    let currentTurn = 0;
+
+    function initGame() {
+      players = [
+        { id: 0, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] },
+        { id: 1, name: "Saginaw Bot", color: "#f472b6", cash: 1500, pos: 0, deeds: [] }
+      ];
+      currentTurn = 0;
+      buildHUD();
+      buildBoard();
+      updateHUD();
+      checkTurnControl();
+    }
+
+    function checkTurnControl() {
+      const isMyTurn = (currentTurn === myPlayerId);
+      document.getElementById("btnRoll").disabled = !isMyTurn;
+      if (!isMyTurn) {
+        document.getElementById("btnBuy").disabled = true;
+      }
+      if (isMyTurn) {
+        log(`Your turn (${players[currentTurn].name})! Roll dice.`);
+      } else {
+        log(`Waiting for ${players[currentTurn].name}...`);
+        if (playVsAI && currentTurn === 1) setTimeout(runAITurn, 800);
+      }
+    }
+
+    function runAITurn() {
+      setTimeout(() => {
+        const roll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
+        const p = players[1];
+        const oldPos = p.pos;
+        p.pos = (p.pos + roll) % 16;
+        if (p.pos < oldPos) p.cash += 200;
+        const tile = TILES[p.pos];
+        if (tile.type === "prop" && tile.owner === null && p.cash >= tile.price) {
+          tile.owner = 1; p.cash -= tile.price; p.deeds.push(tile.name);
+          log(`🤖 Saginaw Bot bought ${tile.name}!`);
+        } else if (tile.type === "suitcase") {
+          let reward = 100;
+          p.cash += reward;
+          log(`🤖 Saginaw Bot opened a Mystery Suitcase and found $${reward}!`);
+        } else { log(`🤖 Saginaw Bot landed on ${tile.name}.`); }
+        buildBoard(); updateHUD(); currentTurn = 0; checkTurnControl();
+      }, 800);
+    }
+
+    function buildHUD() {
+      const hud = document.getElementById("hudRoster");
+      hud.innerHTML = "";
+      players.forEach((p, idx) => {
+        hud.innerHTML += `<div class="p-card ${idx === currentTurn ? 'active-turn' : ''}" id="pcard-${p.id}"><div class="p-title" style="color: ${p.color};">${p.name}</div><div class="p-val" id="pcash-${p.id}">$${p.cash}</div></div>`;
+      });
+    }
+
+    function buildBoard() {
+      const board = document.getElementById("boardTrack");
+      board.innerHTML = `<div class="board-center" onclick="openArDiceCamera()"><div class="center-logo">DETROIT & SAGINAW</div><div class="dice-box"><div class="dice-3d" id="d1">🎲</div><div class="dice-3d" id="d2">🎲</div></div></div>`;
+      TILES.forEach((t, index) => {
+        let upgradeInfo = "";
+        if (t.hotel) {
+          upgradeInfo = `<div style="color: #ef4444; font-size: 7px; font-weight: bold;">🏨 HOTEL</div>`;
+        } else if (t.houses > 0) {
+          upgradeInfo = `<div style="color: #10b981; font-size: 7px;">🏠 x${t.houses}</div>`;
+        }
+
+        board.innerHTML += `<div class="tile" style="grid-row: ${t.row}; grid-column: ${t.col};" onclick="openArPropertyCamera(${index})">
+          <div class="tile-header ${t.color}"></div>
+          <div class="tile-name">${t.name}</div>
+          ${upgradeInfo}
+          <div class="tile-price">${t.price > 0 ? '$'+t.price : ''}</div>
+          <div class="token-slot" id="slot-${t.id}"></div>
+        </div>`;
+      });
+      renderTokens();
+    }
+
+    function renderTokens() {
+      for (let i = 0; i < 16; i++) document.getElementById(`slot-${i}`).innerHTML = "";
+      players.forEach(p => {
+        const slot = document.getElementById(`slot-${p.pos}`);
+        if (slot) slot.innerHTML += `<div class="token" style="background: ${p.color};"></div>`;
+      });
+    }
+
+    function openArPropertyCamera(tileIndex) {
+      const tile = TILES[tileIndex];
+      document.getElementById("arModalHeader").innerText = "🏛️ 3D PROPERTY AR MODEL";
+      document.getElementById("arDeedTitle").innerText = tile.name;
+      document.getElementById("arDeedPrice").innerText = tile.price > 0 ? `$${tile.price} Valuation` : "Public Sanctuary / Event";
+      document.getElementById("arEmblemIcon").innerText = tile.hotel ? "🏨" : (tile.houses > 0 ? "🏠" : "🏛️");
+      
+      const video = document.getElementById("arVideo");
+      if (video) video.style.display = "none";
+      
+      document.getElementById("arDeedModal").style.display = "flex";
+    }
+
+    function openArDiceCamera() {
+      document.getElementById("arModalHeader").innerText = "🎲 3D DICE ROLL SIMULATION";
+      let d1Val = Math.floor(Math.random() * 6) + 1;
+      let d2Val = Math.floor(Math.random() * 6) + 1;
+      document.getElementById("arDeedTitle").innerText = `Rolled: [${d1Val}] & [${d2Val}]`;
+      document.getElementById("arDeedPrice").innerText = `Total Move: ${d1Val + d2Val} Steps`;
+      document.getElementById("arEmblemIcon").innerText = "🎲";
+      document.getElementById("arDeedModal").style.display = "flex";
+    }
+
+    function closeArDeed() {
+      document.getElementById("arDeedModal").style.display = "none";
+    }
+
+    function rollDice() {
+      if (currentTurn !== myPlayerId) return;
+      document.getElementById("btnRoll").disabled = true;
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const total = d1 + d2;
+      document.getElementById("d1").innerText = d1;
+      document.getElementById("d2").innerText = d2;
+
+      const p = players[currentTurn];
+      const oldPos = p.pos;
+      p.pos = (p.pos + total) % 16;
+      if (p.pos < oldPos) { p.cash += 200; playerMarrowEnergy += 50; updateMarrowDisplay(); }
+      renderTokens();
+      handleTileLand(p);
+    }
+
+    function handleTileLand(p) {
+      const tile = TILES[p.pos];
+      updateHUD();
+      if (tile.type === "prop" && tile.owner === null) {
+        if (currentTurn === myPlayerId) {
+          document.getElementById("btnBuy").disabled = (p.cash < tile.price);
+        }
+        log(`Landed on unowned ${tile.name}. Click 'Buy Deed' to purchase.`);
+        return;
+      } else if (tile.type === "prop" && tile.owner !== null && tile.owner !== p.id) {
+        let rentDue = tile.rent;
+        if (tile.hotel) rentDue *= 4;
+        else if (tile.houses > 0) rentDue *= (1 + tile.houses * 0.5);
+        p.cash -= rentDue; players[tile.owner].cash += rentDue;
+        log(`Paid $${rentDue} rent to ${players[tile.owner].name}.`);
+        setTimeout(endTurn, 1000);
+      } else if (tile.type === "suitcase") {
+        const rewards = [
+          { cash: 150, text: "Found a Family Legacy archive with $150!" },
+          { cash: -50, text: "Repaired Detroit community center (-$50)." },
+          { marrow: 50, text: "Discovered ancient ley lines (+50 Marrow Energy)!" }
+        ];
+        const reward = rewards[Math.floor(Math.random() * rewards.length)];
+        if (reward.cash) p.cash += reward.cash;
+        if (reward.marrow) { playerMarrowEnergy += reward.marrow; updateMarrowDisplay(); }
+        
+        log(`🎁 Mystery Suitcase: ${reward.text}`);
+        alert(`🎁 Mystery Suitcase Opened!\n\n${reward.text}`);
+        setTimeout(endTurn, 800);
+      } else {
+        setTimeout(endTurn, 800);
+      }
+    }
+
+    function buyProperty() {
+      const p = players[currentTurn];
+      const tile = TILES[p.pos];
+      if (tile.type === "prop" && tile.owner === null && p.cash >= tile.price) {
+        tile.owner = p.id; 
+        p.cash -= tile.price; 
+        p.deeds.push(tile.name);
+        playerMarrowEnergy += 25; 
+        updateMarrowDisplay();
+        
+        openArPropertyCamera(p.pos);
+
+        document.getElementById("btnBuy").disabled = true;
+        buildBoard(); 
+        updateHUD(); 
+        broadcastState();
+        log(`You bought ${tile.name}!`);
+        setTimeout(endTurn, 800);
+      }
+    }
+
+    function upgradeProperty() {
+      const p = players[currentTurn];
+      const tile = TILES[p.pos];
+      const upgradeCost = 50;
+      if (tile.type === "prop" && tile.owner === p.id && p.cash >= upgradeCost) {
+        p.cash -= upgradeCost;
+        if (tile.houses < 4) { tile.houses++; log(`${p.name} built a house on ${tile.name}! 🏠`); }
+        else if (!tile.hotel) { tile.houses = 0; tile.hotel = true; log(`${p.name} upgraded to a HOTEL on ${tile.name}! 🏨`); }
+        buildBoard(); updateHUD(); broadcastState();
+      } else {
+        log("Cannot upgrade: You do not own this tile or lack funds ($50).");
+      }
+    }
+
+    function triggerChronoLeap() { if (playerMarrowEnergy >= 100) { playerMarrowEnergy -= 100; updateMarrowDisplay(); players[currentTurn].pos = (players[currentTurn].pos + 3) % 16; renderTokens(); } }
+    function triggerLegacyShield() { if (playerMarrowEnergy >= 75) { playerMarrowEnergy -= 75; updateMarrowDisplay(); shieldActive = true; } }
+    function endTurn() { document.getElementById("btnBuy").disabled = true; currentTurn = (currentTurn + 1) % players.length; updateHUD(); checkTurnControl(); broadcastState(); }
+    function updateMarrowDisplay() { document.getElementById("marrowCounter").innerText = `${playerMarrowEnergy} ME`; }
+    function updateHUD() { players.forEach((p, idx) => { document.getElementById(`pcash-${p.id}`).innerText = `$${p.cash}`; }); }
+    function log(msg) { document.getElementById("gameLog").innerText = msg; }
+
+    // TETRIS ARCADE ENGINE WITH LINE TRACKER & 35K CHALLENGE
+    let tetrisCanvas, tetrisCtx, nextCanvas, nextCtx;
+    let grid = Array(19).fill(0).map(() => Array(10).fill(0));
+    let tScore = 0, tME = 0, totalLinesCleared = 0, tetrisInterval = null, curPiece = null, nextPiece = null, isTetrisPaused = false;
+
+    const TETROMINOS = [
+      { shape: [[1,1,1,1]], color: '#38bdf8' },
+      { shape: [[1,1],[1,1]], color: '#facc15' },
+      { shape: [[0,1,0],[1,1,1]], color: '#a855f7' },
+      { shape: [[1,0,0],[1,1,1]], color: '#f97316' },
+      { shape: [[0,0,1],[1,1,1]], color: '#2563eb' }
+    ];
+
+    function startTetris() {
+      tetrisCanvas = document.getElementById("tetrisCanvas");
+      tetrisCtx = tetrisCanvas.getContext("2d");
+      nextCanvas = document.getElementById("nextCanvas");
+      nextCtx = nextCanvas.getContext("2d");
+      grid = Array(19).fill(0).map(() => Array(10).fill(0));
+      tScore = 0; tME = 0; totalLinesCleared = 0; isTetrisPaused = false;
+      document.getElementById("linesCount").innerText = "0";
+      document.getElementById("tetrisScore").innerText = "0";
+      document.getElementById("tetrisME").innerText = "0";
+      
+      nextPiece = getRandomTetromino();
+      spawnTetromino();
+      if (tetrisInterval) clearInterval(tetrisInterval);
+      tetrisInterval = setInterval(tetrisTick, 420);
+    }
+
+    function getRandomTetromino() {
+      const template = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
+      return { shape: template.shape, color: template.color };
+    }
+
+    function toggleTetrisPause() {
+      isTetrisPaused = !isTetrisPaused;
+      document.getElementById("tetrisPauseBtn").innerText = isTetrisPaused ? "▶️ RESUME" : "⏸️ PAUSE";
+    }
+
+    function loadDailyHighScore() {
+      const saved = localStorage.getItem("rhodes_daily_highscore");
+      if (saved) {
+        const hs = JSON.parse(saved);
+        document.getElementById("dailyHighScore").innerText = `${hs.name} — ${hs.score} pts`;
+      }
+    }
+
+    function checkDailyHighScore() {
+      const saved = localStorage.getItem("rhodes_daily_highscore");
+      let currentHigh = saved ? JSON.parse(saved).score : 0;
+      if (tScore > currentHigh || totalLinesCleared >= 35) {
+        let hsData = { name: myCustomName, score: Math.max(tScore, 35000) };
+        localStorage.setItem("rhodes_daily_highscore", JSON.stringify(hsData));
+        loadDailyHighScore();
+      }
+    }
+
+    function spawnTetromino() {
+      curPiece = { shape: nextPiece.shape, color: nextPiece.color, x: 3, y: 0 };
+      nextPiece = getRandomTetromino();
+      drawNextPiece();
+
+      if (checkCollision(curPiece.x, curPiece.y, curPiece.shape)) {
+        clearInterval(tetrisInterval);
+        checkDailyHighScore();
+      }
+    }
+
+    function drawNextPiece() {
+      nextCtx.fillStyle = "#020617";
+      nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+      nextCtx.fillStyle = nextPiece.color;
+      let offsetX = (70 - nextPiece.shape[0].length * 14) / 2;
+      let offsetY = (70 - nextPiece.shape.length * 14) / 2;
+      nextPiece.shape.forEach((row, r) => {
+        row.forEach((val, c) => {
+          if (val) nextCtx.fillRect(offsetX + c * 14, offsetY + r * 14, 13, 13);
+        });
+      });
+    }
+
+    function checkCollision(nx, ny, shape) {
+      for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+          if (shape[r][c]) {
+            let px = nx + c, py = ny + r;
+            if (px < 0 || px >= 10 || py >= 19 || (py >= 0 && grid[py][px])) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function tetrisTick() {
+      if (isTetrisPaused || !curPiece) return;
+      if (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) {
+        curPiece.y++;
+      } else {
+        mergePiece();
+        clearLines();
+        spawnTetromino();
+      }
+      drawTetris();
+    }
+
+    function mergePiece() {
+      curPiece.shape.forEach((row, r) => {
+        row.forEach((val, c) => {
+          if (val && curPiece.y + r >= 0) grid[curPiece.y + r][curPiece.x + c] = curPiece.color;
+        });
+      });
+    }
+
+    function clearLines() {
+      let cleared = 0;
+      let sameColorFiveBonus = false;
+
+      for (let r = 0; r < 19; r++) {
+        let count = 1;
+        for (let c = 1; c < 10; c++) {
+          if (grid[r][c] && grid[r][c] === grid[r][c-1]) {
+            count++;
+            if (count >= 5) sameColorFiveBonus = true;
+          } else {
+            count = 1;
+          }
+        }
+      }
+
+      for (let r = 18; r >= 0; r--) {
+        if (grid[r].every(cell => cell !== 0)) {
+          grid.splice(r, 1);
+          grid.unshift(Array(10).fill(0));
+          cleared++; r++;
+        }
+      }
+
+      if (cleared > 0 || sameColorFiveBonus) {
+        let pointsEarned = cleared * 1000;
+        if (sameColorFiveBonus) pointsEarned += 5000;
+        tScore += pointsEarned;
+        totalLinesCleared += cleared;
+        tME += (cleared * 25) + (sameColorFiveBonus ? 50 : 0);
+        playerMarrowEnergy += (cleared * 25);
+        updateMarrowDisplay();
+        
+        document.getElementById("tetrisScore").innerText = tScore;
+        document.getElementById("linesCount").innerText = totalLinesCleared;
+        document.getElementById("tetrisME").innerText = tME;
+
+        if (totalLinesCleared >= 35) {
+          alert("🎉 Congratulations! You reached 35 lines and unlocked your Free E-Book Voucher!");
+          checkDailyHighScore();
+        }
+
+        if (cleared >= 2 && conn) {
+          conn.send({ type: 'TETRIS_ATTACK', lines: cleared - 1 });
+        }
+      }
+    }
+
+    function addGarbageLines(numLines) {
+      for (let i = 0; i < numLines; i++) {
+        grid.shift();
+        let garbageRow = Array(10).fill('#475569');
+        garbageRow[Math.floor(Math.random() * 10)] = 0;
+        grid.push(garbageRow);
+      }
+    }
+
+    function tetrisMove(dir) {
+      if (isTetrisPaused || !curPiece) return;
+      if (!checkCollision(curPiece.x + dir, curPiece.y, curPiece.shape)) {
+        curPiece.x += dir; drawTetris();
+      }
+    }
+
+    function tetrisRotate() {
+      if (isTetrisPaused || !curPiece) return;
+      const rotated = curPiece.shape[0].map((_, i) => curPiece.shape.map(row => row[i]).reverse());
+      if (!checkCollision(curPiece.x, curPiece.y, rotated)) {
+        curPiece.shape = rotated; drawTetris();
+      }
+    }
+
+    function tetrisDrop() {
+      if (isTetrisPaused || !curPiece) return;
+      while (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) curPiece.y++;
+      mergePiece(); clearLines(); spawnTetromino(); drawTetris();
+    }
+
+    function drawTetris() {
+      tetrisCtx.fillStyle = "#020617";
+      tetrisCtx.fillRect(0, 0, tetrisCanvas.width, tetrisCanvas.height);
+      grid.forEach((row, r) => {
+        row.forEach((cell, c) => {
+          if (cell) { tetrisCtx.fillStyle = cell; tetrisCtx.fillRect(c * 22, r * 20, 21, 19); }
+        });
+      });
+      if (curPiece) {
+        tetrisCtx.fillStyle = curPiece.color;
+        curPiece.shape.forEach((row, r) => {
+          row.forEach((val, c) => {
+            if (val && curPiece.y + r >= 0) {
+              tetrisCtx.fillRect((curPiece.x + c) * 22, (curPiece.y + r) * 20, 21, 19);
+            }
+          });
+        });
+      }
+    }
+
+    // WORD SEARCH TRIVIA ENGINE
+    const WORD_POOLS = [
+      ["LEGACY", "MARROW", "DETROIT"],
+      ["SAGINAW", "FAMILY", "VANGUARD"],
+      ["ATWATER", "WOODWARD", "COUSINS"],
+      ["LUETTA", "FANNIE", "PATIENCE"]
+    ];
+    let currentWordPoolIndex = 0;
+    let HIDDEN_WORDS = [];
+    let foundWords = [];
+    let wordSearchScore = 0;
+
+    function initWordSearch() {
+      foundWords = [];
+      HIDDEN_WORDS = WORD_POOLS[currentWordPoolIndex];
+      document.getElementById("wordListText").innerText = HIDDEN_WORDS.join(", ");
+      document.getElementById("wordStatus").innerHTML = `Words Found: 0 / ${HIDDEN_WORDS.length} | Score: <span id="wordScore">${wordSearchScore}</span>`;
+      
+      const gridContainer = document.getElementById("wordGridContainer");
+      gridContainer.innerHTML = "";
+      
+      const charMatrix = [
+        ['L','E','G','A','C','Y'],
+        ['M','A','R','R','O','W'],
+        ['D','E','T','R','O','I'],
+        ['T','X','Z','K','P','T'],
+        ['F','A','M','I','L','Y'],
+        ['S','A','G','I','N','A']
+      ];
+
+      let shuffled = charMatrix.flat().sort(() => Math.random() - 0.5);
+
+      let idx = 0;
+      for(let r=0; r<6; r++) {
+        for(let c=0; c<6; c++) {
+          const cell = document.createElement("div");
+          cell.className = "word-cell";
+          cell.innerText = shuffled[idx++];
+          cell.onclick = () => {
+            cell.classList.toggle("selected");
+            checkFoundWords();
+          };
+          gridContainer.appendChild(cell);
+        }
+      }
+    }
+
+    function checkFoundWords() {
+      const selectedCells = document.querySelectorAll(".word-cell.selected");
+      let selectedStr = Array.from(selectedCells).map(el => el.innerText).join("");
+      
+      HIDDEN_WORDS.forEach(word => {
+        if ((selectedStr.includes(word) || selectedStr.includes(word.split("").reverse().join(""))) && !foundWords.includes(word)) {
+          foundWords.push(word);
+          wordSearchScore += 100;
+          playerMarrowEnergy += 50;
+          updateMarrowDisplay();
+          document.getElementById("wordStatus").innerHTML = `Words Found: ${foundWords.length} / ${HIDDEN_WORDS.length} | Score: <span id="wordScore">${wordSearchScore}</span>`;
+          
+          if (foundWords.length === HIDDEN_WORDS.length) {
+            setTimeout(() => {
+              alert(`🎉 Round complete! All words found. Loading next heritage puzzle...`);
+              currentWordPoolIndex = (currentWordPoolIndex + 1) % WORD_POOLS.length;
+              initWordSearch();
+            }, 300);
+          }
+
+          if (conn) {
+            conn.send({ type: 'WORD_ATTACK', word: word, score: wordSearchScore });
+          }
+        }
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", () => { updateMarrowDisplay(); buildBoard(); });
+  </script>
+</body>
+</html>
