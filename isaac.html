@@ -377,6 +377,7 @@
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
+      if (!canvas) return;
       ctx = canvas.getContext("2d");
       canvas.width = 540; canvas.height = 280;
       startWave(1);
@@ -658,11 +659,13 @@
     }
 
     function updateHUD() {
-      document.getElementById("heroHpText").innerText = `${Math.ceil(playerHp)}/100`;
-      document.getElementById("heroHpBar").style.width = `${playerHp}%`;
+      const hpEl = document.getElementById("heroHpText");
+      const barEl = document.getElementById("heroHpBar");
+      if (hpEl) hpEl.innerText = `${Math.ceil(playerHp)}/100`;
+      if (barEl) barEl.style.width = `${playerHp}%`;
     }
 
-    // --- SPORTS LOUNGE ENGINE (RHODES FAMILY LEGACY GOLDEN TREE BACKDROP) ---
+    // --- SPORTS LOUNGE ENGINE ---
     let sportCanvas, sportCtx;
     let currentSport = 'basketball';
     let sportScore = 0, sportME = 0;
@@ -702,6 +705,7 @@
 
     function initSportScene() {
       sportCanvas = document.getElementById("sportCanvas");
+      if (!sportCanvas) return;
       sportCtx = sportCanvas.getContext("2d");
       sportScore = 0; sportME = 0; consecutiveBaskets = 0; updateSportStats();
 
@@ -764,27 +768,23 @@
         sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
 
         if (currentSport === 'basketball') {
-          // Arena Background with Rhodes Family Legacy Golden Tree & Double Helix Backdrop
           sportCtx.fillStyle = "#060913"; sportCtx.fillRect(0, 0, sportCanvas.width, 160);
           
-          // Golden Tree & Double Helix Watermark in Backdrop
+          // Rhodes Family Legacy Golden Tree & Double Helix Backdrop
           sportCtx.save();
-          sportCtx.fillStyle = "rgba(212, 175, 55, 0.22)";
+          sportCtx.fillStyle = "rgba(212, 175, 55, 0.25)";
           sportCtx.font = "bold 13px sans-serif";
           sportCtx.textAlign = "center";
           sportCtx.fillText("RHODES FAMILY LEGACY", 270, 22);
 
-          // Golden Tree Trunk & Branches / Double Helix Trunk Center
-          sportCtx.strokeStyle = "rgba(245, 158, 11, 0.35)";
+          sportCtx.strokeStyle = "rgba(245, 158, 11, 0.4)";
           sportCtx.lineWidth = 3;
           sportCtx.beginPath();
-          // Double helix core in trunk
           for (let y = 70; y < 140; y += 6) {
             let cx1 = 270 + Math.sin(y * 0.15) * 12;
             let cx2 = 270 + Math.cos(y * 0.15) * 12;
             sportCtx.moveTo(cx1, y); sportCtx.lineTo(cx2, y + 3);
           }
-          // Canopy branches
           sportCtx.moveTo(270, 75); sportCtx.quadraticCurveTo(240, 50, 210, 55);
           sportCtx.moveTo(270, 75); sportCtx.quadraticCurveTo(300, 50, 330, 55);
           sportCtx.moveTo(270, 60); sportCtx.quadraticCurveTo(255, 35, 235, 30);
@@ -795,14 +795,12 @@
           sportCtx.fillStyle = "#1e3a8a"; sportCtx.fillRect(0, 160, sportCanvas.width, 70);
           sportCtx.strokeStyle = "#dc2626"; sportCtx.lineWidth = 2; sportCtx.strokeRect(0, 160, sportCanvas.width, 70);
 
-          // Glass Backboard & Net
           sportCtx.fillStyle = "rgba(56, 189, 248, 0.35)"; sportCtx.fillRect(452, 28, 12, 82);
           sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.strokeRect(452, 28, 12, 82);
           sportCtx.fillStyle = "#dc2626"; sportCtx.fillRect(450, 50, 16, 26);
           sportCtx.strokeStyle = "#f59e0b"; sportCtx.lineWidth = 4;
           sportCtx.beginPath(); sportCtx.arc(430, 76, 22, Math.PI, 0, true); sportCtx.stroke();
 
-          // Marcus Prime Humanoid Sprite Shooter
           if (ASSETS.marcus.complete && ASSETS.marcus.naturalWidth > 0) {
             sportCtx.drawImage(ASSETS.marcus, 45, 105, 52, 65);
           } else {
@@ -836,14 +834,12 @@
             sportCtx.fillText("🔥 WOW! YOU'RE DOING GREAT! 10 IN A ROW! 🔥", 270, 55);
           }
 
-          // Aiming guide
           if (!bbBall.active) {
             sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
             sportCtx.beginPath(); sportCtx.moveTo(75, 145); sportCtx.lineTo(165 + (sportAimAngle * 120), 100); sportCtx.stroke();
             sportCtx.setLineDash([]);
           }
 
-          // Power Meter
           sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(20, 195, 140, 14);
           sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(20, 195, (chargePower / 100) * 140, 14);
           sportCtx.fillStyle = "#fff"; sportCtx.font = "9px monospace"; sportCtx.textAlign = "left"; sportCtx.fillText("POWER METER", 24, 205);
@@ -954,4 +950,52 @@
             setTimeout(() => {
               bowlBall.rollingThrough = false;
               bowlBall.x = 270; bowlBall.y = 190; bowlBall.vy = 0;
-              pins.forEach(p =>
+              pins.forEach(p => p.hit = false);
+            }, 1800);
+          }
+
+          let pinPositions = [
+            {x: 270, y: 75}, 
+            {x: 255, y: 60}, {x: 285, y: 60}, 
+            {x: 240, y: 45}, {x: 270, y: 45}, {x: 300, y: 45}
+          ];
+          pins.forEach((p, idx) => {
+            p.x = pinPositions[idx].x; p.y = pinPositions[idx].y;
+            if (!p.hit) {
+              sportCtx.fillStyle = "#fff"; sportCtx.beginPath(); sportCtx.arc(p.x, p.y, 6, 0, Math.PI * 2); sportCtx.fill();
+              sportCtx.strokeStyle = "#ef4444"; sportCtx.lineWidth = 2; sportCtx.stroke();
+            }
+          });
+
+          if (!bowlBall.active && !bowlBall.rollingThrough) {
+            sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
+            sportCtx.beginPath(); sportCtx.moveTo(bowlBall.x + bowlBall.aimOffset, bowlBall.y); sportCtx.lineTo(270, 75); sportCtx.stroke();
+            sportCtx.setLineDash([]);
+          }
+
+          sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(bowlBall.x + bowlBall.aimOffset, bowlBall.rollingThrough ? 20 : bowlBall.y, 11, 0, Math.PI * 2); sportCtx.fill();
+
+          sportCtx.fillStyle = "#020617"; sportCtx.fillRect(15, 15, 130, 45);
+          sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 1; sportCtx.strokeRect(15, 15, 130, 45);
+          sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "10px monospace"; sportCtx.textAlign = "left";
+          sportCtx.fillText(`PINS LEFT: ${pins.filter(p=>!p.hit).length}`, 22, 32);
+          sportCtx.fillText(`SCORE: ${sportScore}`, 22, 48);
+
+          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(170, 215, 200, 10);
+          sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(170, 215, (chargePower / 100) * 200, 10);
+        }
+      }
+      sportAnimId = requestAnimationFrame(renderSportLoop);
+    }
+
+    function updateSportStats() {
+      const scoreEl = document.getElementById("sportScore");
+      const meEl = document.getElementById("sportME");
+      if (scoreEl) scoreEl.innerText = sportScore;
+      if (meEl) meEl.innerText = `${sportME} ME`;
+    }
+
+    window.addEventListener("DOMContentLoaded", () => { initBrawler(); updateControlsUI(); });
+  </script>
+</body>
+</html>
