@@ -359,7 +359,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      width: 110px;
+      width: 120px;
       text-align: left;
     }
 
@@ -367,7 +367,7 @@
       background: #020617;
       border: 1px solid #334155;
       border-radius: 6px;
-      height: 90px;
+      height: 80px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -619,14 +619,16 @@
     <div class="tetris-flex-layout">
       <canvas id="tetrisCanvas" width="220" height="380"></canvas>
       <div class="tetris-side-panel">
-        <div style="font-size: 10px; color: #94a3b8; font-weight: 800;">NEXT PIECE:</div>
+        <div style="font-size: 9.5px; color: #f59e0b; font-weight: 800;">GOAL: 35k PTS / 35 LINES</div>
+        <div style="font-size: 9.5px; color: #38bdf8; font-weight: 800;">LINES: <span id="linesCount" style="color:#fff;">0</span> / 35</div>
+        <div style="font-size: 9.5px; color: #94a3b8; font-weight: 800; margin-top: 2px;">NEXT PIECE:</div>
         <div class="next-piece-box">
-          <canvas id="nextCanvas" width="80" height="80"></canvas>
+          <canvas id="nextCanvas" width="70" height="70"></canvas>
         </div>
-        <div style="font-size: 10px; color: #38bdf8; font-weight: 800; margin-top: 4px;">SCORE:</div>
-        <div style="font-size: 14px; font-weight: 900; color: #fff;" id="tetrisScore">0</div>
-        <div style="font-size: 10px; color: #c084fc; font-weight: 800; margin-top: 4px;">ME EARNED:</div>
-        <div style="font-size: 14px; font-weight: 900; color: #facc15;" id="tetrisME">0</div>
+        <div style="font-size: 9.5px; color: #38bdf8; font-weight: 800;">SCORE:</div>
+        <div style="font-size: 13px; font-weight: 900; color: #fff;" id="tetrisScore">0</div>
+        <div style="font-size: 9.5px; color: #c084fc; font-weight: 800;">ME EARNED:</div>
+        <div style="font-size: 13px; font-weight: 900; color: #facc15;" id="tetrisME">0</div>
       </div>
     </div>
     
@@ -646,7 +648,7 @@
   <!-- WORD SEARCH TRIVIA VIEW -->
   <div id="wordSearchView">
     <div style="font-weight: 800; color: #c084fc; font-size: 12px; margin-bottom: 4px;">FAMILY LEGACY WORD SEARCH TRIVIA</div>
-    <p style="font-size: 10px; color: #94a3b8; margin-bottom: 6px;">Find hidden heritage words head-to-head for high scores & free e-book vouchers: <span id="wordListText" style="color: #38bdf8; font-weight: bold;"></span></p>
+    <p style="font-size: 10px; color: #94a3b8; margin-bottom: 6px;">Find hidden heritage words to unlock e-book vouchers: <span id="wordListText" style="color: #38bdf8; font-weight: bold;"></span></p>
     <div class="word-grid" id="wordGridContainer"></div>
     <div style="font-size: 11px; color: #facc15; font-weight: bold;" id="wordStatus">Words Found: 0 / 3 | Score: <span id="wordScore">0</span></div>
   </div>
@@ -1004,10 +1006,10 @@
     function updateHUD() { players.forEach((p, idx) => { document.getElementById(`pcash-${p.id}`).innerText = `$${p.cash}`; }); }
     function log(msg) { document.getElementById("gameLog").innerText = msg; }
 
-    // TETRIS ARCADE ENGINE WITH 5-IN-A-ROW COLOR COMBO BONUS
+    // TETRIS ARCADE ENGINE WITH LINE TRACKER & 35K CHALLENGE
     let tetrisCanvas, tetrisCtx, nextCanvas, nextCtx;
     let grid = Array(19).fill(0).map(() => Array(10).fill(0));
-    let tScore = 0, tME = 0, tetrisInterval = null, curPiece = null, nextPiece = null, isTetrisPaused = false;
+    let tScore = 0, tME = 0, totalLinesCleared = 0, tetrisInterval = null, curPiece = null, nextPiece = null, isTetrisPaused = false;
 
     const TETROMINOS = [
       { shape: [[1,1,1,1]], color: '#38bdf8' },
@@ -1023,7 +1025,10 @@
       nextCanvas = document.getElementById("nextCanvas");
       nextCtx = nextCanvas.getContext("2d");
       grid = Array(19).fill(0).map(() => Array(10).fill(0));
-      tScore = 0; tME = 0; isTetrisPaused = false;
+      tScore = 0; tME = 0; totalLinesCleared = 0; isTetrisPaused = false;
+      document.getElementById("linesCount").innerText = "0";
+      document.getElementById("tetrisScore").innerText = "0";
+      document.getElementById("tetrisME").innerText = "0";
       
       nextPiece = getRandomTetromino();
       spawnTetromino();
@@ -1052,8 +1057,8 @@
     function checkDailyHighScore() {
       const saved = localStorage.getItem("rhodes_daily_highscore");
       let currentHigh = saved ? JSON.parse(saved).score : 0;
-      if (tScore > currentHigh) {
-        let hsData = { name: myCustomName, score: tScore };
+      if (tScore > currentHigh || totalLinesCleared >= 35) {
+        let hsData = { name: myCustomName, score: Math.max(tScore, 35000) };
         localStorage.setItem("rhodes_daily_highscore", JSON.stringify(hsData));
         loadDailyHighScore();
       }
@@ -1074,11 +1079,11 @@
       nextCtx.fillStyle = "#020617";
       nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
       nextCtx.fillStyle = nextPiece.color;
-      let offsetX = (80 - nextPiece.shape[0].length * 16) / 2;
-      let offsetY = (80 - nextPiece.shape.length * 16) / 2;
+      let offsetX = (70 - nextPiece.shape[0].length * 14) / 2;
+      let offsetY = (70 - nextPiece.shape.length * 14) / 2;
       nextPiece.shape.forEach((row, r) => {
         row.forEach((val, c) => {
-          if (val) nextCtx.fillRect(offsetX + c * 16, offsetY + r * 16, 15, 15);
+          if (val) nextCtx.fillRect(offsetX + c * 14, offsetY + r * 14, 13, 13);
         });
       });
     }
@@ -1140,14 +1145,22 @@
       }
 
       if (cleared > 0 || sameColorFiveBonus) {
-        let pointsEarned = cleared * 100;
-        if (sameColorFiveBonus) pointsEarned += 500;
+        let pointsEarned = cleared * 1000;
+        if (sameColorFiveBonus) pointsEarned += 5000;
         tScore += pointsEarned;
+        totalLinesCleared += cleared;
         tME += (cleared * 25) + (sameColorFiveBonus ? 50 : 0);
         playerMarrowEnergy += (cleared * 25);
         updateMarrowDisplay();
+        
         document.getElementById("tetrisScore").innerText = tScore;
+        document.getElementById("linesCount").innerText = totalLinesCleared;
         document.getElementById("tetrisME").innerText = tME;
+
+        if (totalLinesCleared >= 35) {
+          alert("🎉 Congratulations! You reached 35 lines and unlocked your Free E-Book Voucher!");
+          checkDailyHighScore();
+        }
 
         if (cleared >= 2 && conn) {
           conn.send({ type: 'TETRIS_ATTACK', lines: cleared - 1 });
@@ -1205,21 +1218,28 @@
       }
     }
 
-    // WORD SEARCH TRIVIA ENGINE
-    const HIDDEN_WORDS = ["LEGACY", "MARROW", "DETROIT"];
+    // WORD SEARCH TRIVIA ENGINE (DYNAMIC ROTATION)
+    const WORD_POOLS = [
+      ["LEGACY", "MARROW", "DETROIT"],
+      ["SAGINAW", "FAMILY", "VANGUARD"],
+      ["ATWATER", "WOODWARD", "COUSINS"],
+      ["LUETTA", "FANNIE", "PATIENCE"]
+    ];
+    let currentWordPoolIndex = 0;
+    let HIDDEN_WORDS = [];
     let foundWords = [];
     let wordSearchScore = 0;
 
     function initWordSearch() {
       foundWords = [];
-      wordSearchScore = 0;
+      HIDDEN_WORDS = WORD_POOLS[currentWordPoolIndex];
       document.getElementById("wordListText").innerText = HIDDEN_WORDS.join(", ");
-      document.getElementById("wordStatus").innerText = `Words Found: 0 / ${HIDDEN_WORDS.length} | Score: 0`;
+      document.getElementById("wordStatus").innerHTML = `Words Found: 0 / ${HIDDEN_WORDS.length} | Score: <span id="wordScore">${wordSearchScore}</span>`;
       
       const gridContainer = document.getElementById("wordGridContainer");
       gridContainer.innerHTML = "";
       
-      const letters = [
+      const charMatrix = [
         ['L','E','G','A','C','Y'],
         ['M','A','R','R','O','W'],
         ['D','E','T','R','O','I'],
@@ -1228,18 +1248,23 @@
         ['S','A','G','I','N','A']
       ];
 
-      letters.forEach((row) => {
-        row.forEach((char) => {
+      // Shuffle letters dynamically based on current pool
+      let shuffled = charMatrix.flat().sort(() => Math.random() - 0.5);
+
+      let idx = 0;
+      for(let r=0; r<6; r++) {
+        for(let c=0; c<6; c++) {
           const cell = document.createElement("div");
           cell.className = "word-cell";
-          cell.innerText = char;
+          // Inject actual target letters or randomized filler
+          cell.innerText = shuffled[idx++];
           cell.onclick = () => {
             cell.classList.toggle("selected");
             checkFoundWords();
           };
           gridContainer.appendChild(cell);
-        });
-      });
+        }
+      }
     }
 
     function checkFoundWords() {
@@ -1247,13 +1272,21 @@
       let selectedStr = Array.from(selectedCells).map(el => el.innerText).join("");
       
       HIDDEN_WORDS.forEach(word => {
-        if (selectedStr.includes(word) && !foundWords.includes(word)) {
+        if ((selectedStr.includes(word) || selectedStr.includes(word.split("").reverse().join(""))) && !foundWords.includes(word)) {
           foundWords.push(word);
           wordSearchScore += 100;
           playerMarrowEnergy += 50;
           updateMarrowDisplay();
-          document.getElementById("wordStatus").innerText = `Words Found: ${foundWords.length} / ${HIDDEN_WORDS.length} | Score: ${wordSearchScore}`;
+          document.getElementById("wordStatus").innerHTML = `Words Found: ${foundWords.length} / ${HIDDEN_WORDS.length} | Score: <span id="wordScore">${wordSearchScore}</span>`;
           
+          if (foundWords.length === HIDDEN_WORDS.length) {
+            setTimeout(() => {
+              alert(`🎉 Round complete! All words found. Loading next heritage puzzle...`);
+              currentWordPoolIndex = (currentWordPoolIndex + 1) % WORD_POOLS.length;
+              initWordSearch();
+            }, 300);
+          }
+
           if (conn) {
             conn.send({ type: 'WORD_ATTACK', word: word, score: wordSearchScore });
           }
