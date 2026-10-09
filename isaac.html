@@ -242,6 +242,8 @@
       padding: 20px; max-width: 420px; width: 100%; text-align: center;
     }
   </style>
+  <!-- Load PeerJS for P2P multiplayer linking -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
@@ -300,6 +302,13 @@
 
     <!-- SPORTS LOUNGE VIEW -->
     <div class="brawler-wrapper" id="sportsView" style="display: none;">
+      <div style="display: flex; gap: 6px; margin-bottom: 6px; align-items: center; background: #0d1322; padding: 6px; border-radius: 6px; border: 1px solid #1e293b;">
+        <span style="font-size: 10px; color: #38bdf8; font-weight: 800;">P2P LINK:</span>
+        <input type="text" id="peerIdInput" placeholder="Partner ID" style="background:#1e293b; border:1px solid #334155; color:#fff; padding:3px 6px; font-size:10px; border-radius:4px; width:90px;">
+        <button class="sys-btn" onclick="connectP2PPartner()">LINK</button>
+        <span id="p2pStatus" style="font-size: 9px; color: #f59e0b; font-weight: 800;">OFFLINE</span>
+      </div>
+
       <div class="sport-tabs">
         <button class="sport-tab active" id="tabBasketball" onclick="switchSport('basketball')">🏀 BASKETBALL</button>
         <button class="sport-tab" id="tabPool" onclick="switchSport('pool')">🎱 POOL TABLE</button>
@@ -312,16 +321,17 @@
 
       <div class="hud-header" style="flex-direction: row; justify-content: space-around; margin-top: 6px;">
         <span style="font-size: 11px; font-weight: 800; color: #38bdf8;">SCORE: <span id="sportScore" style="color:#fff;">0</span></span>
-        <span style="font-size: 11px; font-weight: 800; color: #facc15;" id="timerLabel">TIME: <span id="sportTimer" style="color:#f59e0b;">30s</span></span>
+        <span style="font-size: 11px; font-weight: 800; color: #facc15;" id="timerLabel">TIME: <span id="sportTimer" style="color:#f59e0b;">45s</span></span>
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Adjust aim, hold power meter, and release for Class-A action!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">45-second challenge! Restart anytime using the button below.</div>
       <div style="display: flex; gap: 6px; margin-top: 6px;">
-        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ ADJUST AIM</button>
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ ROTATE</button>
         <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
-        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(1)">ADJUST AIM ►</button>
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(1)">ROTATE ►</button>
       </div>
+      <button class="btn btn-action" style="width: 100%; margin-top: 6px; min-height: 36px; background: #1e293b; color: #facc15;" onclick="restartSportGame()">🔄 RESTART SPORT GAME</button>
     </div>
   </section>
 
@@ -344,6 +354,48 @@
       document.getElementById("modeSportsBtn").classList.toggle("active-mode", mode === 'sports');
 
       if (mode === 'sports') initSportScene();
+    }
+
+    // --- P2P MULTIPLAYER LINKING (PEERJS) ---
+    let peer = null, conn = null;
+    function initP2P() {
+      try {
+        peer = new Peer();
+        peer.on('open', (id) => {
+          console.log("P2P ID:", id);
+        });
+        peer.on('connection', (incomingConn) => {
+          conn = incomingConn;
+          setupConnectionListeners();
+          document.getElementById("p2pStatus").innerText = "CONNECTED (P2P)";
+          document.getElementById("p2pStatus").style.color = "#10b981";
+        });
+      } catch(e) { console.log("P2P init skipped"); }
+    }
+
+    function connectP2PPartner() {
+      const partnerId = document.getElementById("peerIdInput").value.trim();
+      if (!partnerId || !peer) return;
+      conn = peer.connect(partnerId);
+      setupConnectionListeners();
+      document.getElementById("p2pStatus").innerText = "LINKED!";
+      document.getElementById("p2pStatus").style.color = "#10b981";
+    }
+
+    function setupConnectionListeners() {
+      if (!conn) return;
+      conn.on('data', (data) => {
+        if (data.type === 'sportState') {
+          sportScore = data.score;
+          updateSportStats();
+        }
+      });
+    }
+
+    function broadcastSportState() {
+      if (conn && conn.open) {
+        conn.send({ type: 'sportState', score: sportScore });
+      }
     }
 
     // --- SIDE BRAWLER ENGINE ---
@@ -666,7 +718,7 @@
       if (barEl) barEl.style.width = `${playerHp}%`;
     }
 
-    // --- SPORTS LOUNGE ENGINE (PSEUDO-3D POOL & BOWLING UPGRADE) ---
+    // --- SPORTS LOUNGE ENGINE (FULL 360° AIM, POCKET ANIMATIONS, 45s TIMER, RESTART) ---
     let sportCanvas, sportCtx;
     let currentSport = 'basketball';
     let sportScore = 0, sportME = 0;
@@ -676,19 +728,20 @@
     let sportAimAngle = 0;
     let consecutiveBaskets = 0;
     let flashMessageTimer = 0;
-    let basketballTimer = 30;
+    let sportTimer = 45;
     let gameTimerInterval = null;
     let backboardOffset = 0;
+    let floatingTexts = [];
 
     let bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
     let cueBall = { x: 270, y: 140, vx: 0, vy: 0, active: false };
     let targetBalls = [
-      {x: 270, y: 70, vx: 0, vy: 0, potted: false, num: 1, color: "#f59e0b"},
-      {x: 255, y: 55, vx: 0, vy: 0, potted: false, num: 8, color: "#111111"},
-      {x: 285, y: 55, vx: 0, vy: 0, potted: false, num: 9, color: "#dc2626"},
-      {x: 240, y: 40, vx: 0, vy: 0, potted: false, num: 3, color: "#ef4444"},
-      {x: 270, y: 40, vx: 0, vy: 0, potted: false, num: 6, color: "#10b981"},
-      {x: 300, y: 40, vx: 0, vy: 0, potted: false, num: 7, color: "#7c3aed"}
+      {x: 270, y: 70, vx: 0, vy: 0, potted: false, num: 1, color: "#f59e0b", scale: 1},
+      {x: 255, y: 55, vx: 0, vy: 0, potted: false, num: 8, color: "#111111", scale: 1},
+      {x: 285, y: 55, vx: 0, vy: 0, potted: false, num: 9, color: "#dc2626", scale: 1},
+      {x: 240, y: 40, vx: 0, vy: 0, potted: false, num: 3, color: "#ef4444", scale: 1},
+      {x: 270, y: 40, vx: 0, vy: 0, potted: false, num: 6, color: "#10b981", scale: 1},
+      {x: 300, y: 40, vx: 0, vy: 0, potted: false, num: 7, color: "#7c3aed", scale: 1}
     ];
     let bowlBall = { x: 270, y: 190, vx: 0, vy: 0, active: false, aimOffset: 0, rollingThrough: false };
     let pins = [
@@ -703,41 +756,47 @@
       document.getElementById("tabPool").classList.toggle("active", sport === 'pool');
       document.getElementById("tabBowling").classList.toggle("active", sport === 'bowling');
 
-      document.getElementById("timerLabel").style.display = sport === 'basketball' ? "inline" : "none";
+      document.getElementById("timerLabel").style.display = (sport === 'basketball' || sport === 'pool') ? "inline" : "none";
 
       sportAimAngle = 0;
       initSportScene();
+    }
+
+    function restartSportGame() {
+      initSportScene();
+      document.getElementById("sportLog").innerText = "Game restarted! Ready for action.";
     }
 
     function initSportScene() {
       sportCanvas = document.getElementById("sportCanvas");
       if (!sportCanvas) return;
       sportCtx = sportCanvas.getContext("2d");
-      sportScore = 0; sportME = 0; consecutiveBaskets = 0; basketballTimer = 30; updateSportStats();
+      sportScore = 0; sportME = 0; consecutiveBaskets = 0; sportTimer = 45; floatingTexts = []; updateSportStats();
 
       if (gameTimerInterval) clearInterval(gameTimerInterval);
+      gameTimerInterval = setInterval(() => {
+        if (activeSandboxMode === 'sports' && sportTimer > 0) {
+          sportTimer--;
+          const timerEl = document.getElementById("sportTimer");
+          if (timerEl) timerEl.innerText = `${sportTimer}s`;
+          if (sportTimer <= 0) {
+            clearInterval(gameTimerInterval);
+            document.getElementById("sportLog").innerText = `Time's up! Final Score: ${sportScore}. Click Restart to play again!`;
+          }
+        }
+      }, 1000);
+
       if (currentSport === 'basketball') {
         bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
-        gameTimerInterval = setInterval(() => {
-          if (activeSandboxMode === 'sports' && currentSport === 'basketball' && basketballTimer > 0) {
-            basketballTimer--;
-            const timerEl = document.getElementById("sportTimer");
-            if (timerEl) timerEl.innerText = `${basketballTimer}s`;
-            if (basketballTimer <= 0) {
-              clearInterval(gameTimerInterval);
-              document.getElementById("sportLog").innerText = `Time's up! Final Score: ${sportScore}. Great shooting!`;
-            }
-          }
-        }, 1000);
       } else if (currentSport === 'pool') {
         cueBall = { x: 270, y: 170, vx: 0, vy: 0, active: false };
         targetBalls = [
-          {x: 270, y: 80, vx: 0, vy: 0, potted: false, num: 1, color: "#f59e0b"},
-          {x: 255, y: 65, vx: 0, vy: 0, potted: false, num: 8, color: "#111111"},
-          {x: 285, y: 65, vx: 0, vy: 0, potted: false, num: 9, color: "#dc2626"},
-          {x: 240, y: 50, vx: 0, vy: 0, potted: false, num: 3, color: "#ef4444"},
-          {x: 270, y: 50, vx: 0, vy: 0, potted: false, num: 6, color: "#10b981"},
-          {x: 300, y: 50, vx: 0, vy: 0, potted: false, num: 7, color: "#7c3aed"}
+          {x: 270, y: 80, vx: 0, vy: 0, potted: false, num: 1, color: "#f59e0b", scale: 1},
+          {x: 255, y: 65, vx: 0, vy: 0, potted: false, num: 8, color: "#111111", scale: 1},
+          {x: 285, y: 65, vx: 0, vy: 0, potted: false, num: 9, color: "#dc2626", scale: 1},
+          {x: 240, y: 50, vx: 0, vy: 0, potted: false, num: 3, color: "#ef4444", scale: 1},
+          {x: 270, y: 50, vx: 0, vy: 0, potted: false, num: 6, color: "#10b981", scale: 1},
+          {x: 300, y: 50, vx: 0, vy: 0, potted: false, num: 7, color: "#7c3aed", scale: 1}
         ];
       } else if (currentSport === 'bowling') {
         bowlBall = { x: 270, y: 190, vx: 0, vy: 0, active: false, aimOffset: 0, rollingThrough: false };
@@ -748,12 +807,12 @@
 
     function adjustSportAim(dir) {
       if (currentSport === 'basketball') sportAimAngle = Math.max(-0.4, Math.min(0.4, sportAimAngle + (dir * 0.05)));
-      else if (currentSport === 'pool') sportAimAngle = Math.max(-1.2, Math.min(1.2, sportAimAngle + (dir * 0.08)));
+      else if (currentSport === 'pool') sportAimAngle = (sportAimAngle + (dir * 0.1)) % (Math.PI * 2); // Full 360° rotation
       else if (currentSport === 'bowling') bowlBall.aimOffset = Math.max(-60, Math.min(60, bowlBall.aimOffset + (dir * 12)));
     }
 
     function startPowerCharge() {
-      if (currentSport === 'basketball' && basketballTimer <= 0) return;
+      if (sportTimer <= 0) return;
       isCharging = true;
       chargePower = 0;
       let chargeInterval = setInterval(() => {
@@ -763,7 +822,7 @@
     }
 
     function releasePowerCharge() {
-      if (!isCharging || (currentSport === 'basketball' && basketballTimer <= 0)) return;
+      if (!isCharging || sportTimer <= 0) return;
       isCharging = false;
       let power = Math.max(20, chargePower);
 
@@ -836,8 +895,8 @@
               bbBall.vx = -Math.abs(bbBall.vx) * 0.6;
               bbBall.vy += 2;
             }
-            if (bbBall.x > rimX - 15 && bbBall.x < rimX + 15 && bbBall.y > 70 && bbBall.y < 86 && bbBall.vy > 0 && basketballTimer > 0) {
-              sportScore += 2; sportME += 10; consecutiveBaskets++;
+            if (bbBall.x > rimX - 15 && bbBall.x < rimX + 15 && bbBall.y > 70 && bbBall.y < 86 && bbBall.vy > 0 && sportTimer > 0) {
+              sportScore += 2; sportME += 10; consecutiveBaskets++; broadcastSportState();
               if (consecutiveBaskets >= 5) flashMessageTimer = 90;
               updateSportStats();
               bbBall.active = false; bbBall.x = 75; bbBall.y = 155; bbBall.vx = 0; bbBall.vy = 0;
@@ -856,13 +915,13 @@
             sportCtx.fillText("🔥 WOW! YOU'RE DOING GREAT! 10 IN A ROW! 🔥", 270, 55);
           }
 
-          if (basketballTimer <= 0) {
+          if (sportTimer <= 0) {
             sportCtx.fillStyle = "rgba(239, 68, 68, 0.9)"; sportCtx.font = "bold 20px sans-serif";
             sportCtx.textAlign = "center";
             sportCtx.fillText("TIME'S UP! FINAL SCORE: " + sportScore, 270, 115);
           }
 
-          if (!bbBall.active && basketballTimer > 0) {
+          if (!bbBall.active && sportTimer > 0) {
             sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
             sportCtx.beginPath(); sportCtx.moveTo(75, 145); sportCtx.lineTo(165 + (sportAimAngle * 120), 100); sportCtx.stroke();
             sportCtx.setLineDash([]);
@@ -873,31 +932,34 @@
           sportCtx.fillStyle = "#fff"; sportCtx.font = "9px monospace"; sportCtx.textAlign = "left"; sportCtx.fillText("POWER METER", 24, 205);
 
         } else if (currentSport === 'pool') {
-          // 2.5D Pseudo-3D Vertical Pool Table (Shooting Ball Style)
-          sportCtx.fillStyle = "#38220f"; sportCtx.fillRect(135, 10, 270, 210); // Wooden Cabinet
-          sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(150, 25, 240, 180); // Felt
+          sportCtx.fillStyle = "#38220f"; sportCtx.fillRect(135, 10, 270, 210);
+          sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(150, 25, 240, 180);
 
-          // 6 Pockets (Vertical Layout)
-          sportCtx.fillStyle = "#000";
           let pockets = [{x:153, y:28}, {x:270, y:22}, {x:387, y:28}, {x:153, y:202}, {x:270, y:208}, {x:387, y:202}];
           pockets.forEach(pk => {
+            sportCtx.fillStyle = "#000";
             sportCtx.beginPath(); sportCtx.arc(pk.x, pk.y, 9, 0, Math.PI * 2); sportCtx.fill();
           });
 
           let allBalls = [cueBall, ...targetBalls];
           allBalls.forEach(b => {
-            if (b.potted) return;
+            if (b.potted) {
+              if (b.scale > 0) b.scale -= 0.1;
+              return;
+            }
             b.x += b.vx; b.y += b.vy;
             b.vx *= 0.96; b.vy *= 0.96;
             if (Math.abs(b.vx) < 0.15) b.vx = 0;
             if (Math.abs(b.vy) < 0.15) b.vy = 0;
 
             pockets.forEach(pk => {
-              if (Math.hypot(b.x - pk.x, b.y - pk.y) < 12) {
+              if (Math.hypot(b.x - pk.x, b.y - pk.y) < 13) {
                 if (b === cueBall) {
                   b.x = 270; b.y = 170; b.vx = 0; b.vy = 0; b.active = false;
                 } else {
-                  b.potted = true; sportScore += 50; sportME += 15; updateSportStats();
+                  b.potted = true; sportScore += 50; sportME += 15; broadcastSportState();
+                  floatingTexts.push({ text: "+50 PTS", x: pk.x, y: pk.y - 10, alpha: 1.0 });
+                  updateSportStats();
                 }
               }
             });
@@ -926,7 +988,7 @@
 
           if (cueBall.vx === 0 && cueBall.vy === 0) cueBall.active = false;
 
-          // Aiming guide & Cue stick
+          // Full 360° Aiming Trajectory & Cue Stick
           let aimDirX = Math.sin(sportAimAngle), aimDirY = -Math.cos(sportAimAngle);
           sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([3, 3]);
           sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 140, cueBall.y + aimDirY * 140); sportCtx.stroke();
@@ -939,17 +1001,32 @@
           sportCtx.lineTo(cueBall.x - (aimDirX * 12), cueBall.y - (aimDirY * 12)); 
           sportCtx.stroke();
 
-          // Cue Ball with 3D Spherical Highlight
+          // Cue Ball
           sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, 8, 0, Math.PI * 2); sportCtx.fill();
           sportCtx.fillStyle = "rgba(255,255,255,0.7)"; sportCtx.beginPath(); sportCtx.arc(cueBall.x - 2, cueBall.y - 2, 2.5, 0, Math.PI * 2); sportCtx.fill();
 
           targetBalls.forEach(tb => {
-            if (!tb.potted) {
+            if (tb.scale > 0) {
+              sportCtx.save();
+              sportCtx.translate(tb.x, tb.y);
+              sportCtx.scale(tb.scale, tb.scale);
               sportCtx.fillStyle = tb.color;
-              sportCtx.beginPath(); sportCtx.arc(tb.x, tb.y, 8, 0, Math.PI * 2); sportCtx.fill();
-              sportCtx.fillStyle = "rgba(255,255,255,0.6)"; sportCtx.beginPath(); sportCtx.arc(tb.x - 2, tb.y - 2, 2.5, 0, Math.PI * 2); sportCtx.fill();
-              sportCtx.fillStyle = "#fff"; sportCtx.font = "8px sans-serif"; sportCtx.textAlign = "center"; sportCtx.fillText(tb.num, tb.x, tb.y + 3);
+              sportCtx.beginPath(); sportCtx.arc(0, 0, 8, 0, Math.PI * 2); sportCtx.fill();
+              sportCtx.fillStyle = "rgba(255,255,255,0.6)"; sportCtx.beginPath(); sportCtx.arc(-2, -2, 2.5, 0, Math.PI * 2); sportCtx.fill();
+              sportCtx.fillStyle = "#fff"; sportCtx.font = "8px sans-serif"; sportCtx.textAlign = "center"; sportCtx.fillText(tb.num, 0, 3);
+              sportCtx.restore();
             }
+          });
+
+          // Floating Score Animations
+          floatingTexts.forEach((ft, idx) => {
+            ft.y -= 0.8; ft.alpha -= 0.02;
+            sportCtx.save();
+            sportCtx.globalAlpha = ft.alpha;
+            sportCtx.fillStyle = "#facc15"; sportCtx.font = "bold 12px sans-serif"; sportCtx.textAlign = "center";
+            sportCtx.fillText(ft.text, ft.x, ft.y);
+            sportCtx.restore();
+            if (ft.alpha <= 0) floatingTexts.splice(idx, 1);
           });
 
           sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(30, 190, 110, 12);
@@ -957,10 +1034,8 @@
           sportCtx.fillStyle = "#fff"; sportCtx.font = "8px monospace"; sportCtx.textAlign = "left"; sportCtx.fillText("CUE POWER", 34, 198);
 
         } else if (currentSport === 'bowling') {
-          // 2.5D Pseudo-3D Bowling Alley (Bowling Crew Style Perspective)
           sportCtx.fillStyle = "#1e1b4b"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
           
-          // Perspective Alley Flooring
           sportCtx.beginPath();
           sportCtx.moveTo(140, 230); sportCtx.lineTo(230, 20); sportCtx.lineTo(310, 20); sportCtx.lineTo(400, 230);
           sportCtx.fillStyle = "#b45309"; sportCtx.fill();
@@ -975,7 +1050,7 @@
             bowlBall.y += bowlBall.vy;
             pins.forEach(p => {
               if (!p.hit && Math.hypot((bowlBall.x + bowlBall.aimOffset) - p.x, bowlBall.y - p.y) < 16) {
-                p.hit = true; sportScore += 30; sportME += 15; updateSportStats();
+                p.hit = true; sportScore += 30; sportME += 15; broadcastSportState(); updateSportStats();
               }
             });
             if (bowlBall.y < 15) {
@@ -1014,7 +1089,6 @@
             sportCtx.setLineDash([]);
           }
 
-          // Bowling Ball with 3D Shading
           sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(bowlBall.x + bowlBall.aimOffset, bowlBall.rollingThrough ? 20 : bowlBall.y, 11, 0, Math.PI * 2); sportCtx.fill();
           sportCtx.fillStyle = "rgba(255,255,255,0.7)"; sportCtx.beginPath(); sportCtx.arc(bowlBall.x + bowlBall.aimOffset - 3, (bowlBall.rollingThrough ? 20 : bowlBall.y) - 3, 3, 0, Math.PI * 2); sportCtx.fill();
 
@@ -1038,7 +1112,7 @@
       if (meEl) meEl.innerText = `${sportME} ME`;
     }
 
-    window.addEventListener("DOMContentLoaded", () => { initBrawler(); updateControlsUI(); });
+    window.addEventListener("DOMContentLoaded", () => { initBrawler(); updateControlsUI(); initP2P(); });
   </script>
 </body>
 </html>
