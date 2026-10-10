@@ -281,7 +281,7 @@
         <canvas id="gameCanvas" width="540" height="280"></canvas>
       </div>
 
-      <div class="combat-log" id="combatLog">Tactical Co-Op active! All superhero powers ready for deployment.</div>
+      <div class="combat-log" id="combatLog">Class-A Co-Op combat active! All targeted superpowers locked on.</div>
 
       <div class="controls-grid">
         <div class="dpad-cluster">
@@ -361,9 +361,7 @@
     function initP2P() {
       try {
         peer = new Peer();
-        peer.on('open', (id) => {
-          console.log("P2P ID:", id);
-        });
+        peer.on('open', (id) => { console.log("P2P ID:", id); });
         peer.on('connection', (incomingConn) => {
           conn = incomingConn;
           setupConnectionListeners();
@@ -405,7 +403,7 @@
 
     const ASSETS = {
       bg: new Image(), marcus: new Image(), xochitl: new Image(),
-      sundiata: new Image(), kofi: new Image(), amina: new Image(), wakan: new Image()
+      sundiata: new Image(), kofi: new Image(), amina: new Image(), wakan: new Image(), luetta: new Image()
     };
     ASSETS.bg.src = "bg-detroit.jpg";
     ASSETS.marcus.src = "marcus.png";
@@ -414,6 +412,7 @@
     ASSETS.kofi.src = "kofi.png";
     ASSETS.amina.src = "amina-zazzau.png";
     ASSETS.wakan.src = "wakan.png";
+    ASSETS.luetta.src = "luetta.png";
 
     let unlockedRoster = ["marcus", "xochitl", "sundiata", "kofi", "amina", "wakan"];
     let rosterIdx = 0;
@@ -425,7 +424,8 @@
     let kofiHammerSwing = { active: false, timer: 0, maxTimer: 14 };
     let xochitlFlight = { active: false, state: 'INACTIVE', x: 0, y: 0, timer: 0 };
     let sundiataShockwave = { active: false, x: 0, radius: 0 };
-    let tsunamis = [], daggers = [], lightningBolts = [], enemies = [];
+    let luettaAscent = { active: false, y: 180, timer: 0 };
+    let tsunamis = [], daggers = [], projectiles = [], enemies = [];
     let currentWave = 1, gameActive = true;
 
     function initBrawler() {
@@ -447,9 +447,10 @@
         enemies = [];
         for (let i = 0; i < 14; i++) {
           enemies.push({ 
-            x: 540 + (i * 75), 
+            x: 540 + (i * 70), 
             y: 202, 
             hp: 3, 
+            maxHp: 3,
             speed: 1.1, 
             active: true, 
             walkCycle: Math.random() * Math.PI 
@@ -486,15 +487,15 @@
         document.getElementById("btnBurst").innerText = "🛡️ Wing Shield";
       } else if (activeLead === "sundiata") {
         document.getElementById("btnStrike").innerText = "🔨 Drum Tremor";
-        document.getElementById("btnOrb").innerText = "🔵 Plasma Blast";
-        document.getElementById("btnBurst").innerText = "🦁 Solar Lion Roar";
+        document.getElementById("btnOrb").innerText = "🦁 Solar Lion Blast";
+        document.getElementById("btnBurst").innerText = "🛡️ Imperial Roar";
       } else if (activeLead === "kofi") {
         document.getElementById("btnStrike").innerText = "⚒️ Anvil Sledge";
         document.getElementById("btnOrb").innerText = "✨ Molten Shards";
         document.getElementById("btnBurst").innerText = "🛡️ Crucible Bastion";
       } else if (activeLead === "amina") {
         document.getElementById("btnStrike").innerText = "⚡ Spread Lightning";
-        document.getElementById("btnOrb").innerText = "🎯 Throw Spear";
+        document.getElementById("btnOrb").innerText = "🎯 Tracking Spear";
         document.getElementById("btnBurst").innerText = "🛡️ Star Barrier";
       } else if (activeLead === "wakan") {
         document.getElementById("btnStrike").innerText = "🌊 Tidal Wave";
@@ -503,66 +504,93 @@
       }
     }
 
+    // --- TARGETED PROJECTILE / HIT SYSTEM ---
     function executeStrike() {
       if (!gameActive || isPaused) return;
+      let activeEnemy = enemies.find(e => e.active);
+      let targetX = activeEnemy ? activeEnemy.x : leadX + 250;
+
       if (activeLead === "kofi") {
         kofiHammerSwing.active = true; kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
+        applyDamageInRadius(leadX + 60, 3);
       } else if (activeLead === "sundiata") {
-        sundiataShockwave.active = true; sundiataShockwave.x = leadX + 30; sundiataShockwave.radius = 10;
+        sundiataShockwave.active = true; sundiataShockwave.x = leadX + 40; sundiataShockwave.radius = 15;
+        applyDamageInRadius(leadX + 90, 3);
       } else if (activeLead === "wakan") {
         tsunamis.push({ x: leadX + 30, y: 195, vx: 7.0, width: 120, height: 45, life: 65 });
       } else if (activeLead === "amina") {
-        lightningBolts.push({ startX: leadX + 40, startY: 160, targetX: leadX + 260, life: 12 });
+        projectiles.push({ type: 'lightning', x: leadX + 40, y: 160, targetX: targetX, color: '#facc15', speed: 18, damage: 3 });
       } else {
-        lightningBolts.push({ startX: leadX + 40, startY: 160, targetX: leadX + 220, life: 12 });
+        // Marcus Prime Electric Volt Beam - Locked on to nearest enemy sprite
+        projectiles.push({ type: 'beam', x: leadX + 40, y: 170, targetX: targetX, color: '#38bdf8', speed: 20, damage: 3.5 });
       }
-      checkDroidDamage(3);
     }
 
     function executePlasmaOrb() {
       if (!gameActive || isPaused) return;
+      let activeEnemy = enemies.find(e => e.active);
+      let targetX = activeEnemy ? activeEnemy.x : leadX + 250;
+
       if (activeLead === "xochitl" && !xochitlFlight.active) {
         xochitlFlight.active = true; xochitlFlight.state = 'ASCENT';
         xochitlFlight.x = leadX; xochitlFlight.y = 165; xochitlFlight.timer = 0;
+      } else if (activeLead === "sundiata") {
+        // Solar Lion Plasma Blast
+        projectiles.push({ type: 'lion', x: leadX + 40, y: 165, targetX: targetX, color: '#f59e0b', speed: 12, damage: 4 });
+      } else if (activeLead === "amina") {
+        // Tracking Arrow / Spear locked on enemy
+        projectiles.push({ type: 'spear', x: leadX + 40, y: 170, targetX: targetX, color: '#ec4899', speed: 14, damage: 3 });
       } else if (activeLead === "wakan") {
         tsunamis.push({ x: leadX + 30, y: 185, vx: 8.5, width: 170, height: 60, life: 80 });
       } else {
-        daggers.push({ x: leadX + 30, y: 170, vx: 8, vy: 0, length: 18, width: 4 });
+        projectiles.push({ type: 'orb', x: leadX + 30, y: 170, targetX: targetX, color: '#0284c7', speed: 10, damage: 3 });
       }
-      checkDroidDamage(3);
     }
 
     function executeBurst() {
       if (!gameActive || isPaused) return;
       if (activeLead === "sundiata") {
-        sundiataShockwave.active = true; sundiataShockwave.x = leadX + 30; sundiataShockwave.radius = 15;
+        sundiataShockwave.active = true; sundiataShockwave.x = leadX + 40; sundiataShockwave.radius = 25;
+        applyDamageInRadius(leadX + 100, 4);
       } else if (activeLead === "marcus" && absorbedCharge > 0) {
-        lightningBolts.push({ startX: leadX + 40, startY: 160, targetX: leadX + 300, life: 15 });
+        let activeEnemy = enemies.find(e => e.active);
+        projectiles.push({ type: 'beam', x: leadX + 40, y: 160, targetX: activeEnemy ? activeEnemy.x : leadX + 300, color: '#facc15', speed: 22, damage: 5 });
         absorbedCharge = 0;
       } else {
         isShieldActive = true; setTimeout(() => isShieldActive = false, 3000);
       }
-      checkDroidDamage(4);
     }
 
     function executeLuettaAid() {
       if (!gameActive || isPaused) return;
-      playerHp = 100; updateHUD();
-      enemies.forEach(e => { e.hp = 0; e.active = false; });
-      document.getElementById("combatLog").innerText = "★ Mother Luetta summons Solar Purge! All walking droids neutralized! ★";
-      setTimeout(() => { document.getElementById("combatLog").innerText = "Tactical Co-Op active! Reinforcements arriving..."; startWave(1); }, 2000);
+      luettaAscent.active = true;
+      luettaAscent.y = 220;
+      luettaAscent.timer = 0;
+
+      document.getElementById("combatLog").innerText = "★ Mother Luetta ascends in solar majesty, healing the Vanguard & purging all droids! ★";
     }
 
-    function checkDroidDamage(dmg) {
+    function applyDamageInRadius(posX, dmg) {
       enemies.forEach(e => {
-        if (e.active && Math.abs(e.x - leadX) < 220) {
+        if (e.active && Math.abs(e.x - posX) < 80) {
           e.hp -= dmg;
           if (e.hp <= 0) e.active = false;
         }
       });
+      updateHUD();
+    }
+
+    function updateHUD() {
       let activeCount = enemies.filter(e => e.active).length;
-      document.getElementById("enemyHpText").innerText = `${activeCount} Units`;
-      document.getElementById("enemyHpBar").style.width = `${(activeCount / 14) * 100}%`;
+      const hpEl = document.getElementById("heroHpText");
+      const barEl = document.getElementById("heroHpBar");
+      const enemyHpText = document.getElementById("enemyHpText");
+      const enemyHpBar = document.getElementById("enemyHpBar");
+
+      if (hpEl) hpEl.innerText = `${Math.ceil(playerHp)}/100`;
+      if (barEl) barEl.style.width = `${playerHp}%`;
+      if (enemyHpText) enemyHpText.innerText = `${activeCount} Units`;
+      if (enemyHpBar) enemyHpBar.style.width = `${(activeCount / 14) * 100}%`;
     }
 
     function renderBrawler() {
@@ -582,6 +610,7 @@
 
         const currentLeadY = (165 - leadY);
 
+        // Render Active Lead
         if (!xochitlFlight.active) {
           let leadImg = ASSETS[activeLead];
           ctx.save();
@@ -605,6 +634,7 @@
           ctx.restore();
         }
 
+        // Xochitl Fiery Flight & Targeted Daggers
         if (xochitlFlight.active) {
           xochitlFlight.timer++;
           if (xochitlFlight.state === 'ASCENT') {
@@ -614,13 +644,16 @@
             xochitlFlight.x -= 3.5;
             let targetDroid = enemies.find(e => e.active);
             let targetX = targetDroid ? targetDroid.x : 100;
-            if (xochitlFlight.timer % 6 === 0) daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 25, vx: (targetX - xochitlFlight.x) * 0.08, vy: 3, length: 18, width: 4 });
+            if (xochitlFlight.timer % 12 === 0) {
+              daggers.push({ x: xochitlFlight.x, y: xochitlFlight.y + 25, vx: (targetX - xochitlFlight.x) * 0.1, vy: 3, length: 18, width: 4 });
+            }
             if (xochitlFlight.x <= 120) xochitlFlight.state = 'TOUCHDOWN';
           } else if (xochitlFlight.state === 'TOUCHDOWN') { xochitlFlight.active = false; xochitlFlight.state = 'INACTIVE'; }
           
           ctx.drawImage(ASSETS.xochitl, xochitlFlight.x, xochitlFlight.y, 56, 72);
         }
 
+        // Render AI Partner
         let partnerRole = unlockedRoster.filter(r => r !== activeLead)[0] || "xochitl";
         let aiImg = ASSETS[partnerRole];
         ctx.save();
@@ -632,6 +665,7 @@
         }
         ctx.restore();
 
+        // Render Enemies with Walking Cycles
         enemies.forEach(e => {
           if (!e.active) return;
           e.x -= e.speed;
@@ -661,19 +695,59 @@
           ctx.restore();
         });
 
-        for (let i = lightningBolts.length - 1; i >= 0; i--) {
-          let lb = lightningBolts[i];
-          lb.life--;
+        // Mother Luetta Healing & Wipeout Sequence
+        if (luettaAscent.active) {
+          luettaAscent.timer++;
+          luettaAscent.y -= 3.5;
           ctx.save();
-          ctx.strokeStyle = "#facc15";
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.moveTo(lb.startX, lb.startY);
-          ctx.lineTo(lb.startX + 100, lb.startY - 40);
-          ctx.lineTo(lb.targetX, lb.startY + 40);
-          ctx.stroke();
+          ctx.fillStyle = "rgba(245, 158, 11, 0.25)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          if (ASSETS.luetta.complete && ASSETS.luetta.naturalWidth > 0) {
+            ctx.drawImage(ASSETS.luetta, 220, luettaAscent.y, 80, 100);
+          } else {
+            ctx.fillStyle = "#f59e0b"; ctx.fillRect(240, luettaAscent.y, 60, 90);
+          }
           ctx.restore();
-          if (lb.life <= 0) lightningBolts.splice(i, 1);
+
+          if (luettaAscent.timer > 50) {
+            playerHp = 100;
+            enemies.forEach(e => { e.hp = 0; e.active = false; });
+            updateHUD();
+            luettaAscent.active = false;
+            document.getElementById("combatLog").innerText = "Tactical Co-Op active! Reinforcements arriving...";
+            startWave(1);
+          }
+        }
+
+        // Render Targeted Projectiles & Beams
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+          let p = projectiles[i];
+          p.x += p.speed;
+
+          ctx.save();
+          ctx.strokeStyle = p.color;
+          ctx.fillStyle = p.color;
+          ctx.lineWidth = p.type === 'beam' ? 6 : 4;
+
+          if (p.type === 'beam') {
+            ctx.beginPath(); ctx.moveTo(p.x - 30, p.y + 10); ctx.lineTo(p.x + 50, p.y + 10); ctx.stroke();
+          } else if (p.type === 'lion') {
+            ctx.beginPath(); ctx.arc(p.x, p.y + 10, 14, 0, Math.PI * 2); ctx.fill();
+          } else {
+            ctx.fillRect(p.x, p.y + 8, 16, 6);
+          }
+          ctx.restore();
+
+          // Precise collision check with enemies
+          enemies.forEach(e => {
+            if (e.active && Math.abs(e.x - p.x) < 30) {
+              e.hp -= p.damage;
+              if (e.hp <= 0) e.active = false;
+              projectiles.splice(i, 1);
+            }
+          });
+
+          if (p && p.x > canvas.width) projectiles.splice(i, 1);
         }
 
         for (let i = tsunamis.length - 1; i >= 0; i--) {
@@ -691,6 +765,14 @@
           ctx.fill();
           ctx.stroke();
           ctx.restore();
+
+          enemies.forEach(e => {
+            if (e.active && Math.abs(e.x - t.x) < 60) {
+              e.hp -= 3;
+              if (e.hp <= 0) e.active = false;
+            }
+          });
+
           if (t.life <= 0 || t.x > canvas.width) tsunamis.splice(i, 1);
         }
 
@@ -699,7 +781,7 @@
           ctx.fillStyle = "#f97316"; ctx.fillRect(d.x, d.y, d.length, d.width);
           enemies.forEach(e => {
             if (e.active && Math.hypot(e.x - d.x, e.y - d.y) < 35) {
-              e.hp--;
+              e.hp -= 2.5;
               if (e.hp <= 0) e.active = false;
               daggers.splice(idx, 1);
             }
@@ -711,14 +793,7 @@
       animationFrameId = requestAnimationFrame(renderBrawler);
     }
 
-    function updateHUD() {
-      const hpEl = document.getElementById("heroHpText");
-      const barEl = document.getElementById("heroHpBar");
-      if (hpEl) hpEl.innerText = `${Math.ceil(playerHp)}/100`;
-      if (barEl) barEl.style.width = `${playerHp}%`;
-    }
-
-    // --- SPORTS LOUNGE ENGINE (FULL 360° AIM, POCKET ANIMATIONS, 45s TIMER, RESTART) ---
+    // --- SPORTS LOUNGE ENGINE ---
     let sportCanvas, sportCtx;
     let currentSport = 'basketball';
     let sportScore = 0, sportME = 0;
@@ -807,7 +882,7 @@
 
     function adjustSportAim(dir) {
       if (currentSport === 'basketball') sportAimAngle = Math.max(-0.4, Math.min(0.4, sportAimAngle + (dir * 0.05)));
-      else if (currentSport === 'pool') sportAimAngle = (sportAimAngle + (dir * 0.1)) % (Math.PI * 2); // Full 360° rotation
+      else if (currentSport === 'pool') sportAimAngle = (sportAimAngle + (dir * 0.1)) % (Math.PI * 2);
       else if (currentSport === 'bowling') bowlBall.aimOffset = Math.max(-60, Math.min(60, bowlBall.aimOffset + (dir * 12)));
     }
 
@@ -853,20 +928,6 @@
           sportCtx.font = "bold 13px sans-serif";
           sportCtx.textAlign = "center";
           sportCtx.fillText("RHODES FAMILY LEGACY", 270, 22);
-
-          sportCtx.strokeStyle = "rgba(245, 158, 11, 0.4)";
-          sportCtx.lineWidth = 3;
-          sportCtx.beginPath();
-          for (let y = 70; y < 140; y += 6) {
-            let cx1 = 270 + Math.sin(y * 0.15) * 12;
-            let cx2 = 270 + Math.cos(y * 0.15) * 12;
-            sportCtx.moveTo(cx1, y); sportCtx.lineTo(cx2, y + 3);
-          }
-          sportCtx.moveTo(270, 75); sportCtx.quadraticCurveTo(240, 50, 210, 55);
-          sportCtx.moveTo(270, 75); sportCtx.quadraticCurveTo(300, 50, 330, 55);
-          sportCtx.moveTo(270, 60); sportCtx.quadraticCurveTo(255, 35, 235, 30);
-          sportCtx.moveTo(270, 60); sportCtx.quadraticCurveTo(285, 35, 305, 30);
-          sportCtx.stroke();
           sportCtx.restore();
 
           sportCtx.fillStyle = "#1e3a8a"; sportCtx.fillRect(0, 160, sportCanvas.width, 70);
@@ -879,14 +940,20 @@
           sportCtx.fillStyle = "rgba(56, 189, 248, 0.35)"; sportCtx.fillRect(boardX, 28, 12, 82);
           sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.strokeRect(boardX, 28, 12, 82);
           sportCtx.fillStyle = "#dc2626"; sportCtx.fillRect(boardX - 2, 50, 16, 26);
-          sportCtx.strokeStyle = "#f59e0b"; sportCtx.lineWidth = 4;
+          
+          // Basketball Rim (turns into fire when consecutiveBaskets >= 3)
+          sportCtx.strokeStyle = consecutiveBaskets >= 3 ? "#ef4444" : "#f59e0b";
+          sportCtx.lineWidth = consecutiveBaskets >= 3 ? 6 : 4;
           sportCtx.beginPath(); sportCtx.arc(rimX, 76, 22, Math.PI, 0, true); sportCtx.stroke();
+          if (consecutiveBaskets >= 3) {
+            sportCtx.fillStyle = "#f97316";
+            sportCtx.beginPath(); sportCtx.arc(rimX, 76, 12, 0, Math.PI * 2); sportCtx.fill();
+          }
 
           if (ASSETS.marcus.complete && ASSETS.marcus.naturalWidth > 0) {
             sportCtx.drawImage(ASSETS.marcus, 45, 105, 52, 65);
           } else {
             sportCtx.fillStyle = "#dc2626"; sportCtx.fillRect(58, 115, 24, 45);
-            sportCtx.fillStyle = "#facc15"; sportCtx.beginPath(); sportCtx.arc(70, 102, 8, 0, Math.PI * 2); sportCtx.fill();
           }
 
           if (bbBall.active) {
@@ -897,7 +964,7 @@
             }
             if (bbBall.x > rimX - 15 && bbBall.x < rimX + 15 && bbBall.y > 70 && bbBall.y < 86 && bbBall.vy > 0 && sportTimer > 0) {
               sportScore += 2; sportME += 10; consecutiveBaskets++; broadcastSportState();
-              if (consecutiveBaskets >= 5) flashMessageTimer = 90;
+              if (consecutiveBaskets >= 3) flashMessageTimer = 90;
               updateSportStats();
               bbBall.active = false; bbBall.x = 75; bbBall.y = 155; bbBall.vx = 0; bbBall.vy = 0;
             }
@@ -906,19 +973,15 @@
               consecutiveBaskets = 0;
             }
           }
-          sportCtx.fillStyle = "#f97316"; sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
+          // Ball turns red/fiery when heating up (3+ baskets)
+          sportCtx.fillStyle = consecutiveBaskets >= 3 ? "#ef4444" : "#f97316";
+          sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
 
           if (flashMessageTimer > 0) {
             flashMessageTimer--;
             sportCtx.fillStyle = "#facc15"; sportCtx.font = "bold 15px sans-serif";
             sportCtx.textAlign = "center";
-            sportCtx.fillText("🔥 WOW! YOU'RE DOING GREAT! 10 IN A ROW! 🔥", 270, 55);
-          }
-
-          if (sportTimer <= 0) {
-            sportCtx.fillStyle = "rgba(239, 68, 68, 0.9)"; sportCtx.font = "bold 20px sans-serif";
-            sportCtx.textAlign = "center";
-            sportCtx.fillText("TIME'S UP! FINAL SCORE: " + sportScore, 270, 115);
+            sportCtx.fillText("🔥 HEATING UP! NET ON FIRE! 🔥", 270, 55);
           }
 
           if (!bbBall.active && sportTimer > 0) {
@@ -938,7 +1001,7 @@
           let pockets = [{x:153, y:28}, {x:270, y:22}, {x:387, y:28}, {x:153, y:202}, {x:270, y:208}, {x:387, y:202}];
           pockets.forEach(pk => {
             sportCtx.fillStyle = "#000";
-            sportCtx.beginPath(); sportCtx.arc(pk.x, pk.y, 9, 0, Math.PI * 2); sportCtx.fill();
+            sportCtx.beginPath(); sportCtx.arc(pk.x, pk.y, 11, 0, Math.PI * 2); sportCtx.fill();
           });
 
           let allBalls = [cueBall, ...targetBalls];
@@ -953,7 +1016,7 @@
             if (Math.abs(b.vy) < 0.15) b.vy = 0;
 
             pockets.forEach(pk => {
-              if (Math.hypot(b.x - pk.x, b.y - pk.y) < 13) {
+              if (Math.hypot(b.x - pk.x, b.y - pk.y) < 14) {
                 if (b === cueBall) {
                   b.x = 270; b.y = 170; b.vx = 0; b.vy = 0; b.active = false;
                 } else {
@@ -988,22 +1051,21 @@
 
           if (cueBall.vx === 0 && cueBall.vy === 0) cueBall.active = false;
 
-          // Full 360° Aiming Trajectory & Cue Stick
           let aimDirX = Math.sin(sportAimAngle), aimDirY = -Math.cos(sportAimAngle);
           sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([3, 3]);
           sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 140, cueBall.y + aimDirY * 140); sportCtx.stroke();
           sportCtx.setLineDash([]);
 
-          let pullBack = (chargePower * 0.7);
-          sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 5;
+          // Seamlessly connected Cue Stick
+          let pullBack = (chargePower * 0.6);
+          sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 6;
           sportCtx.beginPath(); 
-          sportCtx.moveTo(cueBall.x - (aimDirX * (70 + pullBack)), cueBall.y - (aimDirY * (70 + pullBack))); 
-          sportCtx.lineTo(cueBall.x - (aimDirX * 12), cueBall.y - (aimDirY * 12)); 
+          sportCtx.moveTo(cueBall.x - (aimDirX * (8 + pullBack)), cueBall.y - (aimDirY * (8 + pullBack))); 
+          sportCtx.lineTo(cueBall.x - (aimDirX * 120), cueBall.y - (aimDirY * 120)); 
           sportCtx.stroke();
 
           // Cue Ball
           sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, 8, 0, Math.PI * 2); sportCtx.fill();
-          sportCtx.fillStyle = "rgba(255,255,255,0.7)"; sportCtx.beginPath(); sportCtx.arc(cueBall.x - 2, cueBall.y - 2, 2.5, 0, Math.PI * 2); sportCtx.fill();
 
           targetBalls.forEach(tb => {
             if (tb.scale > 0) {
@@ -1012,13 +1074,11 @@
               sportCtx.scale(tb.scale, tb.scale);
               sportCtx.fillStyle = tb.color;
               sportCtx.beginPath(); sportCtx.arc(0, 0, 8, 0, Math.PI * 2); sportCtx.fill();
-              sportCtx.fillStyle = "rgba(255,255,255,0.6)"; sportCtx.beginPath(); sportCtx.arc(-2, -2, 2.5, 0, Math.PI * 2); sportCtx.fill();
               sportCtx.fillStyle = "#fff"; sportCtx.font = "8px sans-serif"; sportCtx.textAlign = "center"; sportCtx.fillText(tb.num, 0, 3);
               sportCtx.restore();
             }
           });
 
-          // Floating Score Animations
           floatingTexts.forEach((ft, idx) => {
             ft.y -= 0.8; ft.alpha -= 0.02;
             sportCtx.save();
@@ -1040,12 +1100,6 @@
           sportCtx.moveTo(140, 230); sportCtx.lineTo(230, 20); sportCtx.lineTo(310, 20); sportCtx.lineTo(400, 230);
           sportCtx.fillStyle = "#b45309"; sportCtx.fill();
 
-          sportCtx.strokeStyle = "#78350f"; sportCtx.lineWidth = 1.5;
-          sportCtx.beginPath();
-          sportCtx.moveTo(210, 230); sportCtx.lineTo(255, 20);
-          sportCtx.moveTo(330, 230); sportCtx.lineTo(285, 20);
-          sportCtx.stroke();
-
           if (bowlBall.active) {
             bowlBall.y += bowlBall.vy;
             pins.forEach(p => {
@@ -1060,9 +1114,7 @@
           }
 
           if (bowlBall.rollingThrough) {
-            sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(155, 120 + Math.sin(Date.now() / 100) * 40, 8, 0, Math.PI * 2); sportCtx.fill();
-            sportCtx.fillStyle = "#94a3b8"; sportCtx.font = "9px sans-serif"; sportCtx.textAlign = "left"; sportCtx.fillText("BALL RETURN", 130, 80);
-
+            sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(155, 120, 8, 0, Math.PI * 2); sportCtx.fill();
             setTimeout(() => {
               bowlBall.rollingThrough = false;
               bowlBall.x = 270; bowlBall.y = 190; bowlBall.vy = 0;
@@ -1071,9 +1123,7 @@
           }
 
           let pinPositions = [
-            {x: 270, y: 75}, 
-            {x: 255, y: 60}, {x: 285, y: 60}, 
-            {x: 240, y: 45}, {x: 270, y: 45}, {x: 300, y: 45}
+            {x: 270, y: 75}, {x: 255, y: 60}, {x: 285, y: 60}, {x: 240, y: 45}, {x: 270, y: 45}, {x: 300, y: 45}
           ];
           pins.forEach((p, idx) => {
             p.x = pinPositions[idx].x; p.y = pinPositions[idx].y;
@@ -1083,23 +1133,13 @@
             }
           });
 
-          if (!bowlBall.active && !bowlBall.rollingThrough) {
-            sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
-            sportCtx.beginPath(); sportCtx.moveTo(bowlBall.x + bowlBall.aimOffset, bowlBall.y); sportCtx.lineTo(270, 75); sportCtx.stroke();
-            sportCtx.setLineDash([]);
-          }
-
           sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(bowlBall.x + bowlBall.aimOffset, bowlBall.rollingThrough ? 20 : bowlBall.y, 11, 0, Math.PI * 2); sportCtx.fill();
-          sportCtx.fillStyle = "rgba(255,255,255,0.7)"; sportCtx.beginPath(); sportCtx.arc(bowlBall.x + bowlBall.aimOffset - 3, (bowlBall.rollingThrough ? 20 : bowlBall.y) - 3, 3, 0, Math.PI * 2); sportCtx.fill();
 
           sportCtx.fillStyle = "#020617"; sportCtx.fillRect(15, 15, 130, 45);
           sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 1; sportCtx.strokeRect(15, 15, 130, 45);
           sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "10px monospace"; sportCtx.textAlign = "left";
           sportCtx.fillText(`PINS LEFT: ${pins.filter(p=>!p.hit).length}`, 22, 32);
           sportCtx.fillText(`SCORE: ${sportScore}`, 22, 48);
-
-          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(170, 215, 200, 10);
-          sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(170, 215, (chargePower / 100) * 200, 10);
         }
       }
       sportAnimId = requestAnimationFrame(renderSportLoop);
