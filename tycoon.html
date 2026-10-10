@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Rhodes Family Legacy Hub: Tycoon, Tetris & Word Search</title>
-  <!-- PeerJS CDN for Real-Time P2P Multiplayer -->
+  <!-- PeerJS CDN for Real-Time P2P Multiplayer & Lobby Management -->
   <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <style>
     :root {
@@ -576,7 +576,7 @@
 
   <div class="multiplayer-bar" id="lobbyBar">
     <div class="mp-row">
-      <span>🌐 MATCH MODE</span>
+      <span>🌐 MATCH MODE & LOBBY</span>
       <label class="switch-label">
         <input type="checkbox" id="aiToggle" checked onchange="toggleAIMode()" /> Play vs AI Bot
       </label>
@@ -588,6 +588,7 @@
         <button class="btn btn-mp" style="padding: 6px 10px;" onclick="joinP2PMatch()">Join Room</button>
       </div>
     </div>
+    <div id="lobbyStatusText" style="font-size: 10px; color: #facc15; font-weight: bold; margin-top: 2px;">Waiting Room Lobby: Open (Max 3 Active Players + Spectators)</div>
   </div>
 
   <div class="marrow-bar">
@@ -666,6 +667,15 @@
     let shieldActive = false;
     let playVsAI = true;
 
+    // --- GLOBAL WAITING ROOM & SPECTATOR SESSION STATE ---
+    let hubSession = {
+      gameStarted: false,
+      waitingPlayers: [],
+      activePlayers: [],
+      spectators: [],
+      MAX_PLAYERS: 3
+    };
+
     function selectColor(color, el) {
       document.querySelectorAll(".color-opt").forEach(o => o.classList.remove("selected"));
       el.classList.add("selected");
@@ -717,7 +727,7 @@
       return `${pre}-${suf}`;
     }
 
-    let peer = null, conn = null, isHost = false, myPlayerId = 0;
+    let peer = null, isHost = false, myPlayerId = 0;
 
     function hostP2PMatch() {
       playVsAI = false; document.getElementById("aiToggle").checked = false;
@@ -725,15 +735,42 @@
       peer = new Peer(customCode);
       peer.on('open', (id) => {
         isHost = true; myPlayerId = 0;
-        players = [{ id: 0, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] }, { id: 1, name: "Opponent", color: "#f472b6", cash: 1500, pos: 0, deeds: [] }];
+        hubSession.gameStarted = true;
+        players = [{ id: 0, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] }];
         buildHUD();
         document.getElementById("joinCodeInput").value = id;
-        alert(`Room hosted successfully! Share this compound word code with your opponent: ${id}`);
+        alert(`Room hosted! Waiting room open for up to ${hubSession.MAX_PLAYERS} active players. Code: ${id}`);
       });
-      peer.on('connection', (connection) => { 
-        conn = connection; 
-        setupConnectionEvents(); 
-        log("Opponent connected to room!");
+
+      peer.on('connection', (incomingConn) => {
+        incomingConn.on('open', () => {
+          // Check if game already started or active slots are full -> route to spectator
+          if (hubSession.gameStarted && hubSession.activePlayers.length >= hubSession.MAX_PLAYERS) {
+            hubSession.spectators.push(incomingConn);
+            incomingConn.send({ type: 'spectatorJoined', message: 'Joined as Spectator. Game in progress.' });
+            log("New connection joined as Spectator mid-game.");
+          } else {
+            hubSession.waitingPlayers.push(incomingConn);
+            incomingConn.send({ type: 'lobbyJoined', message: 'Joined waiting room lobby.' });
+            
+            // If room has space, auto-assign as active player
+            if (hubSession.activePlayers.length < hubSession.MAX_PLAYERS - 1) {
+              let newPlayerId = players.length;
+              players.push({ id: newPlayerId, name: `Player ${newPlayerId + 1}`, color: '#10b981', cash: 1500, pos: 0, deeds: [] });
+              hubSession.activePlayers.push(incomingConn);
+              buildHUD();
+            }
+          }
+          updateLobbyUI();
+        });
+
+        incomingConn.on('data', (data) => {
+          handleIncomingPeerData(incomingConn, data);
+        });
+
+        incomingConn.on('close', () => {
+          cleanupPeerConnection(incomingConn);
+        });
       });
     }
 
@@ -744,37 +781,61 @@
       
       peer = new Peer();
       peer.on('open', () => {
-        conn = peer.connect(code);
-        isHost = false; myPlayerId = 1;
-        players = [{ id: 0, name: "Host", color: "#38bdf8", cash: 1500, pos: 0, deeds: [] }, { id: 1, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] }];
-        buildHUD();
-        setupConnectionEvents();
-        log(`Connected to room: ${code}`);
+        let conn = peer.connect(code);
+        isHost = false;
+        
+        conn.on('open', () => {
+          log(`Connected to room: ${code}`);
+        });
+
+        conn.on('data', (data) => {
+          if (data.type === 'spectatorJoined') {
+            alert("Game already in progress! You have joined as a Spectator.");
+            log("Joined session as Spectator.");
+          } else if (data.type === 'TYCOON_SYNC') {
+            players = data.players; currentTurn = data.currentTurn; playerMarrowEnergy = data.marrowEnergy;
+            data.tiles.forEach((syncTile, idx) => { 
+              if (TILES[idx]) {
+                TILES[idx].owner = syncTile.owner;
+                TILES[idx].houses = syncTile.houses;
+                TILES[idx].hotel = syncTile.hotel;
+              } 
+            });
+            buildBoard(); updateHUD(); updateMarrowDisplay(); checkTurnControl();
+          }
+        });
       });
     }
 
-    function setupConnectionEvents() {
-      conn.on('data', (data) => {
-        if (data.type === 'TYCOON_SYNC') {
-          players = data.players; currentTurn = data.currentTurn; playerMarrowEnergy = data.marrowEnergy;
-          data.tiles.forEach((syncTile, idx) => { 
-            if (TILES[idx]) {
-              TILES[idx].owner = syncTile.owner;
-              TILES[idx].houses = syncTile.houses;
-              TILES[idx].hotel = syncTile.hotel;
-            } 
-          });
-          buildBoard(); updateHUD(); updateMarrowDisplay(); checkTurnControl();
-        } else if (data.type === 'TETRIS_ATTACK') {
-          addGarbageLines(data.lines);
-        } else if (data.type === 'WORD_ATTACK') {
-          log(`⚠️ Opponent found word: ${data.word}! They gained +100 score.`);
-        }
-      });
+    function handleIncomingPeerData(conn, data) {
+      if (data.type === 'TETRIS_ATTACK') {
+        addGarbageLines(data.lines);
+      } else if (data.type === 'WORD_ATTACK') {
+        log(`⚠️ Opponent found word: ${data.word}!`);
+      }
+    }
+
+    function cleanupPeerConnection(conn) {
+      hubSession.waitingPlayers = hubSession.waitingPlayers.filter(c => c !== conn);
+      hubSession.activePlayers = hubSession.activePlayers.filter(c => c !== conn);
+      hubSession.spectators = hubSession.spectators.filter(c => c !== conn);
+      updateLobbyUI();
+    }
+
+    function updateLobbyUI() {
+      const statusEl = document.getElementById("lobbyStatusText");
+      if (statusEl) {
+        statusEl.innerText = `Waiting Room: ${hubSession.waitingPlayers.length} | Active: ${players.length}/${hubSession.MAX_PLAYERS} | Spectators: ${hubSession.spectators.length}`;
+      }
     }
 
     function broadcastState(msg = "") {
-      if (conn) conn.send({ type: 'TYCOON_SYNC', players, tiles: TILES, currentTurn, marrowEnergy: playerMarrowEnergy, logMsg: msg });
+      let allConnections = [...hubSession.activePlayers, ...hubSession.spectators];
+      allConnections.forEach(conn => {
+        if (conn && conn.open) {
+          conn.send({ type: 'TYCOON_SYNC', players, tiles: TILES, currentTurn, marrowEnergy: playerMarrowEnergy, logMsg: msg });
+        }
+      });
     }
 
     // EXPANDED 6x6 BOARD (20 Perimeter Tiles)
@@ -805,6 +866,7 @@
     let currentTurn = 0;
 
     function initGame() {
+      hubSession.gameStarted = true;
       players = [
         { id: 0, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] },
         { id: 1, name: "Saginaw Bot", color: "#f472b6", cash: 1500, pos: 0, deeds: [] }
@@ -856,6 +918,7 @@
       players.forEach((p, idx) => {
         hud.innerHTML += `<div class="p-card ${idx === currentTurn ? 'active-turn' : ''}" id="pcard-${p.id}"><div class="p-title" style="color: ${p.color};">${p.name}</div><div class="p-val" id="pcash-${p.id}">$${p.cash}</div></div>`;
       });
+      updateLobbyUI();
     }
 
     function buildBoard() {
@@ -1164,8 +1227,9 @@
           checkDailyHighScore();
         }
 
-        if (cleared >= 2 && conn) {
-          conn.send({ type: 'TETRIS_ATTACK', lines: cleared - 1 });
+        let allConnections = [...hubSession.activePlayers, ...hubSession.spectators];
+        if (cleared >= 2 && allConnections.length > 0) {
+          allConnections.forEach(c => c.send({ type: 'TETRIS_ATTACK', lines: cleared - 1 }));
         }
       }
     }
@@ -1287,8 +1351,9 @@
             }, 300);
           }
 
-          if (conn) {
-            conn.send({ type: 'WORD_ATTACK', word: word, score: wordSearchScore });
+          let allConnections = [...hubSession.activePlayers, ...hubSession.spectators];
+          if (allConnections.length > 0) {
+            allConnections.forEach(c => c.send({ type: 'WORD_ATTACK', word: word, score: wordSearchScore }));
           }
         }
       });
