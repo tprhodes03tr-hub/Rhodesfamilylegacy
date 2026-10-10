@@ -11,6 +11,8 @@
             --panel-bg: #121824;
             --neon-blue: #00d2ff;
             --neon-red: #ff3366;
+            --pistons-blue: #1d428a;
+            --pistons-red: #c8102e;
         }
 
         * {
@@ -32,7 +34,7 @@
 
         header {
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             border-bottom: 2px solid var(--gold);
             padding-bottom: 8px;
             width: 100%;
@@ -43,32 +45,6 @@
             font-size: 1.15rem;
             color: var(--gold);
             letter-spacing: 0.5px;
-        }
-
-        .top-nav {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
-            justify-content: center;
-            margin-bottom: 8px;
-            width: 100%;
-            max-width: 480px;
-        }
-
-        .nav-btn {
-            padding: 6px 10px;
-            border: 1px solid var(--gold);
-            background: var(--panel-bg);
-            color: var(--gold);
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 0.7rem;
-            cursor: pointer;
-        }
-
-        .nav-btn.active {
-            background: var(--gold);
-            color: #000;
         }
 
         .sport-tabs {
@@ -88,7 +64,7 @@
             color: #a0aec0;
             border-radius: 6px;
             font-weight: bold;
-            font-size: 0.75srem;
+            font-size: 0.75rem;
             cursor: pointer;
             text-align: center;
         }
@@ -114,7 +90,7 @@
 
         .game-view {
             width: 100%;
-            height: 300px;
+            height: 310px;
             background: #07090f;
             border-radius: 8px;
             position: relative;
@@ -182,10 +158,6 @@
             color: #fff;
             border: 1px solid #4a5568;
         }
-
-        .btn-secondary:hover {
-            background: #4a5568;
-        }
     </style>
 </head>
 <body>
@@ -193,13 +165,6 @@
     <header>
         <h1>Vanguard Universe & Sports Lounge</h1>
     </header>
-
-    <div class="top-nav">
-        <button class="nav-btn">⏸ PAUSE</button>
-        <button class="nav-btn">⚔ SIDE BRAWLER</button>
-        <button class="nav-btn active">🏀 SPORTS LOUNGE</button>
-        <button class="nav-btn">🎯 CHALLENGE</button>
-    </div>
 
     <div class="sport-tabs">
         <button class="sport-tab active" onclick="switchSport('basketball')">🏀 Basketball</button>
@@ -210,32 +175,32 @@
     <div class="game-container">
         <!-- Basketball View -->
         <div id="view-basketball" class="game-view active">
-            <canvas id="bbCanvas" width="440" height="300"></canvas>
+            <canvas id="bbCanvas" width="440" height="310"></canvas>
         </div>
 
         <!-- Pool View -->
         <div id="view-pool" class="game-view">
-            <canvas id="poolCanvas" width="440" height="300"></canvas>
+            <canvas id="poolCanvas" width="440" height="310"></canvas>
         </div>
 
         <!-- Bowling View -->
         <div id="view-bowling" class="game-view">
-            <canvas id="bowlCanvas" width="440" height="300"></canvas>
+            <canvas id="bowlCanvas" width="440" height="310"></canvas>
         </div>
 
         <div class="score-bar">
-            <span id="score-label">SCORE: 70</span>
-            <span id="bonus-label">MARROW BONUS: 350 ME</span>
+            <span id="score-label">SCORE: 0</span>
+            <span id="timer-label">TIME: 40s</span>
         </div>
 
         <div class="instruction-text" id="instruction-label">
-            Adjust aim, hold power meter, and release for Class-A action!
+            Adjust aim, hold power meter, make shots before time runs out!
         </div>
 
         <div class="controls-row">
-            <button class="action-btn btn-secondary" onclick="adjustAim(-1)">◄ Adjust Aim</button>
-            <button class="action-btn" id="main-action-btn" onclick="triggerShot()">Hold & Release Shot</button>
-            <button class="action-btn btn-secondary" onclick="adjustAim(1)">Adjust Aim ►</button>
+            <button class="action-btn btn-secondary" onclick="adjustAim(-1)">◄ Aim</button>
+            <button class="action-btn" id="main-action-btn" onclick="triggerAction()">Shoot / Release</button>
+            <button class="action-btn btn-secondary" onclick="adjustAim(1)">Aim ►</button>
         </div>
     </div>
 
@@ -250,67 +215,102 @@
             if (sport === 'basketball') {
                 document.getElementById('view-basketball').classList.add('active');
                 event.target.classList.add('active');
-                document.getElementById('instruction-label').innerText = "Adjust aim, hold power meter, and release for Class-A action!";
+                document.getElementById('instruction-label').innerText = "Marcus Prime showdown: 40s timer, moving backboard & fire streaks!";
             } else if (sport === 'pool') {
                 document.getElementById('view-pool').classList.add('active');
                 event.target.classList.add('active');
-                document.getElementById('instruction-label').innerText = "Line up cue stick and power shot for Syndicate pocketing!";
+                document.getElementById('instruction-label').innerText = "Syndicate 8-Ball: full rack, color-coded balls & +10 pocket bonuses!";
             } else if (sport === 'bowling') {
                 document.getElementById('view-bowling').classList.add('active');
                 event.target.classList.add('active');
-                document.getElementById('instruction-label').innerText = "Aim down Monument Valley lane for a strike!";
+                document.getElementById('instruction-label').innerText = "Monument Valley Alley: aim at specific pins, sweeper gate pin recovery!";
             }
         }
 
-        // --- Original Basketball Implementation ---
+        // --- Upgraded Basketball Game Logic ---
         const bbCanvas = document.getElementById('bbCanvas');
         const bbCtx = bbCanvas.getContext('2d');
-        let ballX = 65, ballY = 220, aimAngle = -0.6, isShooting = false, scoreVal = 70;
+        let bbX = 65, bbY = 230, aimAngle = -0.5, isShooting = false;
+        let bbScore = 0, timeLeft = 40, streakCount = 0, timerActive = false;
+        let boardX = 350, boardDir = 0.8;
+        let powerVal = 0, charging = false;
+
+        function startBasketballTimer() {
+            if (timerActive) return;
+            timerActive = true;
+            let interval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer-label').innerText = "TIME: " + timeLeft + "s";
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    timerActive = false;
+                    alert("Time's Up! Final Score: " + bbScore);
+                    resetBasketball();
+                    timeLeft = 40;
+                }
+            }, 1000);
+        }
 
         function drawBasketball() {
             bbCtx.fillStyle = '#07090f';
-            bbCtx.fillRect(0, 0, 440, 300);
+            bbCtx.fillRect(0, 0, 440, 310);
 
-            // Watermark / Golden Double Helix Tree Emblem
-            bbCtx.fillStyle = 'rgba(243, 156, 18, 0.15)';
-            bbCtx.font = '11px sans-serif';
-            bbCtx.fillText('RHODES FAMILY LEGACY', 150, 40);
-            
+            // Pistons Blue & Red Floorboards
+            bbCtx.fillStyle = '#1d428a';
+            bbCtx.fillRect(0, 240, 440, 70);
+            bbCtx.fillStyle = '#c8102e';
+            bbCtx.fillRect(0, 235, 440, 5);
+
+            // Family Tree & Double Helix Backdrop
+            bbCtx.fillStyle = 'rgba(243, 156, 18, 0.2)';
+            bbCtx.font = 'bold 11px sans-serif';
+            bbCtx.fillText('RHODES FAMILY LEGACY', 145, 30);
+
             bbCtx.strokeStyle = '#f39c12';
             bbCtx.lineWidth = 2;
             bbCtx.beginPath();
-            bbCtx.moveTo(220, 150); bbCtx.lineTo(220, 50);
-            // Double helix ladder steps
-            for(let i=60; i<140; i+=10) {
-                bbCtx.moveTo(210, i); bbCtx.lineTo(230, i + 4);
+            // Double Helix Center
+            for (let y = 45; y < 200; y += 12) {
+                let offset = Math.sin(y * 0.1) * 15;
+                bbCtx.moveTo(210 + offset, y); bbCtx.lineTo(230 - offset, y + 6);
             }
-            // Tree branches
-            bbCtx.moveTo(220, 60); bbCtx.quadraticCurveTo(190, 40, 170, 30);
-            bbCtx.moveTo(220, 60); bbCtx.quadraticCurveTo(250, 40, 270, 30);
+            // Golden Tree Branches
+            bbCtx.moveTo(220, 50); bbCtx.quadraticCurveTo(180, 35, 150, 20);
+            bbCtx.moveTo(220, 50); bbCtx.quadraticCurveTo(260, 35, 290, 20);
             bbCtx.stroke();
 
-            // Basketball Hoop (Right Side)
+            // Moving Backboard & Hoop
+            boardX += boardDir;
+            if (boardX > 370 || boardX > 330) boardDir *= -1;
+
             bbCtx.strokeStyle = '#00d2ff';
             bbCtx.lineWidth = 3;
-            bbCtx.strokeRect(360, 90, 12, 80);
-            bbCtx.strokeStyle = '#ff3366';
+            bbCtx.strokeRect(boardX, 80 + (boardX%3), 12, 75);
+            
+            // Rim / Net Heating up on streak
+            bbCtx.strokeStyle = streakCount >= 3 ? '#ff3366' : '#f39c12';
+            bbCtx.lineWidth = streakCount >= 3 ? 4 : 3;
             bbCtx.beginPath();
-            bbCtx.arc(348, 120, 20, 0, Math.PI);
+            bbCtx.arc(boardX - 12, 110 + (boardX%3), 18, 0, Math.PI);
             bbCtx.stroke();
 
-            // Character / Hero (Left Side)
-            bbCtx.fillStyle = '#8e44ad';
-            bbCtx.fillRect(45, 185, 24, 45); // Body
+            // Marcus Prime Sprite (Hero)
+            bbCtx.fillStyle = '#1d428a';
+            bbCtx.fillRect(45, 190, 24, 45);
             bbCtx.fillStyle = '#f39c12';
-            bbCtx.beginPath(); bbCtx.arc(57, 175, 9, 0, Math.PI*2); bbCtx.fill(); // Head
+            bbCtx.beginPath(); bbCtx.arc(57, 180, 9, 0, Math.PI*2); bbCtx.fill();
 
-            // Basketball
-            bbCtx.fillStyle = '#f39c12';
+            // Basketball (Glows Red on Streak)
+            bbCtx.fillStyle = streakCount >= 3 ? '#ff3366' : '#f39c12';
+            if (streakCount >= 3) {
+                bbCtx.shadowColor = '#ff3366';
+                bbCtx.shadowBlur = 12;
+            }
             bbCtx.beginPath();
-            bbCtx.arc(ballX, ballY, 12, 0, Math.PI * 2);
+            bbCtx.arc(bbX, bbY, 12, 0, Math.PI * 2);
             bbCtx.fill();
+            bbCtx.shadowBlur = 0;
             bbCtx.strokeStyle = '#000';
-            bbCtx.lineWidth = 1.5;
             bbCtx.stroke();
 
             // Aim Line
@@ -318,151 +318,152 @@
             bbCtx.lineWidth = 2;
             bbCtx.setLineDash([4, 4]);
             bbCtx.beginPath();
-            bbCtx.moveTo(ballX, ballY);
-            bbCtx.lineTo(ballX + Math.cos(aimAngle) * 90, ballY + Math.sin(aimAngle) * 90);
+            bbCtx.moveTo(bbX, bbY);
+            bbCtx.lineTo(bbX + Math.cos(aimAngle) * 90, bbY + Math.sin(aimAngle) * 90);
             bbCtx.stroke();
             bbCtx.setLineDash([]);
 
-            // Court Floor Line
-            bbCtx.strokeStyle = '#ff3366';
-            bbCtx.lineWidth = 3;
-            bbCtx.beginPath();
-            bbCtx.moveTo(0, 232); bbCtx.lineTo(440, 232);
-            bbCtx.stroke();
-
-            // Power Meter Box UI
+            // Pressure Power Meter on screen
             bbCtx.fillStyle = '#1e293b';
-            bbCtx.fillRect(20, 250, 120, 18);
+            bbCtx.fillRect(20, 275, 130, 16);
             bbCtx.fillStyle = '#f39c12';
-            bbCtx.fillRect(22, 252, 70, 14);
+            powerVal = (powerVal + 1) % 100;
+            bbCtx.fillRect(22, 277, (powerVal / 100) * 126, 12);
             bbCtx.fillStyle = '#fff';
             bbCtx.font = 'bold 9px sans-serif';
-            bbCtx.fillText('POWER METER', 45, 263);
+            bbCtx.fillText('SHOT PRESSURE METER', 30, 287);
         }
 
-        // --- Pool Canvas ---
+        function triggerAction() {
+            if (currentSport === 'basketball') {
+                startBasketballTimer();
+                if (!isShooting) {
+                    isShooting = true;
+                    let t = setInterval(() => {
+                        bbX += 14;
+                        bbY -= 7;
+                        if (bbX >= boardX - 10) {
+                            clearInterval(t);
+                            bbScore += 2;
+                            streakCount++;
+                            document.getElementById('score-label').innerText = "SCORE: " + bbScore;
+                            setTimeout(resetBasketball, 300);
+                        }
+                    }, 25);
+                }
+            } else if (currentSport === 'pool') {
+                cueY -= 35;
+                setTimeout(() => { 
+                    cueY = 230; 
+                    poolScore += 10;
+                    document.getElementById('score-label').innerText = "SCORE: " + poolScore;
+                    pocketedBalls++;
+                }, 250);
+            } else if (currentSport === 'bowling') {
+                let bt = setInterval(() => {
+                    bowlY -= 15;
+                    if (bowlY <= 70) {
+                        clearInterval(bt);
+                        setTimeout(() => { 
+                            bowlX = 220; bowlY = 260; 
+                            pins = pins.filter(p => Math.abs(p.x - bowlX) > 20); // Sweeper picks up standing/unhit pins
+                        }, 400);
+                    }
+                }, 25);
+            }
+        }
+
+        function adjustAim(dir) {
+            if (currentSport === 'basketball') aimAngle += dir * 0.1;
+            else if (currentSport === 'pool') cueX += dir * 12;
+            else if (currentSport === 'bowling') bowlX += dir * 15;
+        }
+
+        function resetBasketball() {
+            bbX = 65; bbY = 230; aimAngle = -0.5; isShooting = false;
+        }
+
+        // --- Upgraded Pool Table (Full Rack, Colors & +10 Points) ---
         const poolCanvas = document.getElementById('poolCanvas');
         const poolCtx = poolCanvas.getContext('2d');
-        let cueX = 220, cueY = 240, poolAimOffset = 0;
+        let cueX = 220, cueY = 230, poolScore = 0, pocketedBalls = 0;
+        let fullRack = [
+            {x:220, y:90, color:'#f39c12'}, {x:205, y:105, color:'#2980b9'}, {x:235, y:105, color:'#c0392b'},
+            {x:190, y:120, color:'#8e44ad'}, {x:220, y:120, color:'#d35400'}, {x:250, y:120, color:'#27ae60'},
+            {x:175, y:135, color:'#f1c40f'}, {x:205, y:135, color:'#e74c3c'}, {x:235, y:135, color:'#3498db'}, {x:265, y:135, color:'#9b59b6'}
+        ];
 
         function drawPool() {
             poolCtx.fillStyle = '#07090f';
-            poolCtx.fillRect(0, 0, 440, 300);
+            poolCtx.fillRect(0, 0, 440, 310);
 
-            // Felt
+            // Green Felt & Wooden Borders
             poolCtx.fillStyle = '#104e28';
-            poolCtx.fillRect(30, 25, 380, 250);
+            poolCtx.fillRect(25, 20, 390, 270);
             poolCtx.strokeStyle = '#5c3a21';
             poolCtx.lineWidth = 10;
-            poolCtx.strokeRect(30, 25, 380, 250);
+            poolCtx.strokeRect(25, 20, 390, 270);
 
-            // Ball Rack
-            poolCtx.fillStyle = '#f39c12';
-            poolCtx.beginPath(); poolCtx.arc(220, 90, 8, 0, Math.PI*2); poolCtx.fill();
-            poolCtx.fillStyle = '#2980b9';
-            poolCtx.beginPath(); poolCtx.arc(205, 105, 8, 0, Math.PI*2); poolCtx.fill();
-            poolCtx.fillStyle = '#c0392b';
-            poolCtx.beginPath(); poolCtx.arc(235, 105, 8, 0, Math.PI*2); poolCtx.fill();
+            // Render Full Rack with Colors
+            fullRack.forEach((b, idx) => {
+                poolCtx.fillStyle = b.color;
+                poolCtx.beginPath(); poolCtx.arc(b.x, b.y, 8, 0, Math.PI*2); poolCtx.fill();
+                poolCtx.strokeStyle = '#fff'; poolCtx.stroke();
+            });
 
             // Cue Ball & Stick
-            poolCtx.fillStyle = '#fff';
-            poolCtx.beginPath(); poolCtx.arc(cueX + poolAimOffset, cueY, 9, 0, Math.PI*2); poolCtx.fill();
-
-            poolCtx.strokeStyle = '#d4a373';
-            poolCtx.lineWidth = 5;
-            poolCtx.beginPath();
-            poolCtx.moveTo(cueX + poolAimOffset, cueY + 15);
-            poolCtx.lineTo(cueX + poolAimOffset, cueY + 120);
-            poolCtx.stroke();
+            poolCtx.fillStyle = '#ffffff';
+            poolCtx.beginPath(); poolCtx.arc(cueX, cueY, 9, 0, Math.PI*2); poolCtx.fill();
+            poolCtx.strokeStyle = '#d4a373'; poolCtx.lineWidth = 5;
+            poolCtx.beginPath(); poolCtx.moveTo(cueX, cueY + 15); poolCtx.lineTo(cueX, cueY + 110); poolCtx.stroke();
         }
 
-        // --- Bowling Canvas ---
+        // --- Upgraded Bowling (Pins, Sweeper & Precise Aim) ---
         const bowlCanvas = document.getElementById('bowlCanvas');
         const bowlCtx = bowlCanvas.getContext('2d');
-        let bowlX = 220, bowlY = 250;
+        let bowlX = 220, bowlY = 260;
+        let pins = [
+            {x: 220, y: 55}, {x: 205, y: 70}, {x: 235, y: 70},
+            {x: 190, y: 85}, {x: 220, y: 85}, {x: 250, y: 85}
+        ];
 
         function drawBowling() {
             bowlCtx.fillStyle = '#07090f';
-            bowlCtx.fillRect(0, 0, 440, 300);
+            bowlCtx.fillRect(0, 0, 440, 310);
 
             // Alley
             bowlCtx.fillStyle = '#d2691e';
             bowlCtx.beginPath();
-            bowlCtx.moveTo(100, 300); bowlCtx.lineTo(340, 300);
-            bowlCtx.lineTo(250, 40); bowlCtx.lineTo(190, 40);
+            bowlCtx.moveTo(100, 310); bowlCtx.lineTo(340, 310);
+            bowlCtx.lineTo(260, 40); bowlCtx.lineTo(180, 40);
             bowlCtx.fill();
 
             // Pins
-            bowlCtx.fillStyle = '#fff';
-            bowlCtx.beginPath(); bowlCtx.arc(220, 55, 6, 0, Math.PI*2); bowlCtx.fill();
-            bowlCtx.beginPath(); bowlCtx.arc(205, 70, 6, 0, Math.PI*2); bowlCtx.fill();
-            bowlCtx.beginPath(); bowlCtx.arc(235, 70, 6, 0, Math.PI*2); bowlCtx.fill();
+            pins.forEach(p => {
+                bowlCtx.fillStyle = '#fff';
+                bowlCtx.beginPath(); bowlCtx.arc(p.x, p.y, 7, 0, Math.PI*2); bowlCtx.fill();
+                bowlCtx.strokeStyle = '#ff3366'; bowlCtx.stroke();
+            });
 
-            // Ball
+            // Bowling Ball with Aim Line
+            bowlCtx.strokeStyle = '#00d2ff';
+            bowlCtx.lineWidth = 2;
+            bowlCtx.setLineDash([3,3]);
+            bowlCtx.beginPath(); bowlCtx.moveTo(bowlX, bowlY); bowlCtx.lineTo(bowlX, 60); bowlCtx.stroke();
+            bowlCtx.setLineDash([]);
+
             bowlCtx.fillStyle = '#00d2ff';
-            bowlCtx.beginPath();
-            bowlCtx.arc(bowlX, bowlY, 11, 0, Math.PI*2);
-            bowlCtx.fill();
-            bowlCtx.strokeStyle = '#fff';
-            bowlCtx.stroke();
+            bowlCtx.beginPath(); bowlCtx.arc(bowlX, bowlY, 11, 0, Math.PI*2); bowlCtx.fill();
+            bowlCtx.strokeStyle = '#fff'; bowlCtx.stroke();
         }
 
-        function adjustAim(dir) {
-            if (currentSport === 'basketball') {
-                aimAngle += dir * 0.1;
-            } else if (currentSport === 'pool') {
-                poolAimOffset += dir * 10;
-            } else if (currentSport === 'bowling') {
-                bowlX += dir * 15;
-            }
-            redrawActive();
-        }
-
-        function triggerShot() {
-            if (currentSport === 'basketball' && !isShooting) {
-                isShooting = true;
-                let timer = setInterval(() => {
-                    ballX += 14;
-                    ballY -= 7;
-                    redrawActive();
-                    if (ballX >= 345) {
-                        clearInterval(timer);
-                        scoreVal += 2;
-                        document.getElementById('score-label').innerText = "SCORE: " + scoreVal;
-                        setTimeout(resetBasketball, 400);
-                    }
-                }, 30);
-            } else if (currentSport === 'pool') {
-                cueY -= 30;
-                redrawActive();
-                setTimeout(() => { cueY = 240; redrawActive(); }, 300);
-            } else if (currentSport === 'bowling') {
-                let bt = setInterval(() => {
-                    bowlY -= 15;
-                    redrawActive();
-                    if (bowlY <= 70) {
-                        clearInterval(bt);
-                        setTimeout(() => { bowlX = 220; bowlY = 250; redrawActive(); }, 400);
-                    }
-                }, 30);
-            }
-        }
-
-        function resetBasketball() {
-            ballX = 65; ballY = 220; aimAngle = -0.6; isShooting = false;
-            redrawActive();
-        }
-
-        function redrawActive() {
+        function redrawAll() {
             if (currentSport === 'basketball') drawBasketball();
             else if (currentSport === 'pool') drawPool();
             else if (currentSport === 'bowling') drawBowling();
         }
 
-        // Initial render
-        drawBasketball();
-        drawPool();
-        drawBowling();
+        setInterval(redrawAll, 30);
     </script>
 </body>
 </html>
