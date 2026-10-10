@@ -715,7 +715,7 @@
       if (barEl) barEl.style.width = `${playerHp}%`;
     }
 
-    // --- SPORTS LOUNGE ENGINE ---
+    // --- SPORTS LOUNGE ENGINE (WITH ALL REQUESTED FIXES & UPGRADES) ---
     let sportCanvas, sportCtx;
     let currentSport = 'basketball';
     let sportScore = 0, sportME = 0;
@@ -795,7 +795,7 @@
           {x: 300, y: 50, vx: 0, vy: 0, potted: false, num: 7, color: "#7c3aed", scale: 1}
         ];
       } else if (currentSport === 'bowling') {
-        bowlBall = { x: 270, y: 190, vx: 0, vy: 0, active: false, aimOffset: 0, rollingThrough: false, returnProgress: 0, gateY: 20 };
+        bowlBall = { x: 270, y: 190, vx: 0, vy: 0, vz: 0, active: false, aimOffset: 0, rollingThrough: false, returnProgress: 0, gateY: 20 };
         pins.forEach(p => p.hit = false);
       }
       if (!sportAnimId) renderSportLoop();
@@ -831,7 +831,10 @@
         cueBall.vy = -Math.cos(sportAimAngle) * (power * 0.19);
         cueBall.active = true;
       } else if (currentSport === 'bowling' && !bowlBall.active && !bowlBall.rollingThrough) {
-        bowlBall.vy = -power * 0.18; bowlBall.active = true;
+        bowlBall.vy = -power * 0.18; 
+        // Trajectory vector calculated directly from aimOffset slider
+        bowlBall.vz = (bowlBall.aimOffset / 60) * 3.5; 
+        bowlBall.active = true;
       }
       chargePower = 0;
     }
@@ -875,8 +878,16 @@
           sportCtx.fillStyle = "rgba(56, 189, 248, 0.35)"; sportCtx.fillRect(boardX, 28, 12, 82);
           sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.strokeRect(boardX, 28, 12, 82);
           sportCtx.fillStyle = "#dc2626"; sportCtx.fillRect(boardX - 2, 50, 16, 26);
-          sportCtx.strokeStyle = "#f59e0b"; sportCtx.lineWidth = 4;
+          
+          // Fiery Net effect when streak >= 3
+          if (consecutiveBaskets >= 3) {
+            sportCtx.strokeStyle = "#f97316"; sportCtx.lineWidth = 5;
+            sportCtx.shadowBlur = 15; sportCtx.shadowColor = "#ef4444";
+          } else {
+            sportCtx.strokeStyle = "#f59e0b"; sportCtx.lineWidth = 4;
+          }
           sportCtx.beginPath(); sportCtx.arc(rimX, 76, 22, Math.PI, 0, true); sportCtx.stroke();
+          sportCtx.shadowBlur = 0;
 
           if (ASSETS.marcus.complete && ASSETS.marcus.naturalWidth > 0) {
             sportCtx.drawImage(ASSETS.marcus, 45, 105, 52, 65);
@@ -902,13 +913,25 @@
               consecutiveBaskets = 0;
             }
           }
-          sportCtx.fillStyle = "#f97316"; sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
+
+          // Fireball transformation after 3 consecutive baskets
+          if (consecutiveBaskets >= 3) {
+            sportCtx.save();
+            sportCtx.fillStyle = "#ef4444";
+            sportCtx.shadowBlur = 12; sportCtx.shadowColor = "#f97316";
+            sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 11, 0, Math.PI * 2); sportCtx.fill();
+            sportCtx.fillStyle = "#facc15";
+            sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 6, 0, Math.PI * 2); sportCtx.fill();
+            sportCtx.restore();
+          } else {
+            sportCtx.fillStyle = "#f97316"; sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
+          }
 
           if (flashMessageTimer > 0) {
             flashMessageTimer--;
             sportCtx.fillStyle = "#facc15"; sportCtx.font = "bold 15px sans-serif";
             sportCtx.textAlign = "center";
-            sportCtx.fillText("🔥 WOW! YOU'RE DOING GREAT! 10 IN A ROW! 🔥", 270, 55);
+            sportCtx.fillText("🔥 FIREBALL STREAK UNLOCKED! 🔥", 270, 55);
           }
 
           if (sportTimer <= 0) {
@@ -984,17 +1007,21 @@
 
           if (cueBall.vx === 0 && cueBall.vy === 0) cueBall.active = false;
 
+          // Free-floating aiming arrow (separated from cue stick body)
           let aimDirX = Math.sin(sportAimAngle), aimDirY = -Math.cos(sportAimAngle);
-          sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([3, 3]);
-          sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 140, cueBall.y + aimDirY * 140); sportCtx.stroke();
+          sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2.5; sportCtx.setLineDash([4, 4]);
+          sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 150, cueBall.y + aimDirY * 150); sportCtx.stroke();
           sportCtx.setLineDash([]);
 
-          let pullBack = (chargePower * 0.7);
-          sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 5;
-          sportCtx.beginPath(); 
-          sportCtx.moveTo(cueBall.x - (aimDirX * (70 + pullBack)), cueBall.y - (aimDirY * (70 + pullBack))); 
-          sportCtx.lineTo(cueBall.x - (aimDirX * 12), cueBall.y - (aimDirX * 12)); 
-          sportCtx.stroke();
+          // Detached Cue Stick positioned behind cue ball with charge pull-back
+          let pullBack = (chargePower * 0.6);
+          let stickStartX = cueBall.x - (aimDirX * (35 + pullBack));
+          let stickStartY = cueBall.y - (aimDirY * (35 + pullBack));
+          let stickEndX = cueBall.x - (aimDirX * (140 + pullBack));
+          let stickEndY = cueBall.y - (aimDirY * (140 + pullBack));
+
+          sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 6; sportCtx.lineCap = "round";
+          sportCtx.beginPath(); sportCtx.moveTo(stickStartX, stickStartY); sportCtx.lineTo(stickEndX, stickEndY); sportCtx.stroke();
 
           sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, 8, 0, Math.PI * 2); sportCtx.fill();
           sportCtx.fillStyle = "rgba(255,255,255,0.7)"; sportCtx.beginPath(); sportCtx.arc(cueBall.x - 2, cueBall.y - 2, 2.5, 0, Math.PI * 2); sportCtx.fill();
@@ -1027,26 +1054,38 @@
           sportCtx.fillStyle = "#fff"; sportCtx.font = "8px monospace"; sportCtx.textAlign = "left"; sportCtx.fillText("CUE POWER", 34, 198);
 
         } else if (currentSport === 'bowling') {
-          sportCtx.fillStyle = "#1e1b4b"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
+          // Polished professional bowling alley look
+          sportCtx.fillStyle = "#0f172a"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
           
+          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(110, 0, 320, sportCanvas.height);
+
           sportCtx.beginPath();
-          sportCtx.moveTo(140, 230); sportCtx.lineTo(230, 20); sportCtx.lineTo(310, 20); sportCtx.lineTo(400, 230);
+          sportCtx.moveTo(140, 230); sportCtx.lineTo(220, 20); sportCtx.lineTo(320, 20); sportCtx.lineTo(400, 230);
           sportCtx.fillStyle = "#b45309"; sportCtx.fill();
 
-          sportCtx.strokeStyle = "#78350f"; sportCtx.lineWidth = 1.5;
+          // Polished wood lane boards
+          sportCtx.strokeStyle = "#92400e"; sportCtx.lineWidth = 1.5;
           sportCtx.beginPath();
-          sportCtx.moveTo(210, 230); sportCtx.lineTo(255, 20);
-          sportCtx.moveTo(330, 230); sportCtx.lineTo(285, 20);
+          sportCtx.moveTo(200, 230); sportCtx.lineTo(245, 20);
+          sportCtx.moveTo(260, 230); sportCtx.lineTo(270, 20);
+          sportCtx.moveTo(320, 230); sportCtx.lineTo(290, 20);
+          sportCtx.moveTo(380, 230); sportCtx.lineTo(315, 20);
           sportCtx.stroke();
+
+          // Foul line and arrows
+          sportCtx.strokeStyle = "#ef4444"; sportCtx.lineWidth = 3;
+          sportCtx.beginPath(); sportCtx.moveTo(165, 175); sportCtx.lineTo(375, 175); sportCtx.stroke();
 
           // Pin-setter gate mechanism at top of lane
           sportCtx.fillStyle = "#334155";
           sportCtx.fillRect(225, bowlBall.gateY, 90, 8);
+          sportCtx.strokeStyle = "#64748b"; sportCtx.lineWidth = 1; sportCtx.strokeRect(225, bowlBall.gateY, 90, 8);
 
           if (bowlBall.active) {
             bowlBall.y += bowlBall.vy;
+            bowlBall.x += bowlBall.vz; // Ball now correctly tracks and moves along the aim vector!
             pins.forEach(p => {
-              if (!p.hit && Math.hypot((bowlBall.x + bowlBall.aimOffset) - p.x, bowlBall.y - p.y) < 16) {
+              if (!p.hit && Math.hypot(bowlBall.x - p.x, bowlBall.y - p.y) < 16) {
                 p.hit = true; sportScore += 30; sportME += 15; broadcastSportState(); updateSportStats();
               }
             });
@@ -1054,24 +1093,23 @@
               bowlBall.active = false;
               bowlBall.rollingThrough = true;
               bowlBall.returnProgress = 0;
-              bowlBall.gateY = -10; // Gate drops down
+              bowlBall.gateY = -10; 
             }
           }
 
           if (bowlBall.rollingThrough) {
             bowlBall.returnProgress += 0.03;
-            bowlBall.gateY = Math.min(20, bowlBall.gateY + 0.5); // Gate returns up
+            bowlBall.gateY = Math.min(20, bowlBall.gateY + 0.5); 
 
-            // Ball returns down the side track and pops up on left
-            let returnX = 145 + Math.sin(bowlBall.returnProgress * Math.PI) * 20;
+            let returnX = 125 + Math.sin(bowlBall.returnProgress * Math.PI) * 15;
             let returnY = 200 - (bowlBall.returnProgress * 150);
-            sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(returnX, returnY, 8, 0, Math.PI * 2); sportCtx.fill();
-            sportCtx.fillStyle = "#94a3b8"; sportCtx.font = "9px sans-serif"; sportCtx.textAlign = "left"; sportCtx.fillText("BALL RETURN", 115, 120);
+            sportCtx.fillStyle = "#38bdf8"; sportCtx.beginPath(); sportCtx.arc(returnX, returnY, 7, 0, Math.PI * 2); sportCtx.fill();
+            sportCtx.fillStyle = "#94a3b8"; sportCtx.font = "9px sans-serif"; sportCtx.textAlign = "left"; sportCtx.fillText("BALL RETURN", 95, 120);
 
             if (bowlBall.returnProgress >= 1.0) {
               bowlBall.rollingThrough = false;
-              bowlBall.x = 270; bowlBall.y = 190; bowlBall.vy = 0;
-              pins.forEach(p => p.hit = false); // Pins reset automatically for next roll
+              bowlBall.x = 270; bowlBall.y = 190; bowlBall.vy = 0; bowlBall.vz = 0;
+              pins.forEach(p => p.hit = false); 
             }
           }
 
@@ -1084,13 +1122,17 @@
             p.x = pinPositions[idx].x; p.y = pinPositions[idx].y;
             if (!p.hit) {
               sportCtx.fillStyle = "#fff"; sportCtx.beginPath(); sportCtx.arc(p.x, p.y, 6, 0, Math.PI * 2); sportCtx.fill();
-              sportCtx.strokeStyle = "#ef4444"; sportCtx.lineWidth = 2; sportCtx.stroke();
+              sportCtx.strokeStyle = "#dc2626"; sportCtx.lineWidth = 2; sportCtx.stroke();
             }
           });
 
+          // Aiming guideline (shows intended trajectory without forcing straight motion)
           if (!bowlBall.active && !bowlBall.rollingThrough) {
-            sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
-            sportCtx.beginPath(); sportCtx.moveTo(bowlBall.x + bowlBall.aimOffset, bowlBall.y); sportCtx.lineTo(270, 75); sportCtx.stroke();
+            sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2.5; sportCtx.setLineDash([4, 4]);
+            sportCtx.beginPath(); 
+            sportCtx.moveTo(bowlBall.x + bowlBall.aimOffset, bowlBall.y); 
+            sportCtx.lineTo(bowlBall.x + (bowlBall.aimOffset * 0.5), 75); 
+            sportCtx.stroke();
             sportCtx.setLineDash([]);
           }
 
