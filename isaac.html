@@ -356,6 +356,25 @@
       if (mode === 'sports') initSportScene();
     }
 
+    // --- AUDIO SYNTHESIZER (CHING SOUND) ---
+    let audioCtx = null;
+    function playChingSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.15); // A6
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } catch(e) {}
+    }
+
     // --- P2P MULTIPLAYER LINKING (PEERJS) ---
     let peer = null, conn = null;
     function initP2P() {
@@ -796,18 +815,16 @@
     let backboardOffset = 0;
     let floatingTexts = [];
 
+    // Basketball variables
     let bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
+    const treeSprite = new Image();
+    treeSprite.src = "tree.png"; // Rhodes Family Legacy Golden Tree / Double Helix Sprite[span_0](start_span)[span_0](end_span)
 
+    // Pool variables
     let cueBall = { x: 270, y: 140, vx: 0, vy: 0, active: false };
-    let targetBalls = [
-      {x: 270, y: 70, vx: 0, vy: 0, potted: false, num: 1, color: "#f59e0b", scale: 1},
-      {x: 255, y: 55, vx: 0, vy: 0, potted: false, num: 8, color: "#111111", scale: 1},
-      {x: 285, y: 55, vx: 0, vy: 0, potted: false, num: 9, color: "#dc2626", scale: 1},
-      {x: 240, y: 40, vx: 0, vy: 0, potted: false, num: 3, color: "#ef4444", scale: 1},
-      {x: 270, y: 40, vx: 0, vy: 0, potted: false, num: 6, color: "#10b981", scale: 1},
-      {x: 300, y: 40, vx: 0, vy: 0, potted: false, num: 7, color: "#7c3aed", scale: 1}
-    ];
+    let targetBalls = [];
 
+    // Vanguard Golf variables
     let golfBall = { x: 60, y: 165, vx: 0, vy: 0, active: false };
     let golfHole = { x: 460, y: 165, radius: 10 };
     let golfStrokeCount = 0;
@@ -854,20 +871,24 @@
       if (currentSport === 'basketball') {
         bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
       } else if (currentSport === 'pool') {
-        cueBall = { x: 270, y: 170, vx: 0, vy: 0, active: false };
-        targetBalls = [
-          {x: 270, y: 80, vx: 0, vy: 0, potted: false, num: 1, color: "#f59e0b", scale: 1},
-          {x: 255, y: 65, vx: 0, vy: 0, potted: false, num: 8, color: "#111111", scale: 1},
-          {x: 285, y: 65, vx: 0, vy: 0, potted: false, num: 9, color: "#dc2626", scale: 1},
-          {x: 240, y: 50, vx: 0, vy: 0, potted: false, num: 3, color: "#ef4444", scale: 1},
-          {x: 270, y: 50, vx: 0, vy: 0, potted: false, num: 6, color: "#10b981", scale: 1},
-          {x: 300, y: 50, vx: 0, vy: 0, potted: false, num: 7, color: "#7c3aed", scale: 1}
-        ];
+        resetPoolRack();
       } else if (currentSport === 'golf') {
         golfBall = { x: 60, y: 165, vx: 0, vy: 0, active: false };
         golfStrokeCount = 0;
       }
       if (!sportAnimId) renderSportLoop();
+    }
+
+    function resetPoolRack() {
+      cueBall = { x: 270, y: 170, vx: 0, vy: 0, active: false };
+      targetBalls = [
+        {x: 270, y: 80, vx: 0, vy: 0, potted: false, num: 1, color: "#f59e0b", scale: 1},
+        {x: 255, y: 65, vx: 0, vy: 0, potted: false, num: 8, color: "#111111", scale: 1},
+        {x: 285, y: 65, vx: 0, vy: 0, potted: false, num: 9, color: "#dc2626", scale: 1},
+        {x: 240, y: 50, vx: 0, vy: 0, potted: false, num: 3, color: "#ef4444", scale: 1},
+        {x: 270, y: 50, vx: 0, vy: 0, potted: false, num: 6, color: "#10b981", scale: 1},
+        {x: 300, y: 50, vx: 0, vy: 0, potted: false, num: 7, color: "#7c3aed", scale: 1}
+      ];
     }
 
     function adjustSportAim(dir) {
@@ -916,11 +937,30 @@
         if (currentSport === 'basketball') {
           sportCtx.fillStyle = "#060913"; sportCtx.fillRect(0, 0, sportCanvas.width, 160);
           
+          // Render Rhodes Family Legacy Golden Tree Watermark
           sportCtx.save();
-          sportCtx.fillStyle = "rgba(212, 175, 55, 0.25)";
-          sportCtx.font = "bold 13px sans-serif";
+          sportCtx.globalAlpha = 0.22;
+          if (treeSprite.complete && treeSprite.naturalWidth > 0) {
+            sportCtx.drawImage(treeSprite, 185, 25, 170, 115);
+          }
+          sportCtx.restore();
+
+          // Crowd cheering animation in bleachers
+          sportCtx.fillStyle = "#1e293b";
+          sportCtx.fillRect(0, 20, sportCanvas.width, 30);
+          for (let i = 0; i < 20; i++) {
+            let cx = 15 + (i * 27);
+            let cy = 30 + Math.sin(Date.now() / 200 + i) * 3;
+            sportCtx.fillStyle = i % 2 === 0 ? "#38bdf8" : "#f59e0b";
+            sportCtx.beginPath(); sportCtx.arc(cx, cy, 5, 0, Math.PI * 2); sportCtx.fill(); // spectator head
+            sportCtx.fillStyle = "#475569"; sportCtx.fillRect(cx - 6, cy + 5, 12, 10); // body
+          }
+
+          sportCtx.save();
+          sportCtx.fillStyle = "rgba(212, 175, 55, 0.9)";
+          sportCtx.font = "bold 11px sans-serif";
           sportCtx.textAlign = "center";
-          sportCtx.fillText("RHODES FAMILY LEGACY", 270, 22);
+          sportCtx.fillText("RHODES FAMILY LEGACY • THE LIVING CODEX", 270, 148);
           sportCtx.restore();
 
           sportCtx.fillStyle = "#1e3a8a"; sportCtx.fillRect(0, 160, sportCanvas.width, 70);
@@ -956,6 +996,7 @@
             }
             if (bbBall.x > rimX - 15 && bbBall.x < rimX + 15 && bbBall.y > 70 && bbBall.y < 86 && bbBall.vy > 0 && sportTimer > 0) {
               sportScore += 2; sportME += 10; consecutiveBaskets++; broadcastSportState();
+              playChingSound(); // Play 'ching' sound on basket!
               if (consecutiveBaskets >= 3) flashMessageTimer = 90;
               updateSportStats();
               bbBall.active = false; bbBall.x = 75; bbBall.y = 155; bbBall.vx = 0; bbBall.vy = 0;
@@ -1010,8 +1051,9 @@
               if (Math.hypot(b.x - pk.x, b.y - pk.y) < 14) {
                 if (b === cueBall) {
                   b.x = 270; b.y = 170; b.vx = 0; b.vy = 0; b.active = false;
-                } else {
+                } else if (!b.potted) {
                   b.potted = true; sportScore += 50; sportME += 15; broadcastSportState();
+                  playChingSound(); // Play ching on pocket sink!
                   floatingTexts.push({ text: "+50 PTS", x: pk.x, y: pk.y - 10, alpha: 1.0 });
                   updateSportStats();
                 }
@@ -1021,6 +1063,11 @@
             if (b.x < 162 || b.x > 378) { b.vx *= -1; }
             if (b.y < 35 || b.y > 195) { b.vy *= -1; }
           });
+
+          // Check if all target balls are potted -> Auto-reset rack!
+          if (targetBalls.length > 0 && targetBalls.every(tb => tb.potted)) {
+            setTimeout(() => { resetPoolRack(); }, 1200);
+          }
 
           for (let i = 0; i < allBalls.length; i++) {
             for (let j = i + 1; j < allBalls.length; j++) {
@@ -1096,10 +1143,16 @@
           if (golfBall.active) {
             golfBall.x += golfBall.vx; golfBall.y += golfBall.vy;
             golfBall.vx *= 0.95; golfBall.vy *= 0.95;
+
+            // Course Boundary Check (Bouncing off edges so ball never leaves canvas)
+            if (golfBall.x < 15 || golfBall.x > sportCanvas.width - 15) { golfBall.vx *= -1; golfBall.x = Math.max(15, Math.min(sportCanvas.width - 15, golfBall.x)); }
+            if (golfBall.y < 15 || golfBall.y > sportCanvas.height - 35) { golfBall.vy *= -1; golfBall.y = Math.max(15, Math.min(sportCanvas.height - 35, golfBall.y)); }
+
             if (Math.abs(golfBall.vx) < 0.1 && Math.abs(golfBall.vy) < 0.1) {
               golfBall.vx = 0; golfBall.vy = 0; golfBall.active = false;
               if (Math.hypot(golfBall.x - golfHole.x, golfBall.y - golfHole.y) < 14) {
                 sportScore += 250; sportME += 50; broadcastSportState(); updateSportStats();
+                playChingSound(); // Play ching on hole-in-one!
                 setTimeout(() => { golfBall.x = 60; golfBall.y = 165; }, 1500);
               }
             }
