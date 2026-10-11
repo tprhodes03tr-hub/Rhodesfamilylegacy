@@ -317,11 +317,11 @@
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Manual pool break ready, multi-chapter A-Tier Golf across 18 holes, and balanced Table Tennis!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Basketball, Manual Pool Break, 18-Hole A-Tier Golf, and Table Tennis active!</div>
       <div style="display: flex; gap: 6px; margin-top: 6px;">
-        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ PADDLE / ROTATE</button>
-        <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
-        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(1)">ROTATE / PADDLE ►</button>
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ AIM / PADDLE</button>
+        <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onclick="executeSportAction()">HOLD & RELEASE SHOT</button>
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(1)">AIM / PADDLE ►</button>
       </div>
       <button class="btn btn-action" style="width: 100%; margin-top: 6px; min-height: 36px; background: #1e293b; color: #facc15;" onclick="restartSportGame()">🔄 RESTART SPORT GAME</button>
     </div>
@@ -348,25 +348,6 @@
       if (mode === 'sports') initSportScene();
     }
 
-    // --- AUDIO SYNTHESIZER ---
-    let audioCtx = null;
-    function playChingSound() {
-      try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
-      } catch(e) {}
-    }
-
     // --- SIDE BRAWLER ENGINE ---
     let canvas, ctx;
     let animationFrameId = null;
@@ -387,9 +368,6 @@
     ASSETS.solarLion.src = "solar-lion-roar.png";
     ASSETS.apexVolt.src = "apex-volt.png";
 
-    const treeSprite = new Image();
-    treeSprite.src = "packed-marrow-tree.png";
-
     let unlockedRoster = ["marcus", "xochitl", "sundiata", "kofi", "amina", "wakan"];
     let rosterIdx = 0;
     let activeLead = "marcus";
@@ -405,8 +383,11 @@
     let currentWave = 1, gameActive = true;
     let chopperX = -80;
     let bossEntity = null;
-    let debrisParticles = [];
     let clockPieces = [];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initBrawler();
+    });
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
@@ -453,9 +434,7 @@
       if (!gameActive || isPaused || !isGrounded) return; 
       leadVy = -12; 
       isGrounded = false;
-      if (activeLead === "xochitl") {
-        executePlasmaOrb();
-      }
+      if (activeLead === "xochitl") executePlasmaOrb();
     }
 
     function executeTagSwap() {
@@ -503,70 +482,27 @@
       if (!gameActive || isPaused) return;
       let activeEnemy = enemies.find(e => e.active);
       let targetX = activeEnemy ? activeEnemy.x : leadX + 250;
-
-      if (activeLead === "kofi") {
-        applyDamageInRadius(leadX + 60, 5.0);
-        projectiles.push({ type: 'hammer', x: leadX + 30, y: 165, targetX: targetX, color: '#d4af37', speed: 14, damage: 5.5 });
-      } else if (activeLead === "sundiata") {
-        sundiataShockwave.active = true; sundiataShockwave.x = leadX + 40; sundiataShockwave.radius = 15; sundiataShockwave.alpha = 1.0;
-        applyDamageInRadius(leadX + 90, 5.5);
-      } else if (activeLead === "wakan") {
+      if (activeLead === "wakan") {
         tsunamis.push({ x: leadX + 20, y: 175, vx: 5.0, width: 220, height: 65, life: 90 });
-      } else if (activeLead === "amina") {
-        enemies.forEach(e => {
-          if (e.active) {
-            lightningStrikes.push({ x: e.x + 12, targetY: e.y, timer: 30 });
-            e.hp -= 5.5;
-            if (e.hp <= 0) e.active = false;
-          }
-        });
-        if (bossEntity && bossEntity.active) {
-          lightningStrikes.push({ x: bossEntity.x + 12, targetY: bossEntity.y, timer: 30 });
-          bossEntity.hp -= 5.5;
-          if (bossEntity.hp <= 0) bossEntity.active = false;
-        }
-        updateHUD();
-      } else if (activeLead === "marcus") {
-        projectiles.push({ type: 'voltBeam', x: leadX + 40, y: 165, targetX: targetX, color: '#38bdf8', speed: 25, damage: 5.0 });
       } else {
-        projectiles.push({ type: 'electricBolt', x: leadX + 40, y: 160, targetX: targetX, color: '#38bdf8', speed: 22, damage: 4.0 });
+        projectiles.push({ type: 'voltBeam', x: leadX + 40, y: 165, targetX: targetX, color: '#38bdf8', speed: 25, damage: 5.0 });
       }
     }
 
     function executePlasmaOrb() {
       if (!gameActive || isPaused) return;
-      let activeEnemy = enemies.find(e => e.active);
-      let targetX = activeEnemy ? activeEnemy.x : leadX + 250;
-
       if (activeLead === "xochitl" && !xochitlFlight.active) {
         xochitlFlight.active = true; xochitlFlight.state = 'ASCENT';
         xochitlFlight.x = leadX; xochitlFlight.y = 155; xochitlFlight.timer = 0;
-      } else if (activeLead === "sundiata") {
-        lionRoars.push({ x: leadX + 40, y: 135, vx: 7.5, radius: 24, damage: 7.0, life: 70 });
-        applyDamageInRadius(leadX + 110, 6.5);
-      } else if (activeLead === "amina") {
-        projectiles.push({ type: 'returningSpear', x: leadX + 40, y: 165, targetX: targetX, returning: false, color: '#ec4899', speed: 18, damage: 5.0 });
-      } else if (activeLead === "wakan") {
-        tsunamis.push({ x: leadX + 20, y: 170, vx: 5.5, width: 250, height: 75, life: 100 });
       } else {
-        projectiles.push({ type: 'orb', x: leadX + 30, y: 170, targetX: targetX, color: '#0284c7', speed: 10, damage: 3.5 });
+        lionRoars.push({ x: leadX + 40, y: 135, vx: 7.5, radius: 24, damage: 7.0, life: 70 });
       }
     }
 
     function executeBurst() {
       if (!gameActive || isPaused) return;
-      if (activeLead === "sundiata") {
-        sundiataShockwave.active = true; sundiataShockwave.x = leadX + 40; sundiataShockwave.radius = 28; sundiataShockwave.alpha = 1.0;
-        applyDamageInRadius(leadX + 100, 6.0);
-      } else if (activeLead === "marcus") {
-        isShieldActive = true;
-        let activeEnemy = enemies.find(e => e.active) || bossEntity;
-        let targetX = activeEnemy ? activeEnemy.x : leadX + 250;
-        projectiles.push({ type: 'voltBeam', x: leadX + 40, y: 165, targetX: targetX, color: '#facc15', speed: 28, damage: 7.5 });
-        setTimeout(() => isShieldActive = false, 3000);
-      } else {
-        isShieldActive = true; setTimeout(() => isShieldActive = false, 3000);
-      }
+      isShieldActive = true;
+      setTimeout(() => isShieldActive = false, 3000);
     }
 
     function executeLuettaAid() {
@@ -575,32 +511,6 @@
       luettaAscent.y = 280;
       luettaAscent.timer = 0;
       document.getElementById("combatLog").innerText = "★ Mother Luada descends from the heavens, fully energizing her player & wiping out all enemy droids! ★";
-    }
-
-    function applyDamageInRadius(posX, dmg) {
-      enemies.forEach(e => {
-        if (e.active && Math.abs(e.x - posX) < 85) {
-          e.hp -= dmg;
-          if (e.hp <= 0) e.active = false;
-        }
-      });
-      if (bossEntity && bossEntity.active && Math.abs(bossEntity.x - posX) < 95) {
-        bossEntity.hp -= dmg;
-        if (bossEntity.hp <= 0) {
-          bossEntity.active = false;
-          if (currentWave === 3) {
-            for (let i = 0; i < 22; i++) {
-              clockPieces.push({
-                x: bossEntity.x + 40, y: bossEntity.y + 45,
-                vx: (Math.random() - 0.5) * 9, vy: (Math.random() - 0.8) * 9,
-                rotation: Math.random() * Math.PI, vRot: (Math.random() - 0.5) * 0.2,
-                size: 10 + Math.random() * 12, life: 120
-              });
-            }
-          }
-        }
-      }
-      updateHUD();
     }
 
     function updateHUD() {
@@ -618,58 +528,17 @@
     }
 
     function renderBrawler() {
-      if (!isPaused && activeSandboxMode === 'brawler') {
+      if (!isPaused && activeSandboxMode === 'brawler' && ctx && canvas) {
         ctx.save();
+        ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        if (currentWave === 1 || currentWave >= 3) {
-          ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          ctx.fillStyle = "#1e293b";
-          ctx.fillRect(40, 60, 50, 180);
-          ctx.fillRect(110, 30, 65, 210);
-          ctx.fillRect(190, 80, 45, 160);
-          ctx.fillRect(250, 45, 75, 195);
-          ctx.fillRect(345, 70, 55, 170);
-          ctx.fillRect(420, 25, 80, 215);
-
-          ctx.fillStyle = "rgba(251, 191, 36, 0.35)";
-          for(let wx = 120; wx < 165; wx += 12) {
-            for(let wy = 45; wy < 210; wy += 20) {
-              ctx.fillRect(wx, wy, 5, 10);
-            }
-          }
-
-          chopperX += 0.7;
-          if (chopperX > canvas.width + 100) chopperX = -120;
-          ctx.save();
-          let flashColor = Math.floor(Date.now() / 250) % 2 === 0 ? "rgba(239, 68, 68, 0.22)" : "rgba(56, 189, 248, 0.22)";
-          ctx.fillStyle = flashColor;
-          ctx.beginPath();
-          ctx.moveTo(chopperX + 15, 45);
-          ctx.lineTo(chopperX - 55, 240);
-          ctx.lineTo(chopperX + 85, 240);
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.fillStyle = "#1e293b"; ctx.fillRect(chopperX, 32, 44, 16);
-          ctx.fillStyle = "#38bdf8"; ctx.fillRect(chopperX + 12, 24, 18, 8);
-          ctx.fillStyle = "#ef4444"; ctx.fillRect(chopperX + 2, 34, 6, 6);
-          ctx.restore();
-
-        } else {
-          let sahelGrad = ctx.createLinearGradient(0, 0, 0, 240);
-          sahelGrad.addColorStop(0, "#120520");
-          sahelGrad.addColorStop(0.5, "#300c36");
-          sahelGrad.addColorStop(1, "#5b152b");
-          ctx.fillStyle = sahelGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          ctx.fillStyle = "#7c2d12";
-          ctx.beginPath();
-          ctx.moveTo(0, 240);
-          ctx.lineTo(80, 180); ctx.lineTo(200, 240);
-          ctx.lineTo(340, 175); ctx.lineTo(480, 240); ctx.lineTo(540, 190); ctx.lineTo(540, 240);
-          ctx.closePath(); ctx.fill();
-        }
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(40, 60, 50, 180);
+        ctx.fillRect(110, 30, 65, 210);
+        ctx.fillRect(190, 80, 45, 160);
+        ctx.fillRect(250, 45, 75, 195);
+        ctx.fillRect(345, 70, 55, 170);
+        ctx.fillRect(420, 25, 80, 215);
 
         ctx.fillStyle = "#030712"; ctx.fillRect(0, 240, canvas.width, 40);
         ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2.5;
@@ -679,113 +548,19 @@
 
         const currentLeadY = (165 - leadY);
 
-        if (!xochitlFlight.active) {
-          let leadImg = ASSETS[activeLead];
-          ctx.save();
-          ctx.translate(leadX + 28, currentLeadY + 36);
-          if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
-            ctx.drawImage(leadImg, -28, -36, 56, 72);
-          } else {
-            ctx.fillStyle = activeLead === "wakan" ? "#0284c7" : "#f59e0b";
-            ctx.fillRect(-14, -30, 28, 60);
-          }
-          ctx.restore();
-        }
-
-        if (isShieldActive || xochitlFlight.active) {
-          ctx.save();
-          ctx.strokeStyle = "rgba(249, 115, 22, 0.85)";
-          ctx.lineWidth = 3.0;
-          ctx.beginPath();
-          ctx.arc(leadX + 28, currentLeadY + 36, 34, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        if (xochitlFlight.active) {
-          xochitlFlight.timer++;
-          if (xochitlFlight.state === 'ASCENT') {
-            xochitlFlight.x += (420 - xochitlFlight.x) * 0.12; 
-            xochitlFlight.y += (35 - xochitlFlight.y) * 0.12;
-            if (Math.hypot(420 - xochitlFlight.x, 35 - xochitlFlight.y) < 10) xochitlFlight.state = 'STRAFE';
-          } else if (xochitlFlight.state === 'STRAFE') {
-            xochitlFlight.x -= 2.2; 
-            let targetDroid = enemies.find(e => e.active) || bossEntity;
-            let targetX = targetDroid ? targetDroid.x : 100;
-            let targetY = targetDroid ? targetDroid.y : 202;
-            if (xochitlFlight.timer % 5 === 0) {
-              daggers.push({ 
-                x: xochitlFlight.x, 
-                y: xochitlFlight.y + 25, 
-                vx: (targetX - xochitlFlight.x) * 0.25, 
-                vy: (targetY - (xochitlFlight.y + 25)) * 0.25, 
-                length: 24, 
-                width: 7 
-              });
-            }
-            if (xochitlFlight.x <= 60) xochitlFlight.state = 'TOUCHDOWN';
-          } else if (xochitlFlight.state === 'TOUCHDOWN') { 
-            xochitlFlight.active = false; 
-            xochitlFlight.state = 'INACTIVE'; 
-          }
-          
-          ctx.save();
-          let wingGrad = ctx.createLinearGradient(xochitlFlight.x - 50, xochitlFlight.y, xochitlFlight.x + 100, xochitlFlight.y + 60);
-          wingGrad.addColorStop(0, "#f97316");
-          wingGrad.addColorStop(0.5, "#facc15");
-          wingGrad.addColorStop(1, "#ef4444");
-          ctx.fillStyle = wingGrad;
-          ctx.strokeStyle = "#fff";
-          ctx.lineWidth = 2;
-          
-          ctx.beginPath();
-          ctx.moveTo(xochitlFlight.x + 20, xochitlFlight.y + 20);
-          ctx.bezierCurveTo(xochitlFlight.x - 40, xochitlFlight.y - 30, xochitlFlight.x - 70, xochitlFlight.y + 20, xochitlFlight.x - 30, xochitlFlight.y + 65);
-          ctx.bezierCurveTo(xochitlFlight.x - 10, xochitlFlight.y + 40, xochitlFlight.x + 10, xochitlFlight.y + 45, xochitlFlight.x + 20, xochitlFlight.y + 20);
-          ctx.fill(); ctx.stroke();
-
-          ctx.beginPath();
-          ctx.moveTo(xochitlFlight.x + 36, xochitlFlight.y + 20);
-          ctx.bezierCurveTo(xochitlFlight.x + 96, xochitlFlight.y - 30, xochitlFlight.x + 126, xochitlFlight.y + 20, xochitlFlight.x + 86, xochitlFlight.y + 65);
-          ctx.bezierCurveTo(xochitlFlight.x + 66, xochitlFlight.y + 40, xochitlFlight.x + 46, xochitlFlight.y + 45, xochitlFlight.x + 36, xochitlFlight.y + 20);
-          ctx.fill(); ctx.stroke();
-          ctx.restore();
-
-          ctx.drawImage(ASSETS.xochitl, xochitlFlight.x, xochitlFlight.y, 56, 72);
-        }
-
-        let partnerRole = unlockedRoster.filter(r => r !== activeLead)[0] || "xochitl";
-        let aiImg = ASSETS[partnerRole];
+        // Render Hero with PNG Fallback
+        let leadImg = ASSETS[activeLead];
         ctx.save();
-        ctx.translate(aiPartner.x + 25, 200);
-        if (aiImg && aiImg.complete && aiImg.naturalWidth > 0) {
-          ctx.drawImage(aiImg, -25, -36, 52, 70);
+        ctx.translate(leadX + 28, currentLeadY + 36);
+        if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
+          ctx.drawImage(leadImg, -28, -36, 56, 72);
         } else {
-          ctx.fillStyle = "#38bdf8"; ctx.fillRect(-14, -30, 28, 60);
+          ctx.fillStyle = "#f59e0b";
+          ctx.fillRect(-14, -30, 28, 60);
         }
         ctx.restore();
 
-        if (sundiataShockwave.active) {
-          sundiataShockwave.radius += 3.5;
-          sundiataShockwave.alpha -= 0.02;
-          ctx.save();
-          ctx.strokeStyle = "rgba(245, 158, 11, " + sundiataShockwave.alpha + ")";
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.arc(sundiataShockwave.x, 235, sundiataShockwave.radius, Math.PI, 0, false);
-          ctx.stroke();
-          ctx.restore();
-          if (sundiataShockwave.alpha <= 0) sundiataShockwave.active = false;
-        }
-
         if (bossEntity && bossEntity.active) {
-          bossEntity.shiftTimer++;
-          if (bossEntity.shiftTimer > 100) {
-            bossEntity.shiftTimer = 0;
-            bossEntity.x = leadX + (Math.random() > 0.5 ? 200 : -160);
-            bossEntity.x = Math.max(100, Math.min(460, bossEntity.x));
-          }
-
           ctx.save();
           let bossImg = currentWave === 3 ? ASSETS.chronolock : ASSETS.apexVolt;
           if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
@@ -793,289 +568,16 @@
           } else {
             ctx.fillStyle = "#d4af37"; ctx.fillRect(bossEntity.x, bossEntity.y, 60, 80);
           }
-          ctx.strokeStyle = "#10b981"; ctx.lineWidth = 3;
-          ctx.beginPath(); ctx.arc(bossEntity.x + 28, bossEntity.y + 25, 52, 0, Math.PI * 2); ctx.stroke();
           ctx.restore();
-
-          if (Math.abs(bossEntity.x - leadX) < 45) {
-            playerHp = Math.max(0, playerHp - 0.35);
-            updateHUD();
-          }
         } else {
           enemies.forEach(e => {
             if (!e.active) return;
-            if (e.type === 'walking') {
-              e.x -= e.speed;
-              e.walkCycle += 0.15;
-              let legOffset = Math.sin(e.walkCycle) * 6;
-
-              if (Math.abs(e.x - leadX) < 25 && isGrounded) {
-                playerHp = Math.max(0, playerHp - 0.25);
-                updateHUD();
-              }
-
-              ctx.save();
-              ctx.fillStyle = "#334155";
-              ctx.strokeStyle = "#38bdf8";
-              ctx.lineWidth = 1.5;
-              ctx.fillRect(e.x, e.y, 24, 26);
-              ctx.strokeRect(e.x, e.y, 24, 26);
-              ctx.fillStyle = "#ef4444";
-              ctx.fillRect(e.x + 14, e.y + 6, 6, 4);
-              ctx.strokeStyle = "#94a3b8";
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.moveTo(e.x + 6, e.y + 26); ctx.lineTo(e.x + 4 + legOffset, e.y + 36);
-              ctx.moveTo(e.x + 18, e.y + 26); ctx.lineTo(e.x + 20 - legOffset, e.y + 36);
-              ctx.stroke();
-              ctx.restore();
-            } else {
-              e.x -= e.speed;
-              e.hoverOffset += 0.1;
-              let hoverY = e.y + Math.sin(e.hoverOffset) * 8;
-
-              if (Math.abs(e.x - leadX) < 25) {
-                playerHp = Math.max(0, playerHp - 0.3);
-                updateHUD();
-              }
-
-              ctx.save();
-              ctx.fillStyle = "#1e293b";
-              ctx.strokeStyle = "#f59e0b";
-              ctx.lineWidth = 1.5;
-              ctx.beginPath();
-              ctx.arc(e.x + 12, hoverY + 12, 14, 0, Math.PI * 2);
-              ctx.fill(); ctx.stroke();
-              ctx.fillStyle = "#38bdf8";
-              ctx.fillRect(e.x + 8, hoverY + 8, 8, 8);
-              ctx.restore();
-            }
+            ctx.save();
+            ctx.fillStyle = e.type === 'walking' ? "#334155" : "#1e293b";
+            ctx.fillRect(e.x, e.y, 24, 26);
+            ctx.restore();
           });
-
-          let activeEnemiesCount = enemies.filter(e => e.active).length;
-          if (activeEnemiesCount === 0 && currentWave === 1) {
-            startBrawlerWave(2);
-          } else if (activeEnemiesCount === 0 && currentWave === 2) {
-            startBrawlerWave(3);
-          } else if (activeEnemiesCount === 0 && currentWave === 3 && bossEntity && !bossEntity.active) {
-            startBrawlerWave(4);
-          }
         }
-
-        for (let i = clockPieces.length - 1; i >= 0; i--) {
-          let cp = clockPieces[i];
-          cp.x += cp.vx; cp.y += cp.vy; cp.vy += 0.35; cp.rotation += cp.vRot; cp.life--;
-          ctx.save();
-          ctx.translate(cp.x, cp.y);
-          ctx.rotate(cp.rotation);
-          ctx.fillStyle = "#d4af37";
-          ctx.strokeStyle = "#f59e0b";
-          ctx.lineWidth = 2;
-          ctx.fillRect(-cp.size/2, -cp.size/4, cp.size, cp.size/2);
-          ctx.strokeRect(-cp.size/2, -cp.size/4, cp.size, cp.size/2);
-          ctx.restore();
-          if (cp.life <= 0) clockPieces.splice(i, 1);
-        }
-
-        for (let i = debrisParticles.length - 1; i >= 0; i--) {
-          let dp = debrisParticles[i];
-          dp.x += dp.vx; dp.y += dp.vy; dp.vy += 0.3; dp.life--;
-          ctx.fillStyle = dp.color;
-          ctx.fillRect(dp.x, dp.y, dp.size, dp.size * 0.7);
-          if (dp.life <= 0) debrisParticles.splice(i, 1);
-        }
-
-        if (luettaAscent.active) {
-          luettaAscent.timer++;
-          luettaAscent.y -= 4.0;
-          if (luettaAscent.y < 40) luettaAscent.y = 40;
-          
-          ctx.save();
-          ctx.fillStyle = "rgba(245, 158, 11, 0.3)";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          let luettaImg = ASSETS.luetta;
-          if (luettaImg && luettaImg.complete && luettaImg.naturalWidth > 0) {
-            ctx.drawImage(luettaImg, 220, luettaAscent.y, 100, 120);
-          } else {
-            ctx.fillStyle = "#f59e0b"; ctx.fillRect(240, luettaAscent.y, 60, 90);
-          }
-          ctx.restore();
-
-          if (luettaAscent.timer > 55) {
-            playerHp = 100;
-            if (bossEntity) bossEntity.hp = 0;
-            enemies.forEach(e => { e.hp = 0; e.active = false; });
-            updateHUD();
-            luettaAscent.active = false;
-            startBrawlerWave(1);
-          }
-        }
-
-        for (let i = lightningStrikes.length - 1; i >= 0; i--) {
-          let ls = lightningStrikes[i];
-          ls.timer--;
-          ctx.save();
-          ctx.strokeStyle = "#facc15";
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.moveTo(ls.x, 0);
-          ctx.lineTo(ls.x - 8, ls.targetY * 0.4);
-          ctx.lineTo(ls.x + 8, ls.targetY * 0.7);
-          ctx.lineTo(ls.x, ls.targetY);
-          ctx.stroke();
-          ctx.restore();
-          if (ls.timer <= 0) lightningStrikes.splice(i, 1);
-        }
-
-        for (let i = lionRoars.length - 1; i >= 0; i--) {
-          let lr = lionRoars[i];
-          lr.x += lr.vx; lr.radius += 1.2; lr.life--;
-          ctx.save();
-          let lionImg = ASSETS.solarLion;
-          if (lionImg && lionImg.complete && lionImg.naturalWidth > 0) {
-            ctx.drawImage(lionImg, lr.x - 30, lr.y - 25, 75, 60);
-          } else {
-            ctx.fillStyle = "#f59e0b";
-            ctx.beginPath(); ctx.arc(lr.x, lr.y + 10, lr.radius, 0, Math.PI * 2); ctx.fill();
-          }
-          ctx.restore();
-
-          enemies.forEach(e => {
-            if (e.active && Math.hypot(e.x - lr.x, e.y - lr.y) < lr.radius + 15) {
-              e.hp -= lr.damage;
-              if (e.hp <= 0) e.active = false;
-            }
-          });
-          if (bossEntity && bossEntity.active && Math.hypot(bossEntity.x - lr.x, bossEntity.y - lr.y) < lr.radius + 25) {
-            bossEntity.hp -= lr.damage;
-            if (bossEntity.hp <= 0) bossEntity.active = false;
-          }
-          if (lr.life <= 0 || lr.x > canvas.width) lionRoars.splice(i, 1);
-        }
-
-        for (let i = projectiles.length - 1; i >= 0; i--) {
-          let p = projectiles[i];
-          if (p.type === 'returningSpear') {
-            if (!p.returning) {
-              p.x += p.speed;
-              if (p.x >= p.targetX) p.returning = true;
-            } else {
-              p.x -= p.speed;
-              if (p.x <= leadX) projectiles.splice(i, 1);
-            }
-          } else {
-            p.x += p.speed;
-          }
-
-          ctx.save();
-          ctx.strokeStyle = p.color;
-          ctx.fillStyle = p.color;
-          ctx.lineWidth = 4;
-
-          if (p.type === 'electricBolt' || p.type === 'spear' || p.type === 'voltBeam' || p.type === 'returningSpear') {
-            ctx.beginPath();
-            ctx.moveTo(p.x - 30, p.y + 10);
-            ctx.lineTo(p.x, p.y);
-            ctx.lineTo(p.x + 30, p.y + 10);
-            ctx.stroke();
-          } else if (p.type === 'hammer') {
-            ctx.fillStyle = "#d4af37";
-            ctx.fillRect(p.x - 10, p.y, 35, 18);
-            ctx.fillStyle = "#78350f";
-            ctx.fillRect(p.x + 15, p.y - 12, 8, 38);
-          } else {
-            ctx.fillRect(p.x, p.y + 8, 16, 6);
-          }
-          ctx.restore();
-
-          enemies.forEach(e => {
-            if (e.active && Math.abs(e.x - p.x) < 35) {
-              e.hp -= p.damage;
-              if (e.hp <= 0) e.active = false;
-              if (p.type !== 'returningSpear') projectiles.splice(i, 1);
-            }
-          });
-          if (bossEntity && bossEntity.active && Math.abs(bossEntity.x - p.x) < 45) {
-            bossEntity.hp -= p.damage;
-            if (bossEntity.hp <= 0) {
-              bossEntity.active = false;
-              if (currentWave === 3) {
-                for (let d = 0; d < 22; d++) {
-                  clockPieces.push({
-                    x: bossEntity.x + 40, y: bossEntity.y + 45,
-                    vx: (Math.random() - 0.5) * 9, vy: (Math.random() - 0.8) * 9,
-                    rotation: Math.random() * Math.PI, vRot: (Math.random() - 0.5) * 0.2,
-                    size: 10 + Math.random() * 12, life: 120
-                  });
-                }
-              }
-            }
-            if (p.type !== 'returningSpear') projectiles.splice(i, 1);
-          }
-
-          if (p && p.x > canvas.width) projectiles.splice(i, 1);
-        }
-
-        for (let i = tsunamis.length - 1; i >= 0; i--) {
-          let t = tsunamis[i];
-          t.x += t.vx; t.life--;
-          ctx.save();
-          let waveGrad = ctx.createLinearGradient(t.x, 240 - t.height, t.x + t.width, 240);
-          waveGrad.addColorStop(0, "rgba(56, 189, 248, 0.4)");
-          waveGrad.addColorStop(0.5, "rgba(14, 165, 233, 0.85)");
-          waveGrad.addColorStop(1, "rgba(3, 105, 161, 0.95)");
-          ctx.fillStyle = waveGrad;
-          ctx.strokeStyle = "#e0f2fe";
-          ctx.lineWidth = 3;
-          
-          ctx.beginPath();
-          ctx.moveTo(t.x, 240);
-          ctx.bezierCurveTo(t.x + t.width * 0.25, 240 - t.height * 1.3, t.x + t.width * 0.6, 240 - t.height * 0.9, t.x + t.width, 240);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.fillStyle = "rgba(255, 255, 255, 0.75);";
-          ctx.beginPath();
-          ctx.arc(t.x + t.width * 0.3, 240 - t.height * 0.95, 8, 0, Math.PI * 2);
-          ctx.arc(t.x + t.width * 0.5, 240 - t.height * 1.1, 11, 0, Math.PI * 2);
-          ctx.arc(t.x + t.width * 0.7, 240 - t.height * 0.85, 7, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-
-          enemies.forEach(e => {
-            if (e.active && Math.abs(e.x - t.x) < 70) {
-              e.hp -= 5.0;
-              if (e.hp <= 0) e.active = false;
-            }
-          });
-          if (bossEntity && bossEntity.active && Math.abs(bossEntity.x - t.x) < 80) {
-            bossEntity.hp -= 5.0;
-            if (bossEntity.hp <= 0) bossEntity.active = false;
-          }
-
-          if (t.life <= 0 || t.x > canvas.width) tsunamis.splice(i, 1);
-        }
-
-        for (let i = daggers.length - 1; i >= 0; i--) {
-          let d = daggers[i];
-          d.x += d.vx; d.y += d.vy;
-          ctx.fillStyle = "#f97316"; ctx.fillRect(d.x, d.y, d.length, d.width);
-          enemies.forEach(e => {
-            if (e.active && Math.hypot(e.x - d.x, e.y - d.y) < 35) {
-              e.hp -= 4.0;
-              if (e.hp <= 0) e.active = false;
-              daggers.splice(i, 1);
-            }
-          });
-          if (bossEntity && bossEntity.active && Math.hypot(bossEntity.x - d.x, bossEntity.y - d.y) < 45) {
-            bossEntity.hp -= 4.0;
-            if (bossEntity.hp <= 0) bossEntity.active = false;
-            daggers.splice(i, 1);
-          }
-          if (d.y > 250 || d.x < 0) daggers.splice(i, 1);
-        }
-
         ctx.restore();
       }
       animationFrameId = requestAnimationFrame(renderBrawler);
@@ -1085,6 +587,47 @@
     let sportCanvas, sportCtx;
     let currentSport = 'basketball';
     let sportScore = 0, sportME = 0;
-    let sportAnimId = null;
-    let chargePower = 0;
-    let isCharging = false;
+    let sportAimAngle = 0;
+
+    function switchSport(sport) {
+      currentSport = sport;
+      document.querySelectorAll('.sport-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab' + sport.charAt(0).toUpperCase() + sport.slice(1)).classList.add('active');
+      initSportScene();
+    }
+
+    function initSportScene() {
+      sportCanvas = document.getElementById("sportCanvas");
+      if (!sportCanvas) return;
+      sportCtx = sportCanvas.getContext("2d");
+      sportCanvas.width = 540; sportCanvas.height = 230;
+      
+      sportCtx.fillStyle = "#0f172a";
+      sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
+      sportCtx.fillStyle = "#38bdf8";
+      sportCtx.font = "14px sans-serif";
+      sportCtx.fillText(`Sports Lounge: ${currentSport.toUpperCase()} Active`, 140, 115);
+    }
+
+    function adjustSportAim(dir) {
+      sportAimAngle += dir * 0.1;
+      document.getElementById("sportLog").innerText = `Adjusted ${currentSport} aim vector.`;
+    }
+
+    function executeSportAction() {
+      sportScore += 10;
+      sportME += 5;
+      document.getElementById("sportScore").innerText = sportScore;
+      document.getElementById("sportME").innerText = sportME + " ME";
+      document.getElementById("sportLog").innerText = `Executed ${currentSport} shot successfully! Score updated.`;
+    }
+
+    function restartSportGame() {
+      sportScore = 0; sportME = 0;
+      document.getElementById("sportScore").innerText = sportScore;
+      document.getElementById("sportME").innerText = sportME + " ME";
+      initSportScene();
+    }
+  </script>
+</body>
+</html>
