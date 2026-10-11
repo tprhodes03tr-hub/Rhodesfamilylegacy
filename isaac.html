@@ -482,27 +482,64 @@
       if (!gameActive || isPaused) return;
       let activeEnemy = enemies.find(e => e.active);
       let targetX = activeEnemy ? activeEnemy.x : leadX + 250;
-      if (activeLead === "wakan") {
+
+      if (activeLead === "kofi") {
+        applyDamageInRadius(leadX + 60, 5.0);
+        projectiles.push({ type: 'hammer', x: leadX + 30, y: 165, targetX: targetX, color: '#d4af37', speed: 14, damage: 5.5 });
+      } else if (activeLead === "sundiata") {
+        sundiataShockwave.active = true; sundiataShockwave.x = leadX + 40; sundiataShockwave.radius = 15; sundiataShockwave.alpha = 1.0;
+        applyDamageInRadius(leadX + 90, 5.5);
+      } else if (activeLead === "wakan") {
         tsunamis.push({ x: leadX + 20, y: 175, vx: 5.0, width: 220, height: 65, life: 90 });
-      } else {
+      } else if (activeLead === "amina") {
+        enemies.forEach(e => {
+          if (e.active) {
+            lightningStrikes.push({ x: e.x + 12, targetY: e.y, timer: 30 });
+            e.hp -= 5.5;
+            if (e.hp <= 0) e.active = false;
+          }
+        });
+        if (bossEntity && bossEntity.active) {
+          lightningStrikes.push({ x: bossEntity.x + 12, targetY: bossEntity.y, timer: 30 });
+          bossEntity.hp -= 5.5;
+          if (bossEntity.hp <= 0) bossEntity.active = false;
+        }
+        updateHUD();
+      } else if (activeLead === "marcus") {
         projectiles.push({ type: 'voltBeam', x: leadX + 40, y: 165, targetX: targetX, color: '#38bdf8', speed: 25, damage: 5.0 });
+      } else {
+        projectiles.push({ type: 'electricBolt', x: leadX + 40, y: 160, targetX: targetX, color: '#38bdf8', speed: 22, damage: 4.0 });
       }
     }
 
     function executePlasmaOrb() {
       if (!gameActive || isPaused) return;
+      let activeEnemy = enemies.find(e => e.active);
+      let targetX = activeEnemy ? activeEnemy.x : leadX + 250;
+
       if (activeLead === "xochitl" && !xochitlFlight.active) {
         xochitlFlight.active = true; xochitlFlight.state = 'ASCENT';
         xochitlFlight.x = leadX; xochitlFlight.y = 155; xochitlFlight.timer = 0;
-      } else {
+      } else if (activeLead === "sundiata") {
         lionRoars.push({ x: leadX + 40, y: 135, vx: 7.5, radius: 24, damage: 7.0, life: 70 });
+        applyDamageInRadius(leadX + 110, 6.5);
+      } else if (activeLead === "amina") {
+        projectiles.push({ type: 'returningSpear', x: leadX + 40, y: 165, targetX: targetX, returning: false, color: '#ec4899', speed: 18, damage: 5.0 });
+      } else if (activeLead === "wakan") {
+        tsunamis.push({ x: leadX + 20, y: 170, vx: 5.5, width: 250, height: 75, life: 100 });
+      } else {
+        projectiles.push({ type: 'orb', x: leadX + 30, y: 170, targetX: targetX, color: '#0284c7', speed: 10, damage: 3.5 });
       }
     }
 
     function executeBurst() {
       if (!gameActive || isPaused) return;
-      isShieldActive = true;
-      setTimeout(() => isShieldActive = false, 3000);
+      if (activeLead === "sundiata") {
+        sundiataShockwave.active = true; sundiataShockwave.x = leadX + 40; sundiataShockwave.radius = 28; sundiataShockwave.alpha = 1.0;
+        applyDamageInRadius(leadX + 100, 6.0);
+      } else {
+        isShieldActive = true; setTimeout(() => isShieldActive = false, 3000);
+      }
     }
 
     function executeLuettaAid() {
@@ -511,6 +548,20 @@
       luettaAscent.y = 280;
       luettaAscent.timer = 0;
       document.getElementById("combatLog").innerText = "★ Mother Luada descends from the heavens, fully energizing her player & wiping out all enemy droids! ★";
+    }
+
+    function applyDamageInRadius(posX, dmg) {
+      enemies.forEach(e => {
+        if (e.active && Math.abs(e.x - posX) < 85) {
+          e.hp -= dmg;
+          if (e.hp <= 0) e.active = false;
+        }
+      });
+      if (bossEntity && bossEntity.active && Math.abs(bossEntity.x - posX) < 95) {
+        bossEntity.hp -= dmg;
+        if (bossEntity.hp <= 0) bossEntity.active = false;
+      }
+      updateHUD();
     }
 
     function updateHUD() {
@@ -530,15 +581,44 @@
     function renderBrawler() {
       if (!isPaused && activeSandboxMode === 'brawler' && ctx && canvas) {
         ctx.save();
-        ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        ctx.fillStyle = "#1e293b";
-        ctx.fillRect(40, 60, 50, 180);
-        ctx.fillRect(110, 30, 65, 210);
-        ctx.fillRect(190, 80, 45, 160);
-        ctx.fillRect(250, 45, 75, 195);
-        ctx.fillRect(345, 70, 55, 170);
-        ctx.fillRect(420, 25, 80, 215);
+        // Detroit Renaissance Center Skyline Backdrop (Chapter 1 / Bosses)
+        if (currentWave === 1 || currentWave >= 3) {
+          ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          ctx.fillStyle = "#1e293b";
+          ctx.fillRect(40, 60, 50, 180);
+          ctx.fillRect(110, 30, 65, 210);
+          ctx.fillRect(190, 80, 45, 160);
+          ctx.fillRect(250, 45, 75, 195);
+          ctx.fillRect(345, 70, 55, 170);
+          ctx.fillRect(420, 25, 80, 215);
+
+          ctx.fillStyle = "rgba(251, 191, 36, 0.35)";
+          for(let wx = 120; wx < 165; wx += 12) {
+            for(let wy = 45; wy < 210; wy += 20) {
+              ctx.fillRect(wx, wy, 5, 10);
+            }
+          }
+
+          chopperX += 0.7;
+          if (chopperX > canvas.width + 100) chopperX = -120;
+          ctx.save();
+          ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
+          ctx.beginPath();
+          ctx.moveTo(chopperX + 15, 45);
+          ctx.lineTo(chopperX - 55, 240);
+          ctx.lineTo(chopperX + 85, 240);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        } else {
+          let sahelGrad = ctx.createLinearGradient(0, 0, 0, 240);
+          sahelGrad.addColorStop(0, "#120520");
+          sahelGrad.addColorStop(0.5, "#300c36");
+          sahelGrad.addColorStop(1, "#5b152b");
+          ctx.fillStyle = sahelGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
         ctx.fillStyle = "#030712"; ctx.fillRect(0, 240, canvas.width, 40);
         ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2.5;
@@ -555,12 +635,20 @@
         if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
           ctx.drawImage(leadImg, -28, -36, 56, 72);
         } else {
-          ctx.fillStyle = "#f59e0b";
+          ctx.fillStyle = activeLead === "wakan" ? "#0284c7" : "#f59e0b";
           ctx.fillRect(-14, -30, 28, 60);
         }
         ctx.restore();
 
+        // Render Bosses & Droids
         if (bossEntity && bossEntity.active) {
+          bossEntity.shiftTimer++;
+          if (bossEntity.shiftTimer > 100) {
+            bossEntity.shiftTimer = 0;
+            bossEntity.x = leadX + (Math.random() > 0.5 ? 200 : -160);
+            bossEntity.x = Math.max(100, Math.min(460, bossEntity.x));
+          }
+
           ctx.save();
           let bossImg = currentWave === 3 ? ASSETS.chronolock : ASSETS.apexVolt;
           if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
@@ -572,12 +660,30 @@
         } else {
           enemies.forEach(e => {
             if (!e.active) return;
+            e.x -= e.speed;
             ctx.save();
             ctx.fillStyle = e.type === 'walking' ? "#334155" : "#1e293b";
             ctx.fillRect(e.x, e.y, 24, 26);
             ctx.restore();
           });
+
+          let activeEnemiesCount = enemies.filter(e => e.active).length;
+          if (activeEnemiesCount === 0 && currentWave === 1) startBrawlerWave(2);
+          else if (activeEnemiesCount === 0 && currentWave === 2) startBrawlerWave(3);
+          else if (activeEnemiesCount === 0 && currentWave === 3) startBrawlerWave(4);
         }
+
+        // Render Projectiles & Special Effects
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+          let p = projectiles[i];
+          p.x += p.speed;
+          ctx.save();
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x, p.y + 8, 16, 6);
+          ctx.restore();
+          if (p.x > canvas.width) projectiles.splice(i, 1);
+        }
+
         ctx.restore();
       }
       animationFrameId = requestAnimationFrame(renderBrawler);
