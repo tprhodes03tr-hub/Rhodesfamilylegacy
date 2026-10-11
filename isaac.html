@@ -280,7 +280,7 @@
         <canvas id="gameCanvas" width="540" height="280"></canvas>
       </div>
 
-      <div class="combat-log" id="combatLog">High-tier Co-Op combat active! Fiery dagger wings & Wakan sprite fully integrated.</div>
+      <div class="combat-log" id="combatLog">A-Tier Co-Op combat active! Sundiata Prime Solar Lion, Marcus Volt Bolt, & Detroit chopper searchlight online.</div>
 
       <div class="controls-grid">
         <div class="dpad-cluster">
@@ -291,7 +291,7 @@
 
         <div class="action-cluster">
           <button id="btnStrike" class="btn btn-action" onclick="executeStrike()">⚡ Volt Bolt</button>
-          <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">🔵 Solar Orb</button>
+          <button id="btnOrb" class="btn btn-orb" onclick="executePlasmaOrb()">🔵 Plasma Orb</button>
           <button id="btnBurst" class="btn btn-action" onclick="executeBurst()">🛡️ Counter</button>
           <button id="btnTag" class="btn btn-tag" onclick="executeTagSwap()">TAG: XOCHITL</button>
           <button id="btnLuetta" class="btn btn-ultimate" onclick="executeLuettaAid()">★ SUMMON MOTHER LUETTA ★</button>
@@ -324,7 +324,7 @@
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Enhanced Sports Lounge: Stationary Amina putter, Realistic Blimp with Rhodes Family Legacy Marquee, Golden Tree Helix emblems loaded!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Class-A Sports Lounge: Daytime skylight, blimp with marquee, stationary Amina walk-up golf reset, & Golden Tree emblem loaded!</div>
       <div style="display: flex; gap: 6px; margin-top: 6px;">
         <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ ROTATE</button>
         <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
@@ -429,24 +429,26 @@
     ASSETS.sundiata.src = "sundiata-prime.png";
     ASSETS.kofi.src = "kofi.png";
     ASSETS.amina.src = "amina-zazzau.png";
-    ASSETS.wakan.src = "guacan-sheet.png"; // Wakan sprite integrated properly
+    ASSETS.wakan.src = "guacan-sheet.png"; 
     ASSETS.luetta.src = "luetta.png";
 
     const treeSprite = new Image();
-    treeSprite.src = "packed-marrow-tree.png"; // Golden Tree Helix sprite integrated
+    treeSprite.src = "packed-marrow-tree.png";
 
     let unlockedRoster = ["marcus", "xochitl", "sundiata", "kofi", "amina", "wakan"];
     let rosterIdx = 0;
     let activeLead = "marcus";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
     let aiPartner = { x: 35 };
-    let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
+    let playerHp = 100, isShieldActive = false;
 
     let xochitlFlight = { active: false, state: 'INACTIVE', x: 0, y: 0, timer: 0 };
     let sundiataShockwave = { active: false, x: 0, radius: 0 };
     let luettaAscent = { active: false, y: 280, timer: 0 };
-    let tsunamis = [], daggers = [], projectiles = [], enemies = [];
+    let tsunamis = [], daggers = [], projectiles = [], lightningStrikes = [];
+    let enemies = [];
     let currentWave = 1, gameActive = true;
+    let chopperX = -80;
 
     function initBrawler() {
       canvas = document.getElementById("gameCanvas");
@@ -491,7 +493,7 @@
 
       if (activeLead === "marcus") {
         document.getElementById("btnStrike").innerText = "⚡ Volt Bolt";
-        document.getElementById("btnOrb").innerText = "🔵 Solar Orb";
+        document.getElementById("btnOrb").innerText = "🔵 Plasma Orb";
         document.getElementById("btnBurst").innerText = "🛡️ Counter";
       } else if (activeLead === "xochitl") {
         document.getElementById("btnStrike").innerText = "🔥 Magma Strike";
@@ -506,8 +508,8 @@
         document.getElementById("btnOrb").innerText = "✨ Molten Shards";
         document.getElementById("btnBurst").innerText = "🛡️ Bastion";
       } else if (activeLead === "amina") {
-        document.getElementById("btnStrike").innerText = "⚡ Lightning";
-        document.getElementById("btnOrb").innerText = "🎯 Spear";
+        document.getElementById("btnStrike").innerText = "⚡ Heaven Lightning";
+        document.getElementById("btnOrb").innerText = "🎯 Spear Pierce";
         document.getElementById("btnBurst").innerText = "🛡️ Barrier";
       } else if (activeLead === "wakan") {
         document.getElementById("btnStrike").innerText = "🌊 Hurricane Wave";
@@ -529,7 +531,14 @@
       } else if (activeLead === "wakan") {
         tsunamis.push({ x: leadX + 30, y: 175, vx: 6.0, width: 180, height: 65, life: 75 });
       } else if (activeLead === "amina") {
-        projectiles.push({ type: 'lightning', x: leadX + 40, y: 160, targetX: targetX, color: '#facc15', speed: 18, damage: 3 });
+        enemies.forEach(e => {
+          if (e.active) {
+            lightningStrikes.push({ x: e.x + 12, targetY: e.y, timer: 30 });
+            e.hp -= 3.5;
+            if (e.hp <= 0) e.active = false;
+          }
+        });
+        updateHUD();
       } else {
         projectiles.push({ type: 'electricBolt', x: leadX + 40, y: 160, targetX: targetX, color: '#38bdf8', speed: 22, damage: 3.5 });
       }
@@ -544,9 +553,10 @@
         xochitlFlight.active = true; xochitlFlight.state = 'ASCENT';
         xochitlFlight.x = leadX; xochitlFlight.y = 165; xochitlFlight.timer = 0;
       } else if (activeLead === "sundiata") {
-        projectiles.push({ type: 'lion', x: leadX + 40, y: 165, targetX: targetX, color: '#f59e0b', speed: 12, damage: 4 });
+        // Solar Lion exclusive to Sundiata Prime
+        projectiles.push({ type: 'lion', x: leadX + 40, y: 165, targetX: targetX, color: '#f59e0b', speed: 12, damage: 4.5 });
       } else if (activeLead === "amina") {
-        projectiles.push({ type: 'spear', x: leadX + 40, y: 170, targetX: targetX, color: '#ec4899', speed: 14, damage: 3 });
+        projectiles.push({ type: 'spear', x: leadX + 40, y: 170, targetX: targetX, color: '#ec4899', speed: 16, damage: 3.5 });
       } else if (activeLead === "wakan") {
         tsunamis.push({ x: leadX + 30, y: 165, vx: 7.5, width: 220, height: 75, life: 90 });
       } else {
@@ -604,6 +614,22 @@
           ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
+        chopperX += 0.6;
+        if (chopperX > canvas.width + 100) chopperX = -120;
+        ctx.save();
+        ctx.fillStyle = "rgba(56, 189, 248, 0.18)";
+        ctx.beginPath();
+        ctx.moveTo(chopperX + 15, 45);
+        ctx.lineTo(chopperX - 45, 240);
+        ctx.lineTo(chopperX + 75, 240);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(chopperX, 32, 42, 16);
+        ctx.fillStyle = "#38bdf8"; ctx.fillRect(chopperX + 12, 24, 18, 8);
+        ctx.fillStyle = "#0f172a"; ctx.fillRect(chopperX - 10, 36, 14, 8);
+        ctx.restore();
+
         ctx.fillStyle = "#030712"; ctx.fillRect(0, 240, canvas.width, 40);
         ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.moveTo(0, 240); ctx.lineTo(canvas.width, 240); ctx.stroke();
@@ -635,23 +661,23 @@
           ctx.restore();
         }
 
-        // Xochitl Flight with Fiery Dagger Wings and precise barrage
         if (xochitlFlight.active) {
           xochitlFlight.timer++;
           if (xochitlFlight.state === 'ASCENT') {
-            xochitlFlight.x += (450 - xochitlFlight.x) * 0.1; 
-            xochitlFlight.y += (40 - xochitlFlight.y) * 0.1;
-            if (Math.hypot(450 - xochitlFlight.x, 40 - xochitlFlight.y) < 10) xochitlFlight.state = 'STRAFE';
+            xochitlFlight.x += (420 - xochitlFlight.x) * 0.12; 
+            xochitlFlight.y += (40 - xochitlFlight.y) * 0.12;
+            if (Math.hypot(420 - xochitlFlight.x, 40 - xochitlFlight.y) < 10) xochitlFlight.state = 'STRAFE';
           } else if (xochitlFlight.state === 'STRAFE') {
-            xochitlFlight.x -= 3.0; 
+            xochitlFlight.x -= 2.0; 
             let targetDroid = enemies.find(e => e.active);
             let targetX = targetDroid ? targetDroid.x : 100;
-            if (xochitlFlight.timer % 8 === 0) {
+            let targetY = targetDroid ? targetDroid.y : 202;
+            if (xochitlFlight.timer % 6 === 0) {
               daggers.push({ 
                 x: xochitlFlight.x, 
                 y: xochitlFlight.y + 25, 
-                vx: (targetX - xochitlFlight.x) * 0.18, 
-                vy: 4.0, 
+                vx: (targetX - xochitlFlight.x) * 0.22, 
+                vy: (targetY - (xochitlFlight.y + 25)) * 0.22, 
                 length: 22, 
                 width: 6 
               });
@@ -662,19 +688,17 @@
             xochitlFlight.state = 'INACTIVE'; 
           }
           
-          // Render Fiery Dagger Wings during flight
           ctx.save();
           ctx.fillStyle = "#f97316";
           ctx.strokeStyle = "#fef08a";
           ctx.lineWidth = 2.5;
-          // Left Wing
           ctx.beginPath();
           ctx.moveTo(xochitlFlight.x + 10, xochitlFlight.y + 25);
           ctx.lineTo(xochitlFlight.x - 42, xochitlFlight.y + 5);
           ctx.lineTo(xochitlFlight.x - 24, xochitlFlight.y + 55);
           ctx.closePath();
           ctx.fill(); ctx.stroke();
-          // Right Wing
+
           ctx.beginPath();
           ctx.moveTo(xochitlFlight.x + 46, xochitlFlight.y + 25);
           ctx.lineTo(xochitlFlight.x + 98, xochitlFlight.y + 5);
@@ -749,6 +773,22 @@
           }
         }
 
+        for (let i = lightningStrikes.length - 1; i >= 0; i--) {
+          let ls = lightningStrikes[i];
+          ls.timer--;
+          ctx.save();
+          ctx.strokeStyle = "#facc15";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(ls.x, 0);
+          ctx.lineTo(ls.x - 8, ls.targetY * 0.4);
+          ctx.lineTo(ls.x + 8, ls.targetY * 0.7);
+          ctx.lineTo(ls.x, ls.targetY);
+          ctx.stroke();
+          ctx.restore();
+          if (ls.timer <= 0) lightningStrikes.splice(i, 1);
+        }
+
         for (let i = projectiles.length - 1; i >= 0; i--) {
           let p = projectiles[i];
           p.x += p.speed;
@@ -758,13 +798,11 @@
           ctx.fillStyle = p.color;
           ctx.lineWidth = 4;
 
-          if (p.type === 'electricBolt') {
+          if (p.type === 'electricBolt' || p.type === 'spear') {
             ctx.beginPath();
-            ctx.moveTo(p.x - 40, p.y + 10);
-            ctx.lineTo(p.x - 20, p.y - 5);
-            ctx.lineTo(p.x, p.y + 15);
-            ctx.lineTo(p.x + 20, p.y - 5);
-            ctx.lineTo(p.x + 40, p.y + 10);
+            ctx.moveTo(p.x - 30, p.y + 10);
+            ctx.lineTo(p.x, p.y);
+            ctx.lineTo(p.x + 30, p.y + 10);
             ctx.stroke();
           } else if (p.type === 'lion') {
             ctx.beginPath(); ctx.arc(p.x, p.y + 10, 16, 0, Math.PI * 2); ctx.fill();
@@ -816,7 +854,7 @@
           ctx.fillStyle = "#f97316"; ctx.fillRect(d.x, d.y, d.length, d.width);
           enemies.forEach(e => {
             if (e.active && Math.hypot(e.x - d.x, e.y - d.y) < 35) {
-              e.hp -= 3.0;
+              e.hp -= 3.5;
               if (e.hp <= 0) e.active = false;
               daggers.splice(i, 1);
             }
@@ -850,9 +888,10 @@
     let targetBalls = [];
 
     let golfBall = { x: 60, y: 165, vx: 0, vy: 0, active: false };
-    let golfHole = { x: 460, y: 165, radius: 12 };
+    let golfHole = { x: 500, y: 165, radius: 12 };
     let golfStrokeCount = 0;
-    let blimpX = -120;
+    let blimpX = -150;
+    let aminaGolferX = 45;
 
     function switchSport(sport) {
       currentSport = sport;
@@ -899,6 +938,7 @@
         resetPoolRack();
       } else if (currentSport === 'golf') {
         golfBall = { x: 60, y: 165, vx: 0, vy: 0, active: false };
+        aminaGolferX = 45;
         golfStrokeCount = 0;
       }
       if (!sportAnimId) renderSportLoop();
@@ -962,7 +1002,6 @@
         if (currentSport === 'basketball') {
           sportCtx.fillStyle = "#060913"; sportCtx.fillRect(0, 0, sportCanvas.width, 160);
           
-          // Golden Tree Helix Emblem on Basketball Court Background Wall
           sportCtx.save();
           sportCtx.globalAlpha = 0.28;
           if (treeSprite.complete && treeSprite.naturalWidth > 0) {
@@ -1053,7 +1092,6 @@
           sportCtx.fillStyle = "#291605"; sportCtx.fillRect(100, 5, 340, 220);
           sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(115, 20, 310, 190);
 
-          // Golden Tree Helix Emblem Watermark on Pool Table Center
           sportCtx.save();
           sportCtx.globalAlpha = 0.24;
           if (treeSprite.complete && treeSprite.naturalWidth > 0) {
@@ -1127,12 +1165,14 @@
           sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 140, cueBall.y + aimDirY * 140); sportCtx.stroke();
           sportCtx.setLineDash([]);
 
-          let pullBack = (chargePower * 0.6);
-          sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 6;
-          sportCtx.beginPath(); 
-          sportCtx.moveTo(cueBall.x - (aimDirX * (8 + pullBack)), cueBall.y - (aimDirY * (8 + pullBack))); 
-          sportCtx.lineTo(cueBall.x - (aimDirX * 120), cueBall.y - (aimDirY * 120)); 
-          sportCtx.stroke();
+          if (!cueBall.active) {
+            let pullBack = (chargePower * 0.6);
+            sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 6;
+            sportCtx.beginPath(); 
+            sportCtx.moveTo(cueBall.x - (aimDirX * (8 + pullBack)), cueBall.y - (aimDirY * (8 + pullBack))); 
+            sportCtx.lineTo(cueBall.x - (aimDirX * 120), cueBall.y - (aimDirY * 120)); 
+            sportCtx.stroke();
+          }
 
           sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, 8, 0, Math.PI * 2); sportCtx.fill();
 
@@ -1163,18 +1203,16 @@
           sportCtx.fillStyle = "#fff"; sportCtx.font = "8px monospace"; sportCtx.textAlign = "left"; sportCtx.fillText("CUE POWER", 34, 198);
 
         } else if (currentSport === 'golf') {
-          sportCtx.fillStyle = "#0f172a"; sportCtx.fillRect(0, 0, sportCanvas.width, 70);
+          sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(0, 0, sportCanvas.width, 70);
           
-          // Realistic Hot Air Balloon with Glowing LED Marquee scrolling "ROADS FAMILY LEGACY"
           blimpX += 0.45;
-          if (blimpX > 650) blimpX = -180;
+          if (blimpX > 680) blimpX = -180;
           
           sportCtx.save();
           sportCtx.fillStyle = "#dc2626";
           sportCtx.beginPath(); sportCtx.ellipse(blimpX, 28, 28, 34, 0, 0, Math.PI * 2); sportCtx.fill();
           sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(blimpX - 6, 62, 12, 12);
           
-          // LED Marquee Banner
           sportCtx.fillStyle = "#0f172a"; sportCtx.fillRect(blimpX - 65, 42, 130, 14);
           sportCtx.strokeStyle = "#facc15"; sportCtx.lineWidth = 1.5; sportCtx.strokeRect(blimpX - 65, 42, 130, 14);
           sportCtx.fillStyle = "#facc15"; sportCtx.font = "bold 8px monospace"; sportCtx.textAlign = "center";
@@ -1182,18 +1220,28 @@
           sportCtx.restore();
 
           sportCtx.fillStyle = "#166534"; sportCtx.fillRect(0, 70, sportCanvas.width, 160);
-          sportCtx.fillStyle = "#22c55e"; sportCtx.beginPath(); sportCtx.ellipse(460, 165, 65, 35, 0, 0, Math.PI * 2); sportCtx.fill();
+
+          sportCtx.save();
+          sportCtx.globalAlpha = 0.35;
+          if (treeSprite.complete && treeSprite.naturalWidth > 0) {
+            sportCtx.drawImage(treeSprite, 220, 85, 100, 100);
+          }
+          sportCtx.restore();
+
+          sportCtx.fillStyle = "#22c55e"; sportCtx.beginPath(); sportCtx.ellipse(golfHole.x, golfHole.y, 65, 35, 0, 0, Math.PI * 2); sportCtx.fill();
           
           sportCtx.fillStyle = "#000"; sportCtx.beginPath(); sportCtx.arc(golfHole.x, golfHole.y, golfHole.radius, 0, Math.PI * 2); sportCtx.fill();
           sportCtx.strokeStyle = "#fff"; sportCtx.lineWidth = 2.5; sportCtx.beginPath(); sportCtx.moveTo(golfHole.x, golfHole.y); sportCtx.lineTo(golfHole.x, golfHole.y - 50); sportCtx.stroke();
           sportCtx.fillStyle = "#ef4444"; sportCtx.beginPath(); sportCtx.moveTo(golfHole.x, golfHole.y - 50); sportCtx.lineTo(golfHole.x + 20, golfHole.y - 40); sportCtx.lineTo(golfHole.x, golfHole.y - 30); sportCtx.fill();
 
-          // Stationary Amina Zazzau Sprite anchored by the initial tee position (does not move with the ball)
+          let targetAminaX = Math.max(35, golfBall.x - 25);
+          aminaGolferX += (targetAminaX - aminaGolferX) * 0.1;
+
           let aminaImg = ASSETS.amina;
           if (aminaImg && aminaImg.complete && aminaImg.naturalWidth > 0) {
-            sportCtx.drawImage(aminaImg, 38, 100, 45, 65);
+            sportCtx.drawImage(aminaImg, aminaGolferX, 100, 45, 65);
           } else {
-            sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(45, 115, 14, 32);
+            sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(aminaGolferX, 115, 14, 32);
           }
 
           if (golfBall.active) {
@@ -1209,7 +1257,7 @@
               golfBall.vx = 0; golfBall.vy = 0; golfBall.active = false;
               sportScore += 250; sportME += 50; broadcastSportState(); updateSportStats();
               playChingSound();
-              setTimeout(() => { golfBall.x = 60; golfBall.y = 165; }, 1500);
+              setTimeout(() => { golfBall.x = 60; golfBall.y = 165; golfStrokeCount = 0; }, 1500);
             } else if (Math.abs(golfBall.vx) < 0.1 && Math.abs(golfBall.vy) < 0.1) {
               golfBall.vx = 0; golfBall.vy = 0; golfBall.active = false;
             }
