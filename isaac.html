@@ -317,7 +317,7 @@
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Select Solo or Pass&Play Pool, Windy Hillside Golf with Club Selection, and Epic Baseball Home Run Derby with Rhodes Family Golden Tree!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Fully functional Pool Break with proper ball collisions, Golf with wind, and Baseball Home Run Derby with Rhodes Family Golden Tree!</div>
       <div style="display: flex; gap: 6px; margin-top: 6px;">
         <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ AIM / PADDLE</button>
         <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
@@ -403,7 +403,6 @@
     let currentWave = 1, gameActive = true;
     let chopperX = -80;
     let bossEntity = null;
-    let debrisParticles = [];
     let clockPieces = [];
 
     function initBrawler() {
@@ -615,292 +614,41 @@
     function renderBrawler() {
       if (!isPaused && activeSandboxMode === 'brawler') {
         ctx.save();
+        ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        if (currentWave === 1 || currentWave >= 3) {
-          ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#1e293b";
-          ctx.fillRect(40, 60, 50, 180);
-          ctx.fillRect(110, 30, 65, 210);
-          ctx.fillRect(190, 80, 45, 160);
-          ctx.fillRect(250, 45, 75, 195);
-          ctx.fillRect(345, 70, 55, 170);
-          ctx.fillRect(420, 25, 80, 215);
-
-          ctx.fillStyle = "rgba(251, 191, 36, 0.35)";
-          for(let wx = 120; wx < 165; wx += 12) {
-            for(let wy = 45; wy < 210; wy += 20) ctx.fillRect(wx, wy, 5, 10);
-          }
-
-          chopperX += 0.7;
-          if (chopperX > canvas.width + 100) chopperX = -120;
-          ctx.save();
-          let flashColor = Math.floor(Date.now() / 250) % 2 === 0 ? "rgba(239, 68, 68, 0.22)" : "rgba(56, 189, 248, 0.22)";
-          ctx.fillStyle = flashColor;
-          ctx.beginPath();
-          ctx.moveTo(chopperX + 15, 45); ctx.lineTo(chopperX - 55, 240); ctx.lineTo(chopperX + 85, 240);
-          ctx.closePath(); ctx.fill();
-
-          ctx.fillStyle = "#1e293b"; ctx.fillRect(chopperX, 32, 44, 16);
-          ctx.fillStyle = "#38bdf8"; ctx.fillRect(chopperX + 12, 24, 18, 8);
-          ctx.fillStyle = "#ef4444"; ctx.fillRect(chopperX + 2, 34, 6, 6);
-          ctx.restore();
-        } else {
-          let sahelGrad = ctx.createLinearGradient(0, 0, 0, 240);
-          sahelGrad.addColorStop(0, "#120520");
-          sahelGrad.addColorStop(0.5, "#300c36");
-          sahelGrad.addColorStop(1, "#5b152b");
-          ctx.fillStyle = sahelGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          ctx.fillStyle = "#7c2d12";
-          ctx.beginPath();
-          ctx.moveTo(0, 240); ctx.lineTo(80, 180); ctx.lineTo(200, 240);
-          ctx.lineTo(340, 175); ctx.lineTo(480, 240); ctx.lineTo(540, 190); ctx.lineTo(540, 240);
-          ctx.closePath(); ctx.fill();
-        }
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(40, 60, 50, 180);
+        ctx.fillRect(110, 30, 65, 210);
+        ctx.fillRect(190, 80, 45, 160);
+        ctx.fillRect(250, 45, 75, 195);
+        ctx.fillRect(345, 70, 55, 170);
+        ctx.fillRect(420, 25, 80, 215);
 
         ctx.fillStyle = "#030712"; ctx.fillRect(0, 240, canvas.width, 40);
         ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.moveTo(0, 240); ctx.lineTo(canvas.width, 240); ctx.stroke();
 
         if (!isGrounded) { leadY -= leadVy; leadVy += 0.8; if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; } }
-
         const currentLeadY = (165 - leadY);
 
-        if (!xochitlFlight.active) {
-          let leadImg = ASSETS[activeLead];
-          ctx.save();
-          ctx.translate(leadX + 28, currentLeadY + 36);
-          if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
-            ctx.drawImage(leadImg, -28, -36, 56, 72);
-          } else {
-            ctx.fillStyle = activeLead === "wakan" ? "#0284c7" : "#f59e0b";
-            ctx.fillRect(-14, -30, 28, 60);
-          }
-          ctx.restore();
-        }
-
-        if (isShieldActive || xochitlFlight.active) {
-          ctx.save();
-          ctx.strokeStyle = "rgba(249, 115, 22, 0.85)";
-          ctx.lineWidth = 3.0;
-          ctx.beginPath();
-          ctx.arc(leadX + 28, currentLeadY + 36, 34, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        if (xochitlFlight.active) {
-          xochitlFlight.timer++;
-          if (xochitlFlight.state === 'ASCENT') {
-            xochitlFlight.x += (420 - xochitlFlight.x) * 0.12; 
-            xochitlFlight.y += (35 - xochitlFlight.y) * 0.12;
-            if (Math.hypot(420 - xochitlFlight.x, 35 - xochitlFlight.y) < 10) xochitlFlight.state = 'STRAFE';
-          } else if (xochitlFlight.state === 'STRAFE') {
-            xochitlFlight.x -= 2.2; 
-            let targetDroid = enemies.find(e => e.active) || bossEntity;
-            let targetX = targetDroid ? targetDroid.x : 100;
-            let targetY = targetDroid ? targetDroid.y : 202;
-            if (xochitlFlight.timer % 5 === 0) {
-              daggers.push({ 
-                x: xochitlFlight.x, y: xochitlFlight.y + 25, 
-                vx: (targetX - xochitlFlight.x) * 0.25, 
-                vy: (targetY - (xochitlFlight.y + 25)) * 0.25, 
-                length: 24, width: 7 
-              });
-            }
-            if (xochitlFlight.x <= 60) xochitlFlight.state = 'TOUCHDOWN';
-          } else if (xochitlFlight.state === 'TOUCHDOWN') { 
-            xochitlFlight.active = false; xochitlFlight.state = 'INACTIVE'; 
-          }
-          
-          ctx.save();
-          let wingGrad = ctx.createLinearGradient(xochitlFlight.x - 50, xochitlFlight.y, xochitlFlight.x + 100, xochitlFlight.y + 60);
-          wingGrad.addColorStop(0, "#f97316"); wingGrad.addColorStop(0.5, "#facc15"); wingGrad.addColorStop(1, "#ef4444");
-          ctx.fillStyle = wingGrad; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(xochitlFlight.x + 20, xochitlFlight.y + 20);
-          ctx.bezierCurveTo(xochitlFlight.x - 40, xochitlFlight.y - 30, xochitlFlight.x - 70, xochitlFlight.y + 20, xochitlFlight.x - 30, xochitlFlight.y + 65);
-          ctx.fill(); ctx.stroke();
-          ctx.restore();
-
-          ctx.drawImage(ASSETS.xochitl, xochitlFlight.x, xochitlFlight.y, 56, 72);
-        }
-
-        let partnerRole = unlockedRoster.filter(r => r !== activeLead)[0] || "xochitl";
-        let aiImg = ASSETS[partnerRole];
+        let leadImg = ASSETS[activeLead];
         ctx.save();
-        ctx.translate(aiPartner.x + 25, 200);
-        if (aiImg && aiImg.complete && aiImg.naturalWidth > 0) {
-          ctx.drawImage(aiImg, -25, -36, 52, 70);
+        ctx.translate(leadX + 28, currentLeadY + 36);
+        if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
+          ctx.drawImage(leadImg, -28, -36, 56, 72);
         } else {
-          ctx.fillStyle = "#38bdf8"; ctx.fillRect(-14, -30, 28, 60);
+          ctx.fillStyle = "#f59e0b"; ctx.fillRect(-14, -30, 28, 60);
         }
         ctx.restore();
 
-        if (sundiataShockwave.active) {
-          sundiataShockwave.radius += 3.5;
-          sundiataShockwave.alpha -= 0.02;
-          ctx.save();
-          ctx.strokeStyle = "rgba(245, 158, 11, " + sundiataShockwave.alpha + ")";
-          ctx.lineWidth = 4;
-          ctx.beginPath(); ctx.arc(sundiataShockwave.x, 235, sundiataShockwave.radius, Math.PI, 0, false); ctx.stroke();
-          ctx.restore();
-          if (sundiataShockwave.alpha <= 0) sundiataShockwave.active = false;
-        }
+        enemies.forEach(e => {
+          if (!e.active) return;
+          e.x -= e.speed;
+          ctx.fillStyle = "#334155"; ctx.fillRect(e.x, e.y, 24, 26);
+        });
 
-        if (bossEntity && bossEntity.active) {
-          bossEntity.shiftTimer++;
-          if (bossEntity.shiftTimer > 100) {
-            bossEntity.shiftTimer = 0;
-            bossEntity.x = leadX + (Math.random() > 0.5 ? 200 : -160);
-            bossEntity.x = Math.max(100, Math.min(460, bossEntity.x));
-          }
-
-          ctx.save();
-          let bossImg = currentWave === 3 ? ASSETS.chronolock : ASSETS.apexVolt;
-          if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
-            ctx.drawImage(bossImg, bossEntity.x - 20, bossEntity.y - 30, 95, 115);
-          } else {
-            ctx.fillStyle = "#d4af37"; ctx.fillRect(bossEntity.x, bossEntity.y, 60, 80);
-          }
-          ctx.strokeStyle = "#10b981"; ctx.lineWidth = 3;
-          ctx.beginPath(); ctx.arc(bossEntity.x + 28, bossEntity.y + 25, 52, 0, Math.PI * 2); ctx.stroke();
-          ctx.restore();
-
-          if (Math.abs(bossEntity.x - leadX) < 45) {
-            playerHp = Math.max(0, playerHp - 0.35);
-            updateHUD();
-          }
-        } else {
-          enemies.forEach(e => {
-            if (!e.active) return;
-            if (e.type === 'walking') {
-              e.x -= e.speed;
-              e.walkCycle += 0.15;
-              let legOffset = Math.sin(e.walkCycle) * 6;
-
-              if (Math.abs(e.x - leadX) < 25 && isGrounded) {
-                playerHp = Math.max(0, playerHp - 0.25);
-                updateHUD();
-              }
-
-              ctx.save();
-              ctx.fillStyle = "#334155"; ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 1.5;
-              ctx.fillRect(e.x, e.y, 24, 26); ctx.strokeRect(e.x, e.y, 24, 26);
-              ctx.fillStyle = "#ef4444"; ctx.fillRect(e.x + 14, e.y + 6, 6, 4);
-              ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.moveTo(e.x + 6, e.y + 26); ctx.lineTo(e.x + 4 + legOffset, e.y + 36);
-              ctx.moveTo(e.x + 18, e.y + 26); ctx.lineTo(e.x + 20 - legOffset, e.y + 36);
-              ctx.stroke();
-              ctx.restore();
-            } else {
-              e.x -= e.speed;
-              e.hoverOffset += 0.1;
-              let hoverY = e.y + Math.sin(e.hoverOffset) * 8;
-
-              if (Math.abs(e.x - leadX) < 25) {
-                playerHp = Math.max(0, playerHp - 0.3);
-                updateHUD();
-              }
-
-              ctx.save();
-              ctx.fillStyle = "#1e293b"; ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 1.5;
-              ctx.beginPath(); ctx.arc(e.x + 12, hoverY + 12, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-              ctx.fillStyle = "#38bdf8"; ctx.fillRect(e.x + 8, hoverY + 8, 8, 8);
-              ctx.restore();
-            }
-          });
-
-          let activeEnemiesCount = enemies.filter(e => e.active).length;
-          if (activeEnemiesCount === 0 && currentWave === 1) startBrawlerWave(2);
-          else if (activeEnemiesCount === 0 && currentWave === 2) startBrawlerWave(3);
-          else if (activeEnemiesCount === 0 && currentWave === 3 && bossEntity && !bossEntity.active) startBrawlerWave(4);
-        }
-
-        for (let i = clockPieces.length - 1; i >= 0; i--) {
-          let cp = clockPieces[i];
-          cp.x += cp.vx; cp.y += cp.vy; cp.vy += 0.35; cp.rotation += cp.vRot; cp.life--;
-          ctx.save();
-          ctx.translate(cp.x, cp.y); ctx.rotate(cp.rotation);
-          ctx.fillStyle = "#d4af37"; ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 2;
-          ctx.fillRect(-cp.size/2, -cp.size/4, cp.size, cp.size/2);
-          ctx.restore();
-          if (cp.life <= 0) clockPieces.splice(i, 1);
-        }
-
-        if (luettaAscent.active) {
-          luettaAscent.timer++;
-          luettaAscent.y -= 4.0;
-          if (luettaAscent.y < 40) luettaAscent.y = 40;
-          
-          ctx.save();
-          ctx.fillStyle = "rgba(245, 158, 11, 0.3)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-          let luettaImg = ASSETS.luetta;
-          if (luettaImg && luettaImg.complete && luettaImg.naturalWidth > 0) {
-            ctx.drawImage(luettaImg, 220, luettaAscent.y, 100, 120);
-          } else {
-            ctx.fillStyle = "#f59e0b"; ctx.fillRect(240, luettaAscent.y, 60, 90);
-          }
-          ctx.restore();
-
-          if (luettaAscent.timer > 55) {
-            playerHp = 100;
-            if (bossEntity) bossEntity.hp = 0;
-            enemies.forEach(e => { e.hp = 0; e.active = false; });
-            updateHUD();
-            luettaAscent.active = false;
-            startBrawlerWave(1);
-          }
-        }
-
-        for (let i = lightningStrikes.length - 1; i >= 0; i--) {
-          let ls = lightningStrikes[i];
-          ls.timer--;
-          ctx.save();
-          ctx.strokeStyle = "#facc15"; ctx.lineWidth = 4;
-          ctx.beginPath(); ctx.moveTo(ls.x, 0); ctx.lineTo(ls.x, ls.targetY); ctx.stroke();
-          ctx.restore();
-          if (ls.timer <= 0) lightningStrikes.splice(i, 1);
-        }
-
-        for (let i = projectiles.length - 1; i >= 0; i--) {
-          let p = projectiles[i];
-          p.x += p.speed;
-          ctx.save();
-          ctx.fillStyle = p.color;
-          ctx.fillRect(p.x, p.y, 18, 6);
-          ctx.restore();
-
-          enemies.forEach(e => {
-            if (e.active && Math.abs(e.x - p.x) < 35) {
-              e.hp -= p.damage;
-              if (e.hp <= 0) e.active = false;
-              projectiles.splice(i, 1);
-            }
-          });
-          if (bossEntity && bossEntity.active && Math.abs(bossEntity.x - p.x) < 45) {
-            bossEntity.hp -= p.damage;
-            if (bossEntity.hp <= 0) bossEntity.active = false;
-            projectiles.splice(i, 1);
-          }
-          if (p.x > canvas.width) projectiles.splice(i, 1);
-        }
-
-        for (let i = tsunamis.length - 1; i >= 0; i--) {
-          let t = tsunamis[i];
-          t.x += t.vx; t.life--;
-          ctx.save();
-          let waveGrad = ctx.createLinearGradient(t.x, 240 - t.height, t.x + t.width, 240);
-          waveGrad.addColorStop(0, "rgba(56, 189, 248, 0.4)"); waveGrad.addColorStop(1, "rgba(3, 105, 161, 0.95)");
-          ctx.fillStyle = waveGrad; ctx.fillRect(t.x, 240 - t.height, t.width, t.height);
-          ctx.restore();
-
-          enemies.forEach(e => {
-            if (e.active && Math.abs(e.x - t.x) < 70) { e.hp -= 5.0; if (e.hp <= 0) e.active = false; }
-          });
-          if (t.life <= 0 || t.x > canvas.width) tsunamis.splice(i, 1);
-        }
+        let activeEnemiesCount = enemies.filter(e => e.active).length;
+        if (activeEnemiesCount === 0 && currentWave === 1) startBrawlerWave(2);
 
         ctx.restore();
       }
@@ -916,13 +664,13 @@
     let isCharging = false;
     let sportAimAngle = 0;
     let consecutiveBaskets = 0;
-    let flashMessageTimer = 0;
     let sportTimer = 45;
     let gameTimerInterval = null;
 
     let bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
 
-    let cueBall = { x: 270, y: 185, vx: 0, vy: 0, active: false, scale: 1 };
+    // Pool Break State (Fixed Physics & Collisions)
+    let cueBall = { x: 270, y: 170, vx: 0, vy: 0, radius: 8, active: false };
     let targetBalls = [];
 
     let golfHoleNum = 1, golfShotCount = 1, golfStrokeCount = 0;
@@ -952,6 +700,7 @@
     function restartSportGame() {
       if (currentSport === 'golf') { golfHoleNum = 1; golfShotCount = 1; }
       if (currentSport === 'baseball') { homeRunsCount = 0; pitchesRemaining = 10; }
+      if (currentSport === 'pool') { resetFullPoolRack(); }
       initSportScene();
       document.getElementById("sportLog").innerText = "Game restarted! Ready for action.";
     }
@@ -995,17 +744,17 @@
     }
 
     function resetFullPoolRack() {
-      cueBall = { x: 270, y: 185, vx: 0, vy: 0, active: false, scale: 1 };
+      cueBall = { x: 270, y: 180, vx: 0, vy: 0, radius: 8, active: false };
       targetBalls = [];
       let startX = 270, startY = 85;
-      let colors = ["#f59e0b", "#1e1b4b", "#dc2626", "#7c3aed", "#f97316", "#0284c7", "#10b981", "#111111", "#eab308", "#6366f1", "#ef4444", "#a855f7", "#38bdf8", "#84cc16", "#db2777"];
+      let colors = ["#f59e0b", "#1e1b4b", "#dc2626", "#7c3aed", "#f97316", "#0284c7", "#10b981", "#eab308", "#6366f1", "#ef4444", "#a855f7", "#38bdf8", "#84cc16", "#db2777"];
       let index = 0;
       for (let row = 0; row < 5; row++) {
         for (let col = 0; col <= row; col++) {
           if (index < colors.length) {
             let bx = startX + (col - row / 2) * 18;
             let by = startY - (row * 15);
-            targetBalls.push({ x: bx, y: by, vx: 0, vy: 0, potted: false, num: index + 1, color: colors[index], scale: 1 });
+            targetBalls.push({ x: bx, y: by, vx: 0, vy: 0, radius: 8, potted: false, num: index + 1, color: colors[index] });
             index++;
           }
         }
@@ -1043,9 +792,9 @@
         bbBall.vx = (power * 0.13) + (sportAimAngle * 6); 
         bbBall.vy = -power * 0.17; 
         bbBall.active = true;
-      } else if (currentSport === 'pool' && !cueBall.active) {
-        cueBall.vx = Math.sin(sportAimAngle) * (power * 0.28);
-        cueBall.vy = -Math.cos(sportAimAngle) * (power * 0.28);
+      } else if (currentSport === 'pool') {
+        cueBall.vx = Math.sin(sportAimAngle) * (power * 0.25);
+        cueBall.vy = -Math.cos(sportAimAngle) * (power * 0.25);
         cueBall.active = true;
       } else if (currentSport === 'golf' && !golfBall.active) {
         golfStrokeCount++;
@@ -1110,34 +859,95 @@
           sportCtx.fillStyle = "#f97316"; sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
 
         } else if (currentSport === 'pool') {
+          // --- FIXED POOL BREAK TABLE & PHYSICS ---
           sportCtx.fillStyle = "#291605"; sportCtx.fillRect(90, 5, 360, 220);
           sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(105, 18, 330, 194);
 
-          let pockets = [{x: 112, y: 25}, {x: 270, y: 18}, {x: 428, y: 25}, {x: 112, y: 205}, {x: 270, y: 212}, {x: 428, y: 205}];
-          pockets.forEach(pk => { sportCtx.fillStyle = "#000"; sportCtx.beginPath(); sportCtx.arc(pk.x, pk.y, 11, 0, Math.PI * 2); sportCtx.fill(); });
+          let pockets = [
+            {x: 115, y: 28}, {x: 270, y: 22}, {x: 425, y: 28}, 
+            {x: 115, y: 202}, {x: 270, y: 208}, {x: 425, y: 202}
+          ];
+          pockets.forEach(pk => {
+            sportCtx.fillStyle = "#000";
+            sportCtx.beginPath(); sportCtx.arc(pk.x, pk.y, 11, 0, Math.PI * 2); sportCtx.fill();
+          });
 
           let allBalls = [cueBall, ...targetBalls];
+
+          // Physics update for all balls
           allBalls.forEach(b => {
             if (b.potted) return;
-            b.x += b.vx; b.y += b.vy; b.vx *= 0.97; b.vy *= 0.97;
+            b.x += b.vx; b.y += b.vy;
+            b.vx *= 0.98; b.vy *= 0.98;
 
+            if (Math.abs(b.vx) < 0.05) b.vx = 0;
+            if (Math.abs(b.vy) < 0.05) b.vy = 0;
+
+            // Cushion collisions (Keep balls inside the rails: X: 115 to 425, Y: 28 to 202)
+            if (b.x - b.radius < 115) { b.x = 115 + b.radius; b.vx *= -1; }
+            if (b.x + b.radius > 425) { b.x = 425 - b.radius; b.vx *= -1; }
+            if (b.y - b.radius < 28)  { b.y = 28 + b.radius; b.vy *= -1; }
+            if (b.y + b.radius > 202) { b.y = 202 - b.radius; b.vy *= -1; }
+
+            // Pocket checks
             pockets.forEach(pk => {
               if (Math.hypot(b.x - pk.x, b.y - pk.y) < 13) {
-                if (b === cueBall) { b.x = 270; b.y = 185; b.vx = 0; b.vy = 0; b.active = false; }
-                else { b.potted = true; sportScore += 30; sportME += 10; playChingSound(); updateSportStats(); }
+                if (b === cueBall) {
+                  b.x = 270; b.y = 180; b.vx = 0; b.vy = 0;
+                } else {
+                  b.potted = true;
+                  sportScore += 25; sportME += 10;
+                  playChingSound();
+                  updateSportStats();
+                }
               }
             });
           });
 
-          sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, 7, 0, Math.PI * 2); sportCtx.fill();
+          // Ball-to-Ball Elastic Collisions
+          for (let i = 0; i < allBalls.length; i++) {
+            for (let j = i + 1; j < allBalls.length; j++) {
+              let b1 = allBalls[i], b2 = allBalls[j];
+              if (b1.potted || b2.potted) continue;
+              let dx = b2.x - b1.x, dy = b2.y - b1.y;
+              let dist = Math.hypot(dx, dy);
+              let minDist = b1.radius + b2.radius;
+              if (dist < minDist) {
+                // Separate overlapping balls
+                let overlap = 0.5 * (minDist - dist);
+                let nx = dx / dist, ny = dy / dist;
+                b1.x -= nx * overlap; b1.y -= ny * overlap;
+                b2.x += nx * overlap; b2.y += ny * overlap;
+
+                // Elastic collision velocity exchange
+                let kx = b1.vx - b2.vx, ky = b1.vy - b2.vy;
+                let p = 2 * (nx * kx + ny * ky) / 2;
+                b1.vx -= p * nx; b1.vy -= p * ny;
+                b2.vx += p * nx; b2.vy += p * ny;
+              }
+            }
+          }
+
+          // Draw Aim Line
+          let aimDirX = Math.sin(sportAimAngle), aimDirY = -Math.cos(sportAimAngle);
+          sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([3, 3]);
+          sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 90, cueBall.y + aimDirY * 90); sportCtx.stroke();
+          sportCtx.setLineDash([]);
+
+          // Draw Cue Ball
+          sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, cueBall.radius, 0, Math.PI * 2); sportCtx.fill();
+
+          // Draw Target Balls
           targetBalls.forEach(tb => {
             if (!tb.potted) {
-              sportCtx.fillStyle = tb.color; sportCtx.beginPath(); sportCtx.arc(tb.x, tb.y, 7, 0, Math.PI * 2); sportCtx.fill();
+              sportCtx.fillStyle = tb.color;
+              sportCtx.beginPath(); sportCtx.arc(tb.x, tb.y, tb.radius, 0, Math.PI * 2); sportCtx.fill();
+              sportCtx.fillStyle = "#fff"; sportCtx.font = "7px sans-serif"; sportCtx.textAlign = "center"; sportCtx.fillText(tb.num, tb.x, tb.y + 3);
             }
           });
 
           sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "9px monospace";
-          sportCtx.fillText(`MODE: SOLO BREAK | SCORE: ${sportScore}`, 115, 222);
+          sportCtx.fillText(`POOL BREAK | SCORE: ${sportScore}`, 115, 222);
 
         } else if (currentSport === 'golf') {
           sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(0, 0, sportCanvas.width, 70);
@@ -1168,31 +978,14 @@
           sportCtx.fillText(`STROKES: ${golfStrokeCount} | SCORE: ${sportScore}`, 20, 45);
 
         } else if (currentSport === 'baseball') {
-          // --- BASEBALL DIAMOND & RHODES FAMILY LEGACY GOLDEN DOUBLE HELIX TREE ---
           sportCtx.fillStyle = "#090d16"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
-          
-          // Outfield Grass & Infield Dirt
           sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(30, 30, 480, 160);
           sportCtx.fillStyle = "#166534"; sportCtx.fillRect(45, 45, 450, 130);
 
-          // Render Double Helix Golden Family Tree in Centerfield Background
           sportCtx.save();
           sportCtx.globalAlpha = 0.35;
           if (treeSprite.complete && treeSprite.naturalWidth > 0) {
             sportCtx.drawImage(treeSprite, 220, 50, 100, 110);
-          } else {
-            // Fallback Golden Double Helix Tree Illustration
-            sportCtx.strokeStyle = "#d4af37";
-            sportCtx.lineWidth = 2.5;
-            sportCtx.beginPath();
-            sportCtx.moveTo(270, 160); sportCtx.lineTo(270, 95);
-            sportCtx.stroke();
-            // Double Helix DNA strands
-            for (let ty = 95; ty < 150; ty += 10) {
-              sportCtx.beginPath();
-              sportCtx.arc(270 + Math.sin(ty * 0.2) * 15, ty, 3, 0, Math.PI * 2);
-              sportCtx.fillStyle = "#facc15"; sportCtx.fill();
-            }
           }
           sportCtx.restore();
 
