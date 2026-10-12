@@ -279,7 +279,7 @@
         <canvas id="gameCanvas" width="540" height="280"></canvas>
       </div>
 
-      <div class="combat-log" id="combatLog">Chapter 1 Detroit Skyline Active: Solar Lion Roar, Anvil Sledge Hammer, Wakan Tsunami, Amina Lightning, and all combat powers enabled!</div>
+      <div class="combat-log" id="combatLog">Chapter 1 Detroit Skyline Active: Searchlight helicopter, Chrono-Lock boss, and all comic powers enabled!</div>
 
       <div class="controls-grid">
         <div class="dpad-cluster">
@@ -317,7 +317,7 @@
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Fully functional Pool Break with proper ball collisions, Golf with wind, and Baseball Home Run Derby with Rhodes Family Golden Tree!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Marcus on Basketball, Amina Zazzau on Golf, Pool Break with Cue Stick, and Baseball Derby with Bat & Golden Tree!</div>
       <div style="display: flex; gap: 6px; margin-top: 6px;">
         <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ AIM / PADDLE</button>
         <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
@@ -614,15 +614,22 @@
     function renderBrawler() {
       if (!isPaused && activeSandboxMode === 'brawler') {
         ctx.save();
-        ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = "#1e293b";
-        ctx.fillRect(40, 60, 50, 180);
-        ctx.fillRect(110, 30, 65, 210);
-        ctx.fillRect(190, 80, 45, 160);
-        ctx.fillRect(250, 45, 75, 195);
-        ctx.fillRect(345, 70, 55, 170);
-        ctx.fillRect(420, 25, 80, 215);
+        if (currentWave === 1 || currentWave >= 3) {
+          ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#1e293b";
+          ctx.fillRect(40, 60, 50, 180); ctx.fillRect(110, 30, 65, 210);
+          ctx.fillRect(190, 80, 45, 160); ctx.fillRect(250, 45, 75, 195);
+          ctx.fillRect(345, 70, 55, 170); ctx.fillRect(420, 25, 80, 215);
+
+          chopperX += 0.8;
+          if (chopperX > canvas.width + 100) chopperX = -120;
+          ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
+          ctx.beginPath(); ctx.moveTo(chopperX + 15, 45); ctx.lineTo(chopperX - 55, 240); ctx.lineTo(chopperX + 85, 240); ctx.closePath(); ctx.fill();
+        } else {
+          let sahelGrad = ctx.createLinearGradient(0, 0, 0, 240);
+          sahelGrad.addColorStop(0, "#120520"); sahelGrad.addColorStop(1, "#5b152b");
+          ctx.fillStyle = sahelGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
         ctx.fillStyle = "#030712"; ctx.fillRect(0, 240, canvas.width, 40);
         ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2.5;
@@ -641,14 +648,35 @@
         }
         ctx.restore();
 
-        enemies.forEach(e => {
-          if (!e.active) return;
-          e.x -= e.speed;
-          ctx.fillStyle = "#334155"; ctx.fillRect(e.x, e.y, 24, 26);
-        });
+        if (bossEntity && bossEntity.active) {
+          ctx.save();
+          let bossImg = currentWave === 3 ? ASSETS.chronolock : ASSETS.apexVolt;
+          if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
+            ctx.drawImage(bossImg, bossEntity.x - 20, bossEntity.y - 30, 95, 115);
+          } else {
+            ctx.fillStyle = "#d4af37"; ctx.fillRect(bossEntity.x, bossEntity.y, 60, 80);
+          }
+          ctx.restore();
+        } else {
+          enemies.forEach(e => {
+            if (!e.active) return;
+            e.x -= e.speed;
+            ctx.fillStyle = "#334155"; ctx.fillRect(e.x, e.y, 24, 26);
+          });
+          let activeEnemiesCount = enemies.filter(e => e.active).length;
+          if (activeEnemiesCount === 0 && currentWave === 1) startBrawlerWave(2);
+          else if (activeEnemiesCount === 0 && currentWave === 2) startBrawlerWave(3);
+        }
 
-        let activeEnemiesCount = enemies.filter(e => e.active).length;
-        if (activeEnemiesCount === 0 && currentWave === 1) startBrawlerWave(2);
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+          let p = projectiles[i];
+          p.x += p.speed;
+          ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 18, 6);
+          enemies.forEach(e => {
+            if (e.active && Math.abs(e.x - p.x) < 35) { e.hp -= p.damage; if (e.hp <= 0) e.active = false; projectiles.splice(i, 1); }
+          });
+          if (p.x > canvas.width) projectiles.splice(i, 1);
+        }
 
         ctx.restore();
       }
@@ -666,11 +694,11 @@
     let consecutiveBaskets = 0;
     let sportTimer = 45;
     let gameTimerInterval = null;
+    let backboardOffset = 0;
 
     let bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
 
-    // Pool Break State (Fixed Physics & Collisions)
-    let cueBall = { x: 270, y: 170, vx: 0, vy: 0, radius: 8, active: false };
+    let cueBall = { x: 270, y: 180, vx: 0, vy: 0, radius: 8, active: false };
     let targetBalls = [];
 
     let golfHoleNum = 1, golfShotCount = 1, golfStrokeCount = 0;
@@ -829,7 +857,22 @@
 
         if (currentSport === 'basketball') {
           sportCtx.fillStyle = "#060913"; sportCtx.fillRect(0, 0, sportCanvas.width, 160);
+          
+          sportCtx.save();
+          sportCtx.globalAlpha = 0.28;
+          if (treeSprite.complete && treeSprite.naturalWidth > 0) {
+            sportCtx.drawImage(treeSprite, 185, 15, 170, 130);
+          }
+          sportCtx.restore();
+
           sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(0, 20, sportCanvas.width, 30);
+          for (let i = 0; i < 20; i++) {
+            let cx = 15 + (i * 27);
+            let cy = 30 + Math.sin(Date.now() / 200 + i) * 3;
+            sportCtx.fillStyle = i % 2 === 0 ? "#38bdf8" : "#f59e0b";
+            sportCtx.beginPath(); sportCtx.arc(cx, cy, 5, 0, Math.PI * 2); sportCtx.fill();
+            sportCtx.fillStyle = "#475569"; sportCtx.fillRect(cx - 6, cy + 5, 12, 10);
+          }
 
           sportCtx.save();
           sportCtx.fillStyle = "rgba(212, 175, 55, 0.9)"; sportCtx.font = "bold 11px sans-serif"; sportCtx.textAlign = "center";
@@ -837,12 +880,27 @@
           sportCtx.restore();
 
           sportCtx.fillStyle = "#1e3a8a"; sportCtx.fillRect(0, 160, sportCanvas.width, 70);
+          sportCtx.strokeStyle = "#dc2626"; sportCtx.lineWidth = 2; sportCtx.strokeRect(0, 160, sportCanvas.width, 70);
 
-          let boardX = 452;
-          let rimX = 430;
+          backboardOffset = Math.sin(Date.now() / 800) * 35;
+          let boardX = 452 + backboardOffset;
+          let rimX = 430 + backboardOffset;
+
           sportCtx.fillStyle = "rgba(56, 189, 248, 0.35)"; sportCtx.fillRect(boardX, 28, 12, 82);
           sportCtx.strokeStyle = "#dc2626"; sportCtx.lineWidth = 4;
           sportCtx.beginPath(); sportCtx.arc(rimX, 76, 22, Math.PI, 0, true); sportCtx.stroke();
+          
+          if (consecutiveBaskets >= 3) {
+            sportCtx.fillStyle = "#f97316";
+            sportCtx.beginPath(); sportCtx.arc(rimX, 76, 14, 0, Math.PI * 2); sportCtx.fill();
+          }
+
+          // Render Marcus Prime Sprite for Basketball
+          if (ASSETS.marcus.complete && ASSETS.marcus.naturalWidth > 0) {
+            sportCtx.drawImage(ASSETS.marcus, 55, 100, 52, 68);
+          } else {
+            sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(65, 110, 24, 50);
+          }
 
           if (bbBall.active) {
             bbBall.x += bbBall.vx; bbBall.y += bbBall.vy; bbBall.vy += 0.45;
@@ -854,12 +912,19 @@
             }
             if (bbBall.y > 220 || bbBall.x > 540 || bbBall.x < 0) {
               bbBall.active = false; bbBall.x = 75; bbBall.y = 155; bbBall.vx = 0; bbBall.vy = 0;
+              consecutiveBaskets = 0;
             }
           }
-          sportCtx.fillStyle = "#f97316"; sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
+          sportCtx.fillStyle = consecutiveBaskets >= 3 ? "#ef4444" : "#f97316";
+          sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
+
+          if (!bbBall.active && sportTimer > 0) {
+            sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
+            sportCtx.beginPath(); sportCtx.moveTo(75, 145); sportCtx.lineTo(165 + (sportAimAngle * 120), 100); sportCtx.stroke();
+            sportCtx.setLineDash([]);
+          }
 
         } else if (currentSport === 'pool') {
-          // --- FIXED POOL BREAK TABLE & PHYSICS ---
           sportCtx.fillStyle = "#291605"; sportCtx.fillRect(90, 5, 360, 220);
           sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(105, 18, 330, 194);
 
@@ -874,7 +939,6 @@
 
           let allBalls = [cueBall, ...targetBalls];
 
-          // Physics update for all balls
           allBalls.forEach(b => {
             if (b.potted) return;
             b.x += b.vx; b.y += b.vy;
@@ -883,17 +947,15 @@
             if (Math.abs(b.vx) < 0.05) b.vx = 0;
             if (Math.abs(b.vy) < 0.05) b.vy = 0;
 
-            // Cushion collisions (Keep balls inside the rails: X: 115 to 425, Y: 28 to 202)
             if (b.x - b.radius < 115) { b.x = 115 + b.radius; b.vx *= -1; }
             if (b.x + b.radius > 425) { b.x = 425 - b.radius; b.vx *= -1; }
             if (b.y - b.radius < 28)  { b.y = 28 + b.radius; b.vy *= -1; }
             if (b.y + b.radius > 202) { b.y = 202 - b.radius; b.vy *= -1; }
 
-            // Pocket checks
             pockets.forEach(pk => {
               if (Math.hypot(b.x - pk.x, b.y - pk.y) < 13) {
                 if (b === cueBall) {
-                  b.x = 270; b.y = 180; b.vx = 0; b.vy = 0;
+                  b.x = 270; b.y = 180; b.vx = 0; b.vy = 0; b.active = false;
                 } else {
                   b.potted = true;
                   sportScore += 25; sportME += 10;
@@ -904,7 +966,6 @@
             });
           });
 
-          // Ball-to-Ball Elastic Collisions
           for (let i = 0; i < allBalls.length; i++) {
             for (let j = i + 1; j < allBalls.length; j++) {
               let b1 = allBalls[i], b2 = allBalls[j];
@@ -913,13 +974,10 @@
               let dist = Math.hypot(dx, dy);
               let minDist = b1.radius + b2.radius;
               if (dist < minDist) {
-                // Separate overlapping balls
                 let overlap = 0.5 * (minDist - dist);
                 let nx = dx / dist, ny = dy / dist;
                 b1.x -= nx * overlap; b1.y -= ny * overlap;
                 b2.x += nx * overlap; b2.y += ny * overlap;
-
-                // Elastic collision velocity exchange
                 let kx = b1.vx - b2.vx, ky = b1.vy - b2.vy;
                 let p = 2 * (nx * kx + ny * ky) / 2;
                 b1.vx -= p * nx; b1.vy -= p * ny;
@@ -928,16 +986,25 @@
             }
           }
 
-          // Draw Aim Line
+          if (cueBall.vx === 0 && cueBall.vy === 0) cueBall.active = false;
+
           let aimDirX = Math.sin(sportAimAngle), aimDirY = -Math.cos(sportAimAngle);
           sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([3, 3]);
-          sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 90, cueBall.y + aimDirY * 90); sportCtx.stroke();
+          sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 110, cueBall.y + aimDirY * 110); sportCtx.stroke();
           sportCtx.setLineDash([]);
 
-          // Draw Cue Ball
+          // Render Pool Cue Stick
+          if (!cueBall.active) {
+            let pullBack = (chargePower * 0.5);
+            sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 6;
+            sportCtx.beginPath();
+            sportCtx.moveTo(cueBall.x - (aimDirX * (10 + pullBack)), cueBall.y - (aimDirY * (10 + pullBack)));
+            sportCtx.lineTo(cueBall.x - (aimDirX * 130), cueBall.y - (aimDirY * 130));
+            sportCtx.stroke();
+          }
+
           sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, cueBall.radius, 0, Math.PI * 2); sportCtx.fill();
 
-          // Draw Target Balls
           targetBalls.forEach(tb => {
             if (!tb.potted) {
               sportCtx.fillStyle = tb.color;
@@ -957,6 +1024,13 @@
           sportCtx.fillStyle = "#000"; sportCtx.beginPath(); sportCtx.arc(golfHole.x, golfHole.y, golfHole.radius, 0, Math.PI * 2); sportCtx.fill();
           sportCtx.strokeStyle = "#fff"; sportCtx.lineWidth = 2.5; sportCtx.beginPath(); sportCtx.moveTo(golfHole.x, golfHole.y); sportCtx.lineTo(golfHole.x, golfHole.y - 45); sportCtx.stroke();
           sportCtx.fillStyle = "#ef4444"; sportCtx.beginPath(); sportCtx.moveTo(golfHole.x, golfHole.y - 45); sportCtx.lineTo(golfHole.x + 16, golfHole.y - 35); sportCtx.lineTo(golfHole.x, golfHole.y - 25); sportCtx.fill();
+
+          // Render Amina Zazzau Sprite on Golf Course
+          if (ASSETS.amina.complete && ASSETS.amina.naturalWidth > 0) {
+            sportCtx.drawImage(ASSETS.amina, golfBall.x - 30, 95, 45, 65);
+          } else {
+            sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(golfBall.x - 15, 115, 14, 40);
+          }
 
           if (golfBall.active) {
             golfBall.x += golfBall.vx; golfBall.y += golfBall.vy;
@@ -978,23 +1052,28 @@
           sportCtx.fillText(`STROKES: ${golfStrokeCount} | SCORE: ${sportScore}`, 20, 45);
 
         } else if (currentSport === 'baseball') {
+          // --- BASEBALL HOME RUN DERBY WITH BAT & GOLDEN TREE ---
           sportCtx.fillStyle = "#090d16"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
           sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(30, 30, 480, 160);
           sportCtx.fillStyle = "#166534"; sportCtx.fillRect(45, 45, 450, 130);
 
           sportCtx.save();
-          sportCtx.globalAlpha = 0.35;
+          sportCtx.globalAlpha = 0.4;
           if (treeSprite.complete && treeSprite.naturalWidth > 0) {
-            sportCtx.drawImage(treeSprite, 220, 50, 100, 110);
+            sportCtx.drawImage(treeSprite, 220, 48, 105, 115);
           }
           sportCtx.restore();
 
-          sportCtx.fillStyle = "rgba(212, 175, 55, 0.85)";
-          sportCtx.font = "bold 8.5px sans-serif"; sportCtx.textAlign = "center";
-          sportCtx.fillText("★ RHODES FAMILY LEGACY: THE LIVING GENETIC CODEX ★", 270, 40);
+          sportCtx.fillStyle = "rgba(212, 175, 55, 0.9)";
+          sportCtx.font = "bold 9px sans-serif"; sportCtx.textAlign = "center";
+          sportCtx.fillText("★ RHODES FAMILY LEGACY: THE LIVING GENETIC CODEX ★", 270, 38);
 
+          // Render Hitter with Bat (Kofi / Batter Sprite)
           if (ASSETS.kofi && ASSETS.kofi.complete && ASSETS.kofi.naturalWidth > 0) {
             sportCtx.drawImage(ASSETS.kofi, bbHitter.x, bbHitter.y - 35, 45, 60);
+            // Render Baseball Bat
+            sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 4;
+            sportCtx.beginPath(); sportCtx.moveTo(bbHitter.x + 30, bbHitter.y + 5); sportCtx.lineTo(bbHitter.x + 52, bbHitter.y - 18); sportCtx.stroke();
           } else {
             sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(bbHitter.x, bbHitter.y, 20, 45);
           }
