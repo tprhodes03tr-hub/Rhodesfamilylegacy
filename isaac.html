@@ -302,7 +302,7 @@
     <div class="brawler-wrapper" id="sportsView" style="display: none;">
       <div class="sport-tabs">
         <button class="sport-tab active" id="tabBasketball" onclick="switchSport('basketball')">🏀 BASKETBALL</button>
-        <button class="sport-tab" id="tabPool" onclick="switchSport('pool')">🎱 POOL (AI/2P)</button>
+        <button class="sport-tab" id="tabPool" onclick="switchSport('pool')">🎱 POOL (SOLO/AI/2P)</button>
         <button class="sport-tab" id="tabGolf" onclick="switchSport('golf')">⛳ HILLSIDE GOLF</button>
         <button class="sport-tab" id="tabBaseball" onclick="switchSport('baseball')">⚾ HOME RUN DERBY</button>
       </div>
@@ -317,7 +317,7 @@
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Basketball, Pool Break (Solo/AI/2P), Hillside Golf, and Realistic Baseball Diamond Derby!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Marcus Prime on Basketball Court, Rhodes Legacy Pool Table, Golf, and Authentic Baseball Diamond!</div>
       <div style="display: flex; gap: 6px; margin-top: 6px;">
         <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ AIM / PADDLE</button>
         <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
@@ -685,7 +685,7 @@
     // --- SPORTS LOUNGE ENGINE ---
     let sportCanvas, sportCtx;
     let currentSport = 'basketball';
-    let poolMode = 'solo'; // 'solo' or 'ai' or '2p'
+    let poolMode = 'solo'; // 'solo', 'ai', '2p'
     let sportScore = 0, sportME = 0;
     let sportAnimId = null;
     let chargePower = 0;
@@ -714,13 +714,20 @@
     let hitBallProj = null;
 
     function switchSport(sport) {
-      currentSport = sport;
-      document.getElementById("tabBasketball").classList.toggle("active", sport === 'basketball');
-      document.getElementById("tabPool").classList.toggle("active", sport === 'pool');
-      document.getElementById("tabGolf").classList.toggle("active", sport === 'golf');
-      document.getElementById("tabBaseball").classList.toggle("active", sport === 'baseball');
+      if (sport === 'pool') {
+        let modes = ['solo', 'ai', '2p'];
+        let currentIndex = modes.indexOf(poolMode);
+        poolMode = modes[(currentIndex + 1) % modes.length];
+        document.getElementById("tabPool").innerText = `🎱 POOL (${poolMode.toUpperCase()})`;
+      } else {
+        currentSport = sport;
+      }
+      document.getElementById("tabBasketball").classList.toggle("active", currentSport === 'basketball');
+      document.getElementById("tabPool").classList.toggle("active", currentSport === 'pool');
+      document.getElementById("tabGolf").classList.toggle("active", currentSport === 'golf');
+      document.getElementById("tabBaseball").classList.toggle("active", currentSport === 'baseball');
 
-      document.getElementById("timerLabel").style.display = (sport === 'basketball' || sport === 'baseball') ? "inline" : "none";
+      document.getElementById("timerLabel").style.display = (currentSport === 'basketball' || currentSport === 'baseball') ? "inline" : "none";
       sportAimAngle = 0;
       initSportScene();
     }
@@ -886,6 +893,13 @@
             sportCtx.beginPath(); sportCtx.arc(rimX, 76, 14, 0, Math.PI * 2); sportCtx.fill();
           }
 
+          // Render Marcus Prime Sprite as Basketball Shooter
+          if (ASSETS.marcus.complete && ASSETS.marcus.naturalWidth > 0) {
+            sportCtx.drawImage(ASSETS.marcus, 55, 95, 52, 68);
+          } else {
+            sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(65, 110, 24, 50);
+          }
+
           if (bbBall.active) {
             bbBall.x += bbBall.vx; bbBall.y += bbBall.vy; bbBall.vy += 0.45;
             if (bbBall.x > rimX - 15 && bbBall.x < rimX + 15 && bbBall.y > 70 && bbBall.y < 86 && bbBall.vy > 0 && sportTimer > 0) {
@@ -911,6 +925,17 @@
         } else if (currentSport === 'pool') {
           sportCtx.fillStyle = "#291605"; sportCtx.fillRect(90, 5, 360, 220);
           sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(105, 18, 330, 194);
+
+          // Render Rhodes Family Legacy Golden Tree & Double Helix Emblem in Center of Pool Table
+          sportCtx.save();
+          sportCtx.globalAlpha = 0.35;
+          if (treeSprite.complete && treeSprite.naturalWidth > 0) {
+            sportCtx.drawImage(treeSprite, 220, 60, 100, 110);
+          }
+          sportCtx.restore();
+
+          sportCtx.fillStyle = "rgba(212, 175, 55, 0.85)"; sportCtx.font = "bold 8px sans-serif"; sportCtx.textAlign = "center";
+          sportCtx.fillText("RHODES FAMILY LEGACY", 270, 180);
 
           let pockets = [
             {x: 115, y: 28}, {x: 270, y: 22}, {x: 425, y: 28}, 
@@ -997,7 +1022,7 @@
           });
 
           sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "9px monospace";
-          sportCtx.fillText(`POOL BREAK (${poolMode.toUpperCase()}) | SCORE: ${sportScore}`, 115, 222);
+          sportCtx.fillText(`POOL (${poolMode.toUpperCase()}) | SCORE: ${sportScore}`, 115, 222);
 
         } else if (currentSport === 'golf') {
           sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(0, 0, sportCanvas.width, 70);
@@ -1028,37 +1053,59 @@
           sportCtx.fillText(`STROKES: ${golfStrokeCount} | SCORE: ${sportScore}`, 20, 45);
 
         } else if (currentSport === 'baseball') {
-          // --- REALISTIC BASEBALL DIAMOND DERBY WITH GOLDEN TREE & DOUBLE HELIX ---
+          // --- AUTHENTIC BASEBALL DIAMOND OVERHAUL ---
           sportCtx.fillStyle = "#090d16"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
           
-          // Realistic Infield & Outfield Grass
-          sportCtx.fillStyle = "#15803d"; sportCtx.fillRect(0, 50, sportCanvas.width, 180);
-          sportCtx.fillStyle = "#78350f"; // Dirt Infield
+          // Outfield Grass
+          sportCtx.fillStyle = "#15803d"; sportCtx.fillRect(0, 40, sportCanvas.width, 190);
+          
+          // Infield Dirt Diamond (Rotated Square)
+          sportCtx.fillStyle = "#78350f";
           sportCtx.beginPath();
-          sportCtx.moveTo(270, 190); sportCtx.lineTo(200, 130); sportCtx.lineTo(270, 70); sportCtx.lineTo(340, 130);
+          sportCtx.moveTo(270, 65);   // 2nd Base
+          sportCtx.lineTo(380, 135);  // 1st Base
+          sportCtx.lineTo(270, 200);  // Home Plate area
+          sportCtx.lineTo(160, 135);  // 3rd Base
           sportCtx.closePath(); sportCtx.fill();
 
           // Infield Grass Diamond
           sportCtx.fillStyle = "#16a34a";
           sportCtx.beginPath();
-          sportCtx.moveTo(270, 180); sportCtx.lineTo(215, 130); sportCtx.lineTo(270, 80); sportCtx.lineTo(325, 130);
-            sportCtx.closePath(); sportCtx.fill();
+          sportCtx.moveTo(270, 80);
+          sportCtx.lineTo(355, 135);
+          sportCtx.lineTo(270, 185);
+          sportCtx.lineTo(185, 135);
+          sportCtx.closePath(); sportCtx.fill();
 
-          // Render Majestic Golden Tree with Double Helix in Center Field
+          // Pitcher's Mound & Home Plate
+          sportCtx.fillStyle = "#78350f"; sportCtx.beginPath(); sportCtx.arc(270, 135, 16, 0, Math.PI * 2); sportCtx.fill();
+          sportCtx.fillStyle = "#ffffff"; sportCtx.beginPath(); sportCtx.arc(270, 135, 6, 0, Math.PI * 2); sportCtx.fill();
+
+          // Home Plate Batter's Boxes
+          sportCtx.fillStyle = "#f8fafc"; sportCtx.fillRect(258, 192, 24, 12);
+
+          // Render Golden Tree & Double Helix in Center Field Backdrop
           sportCtx.save();
-          sportCtx.globalAlpha = 0.55;
+          sportCtx.globalAlpha = 0.5;
           if (treeSprite.complete && treeSprite.naturalWidth > 0) {
-            sportCtx.drawImage(treeSprite, 215, 22, 110, 105);
+            sportCtx.drawImage(treeSprite, 225, 45, 90, 85);
           }
           sportCtx.restore();
 
           sportCtx.fillStyle = "rgba(212, 175, 55, 0.95)";
-          sportCtx.font = "bold 9px sans-serif"; sportCtx.textAlign = "center";
-          sportCtx.fillText("★ RHODES FAMILY LEGACY: THE LIVING GENETIC CODEX ★", 270, 18);
+          sportCtx.font = "bold 8.5px sans-serif"; sportCtx.textAlign = "center";
+          sportCtx.fillText("★ RHODES FAMILY LEGACY: THE LIVING GENETIC CODEX ★", 270, 14);
+
+          // Render Hitter at Plate
+          if (ASSETS.kofi && ASSETS.kofi.complete && ASSETS.kofi.naturalWidth > 0) {
+            sportCtx.drawImage(ASSETS.kofi, 230, 160, 36, 50);
+          } else {
+            sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(240, 165, 18, 40);
+          }
 
           if (incomingPitch && incomingPitch.active) {
             incomingPitch.x += incomingPitch.vx;
-            sportCtx.fillStyle = "#e2e8f0"; sportCtx.beginPath(); sportCtx.arc(incomingPitch.x, incomingPitch.y, 6, 0, Math.PI * 2); sportCtx.fill();
+            sportCtx.fillStyle = "#e2e8f0"; sportCtx.beginPath(); sportCtx.arc(incomingPitch.x, incomingPitch.y, 5, 0, Math.PI * 2); sportCtx.fill();
             if (incomingPitch.x < 80) {
               incomingPitch.active = false;
               pitchesRemaining--;
@@ -1069,11 +1116,11 @@
 
           if (hitBallProj && hitBallProj.active) {
             hitBallProj.x += hitBallProj.vx; hitBallProj.y += hitBallProj.vy; hitBallProj.vy += 0.3;
-            sportCtx.fillStyle = "#facc15"; sportCtx.beginPath(); sportCtx.arc(hitBallProj.x, hitBallProj.y, 8, 0, Math.PI * 2); sportCtx.fill();
+            sportCtx.fillStyle = "#facc15"; sportCtx.beginPath(); sportCtx.arc(hitBallProj.x, hitBallProj.y, 7, 0, Math.PI * 2); sportCtx.fill();
           }
 
-          sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "bold 11px monospace"; sportCtx.textAlign = "left";
-          sportCtx.fillText(`HOME RUNS: ${homeRunsCount} | PITCHES LEFT: ${pitchesRemaining} | SCORE: ${sportScore}`, 20, 215);
+          sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "bold 10px monospace"; sportCtx.textAlign = "left";
+          sportCtx.fillText(`HOME RUNS: ${homeRunsCount} | PITCHES LEFT: ${pitchesRemaining} | SCORE: ${sportScore}`, 20, 218);
         }
       }
       sportAnimId = requestAnimationFrame(renderSportLoop);
