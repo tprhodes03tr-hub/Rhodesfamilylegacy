@@ -261,7 +261,7 @@
       <div class="hud-header">
         <div class="hud-top-row">
           <span id="heroNameLabel" class="hero-title">Marcus Prime (Lead) & Xochitl (AI)</span>
-          <span id="waveDisplay" class="wave-badge">Chapter 1 • Detroit 313 Skyline</span>
+          <span id="waveDisplay" class="wave-badge">Chapter 1 • Detroit Skyline 313</span>
         </div>
         <div class="bars-container">
           <div class="bar-group">
@@ -279,7 +279,7 @@
         <canvas id="gameCanvas" width="540" height="280"></canvas>
       </div>
 
-      <div class="combat-log" id="combatLog">Chapter 1 Detroit Skyline Active: Searchlight helicopter, Chrono-Lock boss, and all comic powers enabled!</div>
+      <div class="combat-log" id="combatLog">Detroit Skyline Active: Police chopper, Chrono-Lock boss, and comic powers enabled!</div>
 
       <div class="controls-grid">
         <div class="dpad-cluster">
@@ -302,7 +302,7 @@
     <div class="brawler-wrapper" id="sportsView" style="display: none;">
       <div class="sport-tabs">
         <button class="sport-tab active" id="tabBasketball" onclick="switchSport('basketball')">🏀 BASKETBALL</button>
-        <button class="sport-tab" id="tabPool" onclick="switchSport('pool')">🎱 POOL BREAK</button>
+        <button class="sport-tab" id="tabPool" onclick="switchSport('pool')">🎱 POOL (AI/2P)</button>
         <button class="sport-tab" id="tabGolf" onclick="switchSport('golf')">⛳ HILLSIDE GOLF</button>
         <button class="sport-tab" id="tabBaseball" onclick="switchSport('baseball')">⚾ HOME RUN DERBY</button>
       </div>
@@ -317,7 +317,7 @@
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Marcus on Basketball, Amina Zazzau on Golf, Pool Break with Cue Stick, and Baseball Derby with Bat & Golden Tree!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge: Basketball, Pool Break (Solo/AI/2P), Hillside Golf, and Realistic Baseball Diamond Derby!</div>
       <div style="display: flex; gap: 6px; margin-top: 6px;">
         <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ AIM / PADDLE</button>
         <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
@@ -392,13 +392,12 @@
     let rosterIdx = 0;
     let activeLead = "marcus";
     let leadX = 90, leadY = 0, leadVy = 0, isGrounded = true;
-    let aiPartner = { x: 35 };
     let playerHp = 100, isShieldActive = false;
 
     let xochitlFlight = { active: false, state: 'INACTIVE', x: 0, y: 0, timer: 0 };
     let sundiataShockwave = { active: false, x: 0, radius: 0, alpha: 1.0 };
     let luettaAscent = { active: false, y: 280, timer: 0 };
-    let tsunamis = [], daggers = [], projectiles = [], lightningStrikes = [];
+    let tsunamis = [], projectiles = [], lightningStrikes = [];
     let enemies = [];
     let currentWave = 1, gameActive = true;
     let chopperX = -80;
@@ -686,6 +685,7 @@
     // --- SPORTS LOUNGE ENGINE ---
     let sportCanvas, sportCtx;
     let currentSport = 'basketball';
+    let poolMode = 'solo'; // 'solo' or 'ai' or '2p'
     let sportScore = 0, sportME = 0;
     let sportAnimId = null;
     let chargePower = 0;
@@ -865,18 +865,9 @@
           }
           sportCtx.restore();
 
-          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(0, 20, sportCanvas.width, 30);
-          for (let i = 0; i < 20; i++) {
-            let cx = 15 + (i * 27);
-            let cy = 30 + Math.sin(Date.now() / 200 + i) * 3;
-            sportCtx.fillStyle = i % 2 === 0 ? "#38bdf8" : "#f59e0b";
-            sportCtx.beginPath(); sportCtx.arc(cx, cy, 5, 0, Math.PI * 2); sportCtx.fill();
-            sportCtx.fillStyle = "#475569"; sportCtx.fillRect(cx - 6, cy + 5, 12, 10);
-          }
-
           sportCtx.save();
           sportCtx.fillStyle = "rgba(212, 175, 55, 0.9)"; sportCtx.font = "bold 11px sans-serif"; sportCtx.textAlign = "center";
-          sportCtx.fillText("ROADS FAMILY LEGACY • THE LIVING CODEX", 270, 148);
+          sportCtx.fillText("RHODES FAMILY LEGACY • THE LIVING CODEX", 270, 148);
           sportCtx.restore();
 
           sportCtx.fillStyle = "#1e3a8a"; sportCtx.fillRect(0, 160, sportCanvas.width, 70);
@@ -893,13 +884,6 @@
           if (consecutiveBaskets >= 3) {
             sportCtx.fillStyle = "#f97316";
             sportCtx.beginPath(); sportCtx.arc(rimX, 76, 14, 0, Math.PI * 2); sportCtx.fill();
-          }
-
-          // Render Marcus Prime Sprite for Basketball
-          if (ASSETS.marcus.complete && ASSETS.marcus.naturalWidth > 0) {
-            sportCtx.drawImage(ASSETS.marcus, 55, 100, 52, 68);
-          } else {
-            sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(65, 110, 24, 50);
           }
 
           if (bbBall.active) {
@@ -993,7 +977,6 @@
           sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 110, cueBall.y + aimDirY * 110); sportCtx.stroke();
           sportCtx.setLineDash([]);
 
-          // Render Pool Cue Stick
           if (!cueBall.active) {
             let pullBack = (chargePower * 0.5);
             sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 6;
@@ -1014,7 +997,7 @@
           });
 
           sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "9px monospace";
-          sportCtx.fillText(`POOL BREAK | SCORE: ${sportScore}`, 115, 222);
+          sportCtx.fillText(`POOL BREAK (${poolMode.toUpperCase()}) | SCORE: ${sportScore}`, 115, 222);
 
         } else if (currentSport === 'golf') {
           sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(0, 0, sportCanvas.width, 70);
@@ -1024,13 +1007,6 @@
           sportCtx.fillStyle = "#000"; sportCtx.beginPath(); sportCtx.arc(golfHole.x, golfHole.y, golfHole.radius, 0, Math.PI * 2); sportCtx.fill();
           sportCtx.strokeStyle = "#fff"; sportCtx.lineWidth = 2.5; sportCtx.beginPath(); sportCtx.moveTo(golfHole.x, golfHole.y); sportCtx.lineTo(golfHole.x, golfHole.y - 45); sportCtx.stroke();
           sportCtx.fillStyle = "#ef4444"; sportCtx.beginPath(); sportCtx.moveTo(golfHole.x, golfHole.y - 45); sportCtx.lineTo(golfHole.x + 16, golfHole.y - 35); sportCtx.lineTo(golfHole.x, golfHole.y - 25); sportCtx.fill();
-
-          // Render Amina Zazzau Sprite on Golf Course
-          if (ASSETS.amina.complete && ASSETS.amina.naturalWidth > 0) {
-            sportCtx.drawImage(ASSETS.amina, golfBall.x - 30, 95, 45, 65);
-          } else {
-            sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(golfBall.x - 15, 115, 14, 40);
-          }
 
           if (golfBall.active) {
             golfBall.x += golfBall.vx; golfBall.y += golfBall.vy;
@@ -1052,31 +1028,33 @@
           sportCtx.fillText(`STROKES: ${golfStrokeCount} | SCORE: ${sportScore}`, 20, 45);
 
         } else if (currentSport === 'baseball') {
-          // --- BASEBALL HOME RUN DERBY WITH BAT & GOLDEN TREE ---
+          // --- REALISTIC BASEBALL DIAMOND DERBY WITH GOLDEN TREE & DOUBLE HELIX ---
           sportCtx.fillStyle = "#090d16"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
-          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(30, 30, 480, 160);
-          sportCtx.fillStyle = "#166534"; sportCtx.fillRect(45, 45, 450, 130);
+          
+          // Realistic Infield & Outfield Grass
+          sportCtx.fillStyle = "#15803d"; sportCtx.fillRect(0, 50, sportCanvas.width, 180);
+          sportCtx.fillStyle = "#78350f"; // Dirt Infield
+          sportCtx.beginPath();
+          sportCtx.moveTo(270, 190); sportCtx.lineTo(200, 130); sportCtx.lineTo(270, 70); sportCtx.lineTo(340, 130);
+          sportCtx.closePath(); sportCtx.fill();
 
+          // Infield Grass Diamond
+          sportCtx.fillStyle = "#16a34a";
+          sportCtx.beginPath();
+          sportCtx.moveTo(270, 180); sportCtx.lineTo(215, 130); sportCtx.lineTo(270, 80); sportCtx.lineTo(325, 130);
+            sportCtx.closePath(); sportCtx.fill();
+
+          // Render Majestic Golden Tree with Double Helix in Center Field
           sportCtx.save();
-          sportCtx.globalAlpha = 0.4;
+          sportCtx.globalAlpha = 0.55;
           if (treeSprite.complete && treeSprite.naturalWidth > 0) {
-            sportCtx.drawImage(treeSprite, 220, 48, 105, 115);
+            sportCtx.drawImage(treeSprite, 215, 22, 110, 105);
           }
           sportCtx.restore();
 
-          sportCtx.fillStyle = "rgba(212, 175, 55, 0.9)";
+          sportCtx.fillStyle = "rgba(212, 175, 55, 0.95)";
           sportCtx.font = "bold 9px sans-serif"; sportCtx.textAlign = "center";
-          sportCtx.fillText("★ RHODES FAMILY LEGACY: THE LIVING GENETIC CODEX ★", 270, 38);
-
-          // Render Hitter with Bat (Kofi / Batter Sprite)
-          if (ASSETS.kofi && ASSETS.kofi.complete && ASSETS.kofi.naturalWidth > 0) {
-            sportCtx.drawImage(ASSETS.kofi, bbHitter.x, bbHitter.y - 35, 45, 60);
-            // Render Baseball Bat
-            sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 4;
-            sportCtx.beginPath(); sportCtx.moveTo(bbHitter.x + 30, bbHitter.y + 5); sportCtx.lineTo(bbHitter.x + 52, bbHitter.y - 18); sportCtx.stroke();
-          } else {
-            sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(bbHitter.x, bbHitter.y, 20, 45);
-          }
+          sportCtx.fillText("★ RHODES FAMILY LEGACY: THE LIVING GENETIC CODEX ★", 270, 18);
 
           if (incomingPitch && incomingPitch.active) {
             incomingPitch.x += incomingPitch.vx;
@@ -1095,7 +1073,7 @@
           }
 
           sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "bold 11px monospace"; sportCtx.textAlign = "left";
-          sportCtx.fillText(`HOME RUNS: ${homeRunsCount} | PITCHES LEFT: ${pitchesRemaining} | SCORE: ${sportScore}`, 45, 200);
+          sportCtx.fillText(`HOME RUNS: ${homeRunsCount} | PITCHES LEFT: ${pitchesRemaining} | SCORE: ${sportScore}`, 20, 215);
         }
       }
       sportAnimId = requestAnimationFrame(renderSportLoop);
