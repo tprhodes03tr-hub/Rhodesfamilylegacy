@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Vanguard Universe: Unified Combat Portal & Class-A Sports Lounge</title>
+  <!-- PeerJS CDN for Real-Time P2P Multiplayer & Lobby Management -->
+  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <style>
     :root {
       --bg-dark: #07090e;
@@ -304,7 +306,7 @@
         <button class="sport-tab active" id="tabBasketball" onclick="selectSportTab('basketball')">🏀 BASKETBALL</button>
         <button class="sport-tab" id="tabPool" onclick="selectSportTab('pool')">🎱 POOL BREAK</button>
         <button class="sport-tab" id="tabGolf" onclick="selectSportTab('golf')">⛳ HILLSIDE GOLF</button>
-        <button class="sport-tab" id="tabBaseball" onclick="selectSportTab('baseball')">⚾ HOME RUN DERBY</button>
+        <button class="sport-tab" id="tabDominoes" onclick="selectSportTab('dominoes')">🀄 DOMINOES</button>
       </div>
 
       <div class="canvas-container">
@@ -317,11 +319,11 @@
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge Active: Marcus Prime Basketball, Rhodes Family Legacy Pool Table, Golf & Baseball Derby!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge Active: Basketball, Pool, Golf & Rhodes Family Dominoes Table!</div>
       <div style="display: flex; gap: 6px; margin-top: 6px;">
-        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ AIM / PADDLE</button>
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(-1)">◄ AIM / SELECT</button>
         <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onmousedown="startPowerCharge()" ontouchstart="startPowerCharge()" onmouseup="releasePowerCharge()" ontouchend="releasePowerCharge()">HOLD & RELEASE SHOT</button>
-        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(1)">AIM / PADDLE ►</button>
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="adjustSportAim(1)">AIM / SELECT ►</button>
       </div>
       <button class="btn btn-action" style="width: 100%; margin-top: 6px; min-height: 36px; background: #1e293b; color: #facc15;" onclick="restartSportGame()">🔄 RESTART SPORT GAME</button>
     </div>
@@ -682,7 +684,7 @@
       animationFrameId = requestAnimationFrame(renderBrawler);
     }
 
-    // --- SPORTS LOUNGE ENGINE ---
+    // --- SPORTS & DOMINOES LOUNGE ENGINE ---
     let sportCanvas, sportCtx;
     let currentSport = 'basketball';
     let sportScore = 0, sportME = 0;
@@ -696,7 +698,6 @@
     let backboardOffset = 0;
 
     let bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
-
     let cueBall = { x: 270, y: 180, vx: 0, vy: 0, radius: 8, active: false };
     let targetBalls = [];
 
@@ -706,27 +707,34 @@
     let selectedClub = 'driver';
     let windSpeed = 2.5;
 
-    let incomingPitch = null;
-    let homeRunsCount = 0;
-    let pitchesRemaining = 10;
-    let hitBallProj = null;
+    // Dominoes state
+    let dominoTiles = [
+      {top: 6, bottom: 6, x: 230, y: 110, placed: true},
+      {top: 6, bottom: 4, x: 270, y: 110, placed: true},
+      {top: 4, bottom: 2, x: 310, y: 110, placed: true}
+    ];
+    let playerHand = [{top: 5, bottom: 5}, {top: 4, bottom: 3}, {top: 6, bottom: 1}];
+    let selectedDominoIdx = 0;
 
     function selectSportTab(sport) {
       currentSport = sport;
       document.getElementById("tabBasketball").classList.toggle("active", sport === 'basketball');
       document.getElementById("tabPool").classList.toggle("active", sport === 'pool');
       document.getElementById("tabGolf").classList.toggle("active", sport === 'golf');
-      document.getElementById("tabBaseball").classList.toggle("active", sport === 'baseball');
+      document.getElementById("tabDominoes").classList.toggle("active", sport === 'dominoes');
 
-      document.getElementById("timerLabel").style.display = (sport === 'basketball' || sport === 'baseball') ? "inline" : "none";
+      document.getElementById("timerLabel").style.display = (sport === 'basketball') ? "inline" : "none";
       sportAimAngle = 0;
       initSportScene();
     }
 
     function restartSportGame() {
       if (currentSport === 'golf') { golfHoleNum = 1; golfShotCount = 1; }
-      if (currentSport === 'baseball') { homeRunsCount = 0; pitchesRemaining = 10; }
       if (currentSport === 'pool') { resetFullPoolRack(); }
+      if (currentSport === 'dominoes') { 
+        dominoTiles = [{top: 6, bottom: 6, x: 230, y: 110, placed: true}];
+        playerHand = [{top: 6, bottom: 4}, {top: 5, bottom: 2}, {top: 3, bottom: 3}];
+      }
       initSportScene();
       document.getElementById("sportLog").innerText = "Game restarted! Ready for action.";
     }
@@ -754,8 +762,6 @@
         resetFullPoolRack();
       } else if (currentSport === 'golf') {
         setupGolfHole(golfHoleNum, 1);
-      } else if (currentSport === 'baseball') {
-        spawnNewPitch();
       }
       if (!sportAnimId) renderSportLoop();
     }
@@ -787,17 +793,13 @@
       }
     }
 
-    function spawnNewPitch() {
-      if (pitchesRemaining <= 0) return;
-      incomingPitch = { x: 440, y: 165, vx: -3.8 - Math.random() * 2, vy: 0, active: true };
-      hitBallProj = null;
-    }
-
     function adjustSportAim(dir) {
       if (currentSport === 'basketball') sportAimAngle = Math.max(-0.4, Math.min(0.4, sportAimAngle + (dir * 0.05)));
       else if (currentSport === 'pool') sportAimAngle = (sportAimAngle + (dir * 0.1)) % (Math.PI * 2);
       else if (currentSport === 'golf') sportAimAngle = Math.max(-0.6, Math.min(0.6, sportAimAngle + (dir * 0.06)));
-      else if (currentSport === 'baseball') sportAimAngle = Math.max(-1.0, Math.min(1.0, sportAimAngle + (dir * 0.15)));
+      else if (currentSport === 'dominoes') {
+        selectedDominoIdx = (selectedDominoIdx + dir + playerHand.length) % playerHand.length;
+      }
     }
 
     function startPowerCharge() {
@@ -828,22 +830,20 @@
         golfBall.vx = (power * multiplier) * Math.cos(sportAimAngle) + windSpeed * 0.2;
         golfBall.vy = (power * multiplier) * Math.sin(sportAimAngle);
         golfBall.active = true;
-      } else if (currentSport === 'baseball' && incomingPitch && incomingPitch.active) {
-        let timingAccuracy = Math.abs(incomingPitch.x - 130);
-        if (timingAccuracy < 40) {
-          hitBallProj = { x: 120, y: 165, vx: (power * 0.4), vy: -6 - (sportAimAngle * 8), active: true };
-          incomingPitch.active = false;
-          homeRunsCount++;
-          sportScore += 100; sportME += 25;
+      } else if (currentSport === 'dominoes') {
+        let played = playerHand.splice(selectedDominoIdx, 1)[0];
+        if (played) {
+          dominoTiles.push({ top: played.top, bottom: played.bottom, x: 170 + (dominoTiles.length * 35), y: 110, placed: true });
+          sportScore += 50; sportME += 15;
           playChingSound();
           updateSportStats();
-          document.getElementById("sportLog").innerText = `💥 HOME RUN! Cleared the Rhodes Family Legacy Tree! (${homeRunsCount} HRs)`;
-        } else {
-          document.getElementById("sportLog").innerText = `❌ SWING AND A MISS!`;
-          incomingPitch.active = false;
+          document.getElementById("sportLog").innerText = `🀄 Domino played successfully! (+50 pts)`;
+          if (playerHand.length === 0) {
+            document.getElementById("sportLog").innerText = `🎉 DOMINO! Round won! (+200 pts bonus)`;
+            sportScore += 200; sportME += 50;
+            playerHand = [{top: Math.floor(Math.random()*7), bottom: Math.floor(Math.random()*7)}, {top: Math.floor(Math.random()*7), bottom: Math.floor(Math.random()*7)}];
+          }
         }
-        pitchesRemaining--;
-        setTimeout(() => { if (pitchesRemaining > 0) spawnNewPitch(); }, 1200);
       }
       chargePower = 0;
     }
@@ -892,7 +892,6 @@
 
           if (bbBall.active) {
             bbBall.x += bbBall.vx; bbBall.y += bbBall.vy; bbBall.vy += 0.45;
-            // Backboard collision check
             if (bbBall.x >= boardX && bbBall.x <= boardX + 12 && bbBall.y >= 28 && bbBall.y <= 110) {
               bbBall.vx *= -0.7;
               bbBall.x = boardX - 10;
@@ -929,7 +928,7 @@
           sportCtx.restore();
 
           sportCtx.fillStyle = "rgba(212, 175, 55, 0.85)"; sportCtx.font = "bold 8px sans-serif"; sportCtx.textAlign = "center";
-          sportCtx.fillText("RHODES FAMILY LEGACY", 270, 180);
+          sportCtx.fillText("RHODES FAMILY LEGACY • DOUBLE HELIX", 270, 180);
 
           let pockets = [
             {x: 115, y: 28}, {x: 270, y: 22}, {x: 425, y: 28}, 
@@ -996,15 +995,6 @@
           sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 110, cueBall.y + aimDirY * 110); sportCtx.stroke();
           sportCtx.setLineDash([]);
 
-          if (!cueBall.active) {
-            let pullBack = (chargePower * 0.5);
-            sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 6;
-            sportCtx.beginPath();
-            sportCtx.moveTo(cueBall.x - (aimDirX * (10 + pullBack)), cueBall.y - (aimDirY * (10 + pullBack)));
-            sportCtx.lineTo(cueBall.x - (aimDirX * 130), cueBall.y - (aimDirY * 130));
-            sportCtx.stroke();
-          }
-
           sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(cueBall.x, cueBall.y, cueBall.radius, 0, Math.PI * 2); sportCtx.fill();
 
           targetBalls.forEach(tb => {
@@ -1015,9 +1005,6 @@
             }
           });
 
-          sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "9px monospace";
-          sportCtx.fillText(`POOL BREAK | SCORE: ${sportScore}`, 115, 222);
-
         } else if (currentSport === 'golf') {
           sportCtx.fillStyle = "#38bdf8"; sportCtx.fillRect(0, 0, sportCanvas.width, 70);
           sportCtx.fillStyle = "#15803d"; sportCtx.fillRect(0, 70, sportCanvas.width, 160);
@@ -1027,7 +1014,6 @@
           sportCtx.strokeStyle = "#fff"; sportCtx.lineWidth = 2.5; sportCtx.beginPath(); sportCtx.moveTo(golfHole.x, golfHole.y); sportCtx.lineTo(golfHole.x, golfHole.y - 45); sportCtx.stroke();
           sportCtx.fillStyle = "#ef4444"; sportCtx.beginPath(); sportCtx.moveTo(golfHole.x, golfHole.y - 45); sportCtx.lineTo(golfHole.x + 16, golfHole.y - 35); sportCtx.lineTo(golfHole.x, golfHole.y - 25); sportCtx.fill();
 
-          // Render Amina Zazzau Character Sprite on Golf Course
           if (ASSETS.amina.complete && ASSETS.amina.naturalWidth > 0) {
             sportCtx.drawImage(ASSETS.amina, golfBall.x - 25, 95, 45, 65);
           } else {
@@ -1047,56 +1033,56 @@
 
           sportCtx.fillStyle = "#f8fafc"; sportCtx.beginPath(); sportCtx.arc(golfBall.x, golfBall.y, 5.5, 0, Math.PI * 2); sportCtx.fill();
 
-          sportCtx.fillStyle = "#020617"; sportCtx.fillRect(15, 15, 180, 42);
-          sportCtx.strokeStyle = "#38bdf8"; sportCtx.strokeRect(15, 15, 180, 42);
-          sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "8.5px monospace";
-          sportCtx.fillText(`HOLE ${golfHoleNum} | CLUB: ${selectedClub.toUpperCase()} | WIND: ${windSpeed > 0 ? '➔' : '⬅'} ${Math.abs(windSpeed).toFixed(1)}`, 20, 30);
-          sportCtx.fillText(`STROKES: ${golfStrokeCount} | SCORE: ${sportScore}`, 20, 45);
-
-        } else if (currentSport === 'baseball') {
-          // --- BASEBALL HOME RUN DERBY WITH BAT & GOLDEN TREE ---
-          sportCtx.fillStyle = "#090d16"; sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
-          sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(30, 30, 480, 160);
-          sportCtx.fillStyle = "#166534"; sportCtx.fillRect(45, 45, 450, 130);
+        } else if (currentSport === 'dominoes') {
+          // --- DOMINOES TABLE WITH GOLDEN TREE & DOUBLE HELIX ---
+          sportCtx.fillStyle = "#291605"; sportCtx.fillRect(50, 10, 440, 210);
+          sportCtx.fillStyle = "#0f172a"; sportCtx.fillRect(65, 22, 410, 186);
 
           sportCtx.save();
-          sportCtx.globalAlpha = 0.4;
+          sportCtx.globalAlpha = 0.35;
           if (treeSprite.complete && treeSprite.naturalWidth > 0) {
-            sportCtx.drawImage(treeSprite, 220, 48, 105, 115);
+            sportCtx.drawImage(treeSprite, 180, 40, 180, 140);
           }
           sportCtx.restore();
 
           sportCtx.fillStyle = "rgba(212, 175, 55, 0.9)";
-          sportCtx.font = "bold 9px sans-serif"; sportCtx.textAlign = "center";
-          sportCtx.fillText("★ RHODES FAMILY LEGACY: THE LIVING GENETIC CODEX ★", 270, 38);
+          sportCtx.font = "bold 10px sans-serif"; sportCtx.textAlign = "center";
+          sportCtx.fillText("🀄 RHODES FAMILY LEGACY • DOMINOES TABLE 🀄", 270, 42);
 
-          // Render Hitter with Bat
-          if (ASSETS.kofi && ASSETS.kofi.complete && ASSETS.kofi.naturalWidth > 0) {
-            sportCtx.drawImage(ASSETS.kofi, 90, 130, 45, 60);
-            sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 4;
-            sportCtx.beginPath(); sportCtx.moveTo(120, 155); sportCtx.lineTo(142, 130); sportCtx.stroke();
-          } else {
-            sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(95, 140, 20, 45);
-          }
+          // Render Placed Dominoes
+          dominoTiles.forEach((dt, idx) => {
+            sportCtx.fillStyle = "#f8fafc";
+            sportCtx.fillRect(dt.x, dt.y, 30, 50);
+            sportCtx.strokeStyle = "#0f172a"; sportCtx.lineWidth = 2;
+            sportCtx.strokeRect(dt.x, dt.y, 30, 50);
+            sportCtx.beginPath(); sportCtx.moveTo(dt.x, dt.y + 25); sportCtx.lineTo(dt.x + 30, dt.y + 25); sportCtx.stroke();
 
-          if (incomingPitch && incomingPitch.active) {
-            incomingPitch.x += incomingPitch.vx;
-            sportCtx.fillStyle = "#e2e8f0"; sportCtx.beginPath(); sportCtx.arc(incomingPitch.x, incomingPitch.y, 6, 0, Math.PI * 2); sportCtx.fill();
-            if (incomingPitch.x < 50) {
-              incomingPitch.active = false;
-              pitchesRemaining--;
-              document.getElementById("sportLog").innerText = `⚠️ PITCH PASSED! (${pitchesRemaining} left)`;
-              setTimeout(() => { if (pitchesRemaining > 0) spawnNewPitch(); }, 800);
-            }
-          }
+            // Draw pips roughly
+            sportCtx.fillStyle = "#000";
+            sportCtx.font = "11px monospace";
+            sportCtx.fillText(dt.top, dt.x + 10, dt.y + 17);
+            sportCtx.fillText(dt.bottom, dt.x + 10, dt.y + 42);
+          });
 
-          if (hitBallProj && hitBallProj.active) {
-            hitBallProj.x += hitBallProj.vx; hitBallProj.y += hitBallProj.vy; hitBallProj.vy += 0.3;
-            sportCtx.fillStyle = "#facc15"; sportCtx.beginPath(); sportCtx.arc(hitBallProj.x, hitBallProj.y, 8, 0, Math.PI * 2); sportCtx.fill();
-          }
+          // Render Player Hand
+          sportCtx.fillStyle = "rgba(15, 23, 42, 0.9)";
+          sportCtx.fillRect(120, 175, 300, 42);
+          sportCtx.strokeStyle = "#d4af37"; sportCtx.strokeRect(120, 175, 300, 42);
 
-          sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "bold 11px monospace"; sportCtx.textAlign = "left";
-          sportCtx.fillText(`HOME RUNS: ${homeRunsCount} | PITCHES LEFT: ${pitchesRemaining} | SCORE: ${sportScore}`, 45, 200);
+          playerHand.forEach((tile, idx) => {
+            let hx = 135 + (idx * 60);
+            let hy = 181;
+            let isSelected = (idx === selectedDominoIdx);
+
+            sportCtx.fillStyle = isSelected ? "#fef08a" : "#f8fafc";
+            sportCtx.fillRect(hx, hy, 28, 32);
+            sportCtx.strokeStyle = isSelected ? "#d4af37" : "#000"; sportCtx.lineWidth = isSelected ? 3 : 1;
+            sportCtx.strokeRect(hx, hy, 28, 32);
+
+            sportCtx.fillStyle = "#000";
+            sportCtx.font = "bold 10px monospace";
+            sportCtx.fillText(`${tile.top}|${tile.bottom}`, hx + 4, hy + 20);
+          });
         }
       }
       sportAnimId = requestAnimationFrame(renderSportLoop);
