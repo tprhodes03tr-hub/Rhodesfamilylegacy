@@ -309,11 +309,11 @@
       <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge Active: Hold shoot button to charge power & release!</div>
       
       <div style="display: flex; gap: 6px; margin-top: 6px;">
-        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="sportLeftAction()">◄ AIM LEFT</button>
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="sportLeftAction()">◄ AIM / SELECT</button>
         <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" 
                 onmousedown="startChargingShot()" onmouseup="releaseChargingShot()" 
                 ontouchstart="startChargingShot()" ontouchend="releaseChargingShot()">HOLD & RELEASE SHOT</button>
-        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="sportRightAction()">AIM RIGHT ►</button>
+        <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="sportRightAction()">AIM / SELECT ►</button>
       </div>
 
       <button class="btn btn-action" style="width: 100%; margin-top: 6px; min-height: 36px; background: #1e293b; color: #facc15;" onclick="restartSportGame()">🔄 RESTART SPORT GAME</button>
@@ -583,20 +583,20 @@
     let powerDirection = 1;
 
     let bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
-    let cueBall = { x: 270, y: 185, vx: 0, vy: 0, radius: 8, active: false, potted: false };
+    let cueBall = { x: 270, y: 150, vx: 0, vy: 0, radius: 7, active: false, potted: false };
     let targetBalls = [];
 
     // Ping Pong state
     let ppPlayerY = 95, ppAIPadY = 95;
     let ppBall = { x: 270, y: 115, vx: 3.2, vy: 1.8, radius: 6 };
 
-    // Dominoes state
+    // Dominoes state (Rhodes Family Legacy Table)
     let dominoBoard = [
-      {top: 6, bottom: 6, x: 170, y: 85},
-      {top: 6, bottom: 4, x: 220, y: 85},
-      {top: 4, bottom: 2, x: 270, y: 85}
+      {top: 6, bottom: 6, x: 270, y: 115}
     ];
-    let playerHand = [{top: 5, bottom: 5}, {top: 4, bottom: 3}, {top: 6, bottom: 1}];
+    let playerHand = [
+      {top: 6, bottom: 4}, {top: 4, bottom: 2}, {top: 2, bottom: 5}, {top: 5, bottom: 3}
+    ];
     let selectedDominoIdx = 0;
 
     function selectSportTab(sport) {
@@ -609,7 +609,7 @@
       document.getElementById("timerLabel").style.display = (sport === 'basketball') ? "inline" : "none";
       
       if (sport === 'dominoes') {
-        document.getElementById("sportActionBtn").innerText = "PLAY DOMINO";
+        document.getElementById("sportActionBtn").innerText = "MATCH & PLAY TILE";
       } else if (sport === 'pingpong') {
         document.getElementById("sportActionBtn").innerText = "SERVE / HIT";
       } else if (sport === 'pool') {
@@ -625,8 +625,8 @@
       if (currentSport === 'pool') { resetFullPoolRack(); }
       if (currentSport === 'pingpong') { ppBall = { x: 270, y: 115, vx: 3.2, vy: 1.8, radius: 6 }; }
       if (currentSport === 'dominoes') { 
-        dominoBoard = [{top: 6, bottom: 6, x: 200, y: 85}];
-        playerHand = [{top: 6, bottom: 4}, {top: 4, bottom: 2}, {top: 2, bottom: 5}];
+        dominoBoard = [{top: 6, bottom: 6, x: 270, y: 115}];
+        playerHand = [{top: 6, bottom: 4}, {top: 4, bottom: 2}, {top: 2, bottom: 5}, {top: 5, bottom: 3}];
         selectedDominoIdx = 0;
       }
       if (currentSport === 'basketball') {
@@ -660,17 +660,17 @@
     }
 
     function resetFullPoolRack() {
-      cueBall = { x: 270, y: 185, vx: 0, vy: 0, radius: 8, active: false, potted: false };
+      cueBall = { x: 270, y: 180, vx: 0, vy: 0, radius: 7, active: false, potted: false };
       targetBalls = [];
-      let startX = 270, startY = 85;
+      let startX = 270, startY = 80;
       let colors = ["#f59e0b", "#1e1b4b", "#dc2626", "#7c3aed", "#f97316", "#0284c7", "#10b981", "#eab308", "#6366f1", "#ef4444", "#a855f7", "#38bdf8", "#84cc16", "#db2777", "#9333ea"];
       let index = 0;
       for (let row = 0; row < 5; row++) {
         for (let col = 0; col <= row; col++) {
           if (index < colors.length) {
-            let bx = startX + (col - row / 2) * 18;
-            let by = startY - (row * 15);
-            targetBalls.push({ x: bx, y: by, vx: 0, vy: 0, radius: 8, potted: false, num: index + 1, color: colors[index] });
+            let bx = startX + (col - row / 2) * 16;
+            let by = startY - (row * 14);
+            targetBalls.push({ x: bx, y: by, vx: 0, vy: 0, radius: 7, potted: false, num: index + 1, color: colors[index] });
             index++;
           }
         }
@@ -694,21 +694,41 @@
     function startChargingShot() {
       if (currentSport === 'basketball' && bbBall.active) return;
       if (currentSport === 'pool' && cueBall.active) return;
-      if (currentSport === 'pingpong' || currentSport === 'dominoes') return;
+      if (currentSport === 'pingpong') return;
+      if (currentSport === 'dominoes') {
+        playDominoTile();
+        return;
+      }
 
       isChargingPower = true;
       shotPower = 10;
       powerDirection = 1;
     }
 
+    function playDominoTile() {
+      if (playerHand.length === 0) return;
+      let played = playerHand.splice(selectedDominoIdx, 1)[0];
+      let lastTile = dominoBoard[dominoBoard.length - 1];
+      let nextX = lastTile.x + 40;
+      if (nextX > 480) nextX = 100;
+      dominoBoard.push({ top: played.top, bottom: played.bottom, x: nextX, y: 115 });
+      sportScore += 100; sportME += 25;
+      playChingSound();
+      updateSportStats();
+      if (selectedDominoIdx >= playerHand.length) selectedDominoIdx = Math.max(0, playerHand.length - 1);
+      if (playerHand.length === 0) {
+        sportScore += 300;
+        playerHand = [{top: 3, bottom: 3}, {top: 1, bottom: 4}, {top: 2, bottom: 6}, {top: 5, bottom: 5}];
+      }
+    }
+
     function releaseChargingShot() {
       if (!isChargingPower) return;
       isChargingPower = false;
 
-      let powerFactor = shotPower / 100; // 0.1 to 1.0 power scale
+      let powerFactor = shotPower / 100;
 
       if (currentSport === 'basketball' && !bbBall.active) {
-        // Balanced velocities that never overshoot with correct power
         bbBall.vx = (8.5 + (sportAimAngle * 6)) * (0.6 + 0.4 * powerFactor);
         bbBall.vy = (-10.5 * powerFactor) - 2.5;
         bbBall.active = true;
@@ -730,28 +750,18 @@
       if (currentSport === 'pingpong') {
         ppBall.vx *= -1.1;
         playChingSound();
-      } else if (currentSport === 'dominoes' && playerHand.length > 0) {
-        let played = playerHand.splice(selectedDominoIdx, 1)[0];
-        let lastTile = dominoBoard[dominoBoard.length - 1];
-        dominoBoard.push({ top: played.top, bottom: played.bottom, x: lastTile.x + 45, y: 85 });
-        sportScore += 100; sportME += 25;
-        playChingSound();
-        updateSportStats();
-        if (selectedDominoIdx >= playerHand.length) selectedDominoIdx = Math.max(0, playerHand.length - 1);
-        if (playerHand.length === 0) {
-          sportScore += 300;
-          playerHand = [{top: 3, bottom: 3}, {top: 1, bottom: 4}, {top: 2, bottom: 6}];
-        }
+      } else if (currentSport === 'dominoes') {
+        playDominoTile();
       }
     }
 
     function drawDominoPip(ctx, num, cx, cy) {
       ctx.fillStyle = "#000";
-      let r = 2.5;
+      let r = 2;
       let pips = {
-        0: [], 1: [[0, 0]], 2: [[-6, -6], [6, 6]], 3: [[-6, -6], [0, 0], [6, 6]],
-        4: [[-6, -6], [6, -6], [-6, 6], [6, 6]], 5: [[-6, -6], [6, -6], [0, 0], [-6, 6], [6, 6]],
-        6: [[-6, -7], [6, -7], [-6, 0], [6, 0], [-6, 7], [6, 7]]
+        0: [], 1: [[0, 0]], 2: [[-5, -5], [5, 5]], 3: [[-5, -5], [0, 0], [5, 5]],
+        4: [[-5, -5], [5, -5], [-5, 5], [5, 5]], 5: [[-5, -5], [5, -5], [0, 0], [-5, 5], [5, 5]],
+        6: [[-5, -6], [5, -6], [-5, 0], [5, 0], [-5, 6], [5, 6]]
       };
       (pips[num] || []).forEach(p => {
         ctx.beginPath(); ctx.arc(cx + p[0], cy + p[1], r, 0, Math.PI * 2); ctx.fill();
@@ -763,7 +773,6 @@
         sportCtx.fillStyle = "#020617";
         sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
 
-        // Update power meter if charging
         if (isChargingPower) {
           shotPower += powerDirection * 2.5;
           if (shotPower >= 100 || shotPower <= 10) powerDirection *= -1;
@@ -810,7 +819,6 @@
           sportCtx.fillStyle = "#f97316";
           sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
 
-          // Render Power Meter Overlay if charging
           if (isChargingPower) {
             sportCtx.fillStyle = "rgba(0,0,0,0.7)"; sportCtx.fillRect(170, 10, 200, 22);
             sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(172, 12, (shotPower / 100) * 196, 18);
@@ -819,27 +827,27 @@
           }
 
         } else if (currentSport === 'pool') {
-          sportCtx.fillStyle = "#291605"; sportCtx.fillRect(80, 10, 380, 210);
-          sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(95, 22, 350, 186);
+          sportCtx.fillStyle = "#291605"; sportCtx.fillRect(50, 10, 440, 210);
+          sportCtx.fillStyle = "#064e3b"; sportCtx.fillRect(65, 20, 410, 190);
 
           let pockets = [
-            {x: 105, y: 32}, {x: 270, y: 26}, {x: 435, y: 32},
-            {x: 105, y: 198}, {x: 270, y: 204}, {x: 435, y: 198}
+            {x: 75, y: 30}, {x: 270, y: 25}, {x: 465, y: 30},
+            {x: 75, y: 200}, {x: 270, y: 205}, {x: 465, y: 200}
           ];
           pockets.forEach(pk => {
             sportCtx.fillStyle = "#000";
-            sportCtx.beginPath(); sportCtx.arc(pk.x, pk.y, 12, 0, Math.PI * 2); sportCtx.fill();
+            sportCtx.beginPath(); sportCtx.arc(pk.x, pk.y, 11, 0, Math.PI * 2); sportCtx.fill();
           });
 
           sportCtx.save();
-          sportCtx.globalAlpha = 0.3;
+          sportCtx.globalAlpha = 0.25;
           if (treeSprite.complete && treeSprite.naturalWidth > 0) {
             sportCtx.drawImage(treeSprite, 205, 55, 130, 120);
           }
           sportCtx.restore();
 
           sportCtx.fillStyle = "rgba(212, 175, 55, 0.85)"; sportCtx.font = "bold 8px sans-serif"; sportCtx.textAlign = "center";
-          sportCtx.fillText("RHODES FAMILY LEGACY • DOUBLE HELIX", 270, 175);
+          sportCtx.fillText("RHODES FAMILY LEGACY • DOUBLE HELIX", 270, 180);
 
           let allBalls = [cueBall, ...targetBalls];
 
@@ -851,13 +859,13 @@
             if (Math.abs(b.vx) < 0.05) b.vx = 0;
             if (Math.abs(b.vy) < 0.05) b.vy = 0;
 
-            if (b.x - b.radius < 102 || b.x + b.radius > 438) b.vx *= -1;
-            if (b.y - b.radius < 32 || b.y + b.radius > 198) b.vy *= -1;
+            if (b.x - b.radius < 76 || b.x + b.radius > 464) b.vx *= -1;
+            if (b.y - b.radius < 31 || b.y + b.radius > 199) b.vy *= -1;
 
             pockets.forEach(pk => {
-              if (Math.hypot(b.x - pk.x, b.y - pk.y) < 14) {
+              if (Math.hypot(b.x - pk.x, b.y - pk.y) < 13) {
                 if (b === cueBall) {
-                  b.x = 270; b.y = 185; b.vx = 0; b.vy = 0; b.active = false;
+                  b.x = 270; b.y = 180; b.vx = 0; b.vy = 0; b.active = false;
                 } else {
                   b.potted = true;
                   sportScore += 25; sportME += 10;
@@ -950,47 +958,53 @@
           sportCtx.fillStyle = "#facc15"; sportCtx.beginPath(); sportCtx.arc(ppBall.x, ppBall.y, ppBall.radius, 0, Math.PI * 2); sportCtx.fill();
 
         } else if (currentSport === 'dominoes') {
-          sportCtx.fillStyle = "#291605"; sportCtx.fillRect(40, 10, 460, 210);
-          sportCtx.fillStyle = "#0f172a"; sportCtx.fillRect(55, 20, 430, 188);
+          // --- RHODES FAMILY LEGACY 3D DOMINOES TABLE ---
+          sportCtx.fillStyle = "#180c04"; sportCtx.fillRect(35, 10, 470, 210);
+          sportCtx.fillStyle = "#0f172a"; sportCtx.fillRect(50, 18, 440, 140);
 
+          // Center Emblem: Golden Tree & Double Helix
           sportCtx.save();
-          sportCtx.globalAlpha = 0.35;
+          sportCtx.globalAlpha = 0.25;
           if (treeSprite.complete && treeSprite.naturalWidth > 0) {
-            sportCtx.drawImage(treeSprite, 170, 35, 200, 140);
+            sportCtx.drawImage(treeSprite, 210, 32, 120, 110);
           }
           sportCtx.restore();
 
-          sportCtx.fillStyle = "rgba(212, 175, 55, 0.95)";
-          sportCtx.font = "bold 10px sans-serif"; sportCtx.textAlign = "center";
-          sportCtx.fillText("🀄 RHODES FAMILY LEGACY • 3D DOMINOES TABLE 🀄", 270, 36);
+          sportCtx.fillStyle = "rgba(212, 175, 55, 0.9)";
+          sportCtx.font = "bold 9px sans-serif"; sportCtx.textAlign = "center";
+          sportCtx.fillText("🀄 RHODES FAMILY LEGACY • GOLDEN TREE & DOUBLE HELIX TABLE 🀄", 270, 30);
 
+          // Render active domino chain on table
           dominoBoard.forEach((dt) => {
             sportCtx.fillStyle = "#f8fafc";
-            sportCtx.fillRect(dt.x, dt.y, 34, 60);
+            sportCtx.fillRect(dt.x - 14, dt.y - 25, 28, 50);
             sportCtx.strokeStyle = "#475569"; sportCtx.lineWidth = 1.5;
-            sportCtx.strokeRect(dt.x, dt.y, 34, 60);
-            sportCtx.beginPath(); sportCtx.moveTo(dt.x, dt.y + 30); sportCtx.lineTo(dt.x + 34, dt.y + 30); sportCtx.stroke();
-            drawDominoPip(sportCtx, dt.top, dt.x + 17, dt.y + 15);
-            drawDominoPip(sportCtx, dt.bottom, dt.x + 17, dt.y + 45);
+            sportCtx.strokeRect(dt.x - 14, dt.y - 25, 28, 50);
+            sportCtx.beginPath(); sportCtx.moveTo(dt.x - 14, dt.y); sportCtx.lineTo(dt.x + 14, dt.y); sportCtx.stroke();
+            drawDominoPip(sportCtx, dt.top, dt.x, dt.y - 12);
+            drawDominoPip(sportCtx, dt.bottom, dt.x, dt.y + 12);
           });
 
+          // Player Hand Tray
           sportCtx.fillStyle = "rgba(15, 23, 42, 0.95)";
-          sportCtx.fillRect(90, 168, 360, 38);
-          sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 2; sportCtx.strokeRect(90, 168, 360, 38);
+          sportCtx.fillRect(50, 164, 440, 50);
+          sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 2; sportCtx.strokeRect(50, 164, 440, 50);
+
+          sportCtx.fillStyle = "#38bdf8"; sportCtx.font = "bold 9px sans-serif"; sportCtx.textAlign = "left";
+          sportCtx.fillText("YOUR HAND (SELECT & PRESS MATCH):", 60, 178);
 
           playerHand.forEach((tile, idx) => {
-            let hx = 110 + (idx * 85);
-            let hy = 172;
+            let hx = 65 + (idx * 95);
+            let hy = 182;
             let isSelected = (idx === selectedDominoIdx);
 
             sportCtx.fillStyle = isSelected ? "#fef08a" : "#f8fafc";
-            sportCtx.fillRect(hx, hy, 32, 54);
+            sportCtx.fillRect(hx, hy, 28, 28);
             sportCtx.strokeStyle = isSelected ? "#f59e0b" : "#334155"; sportCtx.lineWidth = isSelected ? 3 : 1;
-            sportCtx.strokeRect(hx, hy, 32, 54);
+            sportCtx.strokeRect(hx, hy, 28, 28);
 
-            sportCtx.beginPath(); sportCtx.moveTo(hx, hy + 27); sportCtx.lineTo(hx + 32, hy + 27); sportCtx.stroke();
-            drawDominoPip(sportCtx, tile.top, hx + 16, hy + 13);
-            drawDominoPip(sportCtx, tile.bottom, hx + 16, hy + 41);
+            drawDominoPip(sportCtx, tile.top, hx + 14, hy + 7);
+            drawDominoPip(sportCtx, tile.bottom, hx + 14, hy + 21);
           });
         }
       }
