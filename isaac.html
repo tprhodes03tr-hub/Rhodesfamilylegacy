@@ -306,11 +306,13 @@
         <span style="font-size: 11px; font-weight: 800; color: #facc15;">MARROW BONUS: <span id="sportME">0 ME</span></span>
       </div>
 
-      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge Active: Basketball, Pool, Ping Pong & Dominoes!</div>
+      <div class="combat-log" id="sportLog" style="margin-top: 6px;">Sports Lounge Active: Hold shoot button to charge power & release!</div>
       
       <div style="display: flex; gap: 6px; margin-top: 6px;">
         <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="sportLeftAction()">◄ AIM LEFT</button>
-        <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" onclick="sportCenterAction()">BREAK / SHOOT</button>
+        <button class="btn btn-ultimate" style="flex:2; min-height: 42px;" id="sportActionBtn" 
+                onmousedown="startChargingShot()" onmouseup="releaseChargingShot()" 
+                ontouchstart="startChargingShot()" ontouchend="releaseChargingShot()">HOLD & RELEASE SHOT</button>
         <button class="btn btn-action" style="flex:1; min-height: 42px;" onclick="sportRightAction()">AIM RIGHT ►</button>
       </div>
 
@@ -574,6 +576,11 @@
     let sportAimAngle = 0;
     let sportTimer = 45;
     let gameTimerInterval = null;
+    
+    // Power Meter for Basketball and Pool
+    let shotPower = 0;
+    let isChargingPower = false;
+    let powerDirection = 1;
 
     let bbBall = { x: 75, y: 155, vx: 0, vy: 0, active: false };
     let cueBall = { x: 270, y: 185, vx: 0, vy: 0, radius: 8, active: false, potted: false };
@@ -606,9 +613,9 @@
       } else if (sport === 'pingpong') {
         document.getElementById("sportActionBtn").innerText = "SERVE / HIT";
       } else if (sport === 'pool') {
-        document.getElementById("sportActionBtn").innerText = "BREAK / SHOOT";
+        document.getElementById("sportActionBtn").innerText = "HOLD & RELEASE SHOT";
       } else {
-        document.getElementById("sportActionBtn").innerText = "SHOOT BASKET";
+        document.getElementById("sportActionBtn").innerText = "HOLD & RELEASE SHOT";
       }
       sportAimAngle = 0;
       initSportScene();
@@ -671,32 +678,56 @@
     }
 
     function sportLeftAction() {
-      if (currentSport === 'basketball') sportAimAngle = Math.max(-0.4, sportAimAngle - 0.08);
+      if (currentSport === 'basketball') sportAimAngle = Math.max(-0.3, sportAimAngle - 0.05);
       else if (currentSport === 'pingpong') ppPlayerY = Math.max(40, ppPlayerY - 20);
       else if (currentSport === 'dominoes') selectedDominoIdx = (selectedDominoIdx - 1 + playerHand.length) % playerHand.length;
-      else if (currentSport === 'pool') sportAimAngle -= 0.1;
+      else if (currentSport === 'pool') sportAimAngle -= 0.08;
     }
 
     function sportRightAction() {
-      if (currentSport === 'basketball') sportAimAngle = Math.min(0.4, sportAimAngle + 0.08);
+      if (currentSport === 'basketball') sportAimAngle = Math.min(0.3, sportAimAngle + 0.05);
       else if (currentSport === 'pingpong') ppPlayerY = Math.min(180, ppPlayerY + 20);
       else if (currentSport === 'dominoes') selectedDominoIdx = (selectedDominoIdx + 1) % playerHand.length;
-      else if (currentSport === 'pool') sportAimAngle += 0.1;
+      else if (currentSport === 'pool') sportAimAngle += 0.08;
+    }
+
+    function startChargingShot() {
+      if (currentSport === 'basketball' && bbBall.active) return;
+      if (currentSport === 'pool' && cueBall.active) return;
+      if (currentSport === 'pingpong' || currentSport === 'dominoes') return;
+
+      isChargingPower = true;
+      shotPower = 10;
+      powerDirection = 1;
+    }
+
+    function releaseChargingShot() {
+      if (!isChargingPower) return;
+      isChargingPower = false;
+
+      let powerFactor = shotPower / 100; // 0.1 to 1.0 power scale
+
+      if (currentSport === 'basketball' && !bbBall.active) {
+        // Balanced velocities that never overshoot with correct power
+        bbBall.vx = (8.5 + (sportAimAngle * 6)) * (0.6 + 0.4 * powerFactor);
+        bbBall.vy = (-10.5 * powerFactor) - 2.5;
+        bbBall.active = true;
+        document.getElementById("sportLog").innerText = `Shot launched with ${Math.round(shotPower)}% power!`;
+      } else if (currentSport === 'pool') {
+        let anyMoving = targetBalls.some(b => !b.potted && (Math.abs(b.vx) > 0.1 || Math.abs(b.vy) > 0.1));
+        if (!anyMoving) {
+          let poolPower = 4 + (12 * powerFactor);
+          cueBall.vx = Math.sin(sportAimAngle) * poolPower;
+          cueBall.vy = -Math.cos(sportAimAngle) * poolPower;
+          cueBall.active = true;
+          document.getElementById("sportLog").innerText = `Pool shot struck with ${Math.round(shotPower)}% power!`;
+        }
+      }
+      shotPower = 0;
     }
 
     function sportCenterAction() {
-      if (currentSport === 'basketball' && !bbBall.active) {
-        bbBall.vx = 11 + (sportAimAngle * 10);
-        bbBall.vy = -12.5;
-        bbBall.active = true;
-      } else if (currentSport === 'pool') {
-        // FIXED: Allow shooting anytime or resetting stationary cue ball if stopped
-        if (!cueBall.active || (Math.abs(cueBall.vx) < 0.2 && Math.abs(cueBall.vy) < 0.2)) {
-          cueBall.vx = Math.sin(sportAimAngle) * 16;
-          cueBall.vy = -Math.cos(sportAimAngle) * 16;
-          cueBall.active = true;
-        }
-      } else if (currentSport === 'pingpong') {
+      if (currentSport === 'pingpong') {
         ppBall.vx *= -1.1;
         playChingSound();
       } else if (currentSport === 'dominoes' && playerHand.length > 0) {
@@ -732,6 +763,12 @@
         sportCtx.fillStyle = "#020617";
         sportCtx.fillRect(0, 0, sportCanvas.width, sportCanvas.height);
 
+        // Update power meter if charging
+        if (isChargingPower) {
+          shotPower += powerDirection * 2.5;
+          if (shotPower >= 100 || shotPower <= 10) powerDirection *= -1;
+        }
+
         if (currentSport === 'basketball') {
           sportCtx.fillStyle = "#060913"; sportCtx.fillRect(0, 0, sportCanvas.width, 160);
           
@@ -760,8 +797,7 @@
           }
 
           if (bbBall.active) {
-            bbBall.x += bbBall.vx; bbBall.y += bbBall.vy; bbBall.vy += 0.4;
-            // FIXED: Expanded hoop collision box for reliable scoring
+            bbBall.x += bbBall.vx; bbBall.y += bbBall.vy; bbBall.vy += 0.35;
             if (bbBall.x > rimX - 22 && bbBall.x < rimX + 22 && bbBall.y > 65 && bbBall.y < 95 && bbBall.vy > 0) {
               sportScore += 2; sportME += 10;
               playChingSound(); updateSportStats();
@@ -773,6 +809,14 @@
           }
           sportCtx.fillStyle = "#f97316";
           sportCtx.beginPath(); sportCtx.arc(bbBall.x, bbBall.y, 10, 0, Math.PI * 2); sportCtx.fill();
+
+          // Render Power Meter Overlay if charging
+          if (isChargingPower) {
+            sportCtx.fillStyle = "rgba(0,0,0,0.7)"; sportCtx.fillRect(170, 10, 200, 22);
+            sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(172, 12, (shotPower / 100) * 196, 18);
+            sportCtx.fillStyle = "#fff"; sportCtx.font = "bold 10px sans-serif"; sportCtx.textAlign = "center";
+            sportCtx.fillText(`POWER: ${Math.round(shotPower)}%`, 270, 25);
+          }
 
         } else if (currentSport === 'pool') {
           sportCtx.fillStyle = "#291605"; sportCtx.fillRect(80, 10, 380, 210);
@@ -823,7 +867,6 @@
             });
           });
 
-          // Check if all balls have stopped moving to re-enable aiming/cue stick
           let anyMoving = allBalls.some(b => !b.potted && (Math.abs(b.vx) > 0.1 || Math.abs(b.vy) > 0.1));
           if (anyMoving) {
             cueBall.active = true;
@@ -855,13 +898,14 @@
             let aimDirY = -Math.cos(sportAimAngle);
 
             sportCtx.strokeStyle = "#38bdf8"; sportCtx.lineWidth = 2; sportCtx.setLineDash([4, 4]);
-            sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 80, cueBall.y + aimDirY * 80); sportCtx.stroke();
+            sportCtx.beginPath(); sportCtx.moveTo(cueBall.x, cueBall.y); sportCtx.lineTo(cueBall.x + aimDirX * 100, cueBall.y + aimDirY * 100); sportCtx.stroke();
             sportCtx.setLineDash([]);
 
+            let cueOffset = 18 + (isChargingPower ? (shotPower / 100) * 40 : 0);
             sportCtx.strokeStyle = "#d4af37"; sportCtx.lineWidth = 5;
             sportCtx.beginPath();
-            sportCtx.moveTo(cueBall.x - (aimDirX * 18), cueBall.y - (aimDirY * 18));
-            sportCtx.lineTo(cueBall.x - (aimDirX * 110), cueBall.y - (aimDirY * 110));
+            sportCtx.moveTo(cueBall.x - (aimDirX * cueOffset), cueBall.y - (aimDirY * cueOffset));
+            sportCtx.lineTo(cueBall.x - (aimDirX * (110 + cueOffset)), cueBall.y - (aimDirY * (110 + cueOffset)));
             sportCtx.stroke();
           }
 
@@ -875,6 +919,13 @@
               sportCtx.beginPath(); sportCtx.arc(tb.x, tb.y, tb.radius, 0, Math.PI * 2); sportCtx.fill();
             }
           });
+
+          if (isChargingPower) {
+            sportCtx.fillStyle = "rgba(0,0,0,0.7)"; sportCtx.fillRect(170, 10, 200, 22);
+            sportCtx.fillStyle = "#f59e0b"; sportCtx.fillRect(172, 12, (shotPower / 100) * 196, 18);
+            sportCtx.fillStyle = "#fff"; sportCtx.font = "bold 10px sans-serif"; sportCtx.textAlign = "center";
+            sportCtx.fillText(`CUE POWER: ${Math.round(shotPower)}%`, 270, 25);
+          }
 
         } else if (currentSport === 'pingpong') {
           sportCtx.fillStyle = "#1e293b"; sportCtx.fillRect(40, 15, 460, 200);
