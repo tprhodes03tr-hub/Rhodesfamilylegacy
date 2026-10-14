@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Isaac Rhodes Adventures: Legacy Run</title>
+  <style>
+    :root {
+      --bg-dark: #060913;
+      --gold-accent: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; user-select: none; }
+    body { background-color: var(--bg-dark); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 10px; }
+    .game-container { max-width: 500px; width: 100%; text-align: center; background: #0f172a; border: 2px solid var(--gold-accent); border-radius: 12px; padding: 16px; box-shadow: 0 0 25px rgba(245, 158, 11, 0.3); }
+    canvas { background: linear-gradient(to bottom, #1e293b, #020617); border: 2px solid #334155; border-radius: 8px; display: block; margin: 0 auto 12px auto; width: 100%; max-width: 460px; height: 260px; }
+    .hud { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #38bdf8; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btn { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 14px; font-weight: 900; font-size: 14px; border-radius: 8px; text-transform: uppercase; cursor: pointer; }
+    .btn-jump { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <div style="font-size: 11px; font-weight: 800; color: #f59e0b; text-transform: uppercase; margin-bottom: 4px;">Rhodes Family Legacy</div>
+    <h2 style="font-size: 1.1rem; margin-bottom: 8px;">Isaac Rhodes Adventures</h2>
+    
+    <div class="hud">
+      <div>RINGS: <span id="scoreVal" style="color: #facc15;">0</span></div>
+      <div>LEVEL: <span id="levelVal">Green Hill Run</span></div>
+    </div>
+
+    <canvas id="gameCanvas" width="460" height="260"></canvas>
+
+    <div class="controls">
+      <button class="btn" onclick="triggerDash()">⚡ Spin-Dash</button>
+      <button class="btn btn-jump" onclick="triggerJump()">⬆️ Jump</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let score = 0;
+    let isJumping = false;
+    let jumpVelocity = 0;
+    let playerY = 190;
+    const groundY = 190;
+    let obstacleX = 500;
+    let gameSpeed = 4;
+
+    function triggerJump() {
+      if (!isJumping) {
+        isJumping = true;
+        jumpVelocity = -10;
+      }
+    }
+
+    function triggerDash() {
+      gameSpeed = 8;
+      setTimeout(() => { gameSpeed = 4; }, 1500);
+    }
+
+    function update() {
+      // Physics jump
+      if (isJumping) {
+        playerY += jumpVelocity;
+        jumpVelocity += 0.6;
+        if (playerY >= groundY) {
+          playerY = groundY;
+          isJumping = false;
+        }
+      }
+
+      // Obstacle movement
+      obstacleX -= gameSpeed;
+      if (obstacleX < -30) {
+        obstacleX = 480;
+        score += 10;
+        document.getElementById("scoreVal").innerText = score;
+      }
+
+      // Collision check
+      if (obstacleX > 50 && obstacleX < 90 && playerY >= groundY - 20) {
+        score = Math.max(0, score - 5);
+        document.getElementById("scoreVal").innerText = score;
+        obstacleX = 480;
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw ground terrain (Green Hill style stripe)
+      ctx.fillStyle = "#059669";
+      ctx.fillRect(0, groundY + 20, canvas.width, 50);
+      ctx.fillStyle = "#d97706";
+      ctx.fillRect(0, groundY + 20, canvas.width, 6);
+
+      // Draw player (Isaac)
+      ctx.fillStyle = "#38bdf8";
+      ctx.beginPath();
+      ctx.arc(70, playerY, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw ring / obstacle
+      ctx.fillStyle = "#facc15";
+      ctx.beginPath();
+      ctx.arc(obstacleX, groundY + 5, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath();
+      ctx.arc(obstacleX, groundY + 5, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+</html>
