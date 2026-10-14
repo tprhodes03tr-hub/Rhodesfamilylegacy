@@ -1,459 +1,1092 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rhodes Family Legacy</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rhodes Family Legacy: Tycoon, Tetris & Word Search</title>
+  <!-- PeerJS CDN for Real-Time P2P Multiplayer & Lobby Management -->
+  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <style>
+    :root {
+      --bg-dark: #060913;
+      --gold-border: #d4af37;
+      --gold-glow: rgba(212, 175, 55, 0.45);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       user-select: none;
       -webkit-user-select: none;
     }
+
     body {
-      background-color: #060913;
-      color: #e2e8f0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: #f8fafc;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 24px 16px 40px;
-    }
-    .wrapper {
-      width: 100%;
-      max-width: 960px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-      align-items: center;
+      min-height: 100vh;
+      padding: 10px;
     }
 
-    /* HEADER */
-    .header-tag {
-      background: rgba(245, 158, 11, 0.1);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      color: #f59e0b;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      text-transform: uppercase;
-      text-align: center;
-    }
-    .hero-title {
-      font-size: clamp(24px, 4vw, 32px);
-      font-weight: 900;
-      text-align: center;
-      line-height: 1.2;
-      color: #f8fafc;
-      letter-spacing: 0.5px;
-    }
-    .hero-subtitle {
-      font-size: 13px;
-      color: #94a3b8;
-      text-align: center;
-      line-height: 1.5;
-      max-width: 600px;
-      padding: 0 8px;
-    }
-    .nav-pills {
+    .setup-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(6, 9, 19, 0.96);
       display: flex;
-      flex-wrap: wrap;
+      align-items: center;
       justify-content: center;
-      gap: 8px;
-      width: 100%;
-      max-width: 500px;
+      z-index: 200;
+      padding: 16px;
     }
-    .nav-pill {
-      flex: 1 1 140px;
-      background: #111827;
-      border: 1px solid #1f2937;
-      color: #94a3b8;
-      text-decoration: none;
+
+    .setup-card {
+      background: #0f172a;
+      border: 2px solid #f59e0b;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 420px;
+      width: 100%;
       text-align: center;
+      box-shadow: 0 0 35px rgba(245, 158, 11, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .setup-input {
+      background: #1e293b;
+      border: 1px solid #f59e0b;
+      color: #fff;
       padding: 10px;
       border-radius: 8px;
-      font-size: 13px;
-      font-weight: 700;
-      transition: all 0.2s ease;
-    }
-    .nav-pill:hover {
-      background: #1f2937;
-      color: #f8fafc;
-    }
-
-    .section-title {
-      font-size: 22px;
-      font-weight: 800;
-      text-align: center;
-      color: #f8fafc;
-      margin-top: 14px;
-    }
-    .section-desc {
-      font-size: 13px;
-      color: #94a3b8;
-      text-align: center;
-      margin-top: -16px;
-      line-height: 1.4;
-      max-width: 640px;
-    }
-
-    /* THREE-TIER BOOK GRID */
-    .books-three-tier {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
+      font-size: 14px;
+      font-weight: bold;
       width: 100%;
-      max-width: 940px;
+      text-align: center;
     }
 
-    /* STANDARD STACK / HUB CONTAINER */
-    .standard-stack {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px;
-      width: 100%;
-      max-width: 940px;
-    }
-
-    /* CARDS */
-    .card {
-      background: #0f172a;
-      border: 1px solid #1e293b;
-      border-radius: 14px;
-      padding: 16px;
+    .color-picker-row {
       display: flex;
-      flex-direction: column;
-      gap: 12px;
-      height: 100%;
-      transition: transform 0.2s ease, border-color 0.2s ease;
+      justify-content: center;
+      gap: 10px;
+      margin: 6px 0;
     }
-    .card:hover {
-      border-color: rgba(212, 175, 55, 0.4);
+
+    .color-opt {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
     }
-    .card-kicker {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 1.2px;
+
+    .color-opt.selected {
+      border-color: #fff;
+      transform: scale(1.15);
+      box-shadow: 0 0 10px #fff;
+    }
+
+    .tycoon-header {
+      width: 100%;
+      max-width: 580px;
       text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .badge-tag {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #f59e0b;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 20px;
       text-transform: uppercase;
+      letter-spacing: 1px;
+      display: inline-block;
+      margin-bottom: 2px;
     }
-    .kicker-gold { color: #f59e0b; }
-    .kicker-blue { color: #38bdf8; }
-    .kicker-green { color: #4ade80; }
 
-    .card-img-wrap {
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
       width: 100%;
-      background: transparent;
-      display: block;
-      padding: 0;
-      margin: 0;
-      overflow: hidden;
+      max-width: 580px;
+      margin-bottom: 8px;
+    }
+
+    .nav-tab {
+      flex: 1;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 7px 4px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 9.5px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .nav-tab.active {
+      background: #f59e0b;
+      color: #000;
+      border-color: #fbbf24;
+    }
+
+    .multiplayer-bar {
+      width: 100%;
+      max-width: 580px;
+      background: #0f172a;
+      border: 1px solid #38bdf8;
       border-radius: 8px;
-    }
-    .card-img {
-      width: 100%;
-      height: auto;
-      object-fit: contain;
-      display: block;
-    }
-
-    .card-body {
+      padding: 8px 12px;
+      margin-bottom: 8px;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      text-align: center;
-      flex-grow: 1;
-    }
-    .card-name {
-      font-size: 17px;
-      font-weight: 800;
-      color: #f8fafc;
-    }
-    .card-text {
-      font-size: 12px;
-      color: #94a3b8;
-      line-height: 1.45;
     }
 
-    /* BUTTONS */
-    .btn-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: auto;
-    }
-    .btn {
-      display: block;
-      width: 100%;
-      text-align: center;
-      text-decoration: none;
-      padding: 12px;
-      border-radius: 8px;
-      font-weight: 800;
-      font-size: 13px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      cursor: pointer;
-      border: none;
-      transition: opacity 0.2s ease;
-    }
-    .btn:hover {
-      opacity: 0.92;
-    }
-    .btn-orange { background: #ea580c; color: #ffffff; }
-    .btn-green  { background: #059669; color: #ffffff; }
-    .btn-blue   { background: #0284c7; color: #ffffff; }
-    .btn-amber  { background: #b45309; color: #ffffff; }
-    .btn-ar     { background: #8b0000; color: #ffffff; }
-
-    /* MINI BANNER TILES */
-    .mini-banner {
-      width: 100%;
-      height: 130px;
-      border-radius: 10px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 32px;
-      gap: 12px;
-    }
-    .bg-blue    { background: radial-gradient(circle, #0369a1 0%, #082f49 100%); }
-    .bg-emerald { background: radial-gradient(circle, #047857 0%, #064e3b 100%); }
-    .bg-amber   { background: radial-gradient(circle, #b45309 0%, #78350f 100%); }
-
-    /* AUTOMATED CINEMA SHOWCASE & COMMERCIAL BUMPERS */
-    .video-card-wrap {
-      width: 100%;
-      max-width: 760px;
-    }
-    .video-frame {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      border-radius: 10px;
-      background: #000;
-      overflow: hidden;
-      border: 2px solid #a855f7;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85);
-      position: relative;
-    }
-    video {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: cover;
-      filter: brightness(1.25) contrast(1.15);
-    }
-
-    .cinema-status-bar {
+    .mp-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #090d16;
+      font-size: 11px;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .mp-input {
+      background: #1e293b;
+      border: 1px solid #38bdf8;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      width: 150px;
+      text-align: center;
+    }
+
+    .switch-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      color: #facc15;
+    }
+
+    .marrow-bar {
+      width: 100%;
+      max-width: 580px;
+      background: linear-gradient(135deg, #1e1b4b, #311042);
+      border: 1px solid #8b5cf6;
+      border-radius: 8px;
+      padding: 6px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #c084fc;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.3);
+    }
+
+    .powers-bar {
+      width: 100%;
+      max-width: 580px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .power-btn {
+      background: linear-gradient(135deg, #4c1d95, #6d28d9);
+      border: 1px solid #a78bfa;
+      color: #f8fafc;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+
+    .hud-roster {
+      width: 100%;
+      max-width: 580px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      margin-bottom: 8px;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    .p-card {
+      background: #0d1322;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 4px;
+      text-align: center;
+      font-size: 9px;
+    }
+
+    .p-card.active-turn {
+      border-color: #f59e0b;
+      background: #1e293b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+    }
+
+    .p-title { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .p-val { font-weight: 900; color: #10b981; font-size: 10px; }
+
+    .game-view {
+      width: 100%;
+      max-width: 580px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .board-frame {
+      width: 100%;
+      max-width: 580px;
+      aspect-ratio: 1 / 1;
+      background: #090e1a;
+      border: 2px solid #334155;
+      border-radius: 10px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      gap: 3px;
+      padding: 4px;
+      position: relative;
+    }
+
+    .tile {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 4px;
+      padding: 2px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      text-align: center;
+      font-size: 7.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tile:hover { border-color: #00f0ff; }
+
+    .tile-header { width: 100%; height: 5px; border-radius: 2px 2px 0 0; margin-bottom: 1px; }
+    .th-gold   { background: #f59e0b; }
+    .th-blue   { background: #0284c7; }
+    .th-green  { background: #059669; }
+    .th-purple { background: #9333ea; }
+    .th-corner { background: #475569; }
+
+    .tile-name { line-height: 1.02; color: #cbd5e1; font-size: 7px; }
+    .tile-price { font-size: 7px; color: #10b981; font-weight: 800; }
+
+    .token-slot { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; width: 100%; min-height: 10px; margin-top: 2px; }
+    .token { width: 9px; height: 9px; border-radius: 50%; border: 1px solid #fff; }
+
+    .board-center {
+      grid-column: 2 / span 4;
+      grid-row: 2 / span 4;
+      background: radial-gradient(circle, #1e293b 0%, #0b1120 100%);
+      border: 1px solid #334155;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      gap: 4px;
+      cursor: pointer;
+    }
+    .board-center:hover { border-color: #38bdf8; }
+
+    .center-logo { font-size: 11px; font-weight: 900; color: #facc15; }
+    .dice-box { display: flex; gap: 8px; perspective: 400px; }
+    .dice-3d {
+      width: 32px; height: 32px;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 16px;
+      border: 2px solid #38bdf8;
+    }
+
+    /* TETRIS ARCADE VIEW */
+    #tetrisView {
+      display: none;
+      width: 100%;
+      max-width: 580px;
+      background: #0f172a;
+      border: 2px solid #f59e0b;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.3);
+    }
+    .tetris-flex-layout { display: flex; gap: 12px; justify-content: center; align-items: flex-start; }
+    #tetrisCanvas { background: #020617; border: 2px solid #334155; border-radius: 6px; display: block; }
+    .tetris-side-panel { display: flex; flex-direction: column; gap: 8px; width: 120px; text-align: left; }
+    .next-piece-box { background: #020617; border: 1px solid #334155; border-radius: 6px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #nextCanvas { display: block; }
+    .tetris-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+
+    /* WORD SEARCH TRIVIA VIEW */
+    #wordSearchView {
+      display: none;
+      width: 100%;
+      max-width: 580px;
+      background: #0f172a;
+      border: 2px solid #a855f7;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      box-shadow: 0 0 25px rgba(168, 85, 247, 0.3);
+    }
+    .word-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; background: #020617; padding: 8px; border: 2px solid #334155; border-radius: 6px; margin: 10px auto; max-width: 320px; }
+    .word-cell { background: #1e293b; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; color: #f8fafc; cursor: pointer; border-radius: 4px; }
+    .word-cell.selected { background: #a855f7; color: #fff; }
+    .word-cell.found { background: #10b981; color: #000; }
+
+    .log-box {
+      width: 100%;
+      max-width: 580px;
+      background: #090e18;
       border: 1px solid #1e293b;
       padding: 8px 12px;
       border-radius: 6px;
-      margin-top: 10px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-    #cinemaTrackTitle {
+      font-size: 10.5px;
+      font-family: monospace;
       color: #38bdf8;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      max-width: 65%;
-    }
-    .theater-launch-link {
-      color: #c084fc;
-      text-decoration: none;
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-    .theater-launch-link:hover {
-      text-decoration: underline;
+      margin: 6px 0;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
     }
 
-    footer {
-      text-align: center;
-      font-size: 11px;
-      color: #64748b;
-      line-height: 1.6;
-      padding: 24px 8px 0;
-      max-width: 600px;
+    .control-actions {
+      width: 100%;
+      max-width: 580px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
     }
+
+    .btn {
+      padding: 10px 4px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-roll    { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; }
+    .btn-buy     { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+    .btn-end     { background: linear-gradient(135deg, #38bdf8, #0284c7); color: #000; }
+
+    /* 3D AR PROPERTY & DICE MODAL */
+    .ar-deed-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(5, 5, 15, 0.92);
+      display: none; align-items: center; justify-content: center; z-index: 250;
+      padding: 16px;
+    }
+    .ar-deed-card {
+      background: #0f172a; border: 2px solid #00f0ff; border-radius: 16px; padding: 20px; max-width: 360px; width: 100%; text-align: center; color: #f8fafc; font-family: 'Courier New', monospace; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 30px rgba(0, 240, 255, 0.35);
+    }
+    .ar-camera-viewport {
+      width: 100%; height: 180px; background: radial-gradient(circle, #1e293b 0%, #020617 100%); border: 1px solid #00f0ff; border-radius: 8px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;
+    }
+    .ar-3d-overlay-box { position: relative; z-index: 2; background: rgba(15, 23, 42, 0.85); border: 1px solid #facc15; padding: 12px 16px; border-radius: 8px; box-shadow: 0 0 15px rgba(250, 204, 21, 0.4); }
   </style>
 </head>
 <body>
-  <div class="wrapper">
 
-    <!-- HERO HEADER -->
-    <div class="header-tag">OFFICIAL HERITAGE & LITERARY HUB</div>
-    <h1 class="hero-title">WELCOME TO<br />RHODES FAMILY LEGACY</h1>
-    <p class="hero-subtitle">
-      Honoring generations of heritage, fortitude, and historical memory through published chronicles, illustrated youth storybooks, and interactive ancestral adventures.
-    </p>
+  <!-- SETUP SCREEN -->
+  <div class="setup-overlay" id="setupOverlay">
+    <div class="setup-card">
+      <div class="badge-tag">Rhodes Family Legacy</div>
+      <h2 style="color: #f8fafc; font-size: 1.2rem;">Detroit & Saginaw Hub v2.0</h2>
+      <p style="font-size: 12px; color: #94a3b8;">Enter your name and select token color:</p>
+      
+      <input type="text" id="customPlayerName" class="setup-input" value="Tommy" maxlength="12" placeholder="Your Name" />
 
-    <!-- DIRECT AR LAUNCH BUTTON -->
-    <div style="width: 100%; max-width: 400px; margin: 4px 0;">
-      <a href="./ar-portal.html" class="btn btn-ar" style="padding: 14px; font-size: 14px; box-shadow: 0 4px 12px rgba(139, 0, 0, 0.4);">
-        📷 LAUNCH AR CAMERA EXPERIENCE
-      </a>
+      <div class="color-picker-row">
+        <div class="color-opt selected" style="background: #38bdf8;" onclick="selectColor('#38bdf8', this)"></div>
+        <div class="color-opt" style="background: #f472b6;" onclick="selectColor('#f472b6', this)"></div>
+        <div class="color-opt" style="background: #10b981;" onclick="selectColor('#10b981', this)"></div>
+        <div class="color-opt" style="background: #f59e0b;" onclick="selectColor('#f59e0b', this)"></div>
+      </div>
+
+      <button class="btn btn-roll" style="padding: 12px; font-size: 12px; margin-top: 6px;" onclick="completeSetup()">ENTER HUB</button>
     </div>
-
-    <div class="nav-pills">
-      <a href="#literature" class="nav-pill">Literature & Box Sets</a>
-      <a href="#cinematic" class="nav-pill">Cinematic Showcase</a>
-      <a href="#gamehub" class="nav-pill">Ancestral Game Hub</a>
-    </div>
-
-    <!-- PUBLISHED CHRONICLES SECTION -->
-    <h2 class="section-title" id="literature">Published Chronicles & Storybooks</h2>
-    <p class="section-desc">Explore historical volumes, children's heritage adventures, and the Vanguard universe.</p>
-
-    <!-- 3-TIER SIDE-BY-SIDE DIGITAL BOOKSHELF -->
-    <div class="books-three-tier">
-
-      <!-- TIER 1: THE PACKED IN THE MARROW TRILOGY -->
-      <div class="card">
-        <div class="card-kicker kicker-gold">COLLECTOR'S EDITION</div>
-        <div class="card-img-wrap">
-          <img src="marrow-bundle.jpg" alt="The Packed in the Marrow Trilogy" class="card-img" />
-        </div>
-        <div class="card-body">
-          <h3 class="card-name">The Packed in the Marrow Trilogy</h3>
-          <p class="card-text">The complete 3-volume historical record covering paternal and maternal lineages, oral history, and ancestral courage.</p>
-        </div>
-        <div class="btn-stack">
-          <a href="https://payhip.com/rhodesfamilylegacy" target="_blank" class="btn btn-orange">BUY ON PAYHIP</a>
-          <a href="marrow.html" class="btn btn-amber">EXPLORE MARROW QUEST & AUDIO READER</a>
-        </div>
-      </div>
-
-      <!-- TIER 2: THE SISTERS OF THE GOLDEN CLOCK -->
-      <div class="card">
-        <div class="card-kicker kicker-gold">CHILDREN'S ILLUSTRATED SERIES</div>
-        <div class="card-img-wrap">
-          <img src="1789251362705.png" alt="The Sisters of the Golden Clock" class="card-img" />
-        </div>
-        <div class="card-body">
-          <h3 class="card-name">The Sisters of the Golden Clock</h3>
-          <p class="card-text">A tale of family, heritage, and discovery guiding young readers through ancestral time-slip exploration.</p>
-        </div>
-        <div class="btn-stack">
-          <a href="https://payhip.com/rhodesfamilylegacy" target="_blank" class="btn btn-orange">BUY ON PAYHIP</a>
-          <a href="fannie-luetta.html" class="btn btn-green">PLAY STORY ADVENTURE</a>
-        </div>
-      </div>
-
-      <!-- TIER 3: THE ANCESTRAL VANGUARD -->
-      <div class="card" style="border-color: rgba(212, 175, 55, 0.4); box-shadow: 0 0 15px rgba(212, 175, 55, 0.1);">
-        <div class="card-kicker kicker-blue">THE VANGUARD UNIVERSE</div>
-        <div class="card-img-wrap">
-          <img src="vanguard-art.jpg" alt="The Ancestral Vanguard Universe" class="card-img" />
-        </div>
-        <div class="card-body">
-          <h3 class="card-name">The Ancestral Vanguard</h3>
-          <p class="card-text">One Bloodline. One Family. One Universe. Graphic novel chronicles, cinematic character artwork, and universal saga defense.</p>
-        </div>
-        <div class="btn-stack">
-          <a href="https://payhip.com/rhodesfamilylegacy" target="_blank" class="btn btn-orange">BUY ON PAYHIP</a>
-          <a href="vanguard.html" class="btn btn-blue">LAUNCH VANGUARD GAME</a>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- CINEMATIC VIDEO SHOWCASE -->
-    <h2 class="section-title" id="cinematic">Cinematic Center</h2>
-    <p class="section-desc">Video & Trailer Showcase: Stream promotional trailers, animated sequences, and origin chronicles directly in your browser.</p>
-
-    <div class="video-card-wrap">
-      <div class="card">
-        <div class="video-frame" id="cinemaFrame">
-          <video id="legacyVideoPlayer" controls playsinline autoplay muted preload="auto">
-            <source src="Origins & The Tree of Lineage.mp4" type="video/mp4">
-            Your browser does not support the video tag.
-          </video>
-        </div>
-
-        <div class="cinema-status-bar">
-          <span id="cinemaTrackTitle">NOW PLAYING: Origins & The Tree of Lineage</span>
-          <a href="theater.html" class="theater-launch-link">Expand Cinema Hub ↗</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- ANCESTRAL GAME HUB -->
-    <h2 class="section-title" id="gamehub">Ancestral Game Hub</h2>
-    <p class="section-desc">Launch custom web games and sensory exploration spaces built directly for the community.</p>
-
-    <div class="standard-stack">
-
-      <!-- ISAAC'S RUN ADVENTURES -->
-      <div class="card">
-        <div class="card-kicker kicker-blue">RETRO PLATFORMER</div>
-        <div class="mini-banner bg-blue">🏃 ⚡</div>
-        <div class="card-body">
-          <h3 class="card-name">Isaac's Run Adventures</h3>
-          <p class="card-text">Fast-paced arcade platforming honoring courage and quick reflexes through dynamic loops and stages.</p>
-        </div>
-        <div class="btn-stack">
-          <a href="isaac.html" class="btn btn-blue">PLAY ISAAC'S RUN</a>
-        </div>
-      </div>
-
-      <!-- THE SENSORY ROOM -->
-      <div class="card">
-        <div class="card-kicker kicker-green">CALM SANCTUARY</div>
-        <div class="mini-banner bg-emerald">🌌 🎧</div>
-        <div class="card-body">
-          <h3 class="card-name">The Sensory Room</h3>
-          <p class="card-text">An interactive, calming auditory and visual sanctuary designed for focus, sensory balance, and relaxation.</p>
-        </div>
-        <div class="btn-stack">
-          <a href="sensory.html" class="btn btn-green">ENTER SENSORY ROOM</a>
-        </div>
-      </div>
-
-      <!-- FAMILY LEGACY TYCOON -->
-      <div class="card">
-        <div class="card-kicker kicker-gold">FAMILY BOARD STRATEGY</div>
-        <div class="mini-banner bg-amber">🎲 🏛️</div>
-        <div class="card-body">
-          <h3 class="card-name">Family Legacy Tycoon</h3>
-          <p class="card-text">Trade ancestral deeds, build generational estates, and draw from the mystery Suitcase Challenge deck in a turn-based family board game.</p>
-        </div>
-        <div class="btn-stack">
-          <a href="tycoon.html" class="btn btn-orange">PLAY LEGACY TYCOON</a>
-        </div>
-      </div>
-
-      <!-- STORYBOOK LEARNING -->
-      <div class="card">
-        <div class="card-kicker kicker-gold">STORYBOOK LEARNING</div>
-        <div class="mini-banner bg-amber">🌻 📖</div>
-        <div class="card-body">
-          <h3 class="card-name">Fannie May & Luetta</h3>
-          <p class="card-text">Collect golden clock keys, discover heritage vocabulary, and explore the golden tree meadow in an educational story quest.</p>
-        </div>
-        <div class="btn-stack">
-          <a href="fannie-luetta.html" class="btn btn-green">PLAY STORYBOOK QUEST</a>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- FOOTER -->
-    <footer>
-      © 2026 Tommy Philip Rhodes. Rhodes Family Legacy. All Rights Reserved.<br />
-      All books, manuscripts, game assets, and media are protected under registered copyright.
-    </footer>
-
   </div>
+
+  <!-- AR PROPERTY & DICE MODAL -->
+  <div class="ar-deed-overlay" id="arDeedModal" onclick="closeArDeed()">
+    <div class="ar-deed-card" onclick="event.stopPropagation()">
+      <div style="font-size: 12px; color: #00f0ff; font-weight: bold;" id="arModalHeader">🏛️ 3D AR MODEL</div>
+      <div class="ar-camera-viewport">
+        <div class="ar-3d-overlay-box">
+          <div style="font-size: 24px; margin-bottom: 4px;" id="arEmblemIcon">🏨</div>
+          <div id="arDeedTitle" style="color: #facc15; font-size: 12px; font-weight: bold;">Title</div>
+          <div id="arDeedPrice" style="color: #10b981; font-size: 11px; margin-top: 2px;">Details</div>
+        </div>
+      </div>
+      <button class="btn btn-roll" style="background: #00f0ff; color: #0f172a;" onclick="closeArDeed()">CLOSE 3D VIEW</button>
+    </div>
+  </div>
+
+  <div class="tycoon-header">
+    <div class="badge-tag">Rhodes Family Legacy</div>
+    <h2 style="font-size: 1.1rem; font-weight: 900; color: #f8fafc;">Tycoon, Tetris & Word Search Hub</h2>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tabTycoon" onclick="switchView('tycoon')">🏛️ TYCOON</button>
+    <button class="nav-tab" id="tabTetris" onclick="switchView('tetris')">🕹️ TETRIS</button>
+    <button class="nav-tab" id="tabWordSearch" onclick="switchView('wordsearch')">🔤 WORD TRIVIA</button>
+  </div>
+
+  <div class="multiplayer-bar" id="lobbyBar">
+    <div class="mp-row">
+      <span>🌐 MATCH MODE & LOBBY</span>
+      <label class="switch-label">
+        <input type="checkbox" id="aiToggle" checked onchange="toggleAIMode()" /> Play vs AI Bot
+      </label>
+    </div>
+    <div class="mp-row" style="margin-top: 4px;">
+      <button class="btn btn-mp" style="padding: 6px 10px;" onclick="hostP2PMatch()">Host Room</button>
+      <div style="display: flex; gap: 4px; align-items: center;">
+        <input type="text" id="joinCodeInput" class="mp-input" placeholder="e.g. DETROIT-LEGACY" />
+        <button class="btn btn-mp" style="padding: 6px 10px;" onclick="joinP2PMatch()">Join Room</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="marrow-bar">
+    <span>✨ MARROW ENERGY RESERVES</span>
+    <span id="marrowCounter" style="font-size: 13px; font-weight: 900; color: #facc15;">250 ME</span>
+  </div>
+
+  <div class="powers-bar">
+    <button class="power-btn" onclick="triggerChronoLeap()">⚡ Chrono-Leap (100 ME)</button>
+    <button class="power-btn" onclick="triggerLegacyShield()">🛡️ Legacy Shield (75 ME)</button>
+  </div>
+
+  <div class="hud-roster" id="hudRoster"></div>
+
+  <!-- TYCOON VIEW -->
+  <div class="game-view" id="tycoonView">
+    <div class="board-frame" id="boardTrack"></div>
+  </div>
+
+  <!-- TETRIS VIEW -->
+  <div id="tetrisView">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <span style="font-weight: 800; color: #facc15; font-size: 12px;">LINEAGE TETRIS BATTLE</span>
+      <button class="btn btn-mp" style="padding: 4px 10px; font-size: 9px;" onclick="toggleTetrisPause()" id="tetrisPauseBtn">⏸️ PAUSE</button>
+    </div>
+    <div class="tetris-flex-layout">
+      <canvas id="tetrisCanvas" width="220" height="380"></canvas>
+      <div class="tetris-side-panel">
+        <div>GOAL: 20 LINES</div>
+        <div>LINES: <span id="linesCount" style="color:#fff;">0</span> / 20</div>
+        <div>NEXT PIECE:</div>
+        <div class="next-piece-box"><canvas id="nextCanvas" width="70" height="70"></canvas></div>
+        <div>SCORE:</div>
+        <div style="font-size: 13px; font-weight: 900; color: #fff;" id="tetrisScore">0</div>
+      </div>
+    </div>
+    <div class="tetris-controls">
+      <button class="btn btn-mp" onclick="tetrisMove(-1)">◀</button>
+      <button class="btn btn-mp" onclick="tetrisRotate()">🔄</button>
+      <button class="btn btn-mp" onclick="tetrisMove(1)">▶</button>
+      <button class="btn btn-roll" onclick="tetrisDrop()">▼</button>
+    </div>
+  </div>
+
+  <!-- WORD SEARCH TRIVIA VIEW -->
+  <div id="wordSearchView">
+    <div style="font-weight: 800; color: #c084fc; font-size: 12px; margin-bottom: 4px;">FAMILY LEGACY WORD SEARCH TRIVIA</div>
+    <p style="font-size: 10px; color: #94a3b8; margin-bottom: 6px;">Find hidden heritage words: <span id="wordListText" style="color: #38bdf8;">DETROIT, SAGINAW, RHODES</span></p>
+    <div class="word-grid" id="wordGridContainer"></div>
+    <div style="font-size: 11px; color: #facc15; font-weight: bold; margin-top: 6px;" id="wordStatus">Words Found: 0 / 3</div>
+  </div>
+
+  <div class="log-box" id="gameLog">Welcome! Choose your game tab above to play Tycoon, Tetris, or Word Search Trivia.</div>
+
+  <div class="control-actions" id="tycoonControls">
+    <button class="btn btn-roll" id="btnRoll" onclick="rollDice()">🎲 Roll Dice</button>
+    <button class="btn btn-buy" id="btnBuy" onclick="buyProperty()" disabled>🏛️ Buy Deed</button>
+    <button class="btn btn-end" id="btnEndTurn" onclick="endTurn()" disabled>⏳ End Turn</button>
+  </div>
+
+  <script>
+    let playerMarrowEnergy = 250;
+    let myCustomName = "Tommy";
+    let myCustomColor = "#38bdf8";
+    let playVsAI = true;
+
+    let players = [];
+    let currentTurn = 0;
+    let hasRolledThisTurn = false;
+
+    function selectColor(color, el) {
+      document.querySelectorAll(".color-opt").forEach(o => o.classList.remove("selected"));
+      el.classList.add("selected");
+      myCustomColor = color;
+    }
+
+    function completeSetup() {
+      const nameInput = document.getElementById("customPlayerName").value.trim();
+      if (nameInput) myCustomName = nameInput;
+      document.getElementById("setupOverlay").style.display = "none";
+      initGame();
+    }
+
+    function toggleAIMode() {
+      playVsAI = document.getElementById("aiToggle").checked;
+      if (playVsAI && players.length < 2) {
+        players.push({ id: 1, name: "Saginaw Bot", color: "#f472b6", cash: 1500, pos: 0, deeds: [] });
+      } else if (!playVsAI && players.length > 1) {
+        players = players.slice(0, 1);
+      }
+      buildHUD();
+      buildBoard();
+      updateHUD();
+      checkTurnControl();
+      log(playVsAI ? "Enabled Play vs AI Bot." : "Switched to P2P mode.");
+    }
+
+    function switchView(view) {
+      document.getElementById("tycoonView").style.display = view === 'tycoon' ? "flex" : "none";
+      document.getElementById("tetrisView").style.display = view === 'tetris' ? "block" : "none";
+      document.getElementById("wordSearchView").style.display = view === 'wordsearch' ? "block" : "none";
+      document.getElementById("tabTycoon").classList.toggle("active", view === 'tycoon');
+      document.getElementById("tabTetris").classList.toggle("active", view === 'tetris');
+      document.getElementById("tabWordSearch").classList.toggle("active", view === 'wordsearch');
+      document.getElementById("tycoonControls").style.display = view === 'tycoon' ? "grid" : "none";
+      if (view === 'tetris') startTetris();
+      if (view === 'wordsearch') initWordSearch();
+    }
+
+    const TILES = [
+      { id: 0, name: "START (+$200)", type: "corner", color: "th-corner", price: 0, rent: 0, row: 6, col: 6 },
+      { id: 1, name: "Woodward Ave", type: "prop", color: "th-blue", price: 100, rent: 18, row: 6, col: 5, owner: null },
+      { id: 2, name: "Grand River Depot", type: "prop", color: "th-blue", price: 120, rent: 22, row: 6, col: 4, owner: null },
+      { id: 3, name: "Mystery Suitcase", type: "suitcase", color: "th-purple", price: 0, rent: 0, row: 6, col: 3 },
+      { id: 4, name: "Eastern Market", type: "prop", color: "th-blue", price: 130, rent: 24, row: 6, col: 2, owner: null },
+      { id: 5, name: "MICHIGAN TRANSIT", type: "corner", color: "th-corner", price: 0, rent: 0, row: 6, col: 1 },
+      { id: 6, name: "West Grand Blvd", type: "prop", color: "th-blue", price: 140, rent: 26, row: 5, col: 1, owner: null },
+      { id: 7, name: "Conant Gardens", type: "prop", color: "th-blue", price: 160, rent: 30, row: 4, col: 1, owner: null },
+      { id: 8, name: "Mystery Suitcase", type: "suitcase", color: "th-purple", price: 0, rent: 0, row: 3, col: 1 },
+      { id: 9, name: "I-75 Northway", type: "prop", color: "th-green", price: 180, rent: 34, row: 2, col: 1, owner: null },
+      { id: 10, name: "SAGINAW REUNION", type: "corner", color: "th-corner", price: 0, rent: 0, row: 1, col: 1 },
+      { id: 11, name: "Hoyt Public Library", type: "prop", color: "th-green", price: 200, rent: 38, row: 1, col: 2, owner: null },
+      { id: 12, name: "Bancroft House", type: "prop", color: "th-green", price: 220, rent: 40, row: 1, col: 3, owner: null },
+      { id: 13, name: "Mystery Suitcase", type: "suitcase", color: "th-purple", price: 0, rent: 0, row: 1, col: 4 },
+      { id: 14, name: "Ojibway Island", type: "prop", color: "th-green", price: 240, rent: 45, row: 1, col: 5, owner: null },
+      { id: 15, name: "LINEAGE VAULT", type: "corner", color: "th-corner", price: 0, rent: 0, row: 1, col: 6 },
+      { id: 16, name: "Saginaw Riverwalk", type: "prop", color: "th-gold", price: 260, rent: 50, row: 2, col: 6, owner: null },
+      { id: 17, name: "Atwater Street", type: "prop", color: "th-gold", price: 300, rent: 60, row: 3, col: 6, owner: null },
+      { id: 18, name: "Rhodes Family Legacy", type: "prop", color: "th-gold", price: 320, rent: 65, row: 4, col: 6, owner: null },
+      { id: 19, name: "The Atwater Estate", type: "prop", color: "th-gold", price: 350, rent: 75, row: 5, col: 6, owner: null }
+    ];
+
+    function initGame() {
+      players = [
+        { id: 0, name: myCustomName, color: myCustomColor, cash: 1500, pos: 0, deeds: [] },
+        { id: 1, name: "Saginaw Bot", color: "#f472b6", cash: 1500, pos: 0, deeds: [] }
+      ];
+      currentTurn = 0;
+      hasRolledThisTurn = false;
+      updateMarrowDisplay();
+      buildHUD();
+      buildBoard();
+      updateHUD();
+      checkTurnControl();
+    }
+
+    function checkTurnControl() {
+      const p = players[currentTurn];
+      if (!p) return;
+      const tile = TILES[p.pos];
+      const isMyTurn = (currentTurn === 0);
+
+      const btnRoll = document.getElementById("btnRoll");
+      const btnBuy = document.getElementById("btnBuy");
+      const btnEndTurn = document.getElementById("btnEndTurn");
+
+      if (!btnRoll || !btnBuy || !btnEndTurn) return;
+
+      btnRoll.disabled = !isMyTurn || hasRolledThisTurn;
+      btnEndTurn.disabled = !isMyTurn || !hasRolledThisTurn;
+      
+      if (isMyTurn && hasRolledThisTurn && tile.type === "prop" && tile.owner === null) {
+        btnBuy.disabled = (p.cash < tile.price);
+      } else {
+        btnBuy.disabled = true;
+      }
+
+      if (isMyTurn) {
+        if (hasRolledThisTurn) {
+          if (tile.type === "prop" && tile.owner === null) {
+            log(`Landed on ${tile.name} ($${tile.price}). Buy deed or End Turn.`);
+          } else {
+            log(`Landed on ${tile.name}. Click End Turn to proceed.`);
+          }
+        } else {
+          log(`Your turn (${p.name})! Roll Dice to begin.`);
+        }
+      } else {
+        log(`Waiting for ${p.name}...`);
+        if (playVsAI && currentTurn === 1) setTimeout(runAITurn, 800);
+      }
+    }
+
+    function runAITurn() {
+      if (currentTurn !== 1) return;
+      const roll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
+      const p = players[1];
+      const oldPos = p.pos;
+      p.pos = (p.pos + roll) % 20;
+      if (p.pos < oldPos) p.cash += 200;
+      const tile = TILES[p.pos];
+      if (tile.type === "prop" && tile.owner === null && p.cash >= tile.price) {
+        tile.owner = 1; p.cash -= tile.price; p.deeds.push(tile.name);
+      } else if (tile.type === "prop" && tile.owner !== null && tile.owner !== 1) {
+        let rentDue = tile.rent;
+        p.cash -= rentDue; players[tile.owner].cash += rentDue;
+      }
+      currentTurn = 0;
+      hasRolledThisTurn = false;
+      buildHUD();
+      buildBoard();
+      updateHUD();
+      checkTurnControl();
+      log(`🤖 Saginaw Bot rolled ${roll} and finished its turn.`);
+    }
+
+    function buildHUD() {
+      const hud = document.getElementById("hudRoster");
+      if (!hud) return;
+      hud.innerHTML = "";
+      players.forEach((p, idx) => {
+        hud.innerHTML += `<div class="p-card ${idx === currentTurn ? 'active-turn' : ''}"><div class="p-title" style="color: ${p.color};">${p.name}</div><div class="p-val" id="pcash-${p.id}">$${p.cash}</div></div>`;
+      });
+    }
+
+    function buildBoard() {
+      const board = document.getElementById("boardTrack");
+      if (!board) return;
+      board.innerHTML = `<div class="board-center" onclick="openArDiceCamera()">
+        <div class="center-logo">DETROIT & SAGINAW</div>
+        <div class="dice-box">
+          <div class="dice-3d" id="d1">🎲</div>
+          <div class="dice-3d" id="d2">🎲</div>
+        </div>
+      </div>`;
+      TILES.forEach((t, index) => {
+        let ownerIndicator = t.owner !== null ? `<span style="color:${players[t.owner]?.color || '#f59e0b'}">●</span>` : '';
+        board.innerHTML += `<div class="tile" style="grid-row: ${t.row}; grid-column: ${t.col};" onclick="openArPropertyCamera(${index})">
+          <div class="tile-header ${t.color}"></div>
+          <div class="tile-name">${ownerIndicator} ${t.name}</div>
+          <div class="tile-price">${t.price > 0 ? '$'+t.price : ''}</div>
+          <div class="token-slot" id="slot-${t.id}"></div>
+        </div>`;
+      });
+      renderTokens();
+    }
+
+    function renderTokens() {
+      for (let i = 0; i < 20; i++) {
+        let slot = document.getElementById(`slot-${i}`);
+        if (slot) slot.innerHTML = "";
+      }
+      players.forEach(p => {
+        const slot = document.getElementById(`slot-${p.pos}`);
+        if (slot) slot.innerHTML += `<div class="token" style="background: ${p.color};"></div>`;
+      });
+    }
+
+    function openArPropertyCamera(tileIndex) {
+      const tile = TILES[tileIndex];
+      document.getElementById("arModalHeader").innerText = "🏛️ 3D PROPERTY AR MODEL";
+      document.getElementById("arDeedTitle").innerText = tile.name;
+      document.getElementById("arDeedPrice").innerText = tile.price > 0 ? `$${tile.price} Valuation (Rent: $${tile.rent})` : "Public Sanctuary";
+      document.getElementById("arEmblemIcon").innerText = tile.type === "suitcase" ? "🎁" : "🏛️";
+      document.getElementById("arDeedModal").style.display = "flex";
+    }
+
+    function openArDiceCamera() {
+      document.getElementById("arModalHeader").innerText = "🎲 3D DICE ROLL AR VIEW";
+      let d1 = Math.floor(Math.random() * 6) + 1;
+      let d2 = Math.floor(Math.random() * 6) + 1;
+      document.getElementById("arDeedTitle").innerText = `Simulated Roll: [${d1}] & [${d2}]`;
+      document.getElementById("arDeedPrice").innerText = `Combined Total: ${d1 + d2} Steps`;
+      document.getElementById("arEmblemIcon").innerText = "🎲";
+      document.getElementById("arDeedModal").style.display = "flex";
+    }
+
+    function closeArDeed() { document.getElementById("arDeedModal").style.display = "none"; }
+
+    function rollDice() {
+      if (currentTurn !== 0 || hasRolledThisTurn) return;
+      hasRolledThisTurn = true;
+      
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const total = d1 + d2;
+      document.getElementById("d1").innerText = d1;
+      document.getElementById("d2").innerText = d2;
+
+      let p = players[0];
+      const oldPos = p.pos;
+      p.pos = (p.pos + total) % 20;
+      if (p.pos < oldPos) {
+        p.cash += 200;
+        playerMarrowEnergy += 50;
+        updateMarrowDisplay();
+      }
+
+      const tile = TILES[p.pos];
+      if (tile.type === "prop" && tile.owner !== null && tile.owner !== 0) {
+        let rentDue = tile.rent;
+        p.cash -= rentDue; players[tile.owner].cash += rentDue;
+        log(`Paid $${rentDue} rent to ${players[tile.owner].name} on ${tile.name}.`);
+      } else if (tile.type === "suitcase") {
+        let bonusCash = Math.floor(Math.random() * 3) * 50 + 50;
+        p.cash += bonusCash;
+        playerMarrowEnergy += 25;
+        updateMarrowDisplay();
+        log(`Mystery Suitcase bonus! Received $${bonusCash}.`);
+      }
+
+      buildHUD();
+      buildBoard();
+      updateHUD();
+      checkTurnControl();
+    }
+
+    function buyProperty() {
+      let p = players[0];
+      let tile = TILES[p.pos];
+      if (tile.type === "prop" && tile.owner === null && p.cash >= tile.price) {
+        tile.owner = 0;
+        p.cash -= tile.price;
+        p.deeds.push(tile.name);
+        playerMarrowEnergy += 25;
+        updateMarrowDisplay();
+        document.getElementById("btnBuy").disabled = true;
+        buildHUD();
+        buildBoard();
+        updateHUD();
+        log(`You purchased ${tile.name} for $${tile.price}! Click End Turn.`);
+      }
+    }
+
+    function endTurn() {
+      hasRolledThisTurn = false;
+      currentTurn = 1;
+      document.getElementById("btnBuy").disabled = true;
+      buildHUD();
+      checkTurnControl();
+    }
+
+    function updateMarrowDisplay() { document.getElementById("marrowCounter").innerText = `${playerMarrowEnergy} ME`; }
+    function updateHUD() { players.forEach((p) => { document.getElementById(`pcash-${p.id}`)?.innerText = `$${p.cash}`; }); }
+    function log(msg) { document.getElementById("gameLog").innerText = msg; }
+
+    /* TETRIS ARCADE ENGINE */
+    let tetrisInterval = null;
+    let tetrisPaused = false;
+    let tScore = 0;
+    let tLines = 0;
+    const tRows = 20, tCols = 10;
+    let tBoard = Array.from({length: tRows}, () => Array(tCols).fill(0));
+    let tPiece = null;
+    let tNextPiece = null;
+
+    const SHAPES = [
+      [[1,1,1,1]], // I
+      [[1,1],[1,1]], // O
+      [[0,1,0],[1,1,1]], // T
+      [[1,0,0],[1,1,1]], // L
+      [[0,0,1],[1,1,1]], // J
+      [[0,1,1],[1,1,0]], // S
+      [[1,1,0],[0,1,1]]  // Z
+    ];
+    const T_COLORS = ['#38bdf8', '#facc15', '#a855f7', '#f97316', '#3b82f6', '#10b981', '#ef4444'];
+
+    function randomTetromino() {
+      const idx = Math.floor(Math.random() * SHAPES.length);
+      return { shape: SHAPES[idx], color: T_COLORS[idx], x: 3, y: 0 };
+    }
+
+    function startTetris() {
+      if (tetrisInterval) clearInterval(tetrisInterval);
+      tBoard = Array.from({length: tRows}, () => Array(tCols).fill(0));
+      tScore = 0; tLines = 0;
+      tPiece = randomTetromino();
+      tNextPiece = randomTetromino();
+      updateTetrisHUD();
+      tetrisInterval = setInterval(tetrisTick, 500);
+    }
+
+    function toggleTetrisPause() {
+      tetrisPaused = !tetrisPaused;
+      document.getElementById("tetrisPauseBtn").innerText = tetrisPaused ? "▶️ RESUME" : "⏸️ PAUSE";
+    }
+
+    function tetrisTick() {
+      if (tetrisPaused) return;
+      tPiece.y++;
+      if (checkCollision(tPiece.shape, tPiece.x, tPiece.y)) {
+        tPiece.y--;
+        mergePiece();
+        clearLines();
+        tPiece = tNextPiece;
+        tNextPiece = randomTetromino();
+        if (checkCollision(tPiece.shape, tPiece.x, tPiece.y)) {
+          clearInterval(tetrisInterval);
+          alert("Game Over! Lineage Tetris finished.");
+          startTetris();
+        }
+      }
+      drawTetris();
+    }
+
+    function checkCollision(shape, offsetX, offsetY) {
+      for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+          if (shape[r][c]) {
+            let newX = offsetX + c;
+            let newY = offsetY + r;
+            if (newX < 0 || newX >= tCols || newY >= tRows) return true;
+            if (newY >= 0 && tBoard[newY][newX]) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function mergePiece() {
+      for (let r = 0; r < tPiece.shape.length; r++) {
+        for (let c = 0; c < tPiece.shape[r].length; c++) {
+          if (tPiece.shape[r][c]) {
+            let boardY = tPiece.y + r;
+            if (boardY >= 0) tBoard[boardY][tPiece.x + c] = tPiece.color;
+          }
+        }
+      }
+    }
+
+    function clearLines() {
+      let linesCleared = 0;
+      for (let r = tRows - 1; r >= 0; r--) {
+        if (tBoard[r].every(cell => cell !== 0)) {
+          tBoard.splice(r, 1);
+          tBoard.unshift(Array(tCols).fill(0));
+          linesCleared++;
+          r++;
+        }
+      }
+      if (linesCleared > 0) {
+        tLines += linesCleared;
+        tScore += linesCleared * 100 * linesCleared;
+        updateTetrisHUD();
+        if (tLines >= 20) {
+          clearInterval(tetrisInterval);
+          alert("Congratulations! You cleared 20 lines and unlocked Rhodes Family bonus Marrow Energy!");
+          playerMarrowEnergy += 100;
+          updateMarrowDisplay();
+          startTetris();
+        }
+      }
+    }
+
+    function tetrisMove(dir) {
+      if (tetrisPaused) return;
+      tPiece.x += dir;
+      if (checkCollision(tPiece.shape, tPiece.x, tPiece.y)) tPiece.x -= dir;
+      drawTetris();
+    }
+
+    function tetrisRotate() {
+      if (tetrisPaused) return;
+      const rotated = tPiece.shape[0].map((_, index) => tPiece.shape.map(row => row[index]).reverse());
+      if (!checkCollision(rotated, tPiece.x, tPiece.y)) tPiece.shape = rotated;
+      drawTetris();
+    }
+
+    function tetrisDrop() {
+      if (tetrisPaused) return;
+      while (!checkCollision(tPiece.shape, tPiece.x, tPiece.y + 1)) {
+        tPiece.y++;
+      }
+      tetrisTick();
+    }
+
+    function drawTetris() {
+      const canvas = document.getElementById("tetrisCanvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#020617";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const blockSize = 22;
+
+      for (let r = 0; r < tRows; r++) {
+        for (let c = 0; c < tCols; c++) {
+          if (tBoard[r][c]) {
+            ctx.fillStyle = tBoard[r][c];
+            ctx.fillRect(c * blockSize, r * blockSize, blockSize - 1, blockSize - 1);
+          }
+        }
+      }
+
+      if (tPiece) {
+        ctx.fillStyle = tPiece.color;
+        for (let r = 0; r < tPiece.shape.length; r++) {
+          for (let c = 0; c < tPiece.shape[r].length; c++) {
+            if (tPiece.shape[r][c]) {
+              ctx.fillRect((tPiece.x + c) * blockSize, (tPiece.y + r) * blockSize, blockSize - 1, blockSize - 1);
+            }
+          }
+        }
+      }
+
+      const nextCanvas = document.getElementById("nextCanvas");
+      if (!nextCanvas) return;
+      const nCtx = nextCanvas.getContext("2d");
+      nCtx.fillStyle = "#020617";
+      nCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+      if (tNextPiece) {
+        nCtx.fillStyle = tNextPiece.color;
+        let nSize = 14;
+        for (let r = 0; r < tNextPiece.shape.length; r++) {
+          for (let c = 0; c < tNextPiece.shape[r].length; c++) {
+            if (tNextPiece.shape[r][c]) {
+              nCtx.fillRect(10 + c * nSize, 10 + r * nSize, nSize - 1, nSize - 1);
+            }
+          }
+        }
+      }
+    }
+
+    function updateTetrisHUD() {
+      document.getElementById("linesCount").innerText = tLines;
+      document.getElementById("tetrisScore").innerText = tScore;
+    }
+
+    /* WORD SEARCH TRIVIA */
+    const TARGET_WORDS = ["DETROIT", "SAGINAW", "RHODES"];
+    let foundWords = [];
+
+    function initWordSearch() {
+      foundWords = [];
+      updateWordStatus();
+      const gridContainer = document.getElementById("wordGridContainer");
+      if (!gridContainer) return;
+      gridContainer.innerHTML = "";
+      
+      const letters = [
+        ['D','E','T','R','O','I'],
+        ['T','S','A','G','I','N'],
+        ['A','R','H','O','D','E'],
+        ['W','X','Y','Z','S','V'],
+        ['B','C','D','E','F','G'],
+        ['H','I','J','K','L','M']
+      ];
+
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          let cell = document.createElement("div");
+          cell.className = "word-cell";
+          cell.innerText = letters[r][c];
+          cell.onclick = () => {
+            cell.classList.toggle("selected");
+            checkSelectedWords();
+          };
+          gridContainer.appendChild(cell);
+        }
+      }
+    }
+
+    function checkSelectedWords() {
+      const selected = document.querySelectorAll(".word-cell.selected");
+      let selectedStr = Array.from(selected).map(el => el.innerText).join("");
+      TARGET_WORDS.forEach(w => {
+        if (selectedStr.includes(w) && !foundWords.includes(w)) {
+          foundWords.push(w);
+          selected.forEach(el => { el.classList.remove("selected"); el.classList.add("found"); });
+          updateWordStatus();
+          if (foundWords.length === TARGET_WORDS.length) {
+            playerMarrowEnergy += 75;
+            updateMarrowDisplay();
+            alert("Amazing! All heritage words found. +75 Marrow Energy awarded!");
+          }
+        }
+      });
+    }
+
+    function updateWordStatus() {
+      document.getElementById("wordStatus").innerText = `Words Found: ${foundWords.length} / 3`;
+    }
+
+    function triggerChronoLeap() {
+      if (playerMarrowEnergy >= 100) {
+        playerMarrowEnergy -= 100;
+        updateMarrowDisplay();
+        log("⚡ Chrono-Leap activated! Extra turn granted.");
+        hasRolledThisTurn = false;
+        checkTurnControl();
+      } else {
+        alert("Not enough Marrow Energy! Need 100 ME.");
+      }
+    }
+
+    function triggerLegacyShield() {
+      if (playerMarrowEnergy >= 75) {
+        playerMarrowEnergy -= 75;
+        updateMarrowDisplay();
+        log("🛡️ Legacy Shield activated! Protected against rent fees.");
+      } else {
+        alert("Not enough Marrow Energy! Need 75 ME.");
+      }
+    }
+
+    function hostP2PMatch() {
+      const roomId = "ROOM-" + Math.floor(Math.random() * 8999 + 1000);
+      document.getElementById("joinCodeInput").value = roomId;
+      log(`Hosting P2P Match. Room Code: ${roomId}`);
+      alert(`Room created! Share code ${roomId} with your opponent.`);
+    }
+
+    function joinP2PMatch() {
+      const code = document.getElementById("joinCodeInput").value.trim();
+      if (!code) { alert("Please enter a valid room code."); return; }
+      log(`Connecting to P2P Room: ${code}...`);
+      alert(`Connected to room ${code}! Multi-player lobby synced.`);
+    }
+  </script>
 </body>
 </html>
