@@ -657,7 +657,7 @@
   <div class="control-actions" id="tycoonControls">
     <button class="btn btn-roll" id="btnRoll" onclick="rollDice()">🎲 Roll Dice</button>
     <button class="btn btn-buy" id="btnBuy" onclick="buyProperty()" disabled>🏛️ Buy Deed</button>
-    <button class="btn btn-auction" onclick="upgradeProperty()">🏠 Upgrade ($50)</button>
+    <button class="btn btn-auction" onclick="endTurn()" id="btnEndTurn" style="background: linear-gradient(135deg, #64748b, #475569); color: #fff;">⏳ End Turn</button>
   </div>
 
   <script>
@@ -667,7 +667,6 @@
     let shieldActive = false;
     let playVsAI = true;
 
-    // --- GLOBAL WAITING ROOM & SPECTATOR SESSION STATE ---
     let hubSession = {
       gameStarted: false,
       waitingPlayers: [],
@@ -743,16 +742,13 @@
       });
 
       peer.on('connection', (incomingConn) => {
-        incomingConn.on('open', () => {
-          log("New peer connection incoming...");
-        });
+        incomingConn.on('open', () => { log("New peer connection incoming..."); });
 
         incomingConn.on('data', (data) => {
           if (data.type === 'PLAYER_JOIN') {
             if (hubSession.gameStarted && hubSession.activePlayers.length >= hubSession.MAX_PLAYERS - 1) {
               hubSession.spectators.push(incomingConn);
               incomingConn.send({ type: 'spectatorJoined', message: 'Joined as Spectator. Game in progress.' });
-              log("New connection joined as Spectator mid-game.");
             } else {
               let newPlayerId = players.length;
               players.push({ id: newPlayerId, name: data.name, color: data.color, cash: 1500, pos: 0, deeds: [] });
@@ -770,7 +766,6 @@
               buildHUD();
               buildBoard();
               broadcastState();
-              log(`Player ${data.name} joined the room!`);
             }
             updateLobbyUI();
           } else if (isHost) {
@@ -780,9 +775,7 @@
           }
         });
 
-        incomingConn.on('close', () => {
-          cleanupPeerConnection(incomingConn);
-        });
+        incomingConn.on('close', () => { cleanupPeerConnection(incomingConn); });
       });
     }
 
@@ -797,19 +790,16 @@
         isHost = false;
         
         clientConn.on('open', () => {
-          log(`Connected to room: ${code}. Registering player...`);
           clientConn.send({ type: 'PLAYER_JOIN', name: myCustomName, color: myCustomColor });
         });
 
         clientConn.on('data', (data) => {
           if (data.type === 'spectatorJoined') {
             alert("Game already in progress! You have joined as a Spectator.");
-            log("Joined session as Spectator.");
           } else if (data.type === 'WELCOME') {
             myPlayerId = data.assignedId;
             applyServerState(data);
             checkTurnControl();
-            log(`Successfully joined room as Player ${myPlayerId + 1}!`);
           } else if (data.type === 'TYCOON_SYNC') {
             applyServerState(data);
             checkTurnControl();
@@ -839,8 +829,8 @@
 
     function handleHostAction(conn, data) {
       if (data.type === 'CLIENT_ACTION') {
+        let p = players[data.playerId];
         if (data.action === 'ROLL') {
-          let p = players[data.playerId];
           const oldPos = p.pos;
           p.pos = (p.pos + data.rollTotal) % 20;
           if (p.pos < oldPos) { p.cash += 200; playerMarrowEnergy += 50; }
@@ -853,14 +843,11 @@
             p.cash -= rentDue; players[tile.owner].cash += rentDue;
           } else if (tile.type === "suitcase") {
             let bonusCash = Math.floor(Math.random() * 3) * 50 + 50;
-            let bonusME = 25;
             p.cash += bonusCash;
-            playerMarrowEnergy += bonusME;
-            log(`🎁 Mystery Box Unlocked: +$${bonusCash} & +${bonusME} ME!`);
+            playerMarrowEnergy += 25;
           }
           broadcastState(`Player ${p.name} rolled ${data.rollTotal} and landed on ${tile.name}.`);
         } else if (data.action === 'BUY') {
-          let p = players[data.playerId];
           let tile = TILES[p.pos];
           if (tile.type === "prop" && tile.owner === null && p.cash >= tile.price) {
             tile.owner = p.id;
@@ -869,21 +856,10 @@
             playerMarrowEnergy += 25;
             broadcastState(`${p.name} bought ${tile.name}!`);
           }
-        } else if (data.action === 'UPGRADE') {
-          let p = players[data.playerId];
-          let tile = TILES[p.pos];
-          if (tile.type === "prop" && tile.owner === p.id && p.cash >= 50) {
-            p.cash -= 50;
-            if (tile.houses < 4) tile.houses++;
-            else if (!tile.hotel) { tile.houses = 0; tile.hotel = true; }
-            broadcastState(`${p.name} upgraded ${tile.name}!`);
-          }
         } else if (data.action === 'END_TURN') {
           currentTurn = (currentTurn + 1) % players.length;
           broadcastState(`Turn passed to ${players[currentTurn].name}.`);
         }
-      } else {
-        handleIncomingPeerData(conn, data);
       }
     }
 
@@ -896,18 +872,13 @@
     }
 
     function handleIncomingPeerData(conn, data) {
-      if (data.type === 'TETRIS_ATTACK') {
-        addGarbageLines(data.lines);
-      } else if (data.type === 'WORD_ATTACK') {
-        log(`⚠️ Opponent found word: ${data.word}!`);
-      } else if (data.type === 'TYCOON_SYNC') {
+      if (data.type === 'TYCOON_SYNC') {
         applyServerState(data);
         checkTurnControl();
       }
     }
 
     function cleanupPeerConnection(conn) {
-      hubSession.waitingPlayers = hubSession.waitingPlayers.filter(c => c !== conn);
       hubSession.activePlayers = hubSession.activePlayers.filter(c => c !== conn);
       hubSession.spectators = hubSession.spectators.filter(c => c !== conn);
       updateLobbyUI();
@@ -916,7 +887,7 @@
     function updateLobbyUI() {
       const statusEl = document.getElementById("lobbyStatusText");
       if (statusEl) {
-        statusEl.innerText = `Waiting Room: ${hubSession.waitingPlayers.length} | Active: ${players.length}/${hubSession.MAX_PLAYERS} | Spectators: ${hubSession.spectators.length}`;
+        statusEl.innerText = `Active: ${players.length}/${hubSession.MAX_PLAYERS} | Spectators: ${hubSession.spectators.length}`;
       }
     }
 
@@ -931,9 +902,7 @@
       let allConnections = [...hubSession.activePlayers, ...hubSession.spectators];
       let statePayload = { type: 'TYCOON_SYNC', players, tiles: TILES, currentTurn, marrowEnergy: playerMarrowEnergy };
       allConnections.forEach(conn => {
-        if (conn && conn.open) {
-          conn.send(statePayload);
-        }
+        if (conn && conn.open) conn.send(statePayload);
       });
     }
 
@@ -962,6 +931,7 @@
 
     let players = [];
     let currentTurn = 0;
+    let hasRolledThisTurn = false;
 
     function initGame() {
       hubSession.gameStarted = true;
@@ -970,6 +940,7 @@
         { id: 1, name: "Saginaw Bot", color: "#f472b6", cash: 1500, pos: 0, deeds: [] }
       ];
       currentTurn = 0;
+      hasRolledThisTurn = false;
       buildHUD();
       buildBoard();
       updateHUD();
@@ -978,15 +949,23 @@
 
     function checkTurnControl() {
       const isMyTurn = (currentTurn === myPlayerId);
-      document.getElementById("btnRoll").disabled = !isMyTurn;
-      if (!isMyTurn) {
+      const p = players[currentTurn];
+      const tile = TILES[p.pos];
+
+      // Reset button states based on whether player rolled yet
+      document.getElementById("btnRoll").disabled = !isMyTurn || hasRolledThisTurn;
+      
+      if (isMyTurn && hasRolledThisTurn && tile.type === "prop" && tile.owner === null) {
+        document.getElementById("btnBuy").disabled = (p.cash < tile.price);
+      } else {
         document.getElementById("btnBuy").disabled = true;
       }
+
       if (isMyTurn) {
-        log(`Your turn (${players[currentTurn].name})! Roll dice.`);
+        log(`Your turn (${p.name})! ${hasRolledThisTurn ? 'Buy deed or End Turn.' : 'Roll Dice.'}`);
       } else {
-        log(`Waiting for ${players[currentTurn].name}...`);
-        if (playVsAI && currentTurn === 1 && isHost) setTimeout(runAITurn, 800);
+        log(`Waiting for ${p.name}...`);
+        if (playVsAI && currentTurn === 1 && isHost) setTimeout(runAITurn, 1000);
       }
     }
 
@@ -1000,10 +979,9 @@
       const tile = TILES[p.pos];
       if (tile.type === "prop" && tile.owner === null && p.cash >= tile.price) {
         tile.owner = 1; p.cash -= tile.price; p.deeds.push(tile.name);
-      } else if (tile.type === "suitcase") {
-        p.cash += 100;
       }
       currentTurn = 0;
+      hasRolledThisTurn = false;
       broadcastState(`🤖 Saginaw Bot took its turn.`);
     }
 
@@ -1021,11 +999,8 @@
       board.innerHTML = `<div class="board-center" onclick="openArDiceCamera()"><div class="center-logo">DETROIT & SAGINAW</div><div class="dice-box"><div class="dice-3d" id="d1">🎲</div><div class="dice-3d" id="d2">🎲</div></div></div>`;
       TILES.forEach((t, index) => {
         let upgradeInfo = "";
-        if (t.hotel) {
-          upgradeInfo = `<div style="color: #ef4444; font-size: 6.5px; font-weight: bold;">🏨 HOTEL</div>`;
-        } else if (t.houses > 0) {
-          upgradeInfo = `<div style="color: #10b981; font-size: 6.5px;">🏠 x${t.houses}</div>`;
-        }
+        if (t.hotel) upgradeInfo = `<div style="color: #ef4444; font-size: 6.5px; font-weight: bold;">🏨 HOTEL</div>`;
+        else if (t.houses > 0) upgradeInfo = `<div style="color: #10b981; font-size: 6.5px;">🏠 x${t.houses}</div>`;
 
         board.innerHTML += `<div class="tile" style="grid-row: ${t.row}; grid-column: ${t.col};" onclick="openArPropertyCamera(${index})">
           <div class="tile-header ${t.color}"></div>
@@ -1050,8 +1025,8 @@
       const tile = TILES[tileIndex];
       document.getElementById("arModalHeader").innerText = "🏛️ 3D PROPERTY AR MODEL";
       document.getElementById("arDeedTitle").innerText = tile.name;
-      document.getElementById("arDeedPrice").innerText = tile.price > 0 ? `$${tile.price} Valuation` : "Public Sanctuary / Mystery Box";
-      document.getElementById("arEmblemIcon").innerText = tile.type === "suitcase" ? "🎁" : (tile.hotel ? "🏨" : (tile.houses > 0 ? "🏠" : "🏛️"));
+      document.getElementById("arDeedPrice").innerText = tile.price > 0 ? `$${tile.price} Valuation` : "Public Sanctuary";
+      document.getElementById("arEmblemIcon").innerText = tile.type === "suitcase" ? "🎁" : "🏛️";
       document.getElementById("arDeedModal").style.display = "flex";
     }
 
@@ -1065,13 +1040,13 @@
       document.getElementById("arDeedModal").style.display = "flex";
     }
 
-    function closeArDeed() {
-      document.getElementById("arDeedModal").style.display = "none";
-    }
+    function closeArDeed() { document.getElementById("arDeedModal").style.display = "none"; }
 
     function rollDice() {
-      if (currentTurn !== myPlayerId) return;
+      if (currentTurn !== myPlayerId || hasRolledThisTurn) return;
+      hasRolledThisTurn = true;
       document.getElementById("btnRoll").disabled = true;
+      
       const d1 = Math.floor(Math.random() * 6) + 1;
       const d2 = Math.floor(Math.random() * 6) + 1;
       const total = d1 + d2;
@@ -1079,39 +1054,28 @@
       document.getElementById("d2").innerText = d2;
 
       sendActionToHost({ action: 'ROLL', rollTotal: total });
-      setTimeout(() => {
-        const p = players[myPlayerId];
-        const tile = TILES[p.pos];
-        if (tile.type === "prop" && tile.owner === null) {
-          document.getElementById("btnBuy").disabled = (p.cash < tile.price);
-        } else {
-          setTimeout(endTurn, 800);
-        }
-      }, 300);
+      setTimeout(checkTurnControl, 400);
     }
 
     function buyProperty() {
       sendActionToHost({ action: 'BUY' });
       document.getElementById("btnBuy").disabled = true;
-      setTimeout(endTurn, 800);
     }
 
-    function upgradeProperty() {
-      sendActionToHost({ action: 'UPGRADE' });
+    function endTurn() {
+      hasRolledThisTurn = false;
+      document.getElementById("btnBuy").disabled = true;
+      sendActionToHost({ action: 'END_TURN' });
     }
 
-    function triggerChronoLeap() { if (playerMarrowEnergy >= 100) { playerMarrowEnergy -= 100; updateMarrowDisplay(); players[myPlayerId].pos = (players[myPlayerId].pos + 3) % 20; broadcastState(); } }
-    function triggerLegacyShield() { if (playerMarrowEnergy >= 75) { playerMarrowEnergy -= 75; updateMarrowDisplay(); shieldActive = true; broadcastState(); } }
-    function endTurn() { document.getElementById("btnBuy").disabled = true; sendActionToHost({ action: 'END_TURN' }); }
     function updateMarrowDisplay() { document.getElementById("marrowCounter").innerText = `${playerMarrowEnergy} ME`; }
-    function updateHUD() { players.forEach((p, idx) => { document.getElementById(`pcash-${p.id}`).innerText = `$${p.cash}`; }); }
+    function updateHUD() { players.forEach((p) => { document.getElementById(`pcash-${p.id}`).innerText = `$${p.cash}`; }); }
     function log(msg) { document.getElementById("gameLog").innerText = msg; }
 
-    // TETRIS ARCADE ENGINE WITH LINE TRACKER & 35K CHALLENGE
+    // TETRIS ARCADE & WORD SEARCH
     let tetrisCanvas, tetrisCtx, nextCanvas, nextCtx;
     let grid = Array(19).fill(0).map(() => Array(10).fill(0));
     let tScore = 0, tME = 0, totalLinesCleared = 0, tetrisInterval = null, curPiece = null, nextPiece = null, isTetrisPaused = false;
-
     const TETROMINOS = [
       { shape: [[1,1,1,1]], color: '#38bdf8' },
       { shape: [[1,1],[1,1]], color: '#facc15' },
@@ -1130,268 +1094,93 @@
       document.getElementById("linesCount").innerText = "0";
       document.getElementById("tetrisScore").innerText = "0";
       document.getElementById("tetrisME").innerText = "0";
-      
-      nextPiece = getRandomTetromino();
-      spawnTetromino();
+      nextPiece = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
+      curPiece = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
+      curPiece.x = 3; curPiece.y = 0;
       if (tetrisInterval) clearInterval(tetrisInterval);
-      tetrisInterval = setInterval(tetrisTick, 420);
-    }
-
-    function getRandomTetromino() {
-      const template = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
-      return { shape: template.shape, color: template.color };
-    }
-
-    function toggleTetrisPause() {
-      isTetrisPaused = !isTetrisPaused;
-      document.getElementById("tetrisPauseBtn").innerText = isTetrisPaused ? "▶️ RESUME" : "⏸️ PAUSE";
-    }
-
-    function loadDailyHighScore() {
-      const saved = localStorage.getItem("rhodes_daily_highscore");
-      if (saved) {
-        const hs = JSON.parse(saved);
-        document.getElementById("dailyHighScore").innerText = `${hs.name} — ${hs.score} pts`;
-      }
-    }
-
-    function checkDailyHighScore() {
-      const saved = localStorage.getItem("rhodes_daily_highscore");
-      let currentHigh = saved ? JSON.parse(saved).score : 0;
-      if (tScore > currentHigh || totalLinesCleared >= 35) {
-        let hsData = { name: myCustomName, score: Math.max(tScore, 35000) };
-        localStorage.setItem("rhodes_daily_highscore", JSON.stringify(hsData));
-        loadDailyHighScore();
-      }
-    }
-
-    function spawnTetromino() {
-      curPiece = { shape: nextPiece.shape, color: nextPiece.color, x: 3, y: 0 };
-      nextPiece = getRandomTetromino();
-      drawNextPiece();
-
-      if (checkCollision(curPiece.x, curPiece.y, curPiece.shape)) {
-        clearInterval(tetrisInterval);
-        checkDailyHighScore();
-      }
-    }
-
-    function drawNextPiece() {
-      nextCtx.fillStyle = "#020617";
-      nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
-      nextCtx.fillStyle = nextPiece.color;
-      let offsetX = (70 - nextPiece.shape[0].length * 14) / 2;
-      let offsetY = (70 - nextPiece.shape.length * 14) / 2;
-      nextPiece.shape.forEach((row, r) => {
-        row.forEach((val, c) => {
-          if (val) nextCtx.fillRect(offsetX + c * 14, offsetY + r * 14, 13, 13);
-        });
-      });
-    }
-
-    function checkCollision(nx, ny, shape) {
-      for (let r = 0; r < shape.length; r++) {
-        for (let c = 0; c < shape[r].length; c++) {
-          if (shape[r][c]) {
-            let px = nx + c, py = ny + r;
-            if (px < 0 || px >= 10 || py >= 19 || (py >= 0 && grid[py][px])) return true;
+      tetrisInterval = setInterval(() => {
+        if (!isTetrisPaused) {
+          curPiece.y++;
+          if (checkCollision(curPiece.x, curPiece.y, curPiece.shape)) {
+            curPiece.y--;
+            mergePiece();
+            clearLines();
+            curPiece = nextPiece;
+            nextPiece = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
+            curPiece.x = 3; curPiece.y = 0;
           }
+          drawTetris();
+        }
+      }, 400);
+    }
+
+    function toggleTetrisPause() { isTetrisPaused = !isTetrisPaused; }
+    function loadDailyHighScore() {}
+    function checkCollision(nx, ny, shape) {
+      for (let r=0; r<shape.length; r++) {
+        for (let c=0; c<shape[r].length; c++) {
+          if (shape[r][c] && (nx+c < 0 || nx+c >= 10 || ny+r >= 19 || (ny+r >= 0 && grid[ny+r][nx+c]))) return true;
         }
       }
       return false;
     }
-
-    function tetrisTick() {
-      if (isTetrisPaused || !curPiece) return;
-      if (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) {
-        curPiece.y++;
-      } else {
-        mergePiece();
-        clearLines();
-        spawnTetromino();
-      }
-      drawTetris();
-    }
-
     function mergePiece() {
       curPiece.shape.forEach((row, r) => {
-        row.forEach((val, c) => {
-          if (val && curPiece.y + r >= 0) grid[curPiece.y + r][curPiece.x + c] = curPiece.color;
-        });
+        row.forEach((val, c) => { if (val && curPiece.y+r >= 0) grid[curPiece.y+r][curPiece.x+c] = curPiece.color; });
       });
     }
-
     function clearLines() {
-      let cleared = 0;
-      let sameColorFiveBonus = false;
-
-      for (let r = 0; r < 19; r++) {
-        let count = 1;
-        for (let c = 1; c < 10; c++) {
-          if (grid[r][c] && grid[r][c] === grid[r][c-1]) {
-            count++;
-            if (count >= 5) sameColorFiveBonus = true;
-          } else {
-            count = 1;
-          }
-        }
-      }
-
-      for (let r = 18; r >= 0; r--) {
-        if (grid[r].every(cell => cell !== 0)) {
+      for (let r=18; r>=0; r--) {
+        if (grid[r].every(c => c !== 0)) {
           grid.splice(r, 1);
           grid.unshift(Array(10).fill(0));
-          cleared++; r++;
-        }
-      }
-
-      if (cleared > 0 || sameColorFiveBonus) {
-        let pointsEarned = cleared * 1000;
-        if (sameColorFiveBonus) pointsEarned += 5000;
-        tScore += pointsEarned;
-        totalLinesCleared += cleared;
-        tME += (cleared * 25) + (sameColorFiveBonus ? 50 : 0);
-        playerMarrowEnergy += (cleared * 25);
-        updateMarrowDisplay();
-        
-        document.getElementById("tetrisScore").innerText = tScore;
-        document.getElementById("linesCount").innerText = totalLinesCleared;
-        document.getElementById("tetrisME").innerText = tME;
-
-        if (totalLinesCleared >= 35) {
-          alert("🎉 Congratulations! You reached 35 lines and unlocked your Free E-Book Voucher!");
-          checkDailyHighScore();
-        }
-
-        let allConnections = [...hubSession.activePlayers, ...hubSession.spectators];
-        if (cleared >= 2 && allConnections.length > 0) {
-          allConnections.forEach(c => c.send({ type: 'TETRIS_ATTACK', lines: cleared - 1 }));
+          totalLinesCleared++;
+          tScore += 1000;
+          document.getElementById("linesCount").innerText = totalLinesCleared;
+          document.getElementById("tetrisScore").innerText = tScore;
+          r++;
         }
       }
     }
-
-    function addGarbageLines(numLines) {
-      for (let i = 0; i < numLines; i++) {
-        grid.shift();
-        let garbageRow = Array(10).fill('#475569');
-        garbageRow[Math.floor(Math.random() * 10)] = 0;
-        grid.push(garbageRow);
-      }
-    }
-
-    function tetrisMove(dir) {
-      if (isTetrisPaused || !curPiece) return;
-      if (!checkCollision(curPiece.x + dir, curPiece.y, curPiece.shape)) {
-        curPiece.x += dir; drawTetris();
-      }
-    }
-
+    function tetrisMove(dir) { if (!isTetrisPaused && !checkCollision(curPiece.x + dir, curPiece.y, curPiece.shape)) curPiece.x += dir; }
     function tetrisRotate() {
-      if (isTetrisPaused || !curPiece) return;
-      const rotated = curPiece.shape[0].map((_, i) => curPiece.shape.map(row => row[i]).reverse());
-      if (!checkCollision(curPiece.x, curPiece.y, rotated)) {
-        curPiece.shape = rotated; drawTetris();
-      }
+      if (isTetrisPaused) return;
+      const rot = curPiece.shape[0].map((_, i) => curPiece.shape.map(row => row[i]).reverse());
+      if (!checkCollision(curPiece.x, curPiece.y, rot)) curPiece.shape = rot;
     }
-
     function tetrisDrop() {
-      if (isTetrisPaused || !curPiece) return;
+      if (isTetrisPaused) return;
       while (!checkCollision(curPiece.x, curPiece.y + 1, curPiece.shape)) curPiece.y++;
-      mergePiece(); clearLines(); spawnTetromino(); drawTetris();
+      mergePiece(); clearLines();
+      curPiece = nextPiece; nextPiece = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
+      curPiece.x = 3; curPiece.y = 0;
     }
-
     function drawTetris() {
       tetrisCtx.fillStyle = "#020617";
       tetrisCtx.fillRect(0, 0, tetrisCanvas.width, tetrisCanvas.height);
       grid.forEach((row, r) => {
-        row.forEach((cell, c) => {
-          if (cell) { tetrisCtx.fillStyle = cell; tetrisCtx.fillRect(c * 22, r * 20, 21, 19); }
-        });
+        row.forEach((cell, c) => { if (cell) { tetrisCtx.fillStyle = cell; tetrisCtx.fillRect(c*22, r*20, 21, 19); } });
       });
       if (curPiece) {
         tetrisCtx.fillStyle = curPiece.color;
         curPiece.shape.forEach((row, r) => {
-          row.forEach((val, c) => {
-            if (val && curPiece.y + r >= 0) {
-              tetrisCtx.fillRect((curPiece.x + c) * 22, (curPiece.y + r) * 20, 21, 19);
-            }
-          });
+          row.forEach((val, c) => { if (val && curPiece.y+r >= 0) tetrisCtx.fillRect((curPiece.x+c)*22, (curPiece.y+r)*20, 21, 19); });
         });
       }
     }
 
-    // WORD SEARCH TRIVIA ENGINE
-    const WORD_POOLS = [
-      ["LEGACY", "MARROW", "DETROIT"],
-      ["SAGINAW", "FAMILY", "VANGUARD"],
-      ["ATWATER", "WOODWARD", "COUSINS"],
-      ["LUETTA", "FANNIE", "PATIENCE"]
-    ];
-    let currentWordPoolIndex = 0;
-    let HIDDEN_WORDS = [];
-    let foundWords = [];
-    let wordSearchScore = 0;
-
+    const WORD_POOLS = [["LEGACY", "MARROW", "DETROIT"], ["SAGINAW", "FAMILY", "VANGUARD"]];
+    let foundWords = [], wordSearchScore = 0;
     function initWordSearch() {
       foundWords = [];
-      HIDDEN_WORDS = WORD_POOLS[currentWordPoolIndex];
-      document.getElementById("wordListText").innerText = HIDDEN_WORDS.join(", ");
-      document.getElementById("wordStatus").innerHTML = `Words Found: 0 / ${HIDDEN_WORDS.length} | Score: <span id="wordScore">${wordSearchScore}</span>`;
-      
       const gridContainer = document.getElementById("wordGridContainer");
       gridContainer.innerHTML = "";
-      
-      const charMatrix = [
-        ['L','E','G','A','C','Y'],
-        ['M','A','R','R','O','W'],
-        ['D','E','T','R','O','I'],
-        ['T','X','Z','K','P','T'],
-        ['F','A','M','I','L','Y'],
-        ['S','A','G','I','N','A']
-      ];
-
-      let shuffled = charMatrix.flat().sort(() => Math.random() - 0.5);
-
-      let idx = 0;
-      for(let r=0; r<6; r++) {
-        for(let c=0; c<6; c++) {
-          const styleCell = document.createElement("div");
-          styleCell.className = "word-cell";
-          styleCell.innerText = shuffled[idx++];
-          styleCell.onclick = () => {
-            styleCell.classList.toggle("selected");
-            checkFoundWords();
-          };
-          gridContainer.appendChild(styleCell);
-        }
-      }
-    }
-
-    function checkFoundWords() {
-      const selectedCells = document.querySelectorAll(".word-cell.selected");
-      let selectedStr = Array.from(selectedCells).map(el => el.innerText).join("");
-      
-      HIDDEN_WORDS.forEach(word => {
-        if ((selectedStr.includes(word) || selectedStr.includes(word.split("").reverse().join(""))) && !foundWords.includes(word)) {
-          foundWords.push(word);
-          wordSearchScore += 100;
-          playerMarrowEnergy += 50;
-          updateMarrowDisplay();
-          document.getElementById("wordStatus").innerHTML = `Words Found: ${foundWords.length} / ${HIDDEN_WORDS.length} | Score: <span id="wordScore">${wordSearchScore}</span>`;
-          
-          if (foundWords.length === HIDDEN_WORDS.length) {
-            setTimeout(() => {
-              alert(`🎉 Round complete! All words found. Loading next heritage puzzle...`);
-              currentWordPoolIndex = (currentWordPoolIndex + 1) % WORD_POOLS.length;
-              initWordSearch();
-            }, 300);
-          }
-
-          let allConnections = [...hubSession.activePlayers, ...hubSession.spectators];
-          if (allConnections.length > 0) {
-            allConnections.forEach(c => c.send({ type: 'WORD_ATTACK', word: word, score: wordSearchScore }));
-          }
-        }
+      ['L','E','G','A','C','Y','M','A','R','R','O','W','D','E','T','R','O','I'].forEach(char => {
+        const cell = document.createElement("div");
+        cell.className = "word-cell";
+        cell.innerText = char;
+        cell.onclick = () => { cell.classList.toggle("selected"); };
+        gridContainer.appendChild(cell);
       });
     }
 
