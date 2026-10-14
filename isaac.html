@@ -982,6 +982,8 @@
       
       const p = players[currentTurn];
       const tile = TILES[p.pos];
+      
+      // Only enable buy button if it's my turn and I landed on an unowned property
       if (isMyTurn && tile.type === "prop" && tile.owner === null) {
         document.getElementById("btnBuy").disabled = (p.cash < tile.price);
       } else {
@@ -989,7 +991,7 @@
       }
 
       if (isMyTurn) {
-        log(`Your turn (${p.name})! Roll dice or buy/upgrade property.`);
+        log(`Your turn (${p.name})! Roll dice.`);
       } else {
         log(`Waiting for ${p.name}...`);
         if (playVsAI && currentTurn === 1 && isHost) setTimeout(runAITurn, 800);
@@ -1085,21 +1087,24 @@
       document.getElementById("d2").innerText = d2;
 
       sendActionToHost({ action: 'ROLL', rollTotal: total });
+      
+      // Automatically advance turn or allow buy action after brief delay
       setTimeout(() => {
         const p = players[myPlayerId];
         const tile = TILES[p.pos];
         if (tile.type === "prop" && tile.owner === null) {
           document.getElementById("btnBuy").disabled = (p.cash < tile.price);
+          log(`Landed on ${tile.name}. Buy deed or wait/end turn.`);
         } else {
-          document.getElementById("btnBuy").disabled = true;
+          setTimeout(endTurn, 1000);
         }
-      }, 300);
+      }, 400);
     }
 
     function buyProperty() {
       sendActionToHost({ action: 'BUY' });
       document.getElementById("btnBuy").disabled = true;
-      setTimeout(endTurn, 600);
+      setTimeout(endTurn, 800);
     }
 
     function upgradeProperty() {
@@ -1108,7 +1113,11 @@
 
     function triggerChronoLeap() { if (playerMarrowEnergy >= 100) { playerMarrowEnergy -= 100; updateMarrowDisplay(); players[myPlayerId].pos = (players[myPlayerId].pos + 3) % 20; broadcastState(); } }
     function triggerLegacyShield() { if (playerMarrowEnergy >= 75) { playerMarrowEnergy -= 75; updateMarrowDisplay(); shieldActive = true; broadcastState(); } }
-    function endTurn() { document.getElementById("btnBuy").disabled = true; sendActionToHost({ action: 'END_TURN' }); }
+    function endTurn() { 
+      document.getElementById("btnBuy").disabled = true; 
+      document.getElementById("btnRoll").disabled = false;
+      sendActionToHost({ action: 'END_TURN' }); 
+    }
     function updateMarrowDisplay() { document.getElementById("marrowCounter").innerText = `${playerMarrowEnergy} ME`; }
     function updateHUD() { players.forEach((p, idx) => { document.getElementById(`pcash-${p.id}`).innerText = `$${p.cash}`; }); }
     function log(msg) { document.getElementById("gameLog").innerText = msg; }
@@ -1316,7 +1325,7 @@
       });
       if (curPiece) {
         tetrisCtx.fillStyle = curPiece.color;
-        curPiece.shape.forEach((row, r) => {
+        curPiece.shape.shapes?.forEach?.(...) || curPiece.shape.forEach((row, r) => {
           row.forEach((val, c) => {
             if (val && curPiece.y + r >= 0) {
               tetrisCtx.fillRect((curPiece.x + c) * 22, (curPiece.y + r) * 20, 21, 19);
