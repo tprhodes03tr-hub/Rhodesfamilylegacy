@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Isaac Rhodes Adventures: Legacy Run</title>
+  <title>Isaac Rhodes Adventures & Sports Lounge</title>
   <style>
     :root {
       --bg-dark: #060913;
@@ -13,118 +13,193 @@
     body { background-color: var(--bg-dark); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 10px; }
     .game-container { max-width: 500px; width: 100%; text-align: center; background: #0f172a; border: 2px solid var(--gold-accent); border-radius: 12px; padding: 16px; box-shadow: 0 0 25px rgba(245, 158, 11, 0.3); }
     canvas { background: linear-gradient(to bottom, #1e293b, #020617); border: 2px solid #334155; border-radius: 8px; display: block; margin: 0 auto 12px auto; width: 100%; max-width: 460px; height: 260px; }
-    .hud { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #38bdf8; }
-    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .btn { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 14px; font-weight: 900; font-size: 14px; border-radius: 8px; text-transform: uppercase; cursor: pointer; }
-    .btn-jump { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+    .nav-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+    .nav-tab { flex: 1; background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 7px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; text-align: center; }
+    .nav-tab.active { background: #f59e0b; color: #000; border-color: #fbbf24; }
+    .hud { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-bottom: 8px; color: #38bdf8; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; border: none; padding: 12px; font-weight: 900; font-size: 13px; border-radius: 8px; text-transform: uppercase; cursor: pointer; }
+    .btn-action { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+    .lounge-section { display: none; }
+    .lounge-section.active { display: block; }
   </style>
 </head>
 <body>
 
   <div class="game-container">
-    <div style="font-size: 11px; font-weight: 800; color: #f59e0b; text-transform: uppercase; margin-bottom: 4px;">Rhodes Family Legacy</div>
-    <h2 style="font-size: 1.1rem; margin-bottom: 8px;">Isaac Rhodes Adventures</h2>
+    <div style="font-size: 11px; font-weight: 800; color: #f59e0b; text-transform: uppercase; margin-bottom: 4px;">Rhodes Family Legacy Hub</div>
     
-    <div class="hud">
-      <div>RINGS: <span id="scoreVal" style="color: #facc15;">0</span></div>
-      <div>LEVEL: <span id="levelVal">Green Hill Run</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="tabGame" onclick="switchSection('game')">🏃 ADVENTURE RUN</button>
+      <button class="nav-tab" id="tabBasket" onclick="switchSection('basket')">🏀 BASKETBALL</button>
+      <button class="nav-tab" id="tabPool" onclick="switchSection('pool')">🎱 POOL LOUNGE</button>
     </div>
 
-    <canvas id="gameCanvas" width="460" height="260"></canvas>
+    <!-- ADVENTURE RUN -->
+    <div id="sectionGame" class="lounge-section active">
+      <div class="hud">
+        <div>SCORE: <span id="scoreVal" style="color: #facc15;">0</span></div>
+        <div>ALLY: <span style="color: #10b981;">Xochitl</span></div>
+        <div>BOSS: <span style="color: #ef4444;">Apex</span></div>
+      </div>
+      <canvas id="gameCanvas" width="460" height="240"></canvas>
+      <div class="controls">
+        <button class="btn" onclick="triggerDash()">⚡ Dash & Shield</button>
+        <button class="btn btn-action" onclick="triggerJump()">⬆️ Jump</button>
+      </div>
+    </div>
 
-    <div class="controls">
-      <button class="btn" onclick="triggerDash()">⚡ Spin-Dash</button>
-      <button class="btn btn-jump" onclick="triggerJump()">⬆️ Jump</button>
+    <!-- BASKETBALL LOUNGE -->
+    <div id="sectionBasket" class="lounge-section">
+      <div class="hud">
+        <div>BASKETS: <span id="basketScore" style="color: #facc15;">0</span></div>
+        <div>COURT: <span style="color: #38bdf8;">Detroit Pistons & Double Helix Tree</span></div>
+      </div>
+      <canvas id="basketCanvas" width="460" height="240"></canvas>
+      <div class="controls">
+        <button class="btn" onclick="resetBall()">🔄 Reset Ball</button>
+        <button class="btn btn-action" onclick="shootBall()">🏀 Shoot Hoops</button>
+      </div>
+    </div>
+
+    <!-- POOL LOUNGE -->
+    <div id="sectionPool" class="lounge-section">
+      <div class="hud">
+        <div>POOL TABLE: <span style="color: #facc15;">2.5D Cue Master</span></div>
+        <div>STATUS: <span style="color: #10b981;">Aim & Strike</span></div>
+      </div>
+      <canvas id="poolCanvas" width="460" height="240"></canvas>
+      <div class="controls">
+        <button class="btn" onclick="rotateCue()">🔄 Rotate Cue</button>
+        <button class="btn btn-action" onclick="strikeCueBall()">🎱 Strike Ball</button>
+      </div>
     </div>
   </div>
 
   <script>
+    // Tab Switching
+    function switchSection(sec) {
+      document.getElementById('sectionGame').classList.toggle('active', sec === 'game');
+      document.getElementById('sectionBasket').classList.toggle('active', sec === 'basket');
+      document.getElementById('sectionPool').classList.toggle('active', sec === 'pool');
+      document.getElementById('tabGame').classList.toggle('active', sec === 'game');
+      document.getElementById('tabBasket').classList.toggle('active', sec === 'basket');
+      document.getElementById('tabPool').classList.toggle('active', sec === 'pool');
+    }
+
+    // 1. ADVENTURE RUN ENGINE
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
+    let score = 0, isJumping = false, jumpVelocity = 0, playerY = 170, groundY = 170, obstacleX = 500, gameSpeed = 5;
 
-    let score = 0;
-    let isJumping = false;
-    let jumpVelocity = 0;
-    let playerY = 190;
-    const groundY = 190;
-    let obstacleX = 500;
-    let gameSpeed = 4;
+    function triggerJump() { if (!isJumping) { isJumping = true; jumpVelocity = -11; } }
+    function triggerDash() { gameSpeed = 9; setTimeout(() => { gameSpeed = 5; }, 1200); }
 
-    function triggerJump() {
-      if (!isJumping) {
-        isJumping = true;
-        jumpVelocity = -10;
-      }
-    }
-
-    function triggerDash() {
-      gameSpeed = 8;
-      setTimeout(() => { gameSpeed = 4; }, 1500);
-    }
-
-    function update() {
-      // Physics jump
-      if (isJumping) {
-        playerY += jumpVelocity;
-        jumpVelocity += 0.6;
-        if (playerY >= groundY) {
-          playerY = groundY;
-          isJumping = false;
-        }
-      }
-
-      // Obstacle movement
+    function updateGame() {
+      if (isJumping) { playerY += jumpVelocity; jumpVelocity += 0.6; if (playerY >= groundY) { playerY = groundY; isJumping = false; } }
       obstacleX -= gameSpeed;
-      if (obstacleX < -30) {
-        obstacleX = 480;
-        score += 10;
-        document.getElementById("scoreVal").innerText = score;
-      }
-
-      // Collision check
-      if (obstacleX > 50 && obstacleX < 90 && playerY >= groundY - 20) {
-        score = Math.max(0, score - 5);
-        document.getElementById("scoreVal").innerText = score;
-        obstacleX = 480;
-      }
+      if (obstacleX < -40) { obstacleX = 480; score += 25; document.getElementById("scoreVal").innerText = score; }
     }
 
-    function draw() {
+    function drawGame() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Draw ground terrain (Green Hill style stripe)
-      ctx.fillStyle = "#059669";
-      ctx.fillRect(0, groundY + 20, canvas.width, 50);
-      ctx.fillStyle = "#d97706";
-      ctx.fillRect(0, groundY + 20, canvas.width, 6);
-
-      // Draw player (Isaac)
-      ctx.fillStyle = "#38bdf8";
-      ctx.beginPath();
-      ctx.arc(70, playerY, 16, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Draw ring / obstacle
-      ctx.fillStyle = "#facc15";
-      ctx.beginPath();
-      ctx.arc(obstacleX, groundY + 5, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#0f172a";
-      ctx.beginPath();
-      ctx.arc(obstacleX, groundY + 5, 5, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.strokeStyle = "#334155"; ctx.lineWidth = 1;
+      for (let i = 0; i < canvas.width; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, groundY); ctx.stroke(); }
+      ctx.fillStyle = "#0f172a"; ctx.fillRect(0, groundY + 16, canvas.width, 50);
+      ctx.fillStyle = "#f59e0b"; ctx.fillRect(0, groundY + 16, canvas.width, 4);
+      // Isaac
+      ctx.fillStyle = "#38bdf8"; ctx.fillRect(65, playerY - 24, 22, 28);
+      ctx.fillStyle = "#fff"; ctx.fillRect(77, playerY - 20, 6, 6);
+      // Xochitl
+      ctx.fillStyle = "#10b981"; ctx.beginPath(); ctx.arc(35, playerY - 10, 10, 0, Math.PI * 2); ctx.fill();
+      // Apex Boss
+      ctx.fillStyle = "#ef4444"; ctx.fillRect(obstacleX, groundY - 22, 24, 26);
     }
 
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
+    // 2. BASKETBALL LOUNGE ENGINE
+    const bCanvas = document.getElementById("basketCanvas");
+    const bCtx = bCanvas.getContext("2d");
+    let basketScore = 0;
+    let ballX = 80, ballY = 180, isShooting = false, ballVelX = 0, ballVelY = 0;
+
+    function shootBall() {
+      if (!isShooting) { isShooting = true; ballVelX = 7; ballVelY = -11; }
+    }
+    function resetBall() { isShooting = false; ballX = 80; ballY = 180; ballVelX = 0; ballVelY = 0; }
+
+    function updateBasket() {
+      if (isShooting) {
+        ballX += ballVelX; ballY += ballVelY; ballVelY += 0.5;
+        // Check basket goal zone
+        if (ballX >= 360 && ballX <= 390 && ballY >= 75 && ballY <= 95) {
+          basketScore++;
+          document.getElementById("basketScore").innerText = basketScore;
+          resetBall();
+        }
+        if (ballY > 230 || ballX > 460) resetBall();
+      }
     }
 
-    loop();
+    function drawBasket() {
+      bCtx.clearRect(0, 0, bCanvas.width, bCanvas.height);
+      // Detroit Pistons backdrop & Double Helix Tree motif
+      bCtx.fillStyle = "#1e1b4b"; bCtx.fillRect(0, 0, bCanvas.width, bCanvas.height);
+      bCtx.fillStyle = "#f59e0b"; bCtx.font = "bold 10px sans-serif"; bCtx.fillText("🧬 Rhodes Family Legacy & Detroit Court", 14, 20);
+      
+      // Hoop & Backboard
+      bCtx.fillStyle = "#cbd5e1"; bCtx.fillRect(380, 40, 6, 60);
+      bCtx.strokeStyle = "#f97316"; bCtx.lineWidth = 4; bCtx.beginPath(); bCtx.moveTo(350, 85); bCtx.lineTo(380, 85); bCtx.stroke();
+      
+      // Court Floor
+      bCtx.fillStyle = "#0f172a"; bCtx.fillRect(0, 200, bCanvas.width, 40);
+
+      // Basketball
+      bCtx.fillStyle = "#f97316"; bCtx.beginPath(); bCtx.arc(ballX, ballY, 10, 0, Math.PI * 2); bCtx.fill();
+    }
+
+    // 3. POOL LOUNGE ENGINE
+    const pCanvas = document.getElementById("poolCanvas");
+    const pCtx = pCanvas.getContext("2d");
+    let cueAngle = 0;
+    let cueBallX = 120, cueBallY = 120, targetBallX = 320, targetBallY = 120;
+
+    function rotateCue() { cueAngle += 45; if (cueAngle >= 360) cueAngle = 0; }
+    function strikeCueBall() { cueBallX += 40; if (cueBallX > 400) cueBallX = 120; }
+
+    function drawPool() {
+      pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+      // Pool Table Felt
+      pCtx.fillStyle = "#064e3b"; pCtx.fillRect(30, 30, 400, 180);
+      pCtx.strokeStyle = "#78350f"; pCtx.lineWidth = 12; pCtx.strokeRect(24, 24, 412, 192);
+
+      // Pockets
+      pCtx.fillStyle = "#000";
+      [[30,30], [230,24], [430,30], [30,210], [230,216], [430,210]].forEach(p => {
+        pCtx.beginPath(); pCtx.arc(p[0], p[1], 10, 0, Math.PI * 2); pCtx.fill();
+      });
+
+      // Cue Ball & Target Ball
+      pCtx.fillStyle = "#fff"; pCtx.beginPath(); pCtx.arc(cueBallX, cueBallY, 8, 0, Math.PI * 2); pCtx.fill();
+      pCtx.fillStyle = "#facc15"; pCtx.beginPath(); pCtx.arc(targetBallX, targetBallY, 8, 0, Math.PI * 2); pCtx.fill();
+
+      // Aiming Cue Stick
+      let rad = (cueAngle * Math.PI) / 180;
+      let endX = cueBallX - Math.cos(rad) * 50;
+      let endY = cueBallY - Math.sin(rad) * 50;
+      pCtx.strokeStyle = "#b45309"; pCtx.lineWidth = 4; pCtx.beginPath(); pCtx.moveTo(cueBallX, cueBallY); pCtx.lineTo(endX, endY); pCtx.stroke();
+    }
+
+    // Main Engine Loop
+    function mainLoop() {
+      updateGame();
+      drawGame();
+      updateBasket();
+      drawBasket();
+      drawPool();
+      requestAnimationFrame(mainLoop);
+    }
+
+    mainLoop();
   </script>
 </body>
 </html>
