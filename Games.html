@@ -121,9 +121,9 @@
     <header>
         <h1>Rhodes Family Legacy Hub</h1>
         <div class="nav-tabs">
-            <button class="tab-btn active" onclick="switchGame('adventure')">Adventure Run</button>
-            <button class="tab-btn" onclick="switchGame('basketball')">Basketball</button>
-            <button class="tab-btn" onclick="switchGame('pool')">Pool Lounge</button>
+            <button class="tab-btn active" onclick="switchGame('adventure', event)">Adventure Run</button>
+            <button class="tab-btn" onclick="switchGame('basketball', event)">Basketball</button>
+            <button class="tab-btn" onclick="switchGame('pool', event)">Pool Lounge</button>
         </div>
     </header>
 
@@ -145,6 +145,7 @@
     <div id="basketball-view" class="game-container hidden">
         <div class="game-header">
             <span>BASKETS: <span id="bb-score">0</span></span>
+            <span>TIME: <span id="bb-timer">40</span>s</span>
             <span>COURT: Detroit Pistons & Double Helix Tree</span>
         </div>
         <canvas id="bbCanvas" width="760" height="380"></canvas>
@@ -162,28 +163,36 @@
         </div>
         <canvas id="poolCanvas" width="760" height="380"></canvas>
         <div class="controls">
-            <button class="ctrl-btn secondary" onclick="poolAction('rotate')">ROTATE CUE</button>
+            <button class="ctrl-btn secondary" onclick="poolAction('rotateLeft')">ROTATE LEFT</button>
+            <button class="ctrl-btn secondary" onclick="poolAction('rotateRight')">ROTATE RIGHT</button>
             <button class="ctrl-btn" onclick="poolAction('strike')">STRIKE BALL</button>
         </div>
     </div>
 
 <script>
     // Tab Switching Logic
-    function switchGame(gameKey) {
+    function switchGame(gameKey, evt) {
         document.querySelectorAll('.game-container').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         
         if(gameKey === 'adventure') {
             document.getElementById('adventure-view').classList.remove('hidden');
-            event.target.classList.add('active');
+            evt.target.classList.add('active');
         } else if(gameKey === 'basketball') {
             document.getElementById('basketball-view').classList.remove('hidden');
-            event.target.classList.add('active');
+            evt.target.classList.add('active');
         } else if(gameKey === 'pool') {
             document.getElementById('pool-view').classList.remove('hidden');
-            event.target.classList.add('active');
+            evt.target.classList.add('active');
         }
     }
+
+    // Load assets
+    const marcusImg = new Image();
+    marcusImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="80"><rect width="60" height="80" fill="%2313151f" rx="8"/><circle cx="30" cy="25" r="15" fill="%23ff7b00"/><path d="M15 50 L30 35 L45 50 L40 80 L20 80 Z" fill="%2300d2ff"/></svg>';
+
+    const treeImg = new Image();
+    treeImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><path d="M100 180 Q80 130 100 100 Q120 130 100 180" fill="none" stroke="%23ff7b00" stroke-width="6"/><circle cx="100" cy="80" r="60" fill="rgba(255,123,0,0.15)"/></svg>';
 
     // --- 1. ADVENTURE RUN ENGINE ---
     const advCanvas = document.getElementById('advCanvas');
@@ -245,17 +254,30 @@
     }
     updateAdventure();
 
-    // --- 2. BASKETBALL ENGINE (Pistons Colors & Marcus Prime Sprite) ---
+    // --- 2. BASKETBALL ENGINE (Moving Backboard & 40s Timer) ---
     const bbCanvas = document.getElementById('bbCanvas');
     const bbCtx = bbCanvas.getContext('2d');
     let bbScore = 0;
     let consecutiveMakes = 0;
     let ball = { x: 120, y: 280, vx: 0, vy: 0, active: false };
-    let hoop = { x: 650, y: 140, w: 12, h: 70 };
-    let treeOffset = 0;
+    let baseHoopX = 650;
+    let hoop = { x: 650, y: 140, w: 12, h: 70, travel: 0 };
+    
+    let timeLeft = 40;
+    let timerActive = true;
+    let gameTimer = setInterval(() => {
+        if(timerActive) {
+            timeLeft--;
+            if(timeLeft <= 0) {
+                timeLeft = 0;
+                timerActive = false;
+            }
+            document.getElementById('bb-timer').innerText = timeLeft;
+        }
+    }, 1000);
 
     function bbAction(action) {
-        if(action === 'reset') {
+        if(action === 'reset' && timerActive) {
             ball.x = 120;
             ball.y = 280;
             ball.vx = 0;
@@ -265,7 +287,7 @@
     }
 
     function shootHoops() {
-        if(!ball.active) {
+        if(!ball.active && timerActive) {
             ball.vx = 9.5;
             ball.vy = -7.2;
             ball.active = true;
@@ -275,29 +297,47 @@
     function updateBasketball() {
         bbCtx.clearRect(0, 0, bbCanvas.width, bbCanvas.height);
         
+        // Double Helix Tree Background Watermark & Label
+        bbCtx.save();
+        bbCtx.globalAlpha = 0.15;
+        bbCtx.drawImage(treeImg, 280, 80, 200, 200);
+        bbCtx.restore();
+
+        bbCtx.font = "bold 14px 'Segoe UI', Tahoma, sans-serif";
+        bbCtx.fillStyle = "rgba(255, 123, 0, 0.35)";
+        bbCtx.textAlign = "center";
+        bbCtx.fillText("RHODES FAMILY LEGACY", 380, 295);
+
         bbCtx.strokeStyle = '#1d428a';
         bbCtx.lineWidth = 4;
         bbCtx.beginPath(); bbCtx.arc(380, 190, 90, 0, Math.PI*2); bbCtx.stroke();
 
-        bbCtx.strokeStyle = 'rgba(255, 123, 0, 0.35)';
-        bbCtx.lineWidth = 2;
-        treeOffset += 0.015;
-        let helixY = hoop.y + Math.sin(treeOffset) * 18;
-        bbCtx.strokeRect(hoop.x, helixY, hoop.w, hoop.h);
+        // Move Hoop Forward and Backward smoothly
+        if(timerActive) {
+            hoop.travel += 0.03;
+            hoop.x = baseHoopX + Math.sin(hoop.travel) * 45; // oscillates forward/backward
+        }
 
-        bbCtx.fillStyle = '#00d2ff';
-        let marcusX = 100;
-        let marcusY = 270;
-        bbCtx.fillRect(marcusX, marcusY, 26, 45);
-        bbCtx.fillStyle = '#ff7b00';
-        bbCtx.fillRect(marcusX + 6, marcusY - 12, 14, 14);
+        bbCtx.strokeStyle = 'rgba(255, 123, 0, 0.5)';
+        bbCtx.lineWidth = 2;
+        bbCtx.strokeRect(hoop.x, hoop.y, hoop.w, hoop.h);
+
+        // Marcus Prime Shooter Sprite
+        let marcusX = 90;
+        let marcusY = 240;
+        if(marcusImg.complete) {
+            bbCtx.drawImage(marcusImg, marcusX, marcusY, 50, 70);
+        } else {
+            bbCtx.fillStyle = '#00d2ff';
+            bbCtx.fillRect(marcusX, marcusY, 26, 45);
+        }
 
         if(ball.active) {
             ball.x += ball.vx;
             ball.y += ball.vy;
             ball.vy += 0.35;
 
-            if(ball.x > hoop.x && ball.x < hoop.x + hoop.w && ball.y > helixY && ball.y < helixY + hoop.h) {
+            if(ball.x > hoop.x && ball.x < hoop.x + hoop.w && ball.y > hoop.y && ball.y < hoop.y + hoop.h) {
                 bbScore++;
                 consecutiveMakes++;
                 document.getElementById('bb-score').innerText = bbScore;
@@ -312,11 +352,20 @@
         bbCtx.fillStyle = (consecutiveMakes >= 3) ? '#ff2200' : '#ff7b00';
         bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 12, 0, Math.PI*2); bbCtx.fill();
 
+        if(!timerActive) {
+            bbCtx.fillStyle = "rgba(0,0,0,0.75)";
+            bbCtx.fillRect(0, 0, bbCanvas.width, bbCanvas.height);
+            bbCtx.font = "bold 24px 'Segoe UI', Tahoma, sans-serif";
+            bbCtx.fillStyle = "#ff7b00";
+            bbCtx.textAlign = "center";
+            bbCtx.fillText("TIME'S UP! FINAL BASKETS: " + bbScore, bbCanvas.width/2, bbCanvas.height/2);
+        }
+
         requestAnimationFrame(updateBasketball);
     }
     updateBasketball();
 
-    // --- 3. POOL LOUNGE ENGINE (15 Balls & Solid Collisions) ---
+    // --- 3. POOL LOUNGE ENGINE ---
     const poolCanvas = document.getElementById('poolCanvas');
     const poolCtx = poolCanvas.getContext('2d');
     let cueAngle = 0;
@@ -347,8 +396,10 @@
     }
 
     function poolAction(action) {
-        if(action === 'rotate') {
-            cueAngle += 0.3;
+        if(action === 'rotateLeft') {
+            cueAngle -= 0.15;
+        } else if(action === 'rotateRight') {
+            cueAngle += 0.15;
         } else if(action === 'strike') {
             cueBall.vx = Math.cos(cueAngle) * 11;
             cueBall.vy = Math.sin(cueAngle) * 11;
@@ -362,6 +413,17 @@
         poolCtx.fillStyle = '#0f381e';
         poolCtx.fillRect(30, 30, 700, 320);
         
+        // Double Helix Tree Watermark & Label on Pool Table
+        poolCtx.save();
+        poolCtx.globalAlpha = 0.1;
+        poolCtx.drawImage(treeImg, 330, 75, 200, 200);
+        poolCtx.restore();
+
+        poolCtx.font = "bold 13px 'Segoe UI', Tahoma, sans-serif";
+        poolCtx.fillStyle = "rgba(255, 123, 0, 0.3)";
+        poolCtx.textAlign = "center";
+        poolCtx.fillText("RHODES FAMILY LEGACY", 430, 285);
+
         poolCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
         poolCtx.lineWidth = 4;
         poolCtx.beginPath();
