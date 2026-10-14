@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Rhodes Family Legacy Hub v1.2</title>
+  <title>Rhodes Family Legacy Hub v1.3</title>
   <!-- PeerJS CDN for Real-Time P2P Multiplayer & Lobby Management -->
   <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <style>
@@ -127,7 +127,7 @@
       padding: 7px 4px;
       border-radius: 6px;
       font-weight: 800;
-      font-size: 10.5px;
+      font-size: 11px;
       cursor: pointer;
       text-align: center;
     }
@@ -400,7 +400,7 @@
   <div class="setup-overlay" id="setupOverlay">
     <div class="setup-card">
       <div class="badge-tag">Rhodes Family Legacy</div>
-      <h2 style="color: #f8fafc; font-size: 1.2rem;">Detroit & Saginaw Hub v1.2</h2>
+      <h2 style="color: #f8fafc; font-size: 1.2rem;">Detroit & Saginaw Hub v1.3</h2>
       <p style="font-size: 12px; color: #94a3b8;">Enter your name and select token color:</p>
       
       <input type="text" id="customPlayerName" class="setup-input" value="Tommy" maxlength="12" placeholder="Your Name" />
@@ -428,7 +428,7 @@
   </div>
 
   <div class="tycoon-header">
-    <div class="badge-tag">Rhodes Family Legacy (v1.2)</div>
+    <div class="badge-tag">Rhodes Family Legacy (v1.3)</div>
     <h2 style="font-size: 1.1rem; font-weight: 900; color: #f8fafc;">Tycoon & Tetris Hub</h2>
   </div>
 
@@ -499,8 +499,8 @@
 
   <div class="control-actions" id="tycoonControls">
     <button class="btn btn-roll" id="btnRoll" onclick="rollDice()">🎲 Roll Dice</button>
-    <button class="btn btn-buy" id="btnBuy" onclick="buyProperty()" disabled>🏛️ Buy Deed</button>
-    <button class="btn btn-end" id="btnEndTurn" onclick="endTurn()" disabled>⏳ End Turn</button>
+    <button class="btn btn-buy" id="btnBuy" onclick="buyProperty()">🏛️ Buy Deed</button>
+    <button class="btn btn-end" id="btnEndTurn" onclick="endTurn()">⏳ End Turn</button>
   </div>
 
   <script>
@@ -599,11 +599,11 @@
       btnRoll.disabled = !isMyTurn || hasRolledThisTurn;
       btnEndTurn.disabled = !isMyTurn || !hasRolledThisTurn;
       
-      // BULLETPROOF BUY DEED CONTROL WITH EXPLICIT STYLE OVERRIDES
-      const canBuy = isMyTurn && hasRolledThisTurn && tile.type === "prop" && tile.owner === null && p.cash >= tile.price;
+      // SIMPLIFIED, RELIABLE BUY LOGIC: Enabled whenever it's your turn post-roll on an unowned property
+      const canBuy = isMyTurn && hasRolledThisTurn && tile.type === "prop" && tile.owner === null;
       btnBuy.disabled = !canBuy;
-      btnBuy.style.opacity = canBuy ? "1" : "0.5";
-      btnBuy.style.cursor = canBuy ? "pointer" : "not-allowed";
+      btnBuy.style.opacity = canBuy ? "1" : "0.4";
+      btnBuy.style.pointerEvents = canBuy ? "auto" : "none";
 
       if (isMyTurn) {
         if (hasRolledThisTurn) {
@@ -734,32 +734,37 @@
     function buyProperty() {
       let p = players[0];
       let tile = TILES[p.pos];
-      if (tile.type === "prop" && tile.owner === null && p.cash >= tile.price) {
-        tile.owner = 0;
-        p.cash -= tile.price;
-        p.deeds.push(tile.name);
-        playerMarrowEnergy += 25;
-        updateMarrowDisplay();
-        
-        // Force reset button state immediately upon purchase
-        const btnBuy = document.getElementById("btnBuy");
-        btnBuy.disabled = true;
-        btnBuy.style.opacity = "0.5";
-        btnBuy.style.cursor = "not-allowed";
-
-        buildHUD();
-        buildBoard();
-        updateHUD();
-        log(`You purchased ${tile.name} for $${tile.price}! Click End Turn.`);
+      if (tile.type === "prop" && tile.owner === null) {
+        if (p.cash >= tile.price) {
+          tile.owner = 0;
+          p.cash -= tile.price;
+          p.deeds.push(tile.name);
+          playerMarrowEnergy += 25;
+          updateMarrowDisplay();
+          log(`You purchased ${tile.name} for $${tile.price}! Click End Turn.`);
+        } else {
+          log(`Not enough cash to buy ${tile.name}!`);
+        }
       }
+      
+      // Force immediate locking of buy button after click
+      const btnBuy = document.getElementById("btnBuy");
+      btnBuy.disabled = true;
+      btnBuy.style.opacity = "0.4";
+      btnBuy.style.pointerEvents = "none";
+
+      buildHUD();
+      buildBoard();
+      updateHUD();
     }
 
     function endTurn() {
       hasRolledThisTurn = false;
       currentTurn = 1;
-      document.getElementById("btnBuy").disabled = true;
-      document.getElementById("btnBuy").style.opacity = "0.5";
-      document.getElementById("btnBuy").style.cursor = "not-allowed";
+      const btnBuy = document.getElementById("btnBuy");
+      btnBuy.disabled = true;
+      btnBuy.style.opacity = "0.4";
+      btnBuy.style.pointerEvents = "none";
       buildHUD();
       checkTurnControl();
     }
@@ -942,7 +947,6 @@
       }
     }
 
-    script>
     function updateTetrisHUD() {
       document.getElementById("linesCount").innerText = tLines;
       document.getElementById("tetrisScore").innerText = tScore;
