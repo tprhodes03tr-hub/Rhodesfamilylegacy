@@ -70,7 +70,7 @@
             border-radius: 12px;
             padding: 15px;
             width: 94%;
-            max-width: 800px;
+            max-width: 860px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.6);
         }
         .game-header {
@@ -82,7 +82,6 @@
             font-weight: bold;
             color: var(--accent-blue);
         }
-        /* Glass Digital Score Meter */
         .glass-scoreboard {
             background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(0,0,0,0.4));
             backdrop-filter: blur(8px);
@@ -178,7 +177,6 @@
         }
         .hidden { display: none !important; }
     </style>
-    <!-- Include PeerJS for P2P Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body onclick="initAudioContext()">
@@ -216,7 +214,6 @@
 
     <!-- BASKETBALL COURT -->
     <div id="basketball-view" class="game-container">
-        <!-- Glass-Look Digital Score Meter -->
         <div class="glass-scoreboard">
             <div class="glass-metric">
                 <span>Baskets</span>
@@ -231,7 +228,7 @@
                 <strong id="bb-marrow" style="color: #ffe600;">0 ME</strong>
             </div>
         </div>
-        <canvas id="bbCanvas" width="760" height="360"></canvas>
+        <canvas id="bbCanvas" width="820" height="380"></canvas>
         <div class="power-bar-wrapper">
             <div id="power-fill"></div>
         </div>
@@ -244,10 +241,10 @@
     <!-- POOL LOUNGE -->
     <div id="pool-view" class="game-container hidden">
         <div class="game-header">
-            <span>POOL TABLE: 2.5D Cue Master (Expanded)</span>
+            <span>POOL TABLE: 2.5D Cue Master (Expanded & Widened)</span>
             <span id="pool-status">STATUS: Aim & Strike</span>
         </div>
-        <canvas id="poolCanvas" width="760" height="380"></canvas>
+        <canvas id="poolCanvas" width="820" height="400"></canvas>
         <div class="power-bar-wrapper">
             <div id="pool-power-fill"></div>
         </div>
@@ -259,15 +256,10 @@
     </div>
 
 <script>
-    // --- WEB AUDIO SYNTHESIZER ---
     let audioCtx = null;
     function initAudioContext() {
-        if(!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if(audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
     }
 
     function playChingSound() {
@@ -281,10 +273,8 @@
             osc.frequency.setValueAtTime(freq, now + (idx * 0.05));
             gain.gain.setValueAtTime(0.2, now + (idx * 0.05));
             gain.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.05) + 0.4);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(now + (idx * 0.05));
-            osc.stop(now + (idx * 0.05) + 0.4);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(now + (idx * 0.05)); osc.stop(now + (idx * 0.05) + 0.4);
         });
     }
 
@@ -299,36 +289,28 @@
         osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.25);
         gain.gain.setValueAtTime(0.25, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.45);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.45);
     }
 
-    // --- SIMPLE P2P ROOM CODES VIA PEERJS ---
+    // P2P Setup
     let peer = null, conn = null;
     let opponentScore = 0;
     let localHighScore = localStorage.getItem('rhodes_bb_highscore') || 0;
     document.getElementById('high-score-display').innerText = localHighScore;
 
     setTimeout(() => {
-        // Generate simple family code prefix (e.g. marrow-73 or woodwork-12)
         const codePrefixes = ['marrow', 'woodwork', 'legacy', 'rhodes', 'detroit', 'saginaw'];
         let simpleCode = codePrefixes[Math.floor(Math.random() * codePrefixes.length)] + '-' + Math.floor(Math.random() * 90 + 10);
-        
         peer = new Peer(simpleCode);
-        peer.on('open', (id) => {
-            document.getElementById('my-peer-id').innerText = id;
-        });
-        peer.on('error', (err) => {
-            // Fallback if ID is taken
+        peer.on('open', (id) => { document.getElementById('my-peer-id').innerText = id; });
+        peer.on('error', () => {
             let fallbackId = 'rhodes-' + Math.floor(Math.random() * 900 + 100);
             peer = new Peer(fallbackId);
             peer.on('open', (id) => { document.getElementById('my-peer-id').innerText = id; });
         });
         peer.on('connection', (c) => {
-            conn = c;
-            setupConnection();
+            conn = c; setupConnection();
             document.getElementById('connection-status').innerText = "Status: Connected with Friend!";
         });
     }, 1200);
@@ -336,8 +318,7 @@
     function connectToFriend() {
         let friendId = document.getElementById('friend-id-input').value.trim();
         if(!friendId) return;
-        conn = peer.connect(friendId);
-        setupConnection();
+        conn = peer.connect(friendId); setupConnection();
         document.getElementById('connection-status').innerText = "Status: Connected to " + friendId + "!";
     }
 
@@ -351,81 +332,119 @@
     }
 
     function broadcastScore(score) {
-        if(conn && conn.open) {
-            conn.send({ type: 'scoreUpdate', score: score });
-        }
+        if(conn && conn.open) conn.send({ type: 'scoreUpdate', score: score });
     }
 
     function switchGame(gameKey, evt) {
         document.querySelectorAll('.game-container').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        
-        if(gameKey === 'basketball') {
-            document.getElementById('basketball-view').classList.remove('hidden');
-        } else if(gameKey === 'pool') {
-            document.getElementById('pool-view').classList.remove('hidden');
-        } else if(gameKey === 'multiplayer') {
-            document.getElementById('multiplayer-view').classList.remove('hidden');
-        }
+        if(gameKey === 'basketball') document.getElementById('basketball-view').classList.remove('hidden');
+        else if(gameKey === 'pool') document.getElementById('pool-view').classList.remove('hidden');
+        else if(gameKey === 'multiplayer') document.getElementById('multiplayer-view').classList.remove('hidden');
         evt.target.classList.add('active');
     }
 
-    // --- ASSET GENERATORS ---
-    const treeSvgUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="350" height="350" viewBox="0 0 300 300">
+    // --- GOLDEN TREE DOUBLE HELIX SPRITE (Packed Marrow Tree) ---
+    const treeSpriteUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 350 350">
             <defs>
                 <radialGradient id="treeGlow" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.45"/>
+                    <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.5"/>
                     <stop offset="100%" stop-color="#ff7b00" stop-opacity="0.0"/>
                 </radialGradient>
                 <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#ffe600"/>
-                    <stop offset="50%" stop-color="#ff9900"/>
-                    <stop offset="100%" stop-color="#cc6600"/>
+                    <stop offset="0%" stop-color="#fff176"/>
+                    <stop offset="50%" stop-color="#ffb300"/>
+                    <stop offset="100%" stop-color="#e65100"/>
                 </linearGradient>
             </defs>
-            <circle cx="150" cy="150" r="140" fill="url(#treeGlow)"/>
-            <path d="M140 260 Q120 200 150 150 Q180 100 150 60" fill="none" stroke="url(#goldGrad)" stroke-width="7" stroke-linecap="round"/>
-            <path d="M160 260 Q180 200 150 150 Q120 100 150 60" fill="none" stroke="url(#goldGrad)" stroke-width="5" stroke-opacity="0.85" stroke-linecap="round"/>
-            <circle cx="150" cy="50" r="45" fill="none" stroke="url(#goldGrad)" stroke-width="3"/>
-            <circle cx="110" cy="80" r="35" fill="none" stroke="url(#goldGrad)" stroke-width="2.5"/>
-            <circle cx="190" cy="80" r="35" fill="none" stroke="url(#goldGrad)" stroke-width="2.5"/>
-            <path d="M150 250 Q120 280 90 285" fill="none" stroke="url(#goldGrad)" stroke-width="4"/>
-            <path d="M150 250 Q180 280 210 285" fill="none" stroke="url(#goldGrad)" stroke-width="4"/>
+            <circle cx="175" cy="175" r="160" fill="url(#treeGlow)"/>
+            <path d="M175 40 Q210 20 240 50 Q280 40 290 80 Q330 100 310 140 Q340 180 300 210 Q320 250 270 265 Q240 300 190 280 Q150 310 110 270 Q60 270 50 220 Q10 190 40 150 Q10 110 60 80 Q50 40 100 45 Q135 15 175 40 Z" fill="url(#goldGrad)" opacity="0.3"/>
+            <path d="M165 290 Q140 220 185 175 Q230 130 175 80" fill="none" stroke="url(#goldGrad)" stroke-width="8" stroke-linecap="round"/>
+            <path d="M185 290 Q210 220 165 175 Q120 130 175 80" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-opacity="0.9" stroke-linecap="round"/>
+            <line x1="162" y1="260" x2="198" y2="245" stroke="url(#goldGrad)" stroke-width="3"/>
+            <line x1="155" y1="220" x2="205" y2="205" stroke="url(#goldGrad)" stroke-width="3"/>
+            <line x1="168" y1="180" x2="192" y2="165" stroke="url(#goldGrad)" stroke-width="3"/>
+            <line x1="185" y1="140" x2="165" y2="125" stroke="url(#goldGrad)" stroke-width="3"/>
+            <line x1="202" y1="105" x2="148" y2="95" stroke="url(#goldGrad)" stroke-width="3"/>
+            <path d="M175 120 Q120 100 80 125" fill="none" stroke="url(#goldGrad)" stroke-width="5" stroke-linecap="round"/>
+            <path d="M175 120 Q230 100 270 125" fill="none" stroke="url(#goldGrad)" stroke-width="5" stroke-linecap="round"/>
+            <path d="M185 180 Q110 170 75 220" fill="none" stroke="url(#goldGrad)" stroke-width="5" stroke-linecap="round"/>
+            <path d="M165 180 Q240 170 275 220" fill="none" stroke="url(#goldGrad)" stroke-width="5" stroke-linecap="round"/>
+            <path d="M175 285 Q130 310 90 325" fill="none" stroke="url(#goldGrad)" stroke-width="5" stroke-linecap="round"/>
+            <path d="M175 285 Q220 310 260 325" fill="none" stroke="url(#goldGrad)" stroke-width="5" stroke-linecap="round"/>
+            <path d="M175 285 Q175 320 175 340" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-linecap="round"/>
         </svg>
     `);
 
-    const marcusSvgUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="90" height="110" viewBox="0 0 90 110">
-            <ellipse cx="45" cy="102" rx="24" ry="6" fill="rgba(0,0,0,0.6)"/>
-            <path d="M24 94 L38 94 L38 102 L22 102 Z" fill="#00d2ff"/>
-            <path d="M52 94 L66 94 L68 102 L50 102 Z" fill="#00d2ff"/>
-            <path d="M28 54 L62 54 L66 94 L24 94 Z" fill="#13151f"/>
-            <path d="M32 40 L58 40 L62 54 L28 54 Z" fill="#1d428a"/>
-            <path d="M38 42 L52 42 L50 90 L40 90 Z" fill="#7928ca"/>
-            <text x="45" y="50" font-family="Arial" font-weight="bold" font-size="12" fill="#ff7b00" text-anchor="middle">03</text>
-            <circle cx="80" cy="24" r="10" fill="#ff7b00"/>
-            <circle cx="45" cy="24" r="14" fill="#c68642"/>
+    // --- MARCUS PRIME SPRITE (Detailed High-End Portrait Character Sprite) ---
+    const marcusPrimeUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150">
+            <!-- Drop Shadow / Aura -->
+            <ellipse cx="60" cy="142" rx="32" ry="7" fill="rgba(0,0,0,0.65)"/>
+            <circle cx="60" cy="75" r="55" fill="rgba(0,210,255,0.12)" filter="blur(8px)"/>
+            
+            <!-- Boots & Pants -->
+            <path d="M35 132 L52 132 L52 144 L32 144 Z" fill="#00d2ff"/>
+            <path d="M68 132 L85 132 L88 144 L66 144 Z" fill="#00d2ff"/>
+            <path d="M38 95 L82 95 L85 134 L35 134 Z" fill="#13151f"/>
+            <path d="M45 95 L75 95 L78 134 L42 134 Z" fill="#1d428a"/>
+            <rect x="52" y="128" width="16" height="5" fill="#c0392b" rx="2"/>
+
+            <!-- Torso: Armor Vest & Hoodie Jacket -->
+            <path d="M42 55 L78 55 L82 98 L38 98 Z" fill="#0a0b10"/>
+            <!-- Purple Glowing Tech Accents -->
+            <path d="M46 58 L74 58 L78 95 L42 95 Z" fill="#13151f"/>
+            <path d="M50 62 L70 62 L68 92 L52 92 Z" fill="#1b1d2a"/>
+            <path d="M54 65 L66 65 L65 90 L55 90 Z" fill="#7928ca"/>
+            <path d="M44 68 L50 68 L48 88 L43 85 Z" fill="#3b0764"/>
+            <path d="M76 68 L70 68 L72 88 L77 85 Z" fill="#3b0764"/>
+            <!-- Energy Core Chest Plates -->
+            <path d="M52 68 L68 68 L66 78 L54 78 Z" fill="#00d2ff" opacity="0.85"/>
+            <path d="M54 82 L66 82 L65 90 L55 90 Z" fill="#ff7b00" opacity="0.9"/>
+
+            <!-- Head & Detailed Hair (Marcus Prime Fade / Dreads Style) -->
+            <ellipse cx="60" cy="38" rx="18" ry="21" fill="#c68642"/>
+            <!-- Ears -->
+            <circle cx="41" cy="38" r="3.5" fill="#b07335"/>
+            <circle cx="79" cy="38" r="3.5" fill="#b07335"/>
+            <!-- Structured Fade Hair / Crown Spikes -->
+            <path d="M40 32 Q36 15 50 10 Q60 5 70 12 Q84 15 80 32 Q82 24 75 18 Q65 12 55 16 Q42 20 40 32 Z" fill="#1a1a1a"/>
+            <path d="M44 24 Q55 8 76 22 Z" fill="#262626"/>
+
+            <!-- Face Details: Determined Brows, Eyes, Jaw -->
+            <path d="M48 30 L56 33" stroke="#222" stroke-width="2" stroke-linecap="round"/>
+            <path d="M72 30 L64 33" stroke="#222" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="53" cy="36" r="2.5" fill="#111"/>
+            <circle cx="67" cy="36" r="2.5" fill="#111"/>
+            <!-- Focused Mouth / Expression -->
+            <path d="M56 46 Q60 49 64 46" stroke="#8d5524" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+            <!-- Ready Hands / Basketball Framing -->
+            <circle cx="28" cy="72" r="9" fill="#c68642"/>
+            <circle cx="92" cy="72" r="9" fill="#c68642"/>
+            <!-- Glowing Basketball in Hands -->
+            <circle cx="92" cy="68" r="13" fill="#ff7b00"/>
+            <path d="M82 68 L102 68 M92 58 L92 78" stroke="#78281f" stroke-width="2" stroke-linecap="round"/>
         </svg>
     `);
 
-    const treeImg = new Image(); treeImg.src = treeSvgUri;
-    const marcusImg = new Image(); marcusImg.src = marcusSvgUri;
+    const treeImg = new Image(); treeImg.src = treeSpriteUri;
+    const marcusImg = new Image(); marcusImg.src = marcusPrimeUri;
 
-    // --- 1. BASKETBALL ENGINE ---
+    // --- 1. BASKETBALL ENGINE (Upgraded Net, Backdrop & Marcus Prime Sprite) ---
     const bbCanvas = document.getElementById('bbCanvas');
     const bbCtx = bbCanvas.getContext('2d');
     let bbScore = 0, marrowBonus = 0, consecutiveMakes = 0;
-    let ball = { x: 120, y: 240, vx: 0, vy: 0, active: false };
-    let hoop = { x: 610, y: 115, w: 16, h: 70, travel: 0 };
+    let ball = { x: 130, y: 260, vx: 0, vy: 0, active: false };
+    let hoop = { x: 660, y: 110, w: 20, h: 85, travel: 0 };
     let chargePower = 0, charging = false, timeLeft = 40, timerActive = true;
 
     setInterval(() => {
         if(timerActive && !document.getElementById('basketball-view').classList.contains('hidden')) {
             timeLeft--;
             if(timeLeft <= 0) { 
-                timeLeft = 0; 
-                timerActive = false;
+                timeLeft = 0; timerActive = false;
                 if(bbScore > localHighScore) {
                     localHighScore = bbScore;
                     localStorage.setItem('rhodes_bb_highscore', localHighScore);
@@ -442,8 +461,8 @@
         if(!charging || ball.active || !timerActive) return;
         charging = false;
         let powerRatio = Math.max(15, chargePower);
-        ball.vx = 6.5 + (powerRatio / 6.2);
-        ball.vy = -5.5 - (powerRatio / 7.2);
+        ball.vx = 7.0 + (powerRatio / 5.8);
+        ball.vy = -6.0 - (powerRatio / 6.8);
         ball.active = true;
         document.getElementById('power-fill').style.width = '0%';
         e.preventDefault();
@@ -455,7 +474,7 @@
 
     function bbAction(action) {
         if(action === 'reset' && timerActive) {
-            ball.x = 120; ball.y = 240; ball.vx = 0; ball.vy = 0; ball.active = false;
+            ball.x = 130; ball.y = 260; ball.vx = 0; ball.vy = 0; ball.active = false;
             charging = false; chargePower = 0;
             document.getElementById('power-fill').style.width = '0%';
         }
@@ -469,80 +488,85 @@
         }
 
         bbCtx.fillStyle = '#0a0d1a'; bbCtx.fillRect(0, 0, bbCanvas.width, bbCanvas.height);
-        bbCtx.fillStyle = 'rgba(29, 66, 138, 0.35)'; bbCtx.fillRect(0, 250, bbCanvas.width / 2, 110);
-        bbCtx.fillStyle = 'rgba(200, 16, 46, 0.35)'; bbCtx.fillRect(bbCanvas.width / 2, 250, bbCanvas.width / 2, 110);
+        bbCtx.fillStyle = 'rgba(29, 66, 138, 0.35)'; bbCtx.fillRect(0, 270, bbCanvas.width / 2, 110);
+        bbCtx.fillStyle = 'rgba(200, 16, 46, 0.35)'; bbCtx.fillRect(bbCanvas.width / 2, 270, bbCanvas.width / 2, 110);
 
-        bbCtx.save(); bbCtx.globalAlpha = 0.28; bbCtx.drawImage(treeImg, 225, 20, 310, 310); bbCtx.restore();
+        // Render Golden Tree Double Helix Sprite in Center Backdrop
+        bbCtx.save(); bbCtx.globalAlpha = 0.4; 
+        bbCtx.drawImage(treeImg, bbCanvas.width / 2 - 160, 20, 320, 320); 
+        bbCtx.restore();
 
-        if(timerActive) { hoop.travel += 0.038; hoop.x = 610 + Math.sin(hoop.travel) * 48; }
+        if(timerActive) { hoop.travel += 0.038; hoop.x = 660 + Math.sin(hoop.travel) * 52; }
 
         // Backboard
-        bbCtx.fillStyle = 'rgba(255,255,255,0.15)';
-        bbCtx.fillRect(hoop.x + hoop.w, hoop.y - 15, 8, 95);
-        bbCtx.strokeStyle = '#00d2ff';
-        bbCtx.lineWidth = 2;
-        bbCtx.strokeRect(hoop.x + hoop.w, hoop.y - 15, 8, 95);
+        bbCtx.fillStyle = 'rgba(255,255,255,0.18)';
+        bbCtx.fillRect(hoop.x + hoop.w, hoop.y - 20, 10, 110);
+        bbCtx.strokeStyle = '#00d2ff'; bbCtx.lineWidth = 2.5;
+        bbCtx.strokeRect(hoop.x + hoop.w, hoop.y - 20, 10, 110);
 
-        // Fire Net & Streak Effects
         let onFire = consecutiveMakes >= 3;
         if(onFire) {
             bbCtx.save();
-            bbCtx.shadowColor = '#ff2200';
-            bbCtx.shadowBlur = 18;
-            bbCtx.strokeStyle = '#ff5500';
-            bbCtx.lineWidth = 6;
+            bbCtx.shadowColor = '#ff2200'; bbCtx.shadowBlur = 20;
+            bbCtx.strokeStyle = '#ff5500'; bbCtx.lineWidth = 7;
             bbCtx.strokeRect(hoop.x - 2, hoop.y - 2, hoop.w + 4, hoop.h + 4);
             bbCtx.restore();
         }
 
+        // Rim
         bbCtx.strokeStyle = onFire ? '#ff2200' : '#c8102e'; 
-        bbCtx.lineWidth = onFire ? 5 : 4;
+        bbCtx.lineWidth = onFire ? 6 : 5;
         bbCtx.strokeRect(hoop.x, hoop.y, hoop.w, hoop.h);
 
-        // Net Lines (Full net visual)
-        bbCtx.strokeStyle = onFire ? '#ff7b00' : 'rgba(255,255,255,0.75)';
-        bbCtx.lineWidth = onFire ? 3 : 2;
+        // Upgraded & Longer Net Lines
+        bbCtx.strokeStyle = onFire ? '#ff7b00' : 'rgba(255,255,255,0.85)';
+        bbCtx.lineWidth = onFire ? 3.5 : 2.5;
         bbCtx.beginPath();
-        bbCtx.moveTo(hoop.x, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + 6, hoop.y + hoop.h + 25);
-        bbCtx.moveTo(hoop.x + hoop.w, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + hoop.w - 6, hoop.y + hoop.h + 25);
-        bbCtx.moveTo(hoop.x + 4, hoop.y + hoop.h + 10); bbCtx.lineTo(hoop.x + hoop.w - 4, hoop.y + hoop.h + 25);
+        bbCtx.moveTo(hoop.x, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + 8, hoop.y + hoop.h + 45);
+        bbCtx.moveTo(hoop.x + hoop.w, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + hoop.w - 8, hoop.y + hoop.h + 45);
+        bbCtx.moveTo(hoop.x + 4, hoop.y + hoop.h + 15); bbCtx.lineTo(hoop.x + hoop.w - 4, hoop.y + hoop.h + 45);
+        bbCtx.moveTo(hoop.x + 8, hoop.y + hoop.h + 30); bbCtx.lineTo(hoop.x + hoop.w - 8, hoop.y + hoop.h + 45);
+        bbCtx.moveTo(hoop.x + 2, hoop.y + hoop.h + 15); bbCtx.lineTo(hoop.x + hoop.w - 2, hoop.y + hoop.h + 35);
         bbCtx.stroke();
 
-        if(marcusImg.complete) bbCtx.drawImage(marcusImg, 75, 195, 65, 85);
+        // Render Marcus Prime Shooter Sprite
+        if(marcusImg.complete) bbCtx.drawImage(marcusImg, 65, 175, 95, 125);
 
         if(ball.active) {
-            ball.x += ball.vx; ball.y += ball.vy; ball.vy += 0.29;
-            if(ball.x > hoop.x - 4 && ball.x < hoop.x + hoop.w + 4 && ball.y > hoop.y && ball.y < hoop.y + 24) {
-                bbScore++; consecutiveMakes++; marrowBonus += 35;
+            ball.x += ball.vx; ball.y += ball.vy; ball.vy += 0.28;
+            if(ball.x > hoop.x - 4 && ball.x < hoop.x + hoop.w + 4 && ball.y > hoop.y && ball.y < hoop.y + 30) {
+                bbScore++; consecutiveMakes++; marrowBonus += 50;
                 document.getElementById('bb-score').innerText = bbScore;
                 document.getElementById('bb-marrow').innerText = marrowBonus;
                 playChingSound();
                 broadcastScore(bbScore);
                 bbAction('reset');
             }
-            if(ball.y > 360 || ball.x > bbCanvas.width) {
+            if(ball.y > 380 || ball.x > bbCanvas.width) {
                 bbAction('reset');
-                if(ball.y > 360) consecutiveMakes = 0;
+                if(ball.y > 380) consecutiveMakes = 0;
             }
         }
 
         if(onFire) {
             bbCtx.save();
-            bbCtx.shadowColor = '#ff4500';
-            bbCtx.shadowBlur = 20;
+            bbCtx.shadowColor = '#ff4500'; bbCtx.shadowBlur = 22;
             bbCtx.fillStyle = '#ff2200';
-            bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 14, 0, Math.PI*2); bbCtx.fill();
+            bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 15, 0, Math.PI*2); bbCtx.fill();
             bbCtx.fillStyle = '#ffea00';
-            bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 8, 0, Math.PI*2); bbCtx.fill();
+            bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 9, 0, Math.PI*2); bbCtx.fill();
             bbCtx.restore();
         } else {
-            bbCtx.fillStyle = '#ff7b00';
-            bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 11, 0, Math.PI*2); bbCtx.fill();
+            ball.active ? null : (bbCtx.fillStyle = '#ff7b00', bbCtx.beginPath(), bbCtx.arc(ball.x, ball.y, 12, 0, Math.PI*2), bbCtx.fill());
+            if(ball.active) {
+                bbCtx.fillStyle = '#ff7b00';
+                bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 12, 0, Math.PI*2); bbCtx.fill();
+            }
         }
 
         if(!timerActive) {
-            bbCtx.fillStyle = "rgba(0,0,0,0.88)"; bbCtx.fillRect(0, 0, bbCanvas.width, bbCanvas.height);
-            bbCtx.font = "bold 22px 'Segoe UI', Tahoma, sans-serif"; bbCtx.fillStyle = "#ff7b00"; bbCtx.textAlign = "center";
+            bbCtx.fillStyle = "rgba(0,0,0,0.9)"; bbCtx.fillRect(0, 0, bbCanvas.width, bbCanvas.height);
+            bbCtx.font = "bold 24px 'Segoe UI', Tahoma, sans-serif"; bbCtx.fillStyle = "#ff7b00"; bbCtx.textAlign = "center";
             bbCtx.fillText("TIME'S UP! FINAL BASKETS: " + bbScore, bbCanvas.width / 2, bbCanvas.height / 2);
         }
         requestAnimationFrame(updateBasketball);
@@ -550,21 +574,21 @@
     updateBasketball();
 
 
-    // --- 2. POOL LOUNGE ENGINE (Expanded & Fatter Table, Larger Cue Stick) ---
+    // --- 2. POOL LOUNGE ENGINE (Widened Table & Helix Sprite Backdrop) ---
     const poolCanvas = document.getElementById('poolCanvas');
     const poolCtx = poolCanvas.getContext('2d');
     let cueAngle = 0;
-    let cueBall = { x: 210, y: 190, radius: 9, vx: 0, vy: 0 };
+    let cueBall = { x: 230, y: 200, radius: 9.5, vx: 0, vy: 0 };
     let balls = [cueBall];
     let poolCharging = false, poolPower = 0;
     
-    let rackX = 520, rackY = 190;
+    let rackX = 560, rackY = 200;
     let bColors = ['#f1c40f', '#2980b9', '#e74c3c', '#8e44ad', '#d35400', '#27ae60', '#c0392b', '#2c3e50', '#f39c12', '#3498db', '#e67e22', '#9b59b6', '#1abc9c', '#e84393', '#fdcb6e'];
     let bIdx = 0;
     for(let r = 0; r < 5; r++) {
         for(let c = 0; c <= r; c++) {
             if(bIdx < 15) {
-                balls.push({ x: rackX + (r * 16), y: rackY + (c * 20) - (r * 10), radius: 9, vx: 0, vy: 0, color: bColors[bIdx], isPocketed: false });
+                balls.push({ x: rackX + (r * 17), y: rackY + (c * 21) - (r * 10.5), radius: 9.5, vx: 0, vy: 0, color: bColors[bIdx], isPocketed: false });
                 bIdx++;
             }
         }
@@ -578,7 +602,7 @@
     function releasePoolStrike(e) {
         if(!poolCharging) return;
         poolCharging = false;
-        let powerVal = Math.max(3.5, poolPower / 5);
+        let powerVal = Math.max(4.0, poolPower / 4.5);
         cueBall.vx = Math.cos(cueAngle) * powerVal;
         cueBall.vy = Math.sin(cueAngle) * powerVal;
         document.getElementById('pool-status').innerText = "STATUS: Balls in Motion";
@@ -599,25 +623,31 @@
         poolCtx.clearRect(0, 0, poolCanvas.width, poolCanvas.height);
         if(poolCharging && poolPower < 100) { poolPower += 2.5; document.getElementById('pool-power-fill').style.width = poolPower + '%'; }
 
-        // Expanded Pool Table Felt
-        poolCtx.fillStyle = '#0f381e'; poolCtx.fillRect(25, 25, 710, 330);
-        if(treeImg.complete) { poolCtx.save(); poolCtx.globalAlpha = 0.24; poolCtx.drawImage(treeImg, 290, 85, 180, 180); poolCtx.restore(); }
+        // Widened Pool Table Felt (820x400 Canvas)
+        poolCtx.fillStyle = '#0f381e'; poolCtx.fillRect(25, 25, 770, 350);
+        
+        // Render Golden Tree Double Helix Sprite in Center of Pool Table
+        if(treeImg.complete) { 
+            poolCtx.save(); 
+            poolCtx.globalAlpha = 0.32; 
+            poolCtx.drawImage(treeImg, poolCanvas.width / 2 - 100, 100, 200, 200); 
+            poolCtx.restore(); 
+        }
 
-        poolCtx.font = "bold 12px 'Segoe UI', Tahoma, sans-serif";
-        poolCtx.fillStyle = "rgba(255, 215, 0, 0.45)";
+        poolCtx.font = "bold 13px 'Segoe UI', Tahoma, sans-serif";
+        poolCtx.fillStyle = "rgba(255, 215, 0, 0.5)";
         poolCtx.textAlign = "center";
-        poolCtx.fillText("RHODES FAMILY LEGACY", poolCanvas.width / 2, 295);
+        poolCtx.fillText("RHODES FAMILY LEGACY", poolCanvas.width / 2, 315);
 
-        // Wooden cushion borders
-        poolCtx.strokeStyle = '#5c3a21'; poolCtx.lineWidth = 14; poolCtx.strokeRect(18, 18, 724, 344);
+        // Wooden Cushion Borders
+        poolCtx.strokeStyle = '#5c3a21'; poolCtx.lineWidth = 15; poolCtx.strokeRect(17, 17, 786, 366);
 
-        let pockets = [[25,25],[380,18],[735,25],[25,355],[380,362],[735,355]];
-        poolCtx.fillStyle = '#000'; pockets.forEach(p => { poolCtx.beginPath(); poolCtx.arc(p[0], p[1], 12, 0, Math.PI*2); poolCtx.fill(); });
+        let pockets = [[25,25],[410,17],[795,25],[25,375],[410,383],[795,375]];
+        poolCtx.fillStyle = '#000'; pockets.forEach(p => { poolCtx.beginPath(); poolCtx.arc(p[0], p[1], 13, 0, Math.PI*2); poolCtx.fill(); });
 
-        // Trajectory aiming arrow
         if(cueBall.vx === 0 && cueBall.vy === 0) {
-            poolCtx.save(); poolCtx.strokeStyle = 'rgba(0, 210, 255, 0.8)'; poolCtx.lineWidth = 3; poolCtx.setLineDash([8, 4]);
-            poolCtx.beginPath(); poolCtx.moveTo(cueBall.x, cueBall.y); poolCtx.lineTo(cueBall.x + Math.cos(cueAngle) * 200, cueBall.y + Math.sin(cueAngle) * 200); poolCtx.stroke();
+            poolCtx.save(); poolCtx.strokeStyle = 'rgba(0, 210, 255, 0.85)'; poolCtx.lineWidth = 3; poolCtx.setLineDash([8, 4]);
+            poolCtx.beginPath(); poolCtx.moveTo(cueBall.x, cueBall.y); poolCtx.lineTo(cueBall.x + Math.cos(cueAngle) * 240, cueBall.y + Math.sin(cueAngle) * 240); poolCtx.stroke();
             poolCtx.restore();
         }
 
@@ -628,13 +658,13 @@
             if(Math.abs(b.vx) > 0.08 || Math.abs(b.vy) > 0.08) allStopped = false;
             else { b.vx = 0; b.vy = 0; }
 
-            if(b.x < 36 || b.x > 724) { b.vx *= -1; b.x = Math.max(36, Math.min(724, b.x)); }
-            if(b.y < 36 || b.y > 344) { b.vy *= -1; b.y = Math.max(36, Math.min(344, b.y)); }
+            if(b.x < 38 || b.x > 782) { b.vx *= -1; b.x = Math.max(38, Math.min(782, b.x)); }
+            if(b.y < 38 || b.y > 362) { b.vy *= -1; b.y = Math.max(38, Math.min(362, b.y)); }
 
             pockets.forEach(p => {
-                if(Math.hypot(b.x - p[0], b.y - p[1]) < 14) {
+                if(Math.hypot(b.x - p[0], b.y - p[1]) < 15) {
                     playPocketBingSound();
-                    if(b === cueBall) { b.x = 210; b.y = 190; b.vx = 0; b.vy = 0; }
+                    if(b === cueBall) { b.x = 230; b.y = 200; b.vx = 0; b.vy = 0; }
                     else { b.isPocketed = true; b.x = -100; b.y = -100; b.vx = 0; b.vy = 0; }
                 }
             });
@@ -658,22 +688,20 @@
             if(!b.isPocketed) {
                 poolCtx.fillStyle = b.color || '#ffffff';
                 poolCtx.beginPath(); poolCtx.arc(b.x, b.y, b.radius, 0, Math.PI*2); poolCtx.fill();
-                poolCtx.strokeStyle = '#000'; poolCtx.lineWidth = 1.2; poolCtx.stroke();
+                poolCtx.strokeStyle = '#000'; poolCtx.lineWidth = 1.3; poolCtx.stroke();
             }
         });
 
         if(allStopped && !poolCharging) document.getElementById('pool-status').innerText = "STATUS: Aim & Strike";
 
-        // Render Larger Pool Cue Stick
         if(cueBall.vx === 0 && cueBall.vy === 0) {
-            let recoil = poolCharging ? (poolPower / 3.5) : 0;
-            let tipDist = 85 + recoil;
+            let recoil = poolCharging ? (poolPower / 3.0) : 0;
+            let tipDist = 95 + recoil;
             let tipX = cueBall.x - Math.cos(cueAngle) * tipDist;
             let tipY = cueBall.y - Math.sin(cueAngle) * tipDist;
-            poolCtx.strokeStyle = '#d35400'; 
-            poolCtx.lineWidth = 7; // Thicker cue stick
+            poolCtx.strokeStyle = '#d35400'; poolCtx.lineWidth = 8;
             poolCtx.beginPath(); 
-            poolCtx.moveTo(cueBall.x - Math.cos(cueAngle)*(18 + recoil), cueBall.y - Math.sin(cueAngle)*(18 + recoil)); 
+            poolCtx.moveTo(cueBall.x - Math.cos(cueAngle)*(20 + recoil), cueBall.y - Math.sin(cueAngle)*(20 + recoil)); 
             poolCtx.lineTo(tipX, tipY); 
             poolCtx.stroke();
         }
