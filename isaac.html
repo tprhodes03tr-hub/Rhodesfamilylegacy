@@ -312,12 +312,11 @@
       justify-content: center;
       padding: 6px;
       gap: 4px;
-      cursor: pointer;
     }
-    .board-center:hover { border-color: #38bdf8; }
 
     .center-logo { font-size: 11px; font-weight: 900; color: #facc15; }
-    .dice-box { display: flex; gap: 8px; perspective: 400px; }
+    .dice-box { display: flex; gap: 8px; perspective: 400px; cursor: pointer; }
+    .dice-box:hover .dice-3d { border-color: #00f0ff; box-shadow: 0 0 10px rgba(0, 240, 255, 0.4); }
     .dice-3d {
       width: 32px; height: 32px;
       background: rgba(56, 189, 248, 0.15);
@@ -633,7 +632,7 @@
       document.getElementById("btnRoll").disabled = !isMyTurn || hasRolledThisTurn;
       document.getElementById("btnEndTurn").disabled = !isMyTurn || !hasRolledThisTurn;
       
-      // Correctly unlock Buy Deed if landed on unowned property and affordable
+      // Unlock Buy Deed only if landed on unowned property after rolling
       if (isMyTurn && hasRolledThisTurn && tile.type === "prop" && tile.owner === null) {
         document.getElementById("btnBuy").disabled = (p.cash < tile.price);
       } else {
@@ -689,7 +688,14 @@
 
     function buildBoard() {
       const board = document.getElementById("boardTrack");
-      board.innerHTML = `<div class="board-center" onclick="openArDiceCamera()"><div class="center-logo">DETROIT & SAGINAW</div><div class="dice-box"><div class="dice-3d" id="d1">🎲</div><div class="dice-3d" id="d2">🎲</div></div></div>`;
+      // Fixed center box: Dice box click triggers 3D AR Dice Viewer, background click doesn't lock controls
+      board.innerHTML = `<div class="board-center">
+        <div class="center-logo">DETROIT & SAGINAW</div>
+        <div class="dice-box" onclick="openArDiceCamera()" title="Tap to view 3D Dice AR Modal">
+          <div class="dice-3d" id="d1">🎲</div>
+          <div class="dice-3d" id="d2">🎲</div>
+        </div>
+      </div>`;
       TILES.forEach((t, index) => {
         let ownerIndicator = t.owner !== null ? `<span style="color:${players[t.owner]?.color || '#f59e0b'}">●</span>` : '';
         board.innerHTML += `<div class="tile" style="grid-row: ${t.row}; grid-column: ${t.col};" onclick="openArPropertyCamera(${index})">
@@ -767,9 +773,6 @@
       buildBoard();
       updateHUD();
       checkTurnControl();
-      if (!hasRolledThisTurn || (tile.type === "prop" && tile.owner === null)) {
-        // Log updated inside checkTurnControl
-      }
     }
 
     function buyProperty() {
@@ -801,7 +804,7 @@
     function updateHUD() { players.forEach((p) => { document.getElementById(`pcash-${p.id}`)?.innerText = `$${p.cash}`; }); }
     function log(msg) { document.getElementById("gameLog").innerText = msg; }
 
-    /* FULLY FUNCTIONAL TETRIS ARCADE ENGINE */
+    /* TETRIS ARCADE ENGINE */
     let tetrisInterval = null;
     let tetrisPaused = false;
     let tScore = 0;
@@ -980,7 +983,7 @@
       document.getElementById("tetrisScore").innerText = tScore;
     }
 
-    /* FULLY FUNCTIONAL WORD SEARCH TRIVIA */
+    /* WORD SEARCH TRIVIA */
     const TARGET_WORDS = ["DETROIT", "SAGINAW", "RHODES"];
     let foundWords = [];
 
@@ -990,7 +993,6 @@
       const gridContainer = document.getElementById("wordGridContainer");
       gridContainer.innerHTML = "";
       
-      // 6x6 grid with letters containing Detroit, Saginaw, Rhodes and filler
       const letters = [
         ['D','E','T','R','O','I'],
         ['T','S','A','G','I','N'],
@@ -1015,7 +1017,6 @@
     }
 
     function checkSelectedWords() {
-      // Simple interactive confirmation for demo find
       const selected = document.querySelectorAll(".word-cell.selected");
       let selectedStr = Array.from(selected).map(el => el.innerText).join("");
       TARGET_WORDS.forEach(w => {
