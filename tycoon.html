@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Legacy Tycoon & Tetris: Detroit & Saginaw</title>
+    <title>Family Legacy Hub: Tycoon & Tetris</title>
+    <!-- Include PeerJS for P2P Multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
             --bg-dark: #0a0b10;
@@ -68,7 +70,7 @@
             border-radius: 12px;
             padding: 20px;
             width: 90%;
-            max-width: 800px;
+            max-width: 820px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.6);
         }
         .game-header {
@@ -91,7 +93,7 @@
         .controls {
             display: flex;
             justify-content: center;
-            gap: 15px;
+            gap: 12px;
             margin-top: 15px;
             flex-wrap: wrap;
         }
@@ -99,8 +101,8 @@
             background: var(--accent-orange);
             color: white;
             border: none;
-            padding: 10px 20px;
-            font-size: 1rem;
+            padding: 10px 18px;
+            font-size: 0.95rem;
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
@@ -127,7 +129,17 @@
             border-radius: 8px;
             margin-bottom: 12px;
             border: 1px solid var(--border-color);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .lobby-bar input[type="text"] {
+            background: #13151f;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            width: 130px;
         }
         #log-box {
             margin-top: 15px;
@@ -135,10 +147,64 @@
             border: 1px solid var(--border-color);
             padding: 10px;
             border-radius: 8px;
-            height: 70px;
+            height: 65px;
             overflow-y: auto;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             color: #a0aec0;
+        }
+        /* 3D AR Deed Modal Overlay */
+        #ar-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 6, 10, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .ar-card {
+            background: linear-gradient(135deg, #13151f 0%, #1e2438 100%);
+            border: 2px solid var(--accent-blue);
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.4);
+            border-radius: 16px;
+            padding: 25px;
+            width: 320px;
+            text-align: center;
+            transform: perspective(600px) rotateX(8deg);
+            transition: transform 0.3s ease;
+        }
+        .ar-card:hover {
+            transform: perspective(600px) rotateX(0deg) scale(1.02);
+        }
+        .ar-title {
+            color: var(--accent-orange);
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .ar-det {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin: 8px 0;
+        }
+        .tetris-layout {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: var(--bg-dark);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            min-width: 110px;
+            text-align: center;
         }
         .hidden { display: none !important; }
     </style>
@@ -153,44 +219,75 @@
         </div>
     </header>
 
-    <!-- 1. FAMILY LEGACY TYCOON: DETROIT & SAGINAW -->
+    <!-- 1. TYCOON: DETROIT & SAGINAW -->
     <div id="tycoon-view" class="app-container">
         <div class="lobby-bar">
-            <span>Match & Lobby: <b>Woodward-Arena</b></span>
-            <label style="cursor: pointer;"><input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> Play vs AI Bot 101</label>
+            <div>
+                <span>Match Mode: </span>
+                <button class="ctrl-btn" style="padding: 3px 8px; font-size: 0.75rem;" onclick="hostP2PRoom()">Host</button>
+                <input type="text" id="room-code-input" placeholder="Room ID">
+                <button class="ctrl-btn secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="joinP2PRoom()">Join</button>
+            </div>
+            <label style="cursor: pointer;"><input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> Play vs AI Bot</label>
         </div>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem;">
+            <span style="color: var(--accent-orange); font-weight: bold;">Marrow Energy (ME): <span id="tycoon-funds">1360</span> ME</span>
+            <span id="book-reward-status" style="color: #2ecc71; font-weight: bold;">📖 Free Book Progress: 1360 / 2500 ME</span>
+        </div>
+
         <div class="game-header">
-            <span>MARROW ENERGY: <span id="tycoon-funds">1360</span> ME</span>
             <span id="tycoon-turn">TURN: Tommy</span>
             <span>PROPERTIES: <span id="prop-count">0</span>/16</span>
         </div>
 
-        <canvas id="tycoonCanvas" width="760" height="420"></canvas>
+        <canvas id="tycoonCanvas" width="760" height="440"></canvas>
 
-        <div id="log-box">Tycoon session initialized in Woodward-Arena. Roll dice to navigate Detroit & Saginaw tiles.</div>
+        <div id="log-box">Tycoon session active. Roll dice to navigate Detroit & Saginaw board tiles. Click any owned property tile to open 3D AR Deed view.</div>
 
         <div class="controls">
             <button class="ctrl-btn" onclick="tycoonAction('roll')">ROLL DICE</button>
             <button class="ctrl-btn secondary" onclick="tycoonAction('buy')">BUY DEED</button>
             <button class="ctrl-btn purple" onclick="tycoonAction('upgrade')">UPGRADE ($50)</button>
+            <button class="ctrl-btn secondary" onclick="openCurrentDeed3D()" style="background:#16a085; color:#fff;">3D DEED VIEW</button>
         </div>
     </div>
 
-    <!-- 2. TETRIS (With Visible Falling Pieces & Fixed Rendering) -->
+    <!-- 2. TETRIS (With Next Piece Preview & Multi-Row Bonus Scoring) -->
     <div id="tetris-view" class="app-container hidden">
         <div class="game-header">
             <span>SCORE: <span id="tetris-score">0</span></span>
+            <span>MARROW EARNED: <span id="tetris-marrow">0</span> ME</span>
             <span>LEVEL: <span id="tetris-level">1</span></span>
-            <span>MODE: Solo / P2P</span>
         </div>
 
-        <canvas id="tetrisCanvas" width="300" height="500" style="background:#000;"></canvas>
+        <div class="tetris-layout">
+            <canvas id="tetrisCanvas" width="240" height="440" style="background:#000;"></canvas>
+            <div class="side-panel">
+                <span style="font-size: 0.85rem; color: var(--accent-orange); font-weight: bold;">NEXT PIECE</span>
+                <canvas id="nextCanvas" width="90" height="90" style="background:#050508; border-radius:6px; border:1px solid var(--border-color); margin: 0 auto;"></canvas>
+                <span style="font-size: 0.75rem; color: #a0aec0;">Clear 4/5 rows for bonus Marrow Energy!</span>
+            </div>
+        </div>
 
         <div class="controls">
             <button class="ctrl-btn secondary" onclick="tetrisMove(-1)">LEFT</button>
             <button class="ctrl-btn" onclick="tetrisRotate()">ROTATE</button>
             <button class="ctrl-btn secondary" onclick="tetrisMove(1)">RIGHT</button>
             <button class="ctrl-btn purple" onclick="tetrisDrop()">DROP</button>
+        </div>
+    </div>
+
+    <!-- 3D AR PROPERTY DEED MODAL -->
+    <div id="ar-modal" class="hidden">
+        <div class="ar-card">
+            <div class="ar-title">🏛️ 3D Property AR Deed</div>
+            <div id="ar-deed-name" class="ar-det" style="font-size: 1.1rem; font-weight: bold; color: var(--accent-blue);">Woodward Ave</div>
+            <div id="ar-deed-owner" class="ar-det">Owner: Tommy</div>
+            <div id="ar-deed-value" class="ar-det">Valuation: 100 ME (Rent: 20 ME)</div>
+            <div style="margin-top: 20px;">
+                <button class="ctrl-btn" onclick="closeArModal()">CLOSE 3D VIEW</button>
+            </div>
         </div>
     </div>
 
@@ -205,6 +302,7 @@
         } else if(appKey === 'tetris') {
             document.getElementById('tetris-view').classList.remove('hidden');
             drawTetris();
+            drawNextPiece();
         }
         evt.target.classList.add('active');
     }
@@ -215,7 +313,47 @@
         box.scrollTop = box.scrollHeight;
     }
 
-    // --- 1. TYCOON ENGINE: DETROIT & SAGINAW (16-Tile Classic Layout) ---
+    // --- PEERJS MULTIPLAYER SETUP ---
+    let peer = null;
+    let conn = null;
+    function hostP2PRoom() {
+        peer = new Peer();
+        peer.on('open', (id) => {
+            document.getElementById('room-code-input').value = id;
+            logTycoon(`Room hosted successfully! Your Room ID: ${id}`);
+        });
+        peer.on('connection', (c) => {
+            conn = c;
+            logTycoon(`Player connected from peer ID: ${conn.peer}`);
+            setupPeerListeners();
+        });
+    }
+
+    function joinP2PRoom() {
+        let code = document.getElementById('room-code-input').value.trim();
+        if(!code) return;
+        peer = new Peer();
+        peer.on('open', () => {
+            conn = peer.connect(code);
+            conn.on('open', () => {
+                logTycoon(`Successfully joined room ${code}!`);
+                setupPeerListeners();
+            });
+        });
+    }
+
+    function setupPeerListeners() {
+        conn.on('data', (data) => {
+            if(data.type === 'ACTION') {
+                logTycoon(`Opponent action received: ${data.msg}`);
+                tycoonGame.funds = data.funds;
+                document.getElementById('tycoon-funds').innerText = tycoonGame.funds;
+                drawTycoonBoard();
+            }
+        });
+    }
+
+    // --- 1. TYCOON ENGINE (Detroit & Saginaw 16-Tile Classic) ---
     const tCanvas = document.getElementById('tycoonCanvas');
     const tCtx = tCanvas.getContext('2d');
 
@@ -225,60 +363,67 @@
         player: "Tommy",
         aiEnabled: true,
         tiles: [
-            { name: "START (+200 ME)", cost: 0, owner: "System", type: "start", color: "#2ecc71" },
-            { name: "Woodward Ave", cost: 100, owner: "None", type: "prop", color: "#ff7b00" },
-            { name: "Grand River Depot", cost: 120, owner: "None", type: "prop", color: "#ff7b00" },
-            { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6" },
-            { name: "Eastern Market", cost: 130, owner: "None", type: "prop", color: "#1d428a" },
-            { name: "MICHIGAN TRANSIT", cost: 150, owner: "None", type: "prop", color: "#1d428a" },
-            { name: "West Grand Blvd", cost: 140, owner: "None", type: "prop", color: "#1d428a" },
-            { name: "Conant Gardens", cost: 160, owner: "None", type: "prop", color: "#00d2ff" },
-            { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6" },
-            { name: "I-75 Northway", cost: 180, owner: "None", type: "prop", color: "#00d2ff" },
-            { name: "SAGINAW REUNION", cost: 0, owner: "System", type: "rest", color: "#e74c3c" },
-            { name: "Hoyt Public Library", cost: 200, owner: "None", type: "prop", color: "#00d2ff" },
-            { name: "Bancroft House", cost: 220, owner: "None", type: "prop", color: "#f39c12" },
-            { name: "Ojibway Island", cost: 240, owner: "None", type: "prop", color: "#f39c12" },
-            { name: "Atwater Street", cost: 300, owner: "None", type: "prop", color: "#27ae60" },
-            { name: "Rhodes Family Legacy", cost: 320, owner: "None", type: "prop", color: "#27ae60" }
+            { name: "START (+200 ME)", cost: 0, owner: "System", type: "start", color: "#2ecc71", rent: 0 },
+            { name: "Woodward Ave", cost: 100, owner: "None", type: "prop", color: "#ff7b00", rent: 20 },
+            { name: "Grand River Depot", cost: 120, owner: "None", type: "prop", color: "#ff7b00", rent: 25 },
+            { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
+            { name: "Eastern Market", cost: 130, owner: "None", type: "prop", color: "#1d428a", rent: 30 },
+            { name: "MICHIGAN TRANSIT", cost: 150, owner: "None", type: "prop", color: "#1d428a", rent: 35 },
+            { name: "West Grand Blvd", cost: 140, owner: "None", type: "prop", color: "#1d428a", rent: 30 },
+            { name: "Conant Gardens", cost: 160, owner: "None", type: "prop", color: "#00d2ff", rent: 40 },
+            { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
+            { name: "I-75 Northway", cost: 180, owner: "None", type: "prop", color: "#00d2ff", rent: 45 },
+            { name: "SAGINAW REUNION", cost: 0, owner: "System", type: "rest", color: "#e74c3c", rent: 0 },
+            { name: "Hoyt Public Library", cost: 200, owner: "None", type: "prop", color: "#00d2ff", rent: 50 },
+            { name: "Bancroft House", cost: 220, owner: "None", type: "prop", color: "#f39c12", rent: 55 },
+            { name: "Ojibway Island", cost: 240, owner: "None", type: "prop", color: "#f39c12", rent: 60 },
+            { name: "Atwater Street", cost: 300, owner: "None", type: "prop", color: "#27ae60", rent: 75 },
+            { name: "Rhodes Family Legacy", cost: 320, owner: "None", type: "prop", color: "#27ae60", rent: 85 }
         ]
     };
 
     function toggleAI() {
         tycoonGame.aiEnabled = document.getElementById('ai-toggle').checked;
-        logTycoon(`AI Bot 101 status: ${tycoonGame.aiEnabled ? 'Active' : 'Disabled'}`);
+        logTycoon(`AI Bot status: ${tycoonGame.aiEnabled ? 'Active' : 'Disabled'}`);
+    }
+
+    function updateBookProgress() {
+        let progEl = document.getElementById('book-reward-status');
+        progEl.innerText = `📖 Free Book Progress: ${tycoonGame.funds} / 2500 ME`;
     }
 
     function drawTycoonBoard() {
         tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
         
         let coords = [
-            {x: 630, y: 320}, {x: 480, y: 320}, {x: 330, y: 320}, {x: 180, y: 320}, // Bottom
-            {x: 30, y: 320}, {x: 30, y: 240}, {x: 30, y: 160}, {x: 30, y: 80},     // Left
-            {x: 180, y: 20}, {x: 330, y: 20}, {x: 480, y: 20}, {x: 630, y: 20},     // Top
-            {x: 630, y: 80}, {x: 630, y: 160}, {x: 630, y: 240}, {x: 630, y: 280}   // Right
+            {x: 620, y: 340}, {x: 470, y: 340}, {x: 320, y: 340}, {x: 170, y: 340}, // Bottom
+            {x: 20, y: 340}, {x: 20, y: 250}, {x: 20, y: 160}, {x: 20, y: 70},     // Left
+            {x: 170, y: 20}, {x: 320, y: 20}, {x: 470, y: 20}, {x: 620, y: 20},     // Top
+            {x: 620, y: 70}, {x: 620, y: 160}, {x: 620, y: 250}, {x: 620, y: 300}   // Right
         ];
 
         tycoonGame.tiles.forEach((t, i) => {
             let pt = coords[i] || {x: 50, y: 50};
             tCtx.fillStyle = (i === tycoonGame.position) ? '#1e2438' : '#13151f';
             tCtx.strokeStyle = t.color;
-            tCtx.lineWidth = (i === tycoonGame.position) ? 2.5 : 1;
-            tCtx.fillRect(pt.x, pt.y, 110, 60);
-            tCtx.strokeRect(pt.x, pt.y, 110, 60);
+            tCtx.lineWidth = (i === tycoonGame.position) ? 3 : 1;
+            tCtx.fillRect(pt.x, pt.y, 120, 65);
+            tCtx.strokeRect(pt.x, pt.y, 120, 65);
 
             tCtx.fillStyle = '#f0f2f5';
-            tCtx.font = 'bold 9px Segoe UI';
-            tCtx.fillText(t.name.substring(0, 16), pt.x + 6, pt.y + 20);
+            tCtx.font = 'bold 10px Segoe UI';
+            tCtx.fillText(t.name.substring(0, 18), pt.x + 6, pt.y + 18);
             
             tCtx.fillStyle = '#a0aec0';
             tCtx.font = '9px Segoe UI';
-            tCtx.fillText(t.cost > 0 ? `${t.cost} ME` : t.type.toUpperCase(), pt.x + 6, pt.y + 38);
-            tCtx.fillText(`Own: ${t.owner.substring(0,8)}`, pt.x + 6, pt.y + 50);
+            tCtx.fillText(t.cost > 0 ? `${t.cost} ME` : t.type.toUpperCase(), pt.x + 6, pt.y + 36);
+            
+            tCtx.fillStyle = t.owner === 'Tommy' ? '#00d2ff' : '#a0aec0';
+            tCtx.fillText(`Own: ${t.owner.substring(0, 10)}`, pt.x + 6, pt.y + 52);
         });
 
-        tCtx.font = "bold 15px Segoe UI";
-        tCtx.fillStyle = "rgba(255,123,0,0.35)";
+        tCtx.font = "bold 14px Segoe UI";
+        tCtx.fillStyle = "rgba(255,123,0,0.3)";
         tCtx.textAlign = "center";
         tCtx.fillText("DETROIT & SAGINAW BOARD", tCanvas.width/2, tCanvas.height/2);
         tCtx.textAlign = "left";
@@ -301,16 +446,23 @@
             if(tile.type === 'event') {
                 let bonus = Math.random() > 0.5 ? 100 : -50;
                 tycoonGame.funds += bonus;
-                logTycoon(`Mystery Suitcase Event! Adjusted funds by ${bonus} ME.`);
+                logTycoon(`Mystery Suitcase Event! Adjusted Marrow Energy by ${bonus} ME.`);
+            } else if(tile.owner !== "None" && tile.owner !== tycoonGame.player) {
+                tycoonGame.funds -= tile.rent;
+                logTycoon(`Paid rent of ${tile.rent} ME to ${tile.owner}.`);
             }
 
             document.getElementById('tycoon-funds').innerText = tycoonGame.funds;
+            updateBookProgress();
             drawTycoonBoard();
 
-            // AI Bot turn response
+            if(conn && conn.open) {
+                conn.send({ type: 'ACTION', msg: `${tycoonGame.player} rolled to ${tile.name}`, funds: tycoonGame.funds });
+            }
+
             if(tycoonGame.aiEnabled) {
                 setTimeout(() => {
-                    logTycoon(`AI Bot 101 rolled and reviewed property market.`);
+                    logTycoon(`AI Bot 101 reviewed portfolio and evaluated market.`);
                 }, 800);
             }
         } else if(action === 'buy') {
@@ -323,6 +475,7 @@
                 tycoonGame.funds -= tile.cost;
                 tile.owner = tycoonGame.player;
                 document.getElementById('tycoon-funds').innerText = tycoonGame.funds;
+                updateBookProgress();
                 
                 let ownedCount = tycoonGame.tiles.filter(t => t.owner === tycoonGame.player).length;
                 document.getElementById('prop-count').innerText = ownedCount;
@@ -336,22 +489,40 @@
             let tile = tycoonGame.tiles[tycoonGame.position];
             if(tile.owner === tycoonGame.player && tycoonGame.funds >= 50) {
                 tycoonGame.funds -= 50;
+                tile.rent += 15;
                 document.getElementById('tycoon-funds').innerText = tycoonGame.funds;
-                logTycoon(`Upgraded ${tile.name} for 50 ME!`);
+                updateBookProgress();
+                logTycoon(`Upgraded ${tile.name}! New rent: ${tile.rent} ME.`);
             } else {
                 logTycoon(`You must own the current tile and have 50 ME to upgrade.`);
             }
         }
     }
+
+    function openCurrentDeed3D() {
+        let tile = tycoonGame.tiles[tycoonGame.position];
+        document.getElementById('ar-deed-name').innerText = tile.name;
+        document.getElementById('ar-deed-owner').innerText = `Owner: ${tile.owner}`;
+        document.getElementById('ar-deed-value').innerText = tile.cost > 0 ? `Valuation: ${tile.cost} ME (Rent: ${tile.rent} ME)` : `Special Utility / System Tile`;
+        document.getElementById('ar-modal').classList.remove('hidden');
+    }
+
+    function closeArModal() {
+        document.getElementById('ar-modal').classList.add('hidden');
+    }
+
     drawTycoonBoard();
 
 
-    // --- 2. TETRIS ENGINE (Fixed Rendering & Visible Falling Pieces) ---
+    // --- 2. TETRIS ENGINE (With Next Piece Preview & Multi-Row Bonus Scoring) ---
     const tetrisCanvas = document.getElementById('tetrisCanvas');
     const tetrisCtx = tetrisCanvas.getContext('2d');
-    const BLOCK_SIZE = 25;
+    const nextCanvas = document.getElementById('nextCanvas');
+    const nextCtx = nextCanvas.getContext('2d');
+    
+    const BLOCK_SIZE = 20;
     const COLS = 12;
-    const ROWS = 20;
+    const ROWS = 22;
     let tetrisBoard = Array(ROWS).fill(0).map(() => Array(COLS).fill(0));
     
     const TETROMINOS = [
@@ -362,20 +533,21 @@
         { shape: [[0,0,1],[1,1,1]], color: '#2ecc71' }  // J
     ];
 
-    let currentPiece = {
-        shape: TETROMINOS[0].shape,
-        color: TETROMINOS[0].color,
-        x: 4,
-        y: 0
-    };
+    let currentPiece = getRandomPiece();
+    let nextPiece = getRandomPiece();
     let tetrisScore = 0;
+    let tetrisMarrow = 0;
     let tetrisLevel = 1;
+
+    function getRandomPiece() {
+        let t = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
+        return { shape: t.shape, color: t.color, x: 4, y: 0 };
+    }
 
     function drawTetris() {
         tetrisCtx.fillStyle = '#050508';
         tetrisCtx.fillRect(0, 0, tetrisCanvas.width, tetrisCanvas.height);
 
-        // Draw locked board blocks
         for(let r = 0; r < ROWS; r++) {
             for(let c = 0; c < COLS; c++) {
                 if(tetrisBoard[r][c]) {
@@ -385,12 +557,28 @@
             }
         }
 
-        // Draw active falling piece clearly
         tetrisCtx.fillStyle = currentPiece.color;
         currentPiece.shape.forEach((row, rIdx) => {
             row.forEach((val, cIdx) => {
                 if(val) {
                     tetrisCtx.fillRect((currentPiece.x + cIdx) * BLOCK_SIZE, (currentPiece.y + rIdx) * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                }
+            });
+        });
+    }
+
+    function drawNextPiece() {
+        nextCtx.fillStyle = '#050508';
+        nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+        
+        let offsetX = (3 - nextPiece.shape[0].length) * 10;
+        let offsetY = (3 - nextPiece.shape.length) * 10;
+        
+        nextCtx.fillStyle = nextPiece.color;
+        nextPiece.shape.forEach((row, rIdx) => {
+            row.forEach((val, cIdx) => {
+                if(val) {
+                    nextCtx.fillRect(15 + cIdx * 18 + offsetX, 15 + rIdx * 18 + offsetY, 16, 16);
                 }
             });
         });
@@ -439,23 +627,42 @@
             });
         });
         
-        // Spawn next random tetromino
-        let nextType = TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
-        currentPiece = {
-            shape: nextType.shape,
-            color: nextType.color,
-            x: 4,
-            y: 0
-        };
+        // Clear completed rows & calculate bonus
+        let clearedRows = 0;
+        for(let r = ROWS - 1; r >= 0; r--) {
+            if(tetrisBoard[r].every(cell => cell !== 0)) {
+                tetrisBoard.splice(r, 1);
+                tetrisBoard.unshift(Array(COLS).fill(0));
+                clearedRows++;
+                r++; // check same row index again
+            }
+        }
 
-        tetrisScore += 50;
+        if(clearedRows > 0) {
+            let rowPoints = clearedRows * 100;
+            let bonusMarrow = clearedRows >= 4 ? clearedRows * 50 : clearedRows * 10; // Extra bonus for 4 or 5 rows!
+            tetrisScore += rowPoints + (clearedRows >= 4 ? 300 : 0);
+            tetrisMarrow += bonusMarrow;
+            
+            // Add Marrow Energy to Tycoon funds pool as well
+            tycoonGame.funds += bonusMarrow;
+            document.getElementById('tycoon-funds').innerText = tycoonGame.funds;
+            updateBookProgress();
+        }
+
+        tetrisScore += 25;
         document.getElementById('tetris-score').innerText = tetrisScore;
+        document.getElementById('tetris-marrow').innerText = tetrisMarrow;
 
-        // Check game over
+        // Advance to next piece
+        currentPiece = nextPiece;
+        nextPiece = getRandomPiece();
+        drawNextPiece();
+
         if(checkTetrisCollision()) {
             tetrisBoard = Array(ROWS).fill(0).map(() => Array(COLS).fill(0));
             tetrisScore = 0;
-            alert("Tetris board reset! Starting new game.");
+            alert("Board reset! Starting new Tetris run.");
         }
     }
 
@@ -469,7 +676,7 @@
             }
             drawTetris();
         }
-    }, 800);
+    }, 750);
 </script>
 </body>
 </html>
