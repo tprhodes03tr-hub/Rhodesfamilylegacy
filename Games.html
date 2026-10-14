@@ -43,7 +43,7 @@
         .nav-tabs {
             display: flex;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
             margin-top: 10px;
             flex-wrap: wrap;
         }
@@ -51,11 +51,11 @@
             background: var(--bg-dark);
             color: var(--text-light);
             border: 1px solid var(--border-color);
-            padding: 8px 18px;
+            padding: 8px 14px;
             cursor: pointer;
             border-radius: 6px;
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             transition: all 0.2s ease;
         }
         .tab-btn.active {
@@ -151,13 +151,14 @@
             overflow: hidden;
             position: relative;
         }
-        #power-fill, #pool-power-fill {
+        #power-fill, #pool-power-fill, #dart-power-fill {
             width: 0%;
             height: 100%;
             transition: width 0.05s linear;
         }
         #power-fill { background: linear-gradient(90deg, #00d2ff, #ff7b00); }
         #pool-power-fill { background: linear-gradient(90deg, #27ae60, #f1c40f, #e74c3c); }
+        #dart-power-fill { background: linear-gradient(90deg, #7928ca, #00d2ff, #ff7b00); }
         .multiplayer-panel {
             background: rgba(19, 21, 31, 0.95);
             border: 1px solid var(--accent-orange);
@@ -186,7 +187,8 @@
         <div class="nav-tabs">
             <button class="tab-btn active" onclick="switchGame('basketball', event)">Basketball Arena</button>
             <button class="tab-btn" onclick="switchGame('pool', event)">Pool Lounge</button>
-            <button class="tab-btn" onclick="switchGame('multiplayer', event)">P2P Multiplayer Lobby</button>
+            <button class="tab-btn" onclick="switchGame('darts', event)">Darts Lounge</button>
+            <button class="tab-btn" onclick="switchGame('multiplayer', event)">P2P Lobby</button>
         </div>
     </header>
 
@@ -252,6 +254,32 @@
             <button class="ctrl-btn secondary" onclick="poolAction('rotateLeft')">ROTATE LEFT</button>
             <button class="ctrl-btn secondary" onclick="poolAction('rotateRight')">ROTATE RIGHT</button>
             <button class="ctrl-btn" id="pool-strike-btn">HOLD TO CHARGE & STRIKE</button>
+        </div>
+    </div>
+
+    <!-- DARTS LOUNGE (LEGACY 301 BULLSEYE CHAMPIONSHIP) -->
+    <div id="darts-view" class="game-container hidden">
+        <div class="glass-scoreboard">
+            <div class="glass-metric">
+                <span>Score Remaining</span>
+                <strong id="darts-score">301</strong>
+            </div>
+            <div class="glass-metric">
+                <span>Darts Left</span>
+                <strong id="darts-left" style="color: #ff7b00;">15</strong>
+            </div>
+            <div class="glass-metric">
+                <span>Bullseye Hits</span>
+                <strong id="darts-bulls" style="color: #ffe600;">0</strong>
+            </div>
+        </div>
+        <canvas id="dartsCanvas" width="820" height="380"></canvas>
+        <div class="power-bar-wrapper">
+            <div id="dart-power-fill"></div>
+        </div>
+        <div class="controls">
+            <button class="ctrl-btn secondary" onclick="dartsAction('reset')">RESET DARTS</button>
+            <button class="ctrl-btn" id="dart-throw-btn">HOLD & RELEASE THROW</button>
         </div>
     </div>
 
@@ -340,15 +368,15 @@
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         if(gameKey === 'basketball') document.getElementById('basketball-view').classList.remove('hidden');
         else if(gameKey === 'pool') document.getElementById('pool-view').classList.remove('hidden');
+        else if(gameKey === 'darts') document.getElementById('darts-view').classList.remove('hidden');
         else if(gameKey === 'multiplayer') document.getElementById('multiplayer-view').classList.remove('hidden');
         evt.target.classList.add('active');
     }
 
-    // --- TRUE SPRITE IMAGE LOADER FOR PACKED MARROW TREE ---
+    // --- SPRITE IMAGE LOADER ---
     const treeImg = new Image();
-    treeImg.src = 'packed-marrow-tree.png'; // Loads your actual sprite file directly[span_1](start_span)[span_1](end_span)
+    treeImg.src = 'packed-marrow-tree.png';
 
-    // --- MARCUS PRIME SPRITE ---
     const marcusPrimeUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
         <svg xmlns="http://www.w3.org/2000/svg" width="120" height="150" viewBox="0 0 120 150">
             <ellipse cx="60" cy="142" rx="32" ry="7" fill="rgba(0,0,0,0.65)"/>
@@ -443,7 +471,6 @@
         bbCtx.fillStyle = 'rgba(29, 66, 138, 0.35)'; bbCtx.fillRect(0, 270, bbCanvas.width / 2, 110);
         bbCtx.fillStyle = 'rgba(200, 16, 46, 0.35)'; bbCtx.fillRect(bbCanvas.width / 2, 270, bbCanvas.width / 2, 110);
 
-        // Render True Packed Marrow Tree Sprite in Backdrop
         if(treeImg.complete) {
             bbCtx.save(); bbCtx.globalAlpha = 0.55; 
             bbCtx.drawImage(treeImg, bbCanvas.width / 2 - 110, 20, 220, 320); 
@@ -572,7 +599,6 @@
 
         poolCtx.fillStyle = '#0f381e'; poolCtx.fillRect(25, 25, 770, 350);
         
-        // Render True Packed Marrow Tree Sprite in Center of Pool Table Felt
         if(treeImg.complete) { 
             poolCtx.save(); 
             poolCtx.globalAlpha = 0.38; 
@@ -653,6 +679,130 @@
         requestAnimationFrame(updatePool);
     }
     updatePool();
+
+
+    // --- 3. DARTS ENGINE (Legacy 301 Bullseye Championship) ---
+    const dartsCanvas = document.getElementById('dartsCanvas');
+    const dartsCtx = dartsCanvas.getContext('2d');
+    let dartsScoreRemaining = 301;
+    let dartsLeft = 15;
+    let bullseyeHits = 0;
+    let dartCharging = false, dartPower = 0;
+    let crosshairAngle = 0;
+    let activeDart = null;
+
+    const dartThrowBtn = document.getElementById('dart-throw-btn');
+    function startDartCharge(e) {
+        if(dartsLeft > 0 && !activeDart) { dartCharging = true; dartPower = 0; }
+        e.preventDefault();
+    }
+    function releaseDartThrow(e) {
+        if(!dartCharging || dartsLeft <= 0 || activeDart) return;
+        dartCharging = false;
+        document.getElementById('dart-power-fill').style.width = '0%';
+        
+        // Calculate hit position based on crosshair sway + power accuracy deviation
+        let targetX = dartsCanvas.width / 2 + Math.sin(crosshairAngle) * 85;
+        let targetY = dartsCanvas.height / 2 + Math.cos(crosshairAngle * 1.3) * 55;
+        
+        activeDart = { x: 120, y: 320, tx: targetX, ty: targetY, progress: 0 };
+        dartsLeft--;
+        document.getElementById('darts-left').innerText = dartsLeft;
+        e.preventDefault();
+    }
+    dartThrowBtn.addEventListener('mousedown', startDartCharge);
+    dartThrowBtn.addEventListener('mouseup', releaseDartThrow);
+    dartThrowBtn.addEventListener('touchstart', startDartCharge);
+    dartThrowBtn.addEventListener('touchend', releaseDartThrow);
+
+    function dartsAction(action) {
+        if(action === 'reset') {
+            dartsScoreRemaining = 301;
+            dartsLeft = 15;
+            bullseyeHits = 0;
+            activeDart = null;
+            document.getElementById('darts-score').innerText = dartsScoreRemaining;
+            document.getElementById('darts-left').innerText = dartsLeft;
+            document.getElementById('darts-bulls').innerText = bullseyeHits;
+        }
+    }
+
+    function updateDarts() {
+        dartsCtx.clearRect(0, 0, dartsCanvas.width, dartsCanvas.height);
+        if(dartCharging && dartPower < 100) {
+            dartPower += 3.5;
+            document.getElementById('dart-power-fill').style.width = dartPower + '%';
+        }
+
+        // Background & Dartboard Cabinet
+        dartsCtx.fillStyle = '#0a0d1a'; dartsCtx.fillRect(0, 0, dartsCanvas.width, dartsCanvas.height);
+        dartsCtx.fillStyle = '#111422'; dartsCtx.beginPath(); dartsCtx.arc(dartsCanvas.width / 2, dartsCanvas.height / 2, 160, 0, Math.PI*2); dartsCtx.fill();
+        dartsCtx.strokeStyle = '#2a2e43'; dartsCtx.lineWidth = 6; dartsCtx.stroke();
+
+        // Render True Packed Marrow Tree Sprite as Bullseye Target
+        if(treeImg.complete) {
+            dartsCtx.save();
+            dartsCtx.globalAlpha = 0.85;
+            dartsCtx.drawImage(treeImg, dartsCanvas.width / 2 - 110, dartsCanvas.height / 2 - 110, 220, 220);
+            dartsCtx.restore();
+        }
+
+        // Outer Target Rings
+        dartsCtx.strokeStyle = 'rgba(255, 123, 0, 0.4)'; dartsCtx.lineWidth = 3;
+        dartsCtx.beginPath(); dartsCtx.arc(dartsCanvas.width / 2, dartsCanvas.height / 2, 120, 0, Math.PI*2); dartsCtx.stroke();
+        dartsCtx.beginPath(); dartsCtx.arc(dartsCanvas.width / 2, dartsCanvas.height / 2, 70, 0, Math.PI*2); dartsCtx.stroke();
+
+        // Center Bullseye Ring
+        dartsCtx.strokeStyle = '#00d2ff'; dartsCtx.lineWidth = 2.5;
+        dartsCtx.beginPath(); dartsCtx.arc(dartsCanvas.width / 2, dartsCanvas.height / 2, 22, 0, Math.PI*2); dartsCtx.stroke();
+
+        // Active Dart Animation / Flight
+        if(activeDart) {
+            activeDart.progress += 0.08;
+            let currX = activeDart.x + (activeDart.tx - activeDart.x) * activeDart.progress;
+            let currY = activeDart.y + (activeDart.ty - activeDart.y) * activeDart.progress;
+            
+            // Draw flying dart
+            dartsCtx.fillStyle = '#00d2ff';
+            dartsCtx.beginPath(); dartsCtx.arc(currX, currY, 6, 0, Math.PI*2); dartsCtx.fill();
+
+            if(activeDart.progress >= 1) {
+                // Landed: calculate distance from center
+                let distFromCenter = Math.hypot(activeDart.tx - (dartsCanvas.width / 2), activeDart.ty - (dartsCanvas.height / 2));
+                let scoredPoints = 20;
+                if(distFromCenter < 25) {
+                    scoredPoints = 50;
+                    bullseyeHits++;
+                    document.getElementById('darts-bulls').innerText = bullseyeHits;
+                    playChingSound();
+                } else if(distFromCenter < 70) {
+                    scoredPoints = 40;
+                    playPocketBingSound();
+                } else if(distFromCenter < 120) {
+                    scoredPoints = 25;
+                }
+                
+                dartsScoreRemaining = Math.max(0, dartsScoreRemaining - scoredPoints);
+                document.getElementById('darts-score').innerText = dartsScoreRemaining;
+                activeDart = null;
+            }
+        }
+
+        // Swaying Crosshair Aim
+        crosshairAngle += 0.045;
+        let cx = dartsCanvas.width / 2 + Math.sin(crosshairAngle) * 85;
+        let cy = dartsCanvas.height / 2 + Math.cos(crosshairAngle * 1.3) * 55;
+
+        dartsCtx.strokeStyle = dartCharging ? '#ff7b00' : '#00d2ff';
+        dartsCtx.lineWidth = 2;
+        dartsCtx.beginPath();
+        dartsCtx.moveTo(cx - 12, cy); dartsCtx.lineTo(cx + 12, cy);
+        dartsCtx.moveTo(cx, cy - 12); dartsCtx.lineTo(cx, cy + 12);
+        dartsCtx.stroke();
+
+        requestAnimationFrame(updateDarts);
+    }
+    updateDarts();
 </script>
 </body>
 </html>
