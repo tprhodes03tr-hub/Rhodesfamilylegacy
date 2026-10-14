@@ -69,8 +69,8 @@
             border: 2px solid var(--border-color);
             border-radius: 12px;
             padding: 15px;
-            width: 92%;
-            max-width: 760px;
+            width: 94%;
+            max-width: 800px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.6);
         }
         .game-header {
@@ -152,17 +152,18 @@
             overflow: hidden;
             position: relative;
         }
-        #power-fill {
-            background: linear-gradient(90deg, #00d2ff, #ff7b00);
+        #power-fill, #pool-power-fill {
             width: 0%;
             height: 100%;
             transition: width 0.05s linear;
         }
+        #power-fill { background: linear-gradient(90deg, #00d2ff, #ff7b00); }
+        #pool-power-fill { background: linear-gradient(90deg, #27ae60, #f1c40f, #e74c3c); }
         .multiplayer-panel {
             background: rgba(19, 21, 31, 0.95);
             border: 1px solid var(--accent-orange);
             border-radius: 8px;
-            padding: 12px;
+            padding: 15px;
             margin-bottom: 12px;
             text-align: center;
         }
@@ -170,17 +171,17 @@
             background: #0a0b10;
             border: 1px solid var(--border-color);
             color: #fff;
-            padding: 6px 10px;
+            padding: 8px 12px;
             border-radius: 4px;
             margin-right: 8px;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
         }
         .hidden { display: none !important; }
     </style>
     <!-- Include PeerJS for P2P Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
-<body>
+<body onclick="initAudioContext()">
 
     <header>
         <h1>Rhodes Family Legacy Hub - Sports Lounge</h1>
@@ -193,15 +194,16 @@
 
     <!-- P2P MULTIPLAYER LOBBY -->
     <div id="multiplayer-view" class="game-container hidden">
-        <div class="game-header"><span>P2P ROOM & HIGH SCORES</span></div>
+        <div class="game-header"><span>P2P FAMILY ROOM & HIGH SCORES</span></div>
         <div class="multiplayer-panel">
-            <p style="margin: 0 0 10px 0; font-size: 0.9rem; color: #a0aec0;">Connect with family & friends across networks to compete live!</p>
-            <div style="margin-bottom: 10px;">
-                <span id="my-peer-id" style="color: var(--accent-orange); font-weight: bold; font-family: monospace;">Initializing Room ID...</span>
+            <p style="margin: 0 0 10px 0; font-size: 0.9rem; color: #a0aec0;">Use a simple code like <strong>marrow</strong> or <strong>woodwork</strong> to connect with friends!</p>
+            <div style="margin-bottom: 12px;">
+                <span style="color: #cbd5e0;">Your Room Code: </span>
+                <span id="my-peer-id" style="color: var(--accent-orange); font-weight: bold; font-family: monospace; font-size: 1.1rem;">Setting up code...</span>
             </div>
             <div>
-                <input type="text" id="friend-id-input" placeholder="Enter Friend's Room ID">
-                <button class="ctrl-btn" onclick="connectToFriend()" style="padding: 6px 14px; font-size: 0.85rem;">CONNECT</button>
+                <input type="text" id="friend-id-input" placeholder="e.g. marrow">
+                <button class="ctrl-btn" onclick="connectToFriend()" style="padding: 8px 16px; font-size: 0.9rem;">JOIN ROOM</button>
             </div>
             <div id="connection-status" style="margin-top: 10px; font-size: 0.85rem; color: #00d2ff;">Status: Disconnected</div>
         </div>
@@ -229,7 +231,7 @@
                 <strong id="bb-marrow" style="color: #ffe600;">0 ME</strong>
             </div>
         </div>
-        <canvas id="bbCanvas" width="720" height="340"></canvas>
+        <canvas id="bbCanvas" width="760" height="360"></canvas>
         <div class="power-bar-wrapper">
             <div id="power-fill"></div>
         </div>
@@ -242,12 +244,12 @@
     <!-- POOL LOUNGE -->
     <div id="pool-view" class="game-container hidden">
         <div class="game-header">
-            <span>POOL TABLE: 2.5D Cue Master</span>
+            <span>POOL TABLE: 2.5D Cue Master (Expanded)</span>
             <span id="pool-status">STATUS: Aim & Strike</span>
         </div>
-        <canvas id="poolCanvas" width="720" height="340"></canvas>
+        <canvas id="poolCanvas" width="760" height="380"></canvas>
         <div class="power-bar-wrapper">
-            <div id="pool-power-fill" style="background: linear-gradient(90deg, #27ae60, #f1c40f, #e74c3c); width: 0%; height: 100%;"></div>
+            <div id="pool-power-fill"></div>
         </div>
         <div class="controls">
             <button class="ctrl-btn secondary" onclick="poolAction('rotateLeft')">ROTATE LEFT</button>
@@ -257,30 +259,86 @@
     </div>
 
 <script>
-    // --- P2P MULTIPLAYER SETUP VIA PEERJS ---
+    // --- WEB AUDIO SYNTHESIZER ---
+    let audioCtx = null;
+    function initAudioContext() {
+        if(!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if(audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+
+    function playChingSound() {
+        initAudioContext();
+        if(!audioCtx) return;
+        let now = audioCtx.currentTime;
+        [880, 1320, 1760].forEach((freq, idx) => {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + (idx * 0.05));
+            gain.gain.setValueAtTime(0.2, now + (idx * 0.05));
+            gain.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.05) + 0.4);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + (idx * 0.05));
+            osc.stop(now + (idx * 0.05) + 0.4);
+        });
+    }
+
+    function playPocketBingSound() {
+        initAudioContext();
+        if(!audioCtx) return;
+        let now = audioCtx.currentTime;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.25);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.45);
+    }
+
+    // --- SIMPLE P2P ROOM CODES VIA PEERJS ---
     let peer = null, conn = null;
     let opponentScore = 0;
     let localHighScore = localStorage.getItem('rhodes_bb_highscore') || 0;
     document.getElementById('high-score-display').innerText = localHighScore;
 
     setTimeout(() => {
-        peer = new Peer();
+        // Generate simple family code prefix (e.g. marrow-73 or woodwork-12)
+        const codePrefixes = ['marrow', 'woodwork', 'legacy', 'rhodes', 'detroit', 'saginaw'];
+        let simpleCode = codePrefixes[Math.floor(Math.random() * codePrefixes.length)] + '-' + Math.floor(Math.random() * 90 + 10);
+        
+        peer = new Peer(simpleCode);
         peer.on('open', (id) => {
-            document.getElementById('my-peer-id').innerText = "My Room ID: " + id;
+            document.getElementById('my-peer-id').innerText = id;
+        });
+        peer.on('error', (err) => {
+            // Fallback if ID is taken
+            let fallbackId = 'rhodes-' + Math.floor(Math.random() * 900 + 100);
+            peer = new Peer(fallbackId);
+            peer.on('open', (id) => { document.getElementById('my-peer-id').innerText = id; });
         });
         peer.on('connection', (c) => {
             conn = c;
             setupConnection();
             document.getElementById('connection-status').innerText = "Status: Connected with Friend!";
         });
-    }, 1000);
+    }, 1200);
 
     function connectToFriend() {
         let friendId = document.getElementById('friend-id-input').value.trim();
         if(!friendId) return;
         conn = peer.connect(friendId);
         setupConnection();
-        document.getElementById('connection-status').innerText = "Status: Connected!";
+        document.getElementById('connection-status').innerText = "Status: Connected to " + friendId + "!";
     }
 
     function setupConnection() {
@@ -296,42 +354,6 @@
         if(conn && conn.open) {
             conn.send({ type: 'scoreUpdate', score: score });
         }
-    }
-
-    // --- WEB AUDIO SYNTHESIZER ---
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    function playChingSound() {
-        if(audioCtx.state === 'suspended') audioCtx.resume();
-        let now = audioCtx.currentTime;
-        [880, 1320, 1760].forEach((freq, idx) => {
-            let osc = audioCtx.createOscillator();
-            let gain = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, now + (idx * 0.05));
-            gain.gain.setValueAtTime(0.15, now + (idx * 0.05));
-            gain.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.05) + 0.35);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(now + (idx * 0.05));
-            osc.stop(now + (idx * 0.05) + 0.35);
-        });
-    }
-
-    function playPocketBingSound() {
-        if(audioCtx.state === 'suspended') audioCtx.resume();
-        let now = audioCtx.currentTime;
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.2);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.4);
     }
 
     function switchGame(gameKey, evt) {
@@ -394,8 +416,8 @@
     const bbCanvas = document.getElementById('bbCanvas');
     const bbCtx = bbCanvas.getContext('2d');
     let bbScore = 0, marrowBonus = 0, consecutiveMakes = 0;
-    let ball = { x: 120, y: 220, vx: 0, vy: 0, active: false };
-    let hoop = { x: 580, y: 110, w: 14, h: 65, travel: 0 };
+    let ball = { x: 120, y: 240, vx: 0, vy: 0, active: false };
+    let hoop = { x: 610, y: 115, w: 16, h: 70, travel: 0 };
     let chargePower = 0, charging = false, timeLeft = 40, timerActive = true;
 
     setInterval(() => {
@@ -420,8 +442,8 @@
         if(!charging || ball.active || !timerActive) return;
         charging = false;
         let powerRatio = Math.max(15, chargePower);
-        ball.vx = 6 + (powerRatio / 6.5);
-        ball.vy = -5 - (powerRatio / 7.5);
+        ball.vx = 6.5 + (powerRatio / 6.2);
+        ball.vy = -5.5 - (powerRatio / 7.2);
         ball.active = true;
         document.getElementById('power-fill').style.width = '0%';
         e.preventDefault();
@@ -433,7 +455,7 @@
 
     function bbAction(action) {
         if(action === 'reset' && timerActive) {
-            ball.x = 120; ball.y = 220; ball.vx = 0; ball.vy = 0; ball.active = false;
+            ball.x = 120; ball.y = 240; ball.vx = 0; ball.vy = 0; ball.active = false;
             charging = false; chargePower = 0;
             document.getElementById('power-fill').style.width = '0%';
         }
@@ -447,14 +469,21 @@
         }
 
         bbCtx.fillStyle = '#0a0d1a'; bbCtx.fillRect(0, 0, bbCanvas.width, bbCanvas.height);
-        bbCtx.fillStyle = 'rgba(29, 66, 138, 0.35)'; bbCtx.fillRect(0, 230, bbCanvas.width / 2, 110);
-        bbCtx.fillStyle = 'rgba(200, 16, 46, 0.35)'; bbCtx.fillRect(bbCanvas.width / 2, 230, bbCanvas.width / 2, 110);
+        bbCtx.fillStyle = 'rgba(29, 66, 138, 0.35)'; bbCtx.fillRect(0, 250, bbCanvas.width / 2, 110);
+        bbCtx.fillStyle = 'rgba(200, 16, 46, 0.35)'; bbCtx.fillRect(bbCanvas.width / 2, 250, bbCanvas.width / 2, 110);
 
-        bbCtx.save(); bbCtx.globalAlpha = 0.28; bbCtx.drawImage(treeImg, 205, 15, 310, 310); bbCtx.restore();
+        bbCtx.save(); bbCtx.globalAlpha = 0.28; bbCtx.drawImage(treeImg, 225, 20, 310, 310); bbCtx.restore();
 
-        if(timerActive) { hoop.travel += 0.038; hoop.x = 580 + Math.sin(hoop.travel) * 48; }
+        if(timerActive) { hoop.travel += 0.038; hoop.x = 610 + Math.sin(hoop.travel) * 48; }
 
-        // --- FIRE NET & STREAK EFFECTS (3+ consecutive makes) ---
+        // Backboard
+        bbCtx.fillStyle = 'rgba(255,255,255,0.15)';
+        bbCtx.fillRect(hoop.x + hoop.w, hoop.y - 15, 8, 95);
+        bbCtx.strokeStyle = '#00d2ff';
+        bbCtx.lineWidth = 2;
+        bbCtx.strokeRect(hoop.x + hoop.w, hoop.y - 15, 8, 95);
+
+        // Fire Net & Streak Effects
         let onFire = consecutiveMakes >= 3;
         if(onFire) {
             bbCtx.save();
@@ -470,19 +499,20 @@
         bbCtx.lineWidth = onFire ? 5 : 4;
         bbCtx.strokeRect(hoop.x, hoop.y, hoop.w, hoop.h);
 
-        // Net lines with fiery trailing effect
+        // Net Lines (Full net visual)
         bbCtx.strokeStyle = onFire ? '#ff7b00' : 'rgba(255,255,255,0.75)';
         bbCtx.lineWidth = onFire ? 3 : 2;
         bbCtx.beginPath();
-        bbCtx.moveTo(hoop.x, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + 6, hoop.y + hoop.h + 20);
-        bbCtx.moveTo(hoop.x + hoop.w, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + hoop.w - 6, hoop.y + hoop.h + 20);
+        bbCtx.moveTo(hoop.x, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + 6, hoop.y + hoop.h + 25);
+        bbCtx.moveTo(hoop.x + hoop.w, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + hoop.w - 6, hoop.y + hoop.h + 25);
+        bbCtx.moveTo(hoop.x + 4, hoop.y + hoop.h + 10); bbCtx.lineTo(hoop.x + hoop.w - 4, hoop.y + hoop.h + 25);
         bbCtx.stroke();
 
-        if(marcusImg.complete) bbCtx.drawImage(marcusImg, 75, 180, 65, 85);
+        if(marcusImg.complete) bbCtx.drawImage(marcusImg, 75, 195, 65, 85);
 
         if(ball.active) {
-            ball.x += ball.vx; ball.y += ball.vy; ball.vy += 0.30;
-            if(ball.x > hoop.x - 4 && ball.x < hoop.x + hoop.w + 4 && ball.y > hoop.y && ball.y < hoop.y + 22) {
+            ball.x += ball.vx; ball.y += ball.vy; ball.vy += 0.29;
+            if(ball.x > hoop.x - 4 && ball.x < hoop.x + hoop.w + 4 && ball.y > hoop.y && ball.y < hoop.y + 24) {
                 bbScore++; consecutiveMakes++; marrowBonus += 35;
                 document.getElementById('bb-score').innerText = bbScore;
                 document.getElementById('bb-marrow').innerText = marrowBonus;
@@ -490,13 +520,12 @@
                 broadcastScore(bbScore);
                 bbAction('reset');
             }
-            if(ball.y > 340 || ball.x > bbCanvas.width) {
+            if(ball.y > 360 || ball.x > bbCanvas.width) {
                 bbAction('reset');
-                if(ball.y > 340) consecutiveMakes = 0; // reset streak if missed
+                if(ball.y > 360) consecutiveMakes = 0;
             }
         }
 
-        // --- FIREBALL GLOW ON STREAK ---
         if(onFire) {
             bbCtx.save();
             bbCtx.shadowColor = '#ff4500';
@@ -521,21 +550,21 @@
     updateBasketball();
 
 
-    // --- 2. POOL LOUNGE ENGINE ---
+    // --- 2. POOL LOUNGE ENGINE (Expanded & Fatter Table, Larger Cue Stick) ---
     const poolCanvas = document.getElementById('poolCanvas');
     const poolCtx = poolCanvas.getContext('2d');
     let cueAngle = 0;
-    let cueBall = { x: 200, y: 170, radius: 8, vx: 0, vy: 0 };
+    let cueBall = { x: 210, y: 190, radius: 9, vx: 0, vy: 0 };
     let balls = [cueBall];
     let poolCharging = false, poolPower = 0;
     
-    let rackX = 480, rackY = 170;
+    let rackX = 520, rackY = 190;
     let bColors = ['#f1c40f', '#2980b9', '#e74c3c', '#8e44ad', '#d35400', '#27ae60', '#c0392b', '#2c3e50', '#f39c12', '#3498db', '#e67e22', '#9b59b6', '#1abc9c', '#e84393', '#fdcb6e'];
     let bIdx = 0;
     for(let r = 0; r < 5; r++) {
         for(let c = 0; c <= r; c++) {
             if(bIdx < 15) {
-                balls.push({ x: rackX + (r * 15), y: rackY + (c * 18) - (r * 9), radius: 8, vx: 0, vy: 0, color: bColors[bIdx], isPocketed: false });
+                balls.push({ x: rackX + (r * 16), y: rackY + (c * 20) - (r * 10), radius: 9, vx: 0, vy: 0, color: bColors[bIdx], isPocketed: false });
                 bIdx++;
             }
         }
@@ -549,7 +578,7 @@
     function releasePoolStrike(e) {
         if(!poolCharging) return;
         poolCharging = false;
-        let powerVal = Math.max(3, poolPower / 5.5);
+        let powerVal = Math.max(3.5, poolPower / 5);
         cueBall.vx = Math.cos(cueAngle) * powerVal;
         cueBall.vy = Math.sin(cueAngle) * powerVal;
         document.getElementById('pool-status').innerText = "STATUS: Balls in Motion";
@@ -570,33 +599,42 @@
         poolCtx.clearRect(0, 0, poolCanvas.width, poolCanvas.height);
         if(poolCharging && poolPower < 100) { poolPower += 2.5; document.getElementById('pool-power-fill').style.width = poolPower + '%'; }
 
-        poolCtx.fillStyle = '#0f381e'; poolCtx.fillRect(25, 25, 670, 290);
-        if(treeImg.complete) { poolCtx.save(); poolCtx.globalAlpha = 0.24; poolCtx.drawImage(treeImg, 270, 75, 180, 180); poolCtx.restore(); }
+        // Expanded Pool Table Felt
+        poolCtx.fillStyle = '#0f381e'; poolCtx.fillRect(25, 25, 710, 330);
+        if(treeImg.complete) { poolCtx.save(); poolCtx.globalAlpha = 0.24; poolCtx.drawImage(treeImg, 290, 85, 180, 180); poolCtx.restore(); }
 
-        poolCtx.strokeStyle = '#5c3a21'; poolCtx.lineWidth = 12; poolCtx.strokeRect(19, 19, 682, 302);
-        let pockets = [[25,25],[360,19],[695,25],[25,315],[360,321],[695,315]];
-        poolCtx.fillStyle = '#000'; pockets.forEach(p => { poolCtx.beginPath(); poolCtx.arc(p[0], p[1], 11, 0, Math.PI*2); poolCtx.fill(); });
+        poolCtx.font = "bold 12px 'Segoe UI', Tahoma, sans-serif";
+        poolCtx.fillStyle = "rgba(255, 215, 0, 0.45)";
+        poolCtx.textAlign = "center";
+        poolCtx.fillText("RHODES FAMILY LEGACY", poolCanvas.width / 2, 295);
 
+        // Wooden cushion borders
+        poolCtx.strokeStyle = '#5c3a21'; poolCtx.lineWidth = 14; poolCtx.strokeRect(18, 18, 724, 344);
+
+        let pockets = [[25,25],[380,18],[735,25],[25,355],[380,362],[735,355]];
+        poolCtx.fillStyle = '#000'; pockets.forEach(p => { poolCtx.beginPath(); poolCtx.arc(p[0], p[1], 12, 0, Math.PI*2); poolCtx.fill(); });
+
+        // Trajectory aiming arrow
         if(cueBall.vx === 0 && cueBall.vy === 0) {
-            poolCtx.save(); poolCtx.strokeStyle = 'rgba(0, 210, 255, 0.75)'; poolCtx.lineWidth = 2.5; poolCtx.setLineDash([6, 4]);
-            poolCtx.beginPath(); poolCtx.moveTo(cueBall.x, cueBall.y); poolCtx.lineTo(cueBall.x + Math.cos(cueAngle) * 180, cueBall.y + Math.sin(cueAngle) * 180); poolCtx.stroke();
+            poolCtx.save(); poolCtx.strokeStyle = 'rgba(0, 210, 255, 0.8)'; poolCtx.lineWidth = 3; poolCtx.setLineDash([8, 4]);
+            poolCtx.beginPath(); poolCtx.moveTo(cueBall.x, cueBall.y); poolCtx.lineTo(cueBall.x + Math.cos(cueAngle) * 200, cueBall.y + Math.sin(cueAngle) * 200); poolCtx.stroke();
             poolCtx.restore();
         }
 
         let allStopped = true;
         balls.forEach((b, i) => {
             if(b.isPocketed) return;
-            b.x += b.vx; b.y += b.vy; b.vx *= 0.975; b.vy *= 0.975;
+            b.x += b.vx; b.y += b.vy; b.vx *= 0.978; b.vy *= 0.978;
             if(Math.abs(b.vx) > 0.08 || Math.abs(b.vy) > 0.08) allStopped = false;
             else { b.vx = 0; b.vy = 0; }
 
-            if(b.x < 35 || b.x > 685) { b.vx *= -1; b.x = Math.max(35, Math.min(685, b.x)); }
-            if(b.y < 35 || b.y > 305) { b.vy *= -1; b.y = Math.max(35, Math.min(305, b.y)); }
+            if(b.x < 36 || b.x > 724) { b.vx *= -1; b.x = Math.max(36, Math.min(724, b.x)); }
+            if(b.y < 36 || b.y > 344) { b.vy *= -1; b.y = Math.max(36, Math.min(344, b.y)); }
 
             pockets.forEach(p => {
-                if(Math.hypot(b.x - p[0], b.y - p[1]) < 13) {
+                if(Math.hypot(b.x - p[0], b.y - p[1]) < 14) {
                     playPocketBingSound();
-                    if(b === cueBall) { b.x = 200; b.y = 170; b.vx = 0; b.vy = 0; }
+                    if(b === cueBall) { b.x = 210; b.y = 190; b.vx = 0; b.vy = 0; }
                     else { b.isPocketed = true; b.x = -100; b.y = -100; b.vx = 0; b.vy = 0; }
                 }
             });
@@ -620,19 +658,24 @@
             if(!b.isPocketed) {
                 poolCtx.fillStyle = b.color || '#ffffff';
                 poolCtx.beginPath(); poolCtx.arc(b.x, b.y, b.radius, 0, Math.PI*2); poolCtx.fill();
-                poolCtx.strokeStyle = '#000'; poolCtx.lineWidth = 1; poolCtx.stroke();
+                poolCtx.strokeStyle = '#000'; poolCtx.lineWidth = 1.2; poolCtx.stroke();
             }
         });
 
         if(allStopped && !poolCharging) document.getElementById('pool-status').innerText = "STATUS: Aim & Strike";
 
+        // Render Larger Pool Cue Stick
         if(cueBall.vx === 0 && cueBall.vy === 0) {
-            let recoil = poolCharging ? (poolPower / 4) : 0;
-            let tipDist = 75 + recoil;
+            let recoil = poolCharging ? (poolPower / 3.5) : 0;
+            let tipDist = 85 + recoil;
             let tipX = cueBall.x - Math.cos(cueAngle) * tipDist;
             let tipY = cueBall.y - Math.sin(cueAngle) * tipDist;
-            poolCtx.strokeStyle = '#d35400'; poolCtx.lineWidth = 4;
-            poolCtx.beginPath(); poolCtx.moveTo(cueBall.x - Math.cos(cueAngle)*(15 + recoil), cueBall.y - Math.sin(cueAngle)*(15 + recoil)); poolCtx.lineTo(tipX, tipY); poolCtx.stroke();
+            poolCtx.strokeStyle = '#d35400'; 
+            poolCtx.lineWidth = 7; // Thicker cue stick
+            poolCtx.beginPath(); 
+            poolCtx.moveTo(cueBall.x - Math.cos(cueAngle)*(18 + recoil), cueBall.y - Math.sin(cueAngle)*(18 + recoil)); 
+            poolCtx.lineTo(tipX, tipY); 
+            poolCtx.stroke();
         }
         requestAnimationFrame(updatePool);
     }
