@@ -45,6 +45,7 @@
             justify-content: center;
             gap: 10px;
             margin-top: 10px;
+            flex-wrap: wrap;
         }
         .tab-btn {
             background: var(--bg-dark);
@@ -81,6 +82,35 @@
             font-weight: bold;
             color: var(--accent-blue);
         }
+        /* Glass Digital Score Meter */
+        .glass-scoreboard {
+            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(0,0,0,0.4));
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            border-radius: 10px;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .glass-metric {
+            text-align: center;
+        }
+        .glass-metric span {
+            display: block;
+            font-size: 0.75rem;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .glass-metric strong {
+            font-size: 1.3rem;
+            color: #00d2ff;
+            text-shadow: 0 0 10px rgba(0,210,255,0.6);
+            font-family: monospace;
+        }
         canvas {
             background: #050508;
             border: 1px solid var(--border-color);
@@ -107,11 +137,48 @@
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(255,123,0,0.3);
             transition: transform 0.1s ease;
+            user-select: none;
+            -webkit-user-select: none;
         }
         .ctrl-btn:active { transform: scale(0.95); }
         .ctrl-btn.secondary { background: var(--accent-blue); color: #000; }
+        .power-bar-wrapper {
+            background: #0a0b10;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            height: 14px;
+            width: 100%;
+            margin-top: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        #power-fill {
+            background: linear-gradient(90deg, #00d2ff, #ff7b00);
+            width: 0%;
+            height: 100%;
+            transition: width 0.05s linear;
+        }
+        .multiplayer-panel {
+            background: rgba(19, 21, 31, 0.95);
+            border: 1px solid var(--accent-orange);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .multiplayer-panel input {
+            background: #0a0b10;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            margin-right: 8px;
+            font-size: 0.9rem;
+        }
         .hidden { display: none !important; }
     </style>
+    <!-- Include PeerJS for P2P Multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
@@ -120,23 +187,55 @@
         <div class="nav-tabs">
             <button class="tab-btn active" onclick="switchGame('basketball', event)">Basketball Arena</button>
             <button class="tab-btn" onclick="switchGame('pool', event)">Pool Lounge</button>
+            <button class="tab-btn" onclick="switchGame('multiplayer', event)">P2P Multiplayer Lobby</button>
         </div>
     </header>
 
+    <!-- P2P MULTIPLAYER LOBBY -->
+    <div id="multiplayer-view" class="game-container hidden">
+        <div class="game-header"><span>P2P ROOM & HIGH SCORES</span></div>
+        <div class="multiplayer-panel">
+            <p style="margin: 0 0 10px 0; font-size: 0.9rem; color: #a0aec0;">Connect with family & friends across networks to compete live!</p>
+            <div style="margin-bottom: 10px;">
+                <span id="my-peer-id" style="color: var(--accent-orange); font-weight: bold; font-family: monospace;">Initializing Room ID...</span>
+            </div>
+            <div>
+                <input type="text" id="friend-id-input" placeholder="Enter Friend's Room ID">
+                <button class="ctrl-btn" onclick="connectToFriend()" style="padding: 6px 14px; font-size: 0.85rem;">CONNECT</button>
+            </div>
+            <div id="connection-status" style="margin-top: 10px; font-size: 0.85rem; color: #00d2ff;">Status: Disconnected</div>
+        </div>
+        <div style="background: #0a0b10; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center;">
+            <h3 style="margin-top: 0; color: var(--accent-orange); font-size: 1.1rem;">Daily High Scores</h3>
+            <p style="font-size: 0.9rem; color: #cbd5e0;">👑 Local Best Baskets: <strong id="high-score-display" style="color: #00d2ff;">0</strong></p>
+            <p style="font-size: 0.9rem; color: #cbd5e0;">⚡ P2P Opponent Score: <strong id="opponent-score-display" style="color: #ff7b00;">0</strong></p>
+        </div>
+    </div>
+
     <!-- BASKETBALL COURT -->
     <div id="basketball-view" class="game-container">
-        <div class="game-header">
-            <span>BASKETS: <span id="bb-score">0</span></span>
-            <span>TIME: <span id="bb-timer">40</span>s</span>
-            <span>MARROW BONUS: <span id="bb-marrow">0</span> ME</span>
+        <!-- Glass-Look Digital Score Meter -->
+        <div class="glass-scoreboard">
+            <div class="glass-metric">
+                <span>Baskets</span>
+                <strong id="bb-score">0</strong>
+            </div>
+            <div class="glass-metric">
+                <span>Time Left</span>
+                <strong id="bb-timer" style="color: #ff7b00;">40</strong>s
+            </div>
+            <div class="glass-metric">
+                <span>Marrow Bonus</span>
+                <strong id="bb-marrow" style="color: #ffe600;">0 ME</strong>
+            </div>
         </div>
         <canvas id="bbCanvas" width="720" height="340"></canvas>
-        <div style="background:#0a0b10; border:1px solid var(--border-color); border-radius:6px; height:12px; width:100%; margin-top:12px; overflow:hidden;">
-            <div id="power-fill" style="background:linear-gradient(90deg, #00d2ff, #ff7b00); width:0%; height:100%;"></div>
+        <div class="power-bar-wrapper">
+            <div id="power-fill"></div>
         </div>
         <div class="controls">
             <button class="ctrl-btn secondary" onclick="bbAction('reset')">RESET BALL</button>
-            <button class="ctrl-btn" onmousedown="startCharge()" onmouseup="releaseShot()" ontouchstart="startCharge()" ontouchend="releaseShot()">HOLD & RELEASE SHOT</button>
+            <button class="ctrl-btn" id="shot-btn">HOLD & RELEASE SHOT</button>
         </div>
     </div>
 
@@ -147,14 +246,94 @@
             <span id="pool-status">STATUS: Aim & Strike</span>
         </div>
         <canvas id="poolCanvas" width="720" height="340"></canvas>
+        <div class="power-bar-wrapper">
+            <div id="pool-power-fill" style="background: linear-gradient(90deg, #27ae60, #f1c40f, #e74c3c); width: 0%; height: 100%;"></div>
+        </div>
         <div class="controls">
             <button class="ctrl-btn secondary" onclick="poolAction('rotateLeft')">ROTATE LEFT</button>
             <button class="ctrl-btn secondary" onclick="poolAction('rotateRight')">ROTATE RIGHT</button>
-            <button class="ctrl-btn" onclick="poolAction('strike')">STRIKE BALL</button>
+            <button class="ctrl-btn" id="pool-strike-btn">HOLD TO CHARGE & STRIKE</button>
         </div>
     </div>
 
 <script>
+    // --- P2P MULTIPLAYER SETUP VIA PEERJS ---
+    let peer = null, conn = null;
+    let opponentScore = 0;
+    let localHighScore = localStorage.getItem('rhodes_bb_highscore') || 0;
+    document.getElementById('high-score-display').innerText = localHighScore;
+
+    setTimeout(() => {
+        peer = new Peer();
+        peer.on('open', (id) => {
+            document.getElementById('my-peer-id').innerText = "My Room ID: " + id;
+        });
+        peer.on('connection', (c) => {
+            conn = c;
+            setupConnection();
+            document.getElementById('connection-status').innerText = "Status: Connected with Friend!";
+        });
+    }, 1000);
+
+    function connectToFriend() {
+        let friendId = document.getElementById('friend-id-input').value.trim();
+        if(!friendId) return;
+        conn = peer.connect(friendId);
+        setupConnection();
+        document.getElementById('connection-status').innerText = "Status: Connected!";
+    }
+
+    function setupConnection() {
+        conn.on('data', (data) => {
+            if(data.type === 'scoreUpdate') {
+                opponentScore = data.score;
+                document.getElementById('opponent-score-display').innerText = opponentScore;
+            }
+        });
+    }
+
+    function broadcastScore(score) {
+        if(conn && conn.open) {
+            conn.send({ type: 'scoreUpdate', score: score });
+        }
+    }
+
+    // --- WEB AUDIO SYNTHESIZER ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playChingSound() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        let now = audioCtx.currentTime;
+        [880, 1320, 1760].forEach((freq, idx) => {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + (idx * 0.05));
+            gain.gain.setValueAtTime(0.15, now + (idx * 0.05));
+            gain.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.05) + 0.35);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + (idx * 0.05));
+            osc.stop(now + (idx * 0.05) + 0.35);
+        });
+    }
+
+    function playPocketBingSound() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        let now = audioCtx.currentTime;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.2);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    }
+
     function switchGame(gameKey, evt) {
         document.querySelectorAll('.game-container').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -163,16 +342,18 @@
             document.getElementById('basketball-view').classList.remove('hidden');
         } else if(gameKey === 'pool') {
             document.getElementById('pool-view').classList.remove('hidden');
+        } else if(gameKey === 'multiplayer') {
+            document.getElementById('multiplayer-view').classList.remove('hidden');
         }
         evt.target.classList.add('active');
     }
 
-    // --- PROCEDURAL ASSET GENERATORS ---
+    // --- ASSET GENERATORS ---
     const treeSvgUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+        <svg xmlns="http://www.w3.org/2000/svg" width="350" height="350" viewBox="0 0 300 300">
             <defs>
                 <radialGradient id="treeGlow" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.4"/>
+                    <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.45"/>
                     <stop offset="100%" stop-color="#ff7b00" stop-opacity="0.0"/>
                 </radialGradient>
                 <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -182,39 +363,32 @@
                 </linearGradient>
             </defs>
             <circle cx="150" cy="150" r="140" fill="url(#treeGlow)"/>
-            <path d="M140 260 Q120 200 150 150 Q180 100 150 60" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-linecap="round"/>
-            <path d="M160 260 Q180 200 150 150 Q120 100 150 60" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.7" stroke-linecap="round"/>
+            <path d="M140 260 Q120 200 150 150 Q180 100 150 60" fill="none" stroke="url(#goldGrad)" stroke-width="7" stroke-linecap="round"/>
+            <path d="M160 260 Q180 200 150 150 Q120 100 150 60" fill="none" stroke="url(#goldGrad)" stroke-width="5" stroke-opacity="0.85" stroke-linecap="round"/>
             <circle cx="150" cy="50" r="45" fill="none" stroke="url(#goldGrad)" stroke-width="3"/>
-            <circle cx="110" cy="80" r="35" fill="none" stroke="url(#goldGrad)" stroke-width="2"/>
-            <circle cx="190" cy="80" r="35" fill="none" stroke="url(#goldGrad)" stroke-width="2"/>
-            <circle cx="90" cy="130" r="30" fill="none" stroke="url(#goldGrad)" stroke-width="2"/>
-            <circle cx="210" cy="130" r="30" fill="none" stroke="url(#goldGrad)" stroke-width="2"/>
+            <circle cx="110" cy="80" r="35" fill="none" stroke="url(#goldGrad)" stroke-width="2.5"/>
+            <circle cx="190" cy="80" r="35" fill="none" stroke="url(#goldGrad)" stroke-width="2.5"/>
             <path d="M150 250 Q120 280 90 285" fill="none" stroke="url(#goldGrad)" stroke-width="4"/>
             <path d="M150 250 Q180 280 210 285" fill="none" stroke="url(#goldGrad)" stroke-width="4"/>
         </svg>
     `);
 
     const marcusSvgUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="100" viewBox="0 0 80 100">
-            <ellipse cx="40" cy="94" rx="22" ry="6" fill="rgba(0,0,0,0.5)"/>
-            <path d="M22 88 L36 88 L36 94 L20 94 Z" fill="#00d2ff"/>
-            <path d="M44 88 L58 88 L60 94 L44 94 Z" fill="#00d2ff"/>
-            <path d="M26 50 L54 50 L58 88 L22 88 Z" fill="#1d428a"/>
-            <path d="M30 36 L50 36 L54 50 L26 50 Z" fill="#ffffff"/>
-            <path d="M26 50 L54 50 L54 54 L26 54 Z" fill="#c8102e"/>
-            <text x="40" y="46" font-family="Arial" font-weight="bold" font-size="14" fill="#c8102e" text-anchor="middle">03</text>
-            <path d="M26 38 L14 56 L22 60 L30 44 Z" fill="#c68642"/>
-            <path d="M54 38 L68 24 L74 30 L58 46 Z" fill="#c68642"/>
-            <circle cx="72" cy="22" r="9" fill="#ff7b00"/>
-            <circle cx="40" cy="22" r="13" fill="#c68642"/>
-            <path d="M28 16 L52 16 L50 10 L30 10 Z" fill="#ff7b00"/>
+        <svg xmlns="http://www.w3.org/2000/svg" width="90" height="110" viewBox="0 0 90 110">
+            <ellipse cx="45" cy="102" rx="24" ry="6" fill="rgba(0,0,0,0.6)"/>
+            <path d="M24 94 L38 94 L38 102 L22 102 Z" fill="#00d2ff"/>
+            <path d="M52 94 L66 94 L68 102 L50 102 Z" fill="#00d2ff"/>
+            <path d="M28 54 L62 54 L66 94 L24 94 Z" fill="#13151f"/>
+            <path d="M32 40 L58 40 L62 54 L28 54 Z" fill="#1d428a"/>
+            <path d="M38 42 L52 42 L50 90 L40 90 Z" fill="#7928ca"/>
+            <text x="45" y="50" font-family="Arial" font-weight="bold" font-size="12" fill="#ff7b00" text-anchor="middle">03</text>
+            <circle cx="80" cy="24" r="10" fill="#ff7b00"/>
+            <circle cx="45" cy="24" r="14" fill="#c68642"/>
         </svg>
     `);
 
-    const treeImg = new Image();
-    treeImg.src = treeSvgUri;
-    const marcusImg = new Image();
-    marcusImg.src = marcusSvgUri;
+    const treeImg = new Image(); treeImg.src = treeSvgUri;
+    const marcusImg = new Image(); marcusImg.src = marcusSvgUri;
 
     // --- 1. BASKETBALL ENGINE ---
     const bbCanvas = document.getElementById('bbCanvas');
@@ -227,113 +401,121 @@
     setInterval(() => {
         if(timerActive && !document.getElementById('basketball-view').classList.contains('hidden')) {
             timeLeft--;
-            if(timeLeft <= 0) { timeLeft = 0; timerActive = false; }
+            if(timeLeft <= 0) { 
+                timeLeft = 0; 
+                timerActive = false;
+                if(bbScore > localHighScore) {
+                    localHighScore = bbScore;
+                    localStorage.setItem('rhodes_bb_highscore', localHighScore);
+                    document.getElementById('high-score-display').innerText = localHighScore;
+                }
+            }
             document.getElementById('bb-timer').innerText = timeLeft;
         }
     }, 1000);
 
-    function startCharge() { if(timerActive) { charging = true; chargePower = 0; } }
-    function releaseShot() {
+    const shotBtn = document.getElementById('shot-btn');
+    function startBBCharge(e) { if(timerActive && !ball.active) { charging = true; chargePower = 0; } e.preventDefault(); }
+    function releaseBBShoot(e) {
         if(!charging || ball.active || !timerActive) return;
         charging = false;
-        ball.vx = 8 + (chargePower / 9);
-        ball.vy = -6 - (chargePower / 11);
+        let powerRatio = Math.max(15, chargePower);
+        ball.vx = 6 + (powerRatio / 6.5);
+        ball.vy = -5 - (powerRatio / 7.5);
         ball.active = true;
         document.getElementById('power-fill').style.width = '0%';
+        e.preventDefault();
     }
+    shotBtn.addEventListener('mousedown', startBBCharge);
+    shotBtn.addEventListener('mouseup', releaseBBShoot);
+    shotBtn.addEventListener('touchstart', startBBCharge);
+    shotBtn.addEventListener('touchend', releaseBBShoot);
 
     function bbAction(action) {
         if(action === 'reset' && timerActive) {
             ball.x = 120; ball.y = 220; ball.vx = 0; ball.vy = 0; ball.active = false;
+            charging = false; chargePower = 0;
+            document.getElementById('power-fill').style.width = '0%';
         }
     }
 
     function updateBasketball() {
         bbCtx.clearRect(0, 0, bbCanvas.width, bbCanvas.height);
-
         if(charging && chargePower < 100) {
-            chargePower += 3.5;
+            chargePower += 3.2;
             document.getElementById('power-fill').style.width = chargePower + '%';
         }
 
-        // Detroit Pistons Split Red & Blue Floor Mat
-        bbCtx.fillStyle = '#0a0d1a';
-        bbCtx.fillRect(0, 0, bbCanvas.width, bbCanvas.height);
-        
-        bbCtx.fillStyle = 'rgba(29, 66, 138, 0.4)'; // Blue side
-        bbCtx.fillRect(0, 230, bbCanvas.width / 2, 110);
-        bbCtx.fillStyle = 'rgba(200, 16, 46, 0.4)'; // Red side
-        bbCtx.fillRect(bbCanvas.width / 2, 230, bbCanvas.width / 2, 110);
+        bbCtx.fillStyle = '#0a0d1a'; bbCtx.fillRect(0, 0, bbCanvas.width, bbCanvas.height);
+        bbCtx.fillStyle = 'rgba(29, 66, 138, 0.35)'; bbCtx.fillRect(0, 230, bbCanvas.width / 2, 110);
+        bbCtx.fillStyle = 'rgba(200, 16, 46, 0.35)'; bbCtx.fillRect(bbCanvas.width / 2, 230, bbCanvas.width / 2, 110);
 
-        // Golden Double Helix Tree Watermark & Living Codex Backdrop
-        bbCtx.save();
-        bbCtx.globalAlpha = 0.25;
-        bbCtx.drawImage(treeImg, 220, 20, 280, 280);
-        bbCtx.restore();
+        bbCtx.save(); bbCtx.globalAlpha = 0.28; bbCtx.drawImage(treeImg, 205, 15, 310, 310); bbCtx.restore();
 
-        bbCtx.font = "bold 13px 'Segoe UI', Tahoma, sans-serif";
-        bbCtx.fillStyle = "rgba(255, 123, 0, 0.55)";
-        bbCtx.textAlign = "center";
-        bbCtx.fillText("ROADS FAMILY LEGACY • THE LIVING CODEX", bbCanvas.width / 2, 305);
+        if(timerActive) { hoop.travel += 0.038; hoop.x = 580 + Math.sin(hoop.travel) * 48; }
 
-        // Moving Hoop & Backboard
-        if(timerActive) {
-            hoop.travel += 0.035;
-            hoop.x = 580 + Math.sin(hoop.travel) * 45;
+        // --- FIRE NET & STREAK EFFECTS (3+ consecutive makes) ---
+        let onFire = consecutiveMakes >= 3;
+        if(onFire) {
+            bbCtx.save();
+            bbCtx.shadowColor = '#ff2200';
+            bbCtx.shadowBlur = 18;
+            bbCtx.strokeStyle = '#ff5500';
+            bbCtx.lineWidth = 6;
+            bbCtx.strokeRect(hoop.x - 2, hoop.y - 2, hoop.w + 4, hoop.h + 4);
+            bbCtx.restore();
         }
 
-        // Rim & Fire Net Effect on Streak (3+ makes)
-        bbCtx.strokeStyle = consecutiveMakes >= 3 ? '#ff2200' : '#c8102e';
-        bbCtx.lineWidth = 4;
+        bbCtx.strokeStyle = onFire ? '#ff2200' : '#c8102e'; 
+        bbCtx.lineWidth = onFire ? 5 : 4;
         bbCtx.strokeRect(hoop.x, hoop.y, hoop.w, hoop.h);
 
-        bbCtx.strokeStyle = consecutiveMakes >= 3 ? '#ff7b00' : 'rgba(255,255,255,0.7)';
-        bbCtx.lineWidth = 2;
+        // Net lines with fiery trailing effect
+        bbCtx.strokeStyle = onFire ? '#ff7b00' : 'rgba(255,255,255,0.75)';
+        bbCtx.lineWidth = onFire ? 3 : 2;
         bbCtx.beginPath();
         bbCtx.moveTo(hoop.x, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + 6, hoop.y + hoop.h + 20);
         bbCtx.moveTo(hoop.x + hoop.w, hoop.y + hoop.h); bbCtx.lineTo(hoop.x + hoop.w - 6, hoop.y + hoop.h + 20);
         bbCtx.stroke();
 
-        // Marcus Prime Shooter Sprite
-        if(marcusImg.complete) {
-            bbCtx.drawImage(marcusImg, 80, 185, 60, 80);
-        } else {
-            bbCtx.fillStyle = '#00d2ff';
-            bbCtx.fillRect(80, 185, 32, 60);
-        }
+        if(marcusImg.complete) bbCtx.drawImage(marcusImg, 75, 180, 65, 85);
 
         if(ball.active) {
-            ball.x += ball.vx;
-            ball.y += ball.vy;
-            ball.vy += 0.32;
-
+            ball.x += ball.vx; ball.y += ball.vy; ball.vy += 0.30;
             if(ball.x > hoop.x - 4 && ball.x < hoop.x + hoop.w + 4 && ball.y > hoop.y && ball.y < hoop.y + 22) {
-                bbScore++;
-                consecutiveMakes++;
-                marrowBonus += 25;
+                bbScore++; consecutiveMakes++; marrowBonus += 35;
                 document.getElementById('bb-score').innerText = bbScore;
                 document.getElementById('bb-marrow').innerText = marrowBonus;
+                playChingSound();
+                broadcastScore(bbScore);
                 bbAction('reset');
             }
             if(ball.y > 340 || ball.x > bbCanvas.width) {
                 bbAction('reset');
-                if(ball.y > 340) consecutiveMakes = 0; // reset streak on floor miss
+                if(ball.y > 340) consecutiveMakes = 0; // reset streak if missed
             }
         }
 
-        // Ball Glow Red on Streak
-        bbCtx.fillStyle = consecutiveMakes >= 3 ? '#ff2200' : '#ff7b00';
-        bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 11, 0, Math.PI*2); bbCtx.fill();
-
-        if(!timerActive) {
-            bbCtx.fillStyle = "rgba(0,0,0,0.85)";
-            bbCtx.fillRect(0, 0, bbCanvas.width, bbCanvas.height);
-            bbCtx.font = "bold 22px 'Segoe UI', Tahoma, sans-serif";
-            bbCtx.fillStyle = "#ff7b00";
-            bbCtx.textAlign = "center";
-            bbCtx.fillText("TIME'S UP! FINAL BASKETS: " + bbScore, bbCanvas.width / 2, bbCanvas.height / 2);
+        // --- FIREBALL GLOW ON STREAK ---
+        if(onFire) {
+            bbCtx.save();
+            bbCtx.shadowColor = '#ff4500';
+            bbCtx.shadowBlur = 20;
+            bbCtx.fillStyle = '#ff2200';
+            bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 14, 0, Math.PI*2); bbCtx.fill();
+            bbCtx.fillStyle = '#ffea00';
+            bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 8, 0, Math.PI*2); bbCtx.fill();
+            bbCtx.restore();
+        } else {
+            bbCtx.fillStyle = '#ff7b00';
+            bbCtx.beginPath(); bbCtx.arc(ball.x, ball.y, 11, 0, Math.PI*2); bbCtx.fill();
         }
 
+        if(!timerActive) {
+            bbCtx.fillStyle = "rgba(0,0,0,0.88)"; bbCtx.fillRect(0, 0, bbCanvas.width, bbCanvas.height);
+            bbCtx.font = "bold 22px 'Segoe UI', Tahoma, sans-serif"; bbCtx.fillStyle = "#ff7b00"; bbCtx.textAlign = "center";
+            bbCtx.fillText("TIME'S UP! FINAL BASKETS: " + bbScore, bbCanvas.width / 2, bbCanvas.height / 2);
+        }
         requestAnimationFrame(updateBasketball);
     }
     updateBasketball();
@@ -345,6 +527,7 @@
     let cueAngle = 0;
     let cueBall = { x: 200, y: 170, radius: 8, vx: 0, vy: 0 };
     let balls = [cueBall];
+    let poolCharging = false, poolPower = 0;
     
     let rackX = 480, rackY = 170;
     let bColors = ['#f1c40f', '#2980b9', '#e74c3c', '#8e44ad', '#d35400', '#27ae60', '#c0392b', '#2c3e50', '#f39c12', '#3498db', '#e67e22', '#9b59b6', '#1abc9c', '#e84393', '#fdcb6e'];
@@ -352,76 +535,67 @@
     for(let r = 0; r < 5; r++) {
         for(let c = 0; c <= r; c++) {
             if(bIdx < 15) {
-                balls.push({
-                    x: rackX + (r * 15),
-                    y: rackY + (c * 18) - (r * 9),
-                    radius: 8, vx: 0, vy: 0,
-                    color: bColors[bIdx], isPocketed: false
-                });
+                balls.push({ x: rackX + (r * 15), y: rackY + (c * 18) - (r * 9), radius: 8, vx: 0, vy: 0, color: bColors[bIdx], isPocketed: false });
                 bIdx++;
             }
         }
     }
 
+    const poolStrikeBtn = document.getElementById('pool-strike-btn');
+    function startPoolCharge(e) {
+        if(cueBall.vx === 0 && cueBall.vy === 0) { poolCharging = true; poolPower = 0; document.getElementById('pool-status').innerText = "STATUS: Charging Strike Power..."; }
+        e.preventDefault();
+    }
+    function releasePoolStrike(e) {
+        if(!poolCharging) return;
+        poolCharging = false;
+        let powerVal = Math.max(3, poolPower / 5.5);
+        cueBall.vx = Math.cos(cueAngle) * powerVal;
+        cueBall.vy = Math.sin(cueAngle) * powerVal;
+        document.getElementById('pool-status').innerText = "STATUS: Balls in Motion";
+        document.getElementById('pool-power-fill').style.width = '0%';
+        e.preventDefault();
+    }
+    poolStrikeBtn.addEventListener('mousedown', startPoolCharge);
+    poolStrikeBtn.addEventListener('mouseup', releasePoolStrike);
+    poolStrikeBtn.addEventListener('touchstart', startPoolCharge);
+    poolStrikeBtn.addEventListener('touchend', releasePoolStrike);
+
     function poolAction(action) {
-        if(action === 'rotateLeft') cueAngle -= 0.15;
-        else if(action === 'rotateRight') cueAngle += 0.15;
-        else if(action === 'strike') {
-            cueBall.vx = Math.cos(cueAngle) * 11;
-            cueBall.vy = Math.sin(cueAngle) * 11;
-            document.getElementById('pool-status').innerText = "STATUS: Balls in Motion";
-        }
+        if(action === 'rotateLeft') cueAngle -= 0.12;
+        else if(action === 'rotateRight') cueAngle += 0.12;
     }
 
     function updatePool() {
         poolCtx.clearRect(0, 0, poolCanvas.width, poolCanvas.height);
+        if(poolCharging && poolPower < 100) { poolPower += 2.5; document.getElementById('pool-power-fill').style.width = poolPower + '%'; }
 
-        // Pool Table Felt (Optimized for mobile screen viewing)
-        poolCtx.fillStyle = '#0f381e';
-        poolCtx.fillRect(25, 25, 670, 290);
+        poolCtx.fillStyle = '#0f381e'; poolCtx.fillRect(25, 25, 670, 290);
+        if(treeImg.complete) { poolCtx.save(); poolCtx.globalAlpha = 0.24; poolCtx.drawImage(treeImg, 270, 75, 180, 180); poolCtx.restore(); }
 
-        // Centered Golden Double Helix Tree & Rhodes Family Legacy watermark
-        if(treeImg.complete) {
-            poolCtx.save();
-            poolCtx.globalAlpha = 0.22;
-            poolCtx.drawImage(treeImg, 260, 70, 180, 180);
+        poolCtx.strokeStyle = '#5c3a21'; poolCtx.lineWidth = 12; poolCtx.strokeRect(19, 19, 682, 302);
+        let pockets = [[25,25],[360,19],[695,25],[25,315],[360,321],[695,315]];
+        poolCtx.fillStyle = '#000'; pockets.forEach(p => { poolCtx.beginPath(); poolCtx.arc(p[0], p[1], 11, 0, Math.PI*2); poolCtx.fill(); });
+
+        if(cueBall.vx === 0 && cueBall.vy === 0) {
+            poolCtx.save(); poolCtx.strokeStyle = 'rgba(0, 210, 255, 0.75)'; poolCtx.lineWidth = 2.5; poolCtx.setLineDash([6, 4]);
+            poolCtx.beginPath(); poolCtx.moveTo(cueBall.x, cueBall.y); poolCtx.lineTo(cueBall.x + Math.cos(cueAngle) * 180, cueBall.y + Math.sin(cueAngle) * 180); poolCtx.stroke();
             poolCtx.restore();
         }
 
-        poolCtx.font = "bold 12px 'Segoe UI', Tahoma, sans-serif";
-        poolCtx.fillStyle = "rgba(255, 215, 0, 0.4)";
-        poolCtx.textAlign = "center";
-        poolCtx.fillText("RHODES FAMILY LEGACY", poolCanvas.width / 2, 265);
-
-        // Wooden cushion borders
-        poolCtx.strokeStyle = '#5c3a21';
-        poolCtx.lineWidth = 12;
-        poolCtx.strokeRect(19, 19, 682, 302);
-
-        // Pockets
-        poolCtx.fillStyle = '#000';
-        [[25,25],[360,19],[695,25],[25,315],[360,321],[695,315]].forEach(p => {
-            poolCtx.beginPath(); poolCtx.arc(p[0], p[1], 11, 0, Math.PI*2); poolCtx.fill();
-        });
-
         let allStopped = true;
-
         balls.forEach((b, i) => {
             if(b.isPocketed) return;
-
-            b.x += b.vx;
-            b.y += b.vy;
-            b.vx *= 0.97;
-            b.vy *= 0.97;
-
-            if(Math.abs(b.vx) > 0.1 || Math.abs(b.vy) > 0.1) allStopped = false;
+            b.x += b.vx; b.y += b.vy; b.vx *= 0.975; b.vy *= 0.975;
+            if(Math.abs(b.vx) > 0.08 || Math.abs(b.vy) > 0.08) allStopped = false;
             else { b.vx = 0; b.vy = 0; }
 
             if(b.x < 35 || b.x > 685) { b.vx *= -1; b.x = Math.max(35, Math.min(685, b.x)); }
             if(b.y < 35 || b.y > 305) { b.vy *= -1; b.y = Math.max(35, Math.min(305, b.y)); }
 
-            [[25,25],[360,19],[695,25],[25,315],[360,321],[695,315]].forEach(p => {
+            pockets.forEach(p => {
                 if(Math.hypot(b.x - p[0], b.y - p[1]) < 13) {
+                    playPocketBingSound();
                     if(b === cueBall) { b.x = 200; b.y = 170; b.vx = 0; b.vy = 0; }
                     else { b.isPocketed = true; b.x = -100; b.y = -100; b.vx = 0; b.vy = 0; }
                 }
@@ -450,15 +624,16 @@
             }
         });
 
-        if(allStopped) document.getElementById('pool-status').innerText = "STATUS: Aim & Strike";
+        if(allStopped && !poolCharging) document.getElementById('pool-status').innerText = "STATUS: Aim & Strike";
 
         if(cueBall.vx === 0 && cueBall.vy === 0) {
-            let tipX = cueBall.x - Math.cos(cueAngle) * 75;
-            let tipY = cueBall.y - Math.sin(cueAngle) * 75;
+            let recoil = poolCharging ? (poolPower / 4) : 0;
+            let tipDist = 75 + recoil;
+            let tipX = cueBall.x - Math.cos(cueAngle) * tipDist;
+            let tipY = cueBall.y - Math.sin(cueAngle) * tipDist;
             poolCtx.strokeStyle = '#d35400'; poolCtx.lineWidth = 4;
-            poolCtx.beginPath(); poolCtx.moveTo(cueBall.x - Math.cos(cueAngle)*15, cueBall.y - Math.sin(cueAngle)*15); poolCtx.lineTo(tipX, tipY); poolCtx.stroke();
+            poolCtx.beginPath(); poolCtx.moveTo(cueBall.x - Math.cos(cueAngle)*(15 + recoil), cueBall.y - Math.sin(cueAngle)*(15 + recoil)); poolCtx.lineTo(tipX, tipY); poolCtx.stroke();
         }
-
         requestAnimationFrame(updatePool);
     }
     updatePool();
