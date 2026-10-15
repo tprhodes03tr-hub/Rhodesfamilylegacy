@@ -22,6 +22,7 @@
       justify-content: center;
       min-height: 100vh;
       padding: 20px;
+      transition: background-color 0.2s ease;
     }
     .sandbox-container {
       width: 100%;
@@ -32,7 +33,27 @@
       border-radius: 14px;
       box-shadow: 0 0 35px rgba(102, 252, 241, 0.3);
       text-align: center;
+      position: relative;
     }
+
+    /* SCREEN SHAKE & FLASH ANIMATIONS */
+    @keyframes shake {
+      0% { transform: translate(1px, 1px) rotate(0deg); }
+      20% { transform: translate(-3px, 0px) rotate(-1deg); }
+      40% { transform: translate(3px, 2px) rotate(1deg); }
+      60% { transform: translate(-1px, -1px) rotate(0deg); }
+      80% { transform: translate(3px, 1px) rotate(-1deg); }
+      100% { transform: translate(0, 0) rotate(0deg); }
+    }
+    @keyframes redFlash {
+      0% { background-color: #0b0c10; border-color: #66fcf1; }
+      50% { background-color: #3b0a0a; border-color: #ff5555; box-shadow: 0 0 50px rgba(255, 85, 85, 0.8); }
+      100% { background-color: #0b0c10; border-color: #66fcf1; }
+    }
+    .shaking {
+      animation: shake 0.4s ease infinite, redFlash 0.4s ease infinite;
+    }
+
     .sandbox-header {
       font-size: 11px;
       font-weight: 800;
@@ -158,8 +179,8 @@
 </head>
 <body>
 
-  <div class="sandbox-container">
-    <div class="sandbox-header">Isaac's Sandbox • Expanded Narrative Edition</div>
+  <div class="sandbox-container" id="game-console">
+    <div class="sandbox-header">Isaac's Sandbox • Lockdown Edition</div>
     <h1>The Ancestral Vanguard</h1>
 
     <!-- LIVE STATUS & STATS BAR -->
@@ -196,7 +217,7 @@
     <div id="scene-3" class="hidden">
       <p id="s3-text">Terminal Log #409-B: The biometric vault lock requires ancestral verification. Security counter-measures active!</p>
       <div class="timer" id="timer-display">Time Remaining: 60s</div>
-      <p style="font-size: 0.85rem;"><strong>Clue:</strong> "What lineage family name forged the first ancestral anchor?" (Type the core family legacy name)</p>
+      <p style="font-size: 0.85rem;"><strong>Clue:</strong> "What lineage family name forged the first ancestral anchor?" (Type core legacy name)</p>
       <input type="text" id="cipher-input" class="vanguard-input" placeholder="Enter security glyph..." autocomplete="off">
       <button class="game-btn primary" onclick="checkCipher()">Transmit Cipher Sequence</button>
       <p id="cipher-feedback" style="color: #ff5555; margin-top: 10px; font-size: 0.85rem;"></p>
@@ -293,11 +314,24 @@
         if (display) display.innerText = `Time Remaining: ${timeLeft}s`;
         if (timeLeft <= 0) {
           clearInterval(timerInterval);
-          document.getElementById('cipher-feedback').innerText = "BREACH TIMER EXPIRED - EMERGENCY OVERRIDE ENGAGED.";
-          speakText("Emergency override engaged.");
-          setTimeout(() => { triggerApexVictory(); }, 2000);
+          triggerLockdownWarning("BREACH TIMER EXPIRED - LOCKDOWN IMMINENT!");
         }
       }, 1000);
+    }
+
+    function triggerLockdownWarning(warningMsg) {
+      const consoleBox = document.getElementById('game-console');
+      consoleBox.classList.add('shaking');
+      const feedback = document.getElementById('cipher-feedback');
+      if (feedback) feedback.innerText = `⚠️ WARNING: ${warningMsg} ⚠️`;
+      speakText("Warning. Security lockdown engaged. System failure imminent.");
+
+      setTimeout(() => {
+        consoleBox.classList.remove('shaking');
+        if (timeLeft <= 0) {
+          triggerApexVictory();
+        }
+      }, 2500);
     }
 
     function checkCipher() {
@@ -311,10 +345,8 @@
         speakText("Cipher accepted. Lineage confirmed.");
         triggerApexVictory();
       } else {
-        const feedback = document.getElementById('cipher-feedback');
-        if (feedback) feedback.innerText = "Incorrect security glyph. Try 'Rhodes' or 'Vanguard'!";
-        speakText("Incorrect cipher sequence.");
-        gameStats.shield = Math.max(0, gameStats.shield - 10);
+        triggerLockdownWarning("INCORRECT CIPHER SEQUENCE - INTEGRITY DROPPING!");
+        gameStats.shield = Math.max(0, gameStats.shield - 15);
         updateStats();
       }
     }
@@ -330,7 +362,6 @@
       showScene('scene-1', 'CHAPTER 1: PERIMETER BREACH');
     }
 
-    // Initial load announcement
     window.onload = () => {
       updateStats();
     };
