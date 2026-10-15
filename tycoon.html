@@ -446,8 +446,7 @@
             drawTycoonBoard();
         } else if(appKey === 'tetris') {
             document.getElementById('tetris-view').classList.remove('hidden');
-            drawTetris();
-            drawNextPiece();
+            initTetris();
         } else if(appKey === 'wordsearch') {
             document.getElementById('wordsearch-view').classList.remove('hidden');
             initWordSearch();
@@ -555,11 +554,10 @@
             }
         });
 
-        // --- RENDER GOLDEN TREE & DOUBLE HELIX EMBLEM IN CENTER ---
+        // Center emblem
         let cx = tCanvas.width / 2;
         let cy = tCanvas.height / 2;
 
-        // Outer golden glow ring
         tCtx.shadowColor = '#ffd700';
         tCtx.shadowBlur = 18;
         tCtx.strokeStyle = '#ffd700';
@@ -569,7 +567,6 @@
         tCtx.stroke();
         tCtx.shadowBlur = 0;
 
-        // Golden Tree Trunk & Branches Icon (Simplified vector representation)
         tCtx.fillStyle = '#ffd700';
         tCtx.beginPath();
         tCtx.moveTo(cx - 4, cy + 12);
@@ -578,7 +575,6 @@
         tCtx.lineTo(cx - 3, cy - 2);
         tCtx.fill();
 
-        // Canopy circles
         tCtx.fillStyle = 'rgba(255, 215, 0, 0.35)';
         tCtx.beginPath();
         tCtx.arc(cx, cy - 12, 18, 0, Math.PI * 2);
@@ -586,7 +582,6 @@
         tCtx.arc(cx + 10, cy - 6, 12, 0, Math.PI * 2);
         tCtx.fill();
 
-        // Double Helix DNA Strand Overlay (intertwining sine waves)
         tCtx.strokeStyle = '#00d2ff';
         tCtx.lineWidth = 1.8;
         tCtx.beginPath();
@@ -606,7 +601,6 @@
         }
         tCtx.stroke();
 
-        // Board Title Text
         tCtx.font = "bold 15px Segoe UI";
         tCtx.fillStyle = "#ffd700";
         tCtx.textAlign = "center";
@@ -758,15 +752,287 @@
 
     drawTycoonBoard();
 
-    // --- TETRIS & WORD SEARCH PLACEHOLDERS ---
-    function drawTetris() {}
-    function drawNextPiece() {}
-    function tetrisMove(d) {}
-    function tetrisDrop() {}
-    function tetrisRotate() {}
-    function initWordSearch() {}
-    function submitWordSelection() {}
-    function resetWordSelection() {}
+
+    // --- TETRIS ENGINE IMPLEMENTATION ---
+    const tCanvasEl = document.getElementById('tetrisCanvas');
+    const tCtxEl = tCanvasEl.getContext('2d');
+    const nextCanvasEl = document.getElementById('nextCanvas');
+    const nextCtxEl = nextCanvasEl.getContext('2d');
+
+    const BLOCK_SZ = 20;
+    const COLS = 12;
+    const ROWS = 21;
+    let tetrisBoard = Array(ROWS).fill(0).map(() => Array(COLS).fill(0));
+    let tetrisScore = 0;
+    let tetrisMarrow = 0;
+    let tetrisLevel = 1;
+    let tetrisInterval = null;
+
+    const SHAPES = [
+        [[1,1,1,1]], // I
+        [[1,1],[1,1]], // O
+        [[0,1,0],[1,1,1]], // T
+        [[1,0,0],[1,1,1]], // L
+        [[0,0,1],[1,1,1]], // J
+        [[0,1,1],[1,1,0]], // S
+        [[1,1,0],[0,1,1]]  // Z
+    ];
+    const COLORS = ['#00d2ff', '#ff7b00', '#9b59b6', '#2ecc71', '#e74c3c', '#f39c12', '#3498db'];
+
+    let currentPiece = null;
+    let nextPieceObj = null;
+
+    function createPiece() {
+        let idx = Math.floor(Math.random() * SHAPES.length);
+        return {
+            shape: SHAPES[idx],
+            color: COLORS[idx],
+            x: Math.floor(COLS / 2) - Math.floor(SHAPES[idx][0].length / 2),
+            y: 0
+        };
+    }
+
+    function initTetris() {
+        tetrisBoard = Array(ROWS).fill(0).map(() => Array(COLS).fill(0));
+        tetrisScore = 0;
+        tetrisMarrow = 0;
+        tetrisLevel = 1;
+        document.getElementById('tetris-score').innerText = tetrisScore;
+        document.getElementById('tetris-marrow').innerText = tetrisMarrow;
+        document.getElementById('tetris-level').innerText = tetrisLevel;
+
+        currentPiece = createPiece();
+        nextPieceObj = createPiece();
+
+        if(tetrisInterval) clearInterval(tetrisInterval);
+        tetrisInterval = setInterval(tetrisTick, 500);
+        drawTetris();
+        drawNextPiece();
+    }
+
+    function tetrisTick() {
+        currentPiece.y++;
+        if(checkCollision(currentPiece)) {
+            currentPiece.y--;
+            mergePiece();
+            clearLines();
+            currentPiece = nextPieceObj;
+            nextPieceObj = createPiece();
+            drawNextPiece();
+            if(checkCollision(currentPiece)) {
+                alert("Game Over! Final Score: " + tetrisScore);
+                initTetris();
+            }
+        }
+        drawTetris();
+    }
+
+    function checkCollision(p) {
+        for(let r=0; r<p.shape.length; r++) {
+            for(let c=0; c<p.shape[r].length; c++) {
+                if(p.shape[r][c]) {
+                    let newX = p.x + c;
+                    let newY = p.y + r;
+                    if(newX < 0 || newX >= COLS || newY >= ROWS) return true;
+                    if(newY >= 0 && tetrisBoard[newY][newX]) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function mergePiece() {
+        for(let r=0; r<currentPiece.shape.length; r++) {
+            for(let c=0; c<currentPiece.shape[r].length; c++) {
+                if(currentPiece.shape[r][c] && currentPiece.y + r >= 0) {
+                    tetrisBoard[currentPiece.y + r][currentPiece.x + c] = currentPiece.color;
+                }
+            }
+        }
+    }
+
+    function clearLines() {
+        let linesCleared = 0;
+        for(let r = ROWS - 1; r >= 0; r--) {
+            if(tetrisBoard[r].every(cell => cell !== 0)) {
+                tetrisBoard.splice(r, 1);
+                tetrisBoard.unshift(Array(COLS).fill(0));
+                linesCleared++;
+                r++;
+            }
+        }
+        if(linesCleared > 0) {
+            tetrisScore += linesCleared * 100 * tetrisLevel;
+            tetrisMarrow += linesCleared * 25;
+            tetrisLevel = Math.floor(tetrisScore / 500) + 1;
+            document.getElementById('tetris-score').innerText = tetrisScore;
+            document.getElementById('tetris-marrow').innerText = tetrisMarrow;
+            document.getElementById('tetris-level').innerText = tetrisLevel;
+        }
+    }
+
+    function drawTetris() {
+        tCtxEl.fillStyle = '#000';
+        tCtxEl.fillRect(0, 0, tCanvasEl.width, tCanvasEl.height);
+
+        // Draw board
+        for(let r=0; r<ROWS; r++) {
+            for(let c=0; c<COLS; c++) {
+                if(tetrisBoard[r][c]) {
+                    tCtxEl.fillStyle = tetrisBoard[r][c];
+                    tCtxEl.fillRect(c * BLOCK_SZ, r * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1);
+                }
+            }
+        }
+
+        // Draw current piece
+        if(currentPiece) {
+            tCtxEl.fillStyle = currentPiece.color;
+            for(let r=0; r<currentPiece.shape.length; r++) {
+                for(let c=0; c<currentPiece.shape[r].length; c++) {
+                    if(currentPiece.shape[r][c]) {
+                        tCtxEl.fillRect((currentPiece.x + c) * BLOCK_SZ, (currentPiece.y + r) * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1);
+                    }
+                }
+            }
+        }
+    }
+
+    function drawNextPiece() {
+        nextCtxEl.fillStyle = '#050508';
+        nextCtxEl.fillRect(0, 0, nextCanvasEl.width, nextCanvasEl.height);
+        if(!nextPieceObj) return;
+
+        nextCtxEl.fillStyle = nextPieceObj.color;
+        let sz = 18;
+        let offsetX = (nextCanvasEl.width - nextPieceObj.shape[0].length * sz) / 2;
+        let offsetY = (nextCanvasEl.height - nextPieceObj.shape.length * sz) / 2;
+
+        for(let r=0; r<nextPieceObj.shape.length; r++) {
+            for(let c=0; c<nextPieceObj.shape[r].length; c++) {
+                if(nextPieceObj.shape[r][c]) {
+                    nextCtxEl.fillRect(offsetX + c * sz, offsetY + r * sz, sz - 1, sz - 1);
+                }
+            }
+        }
+    }
+
+    function tetrisMove(dir) {
+        if(!currentPiece) return;
+        currentPiece.x += dir;
+        if(checkCollision(currentPiece)) currentPiece.x -= dir;
+        drawTetris();
+    }
+
+    function tetrisRotate() {
+        if(!currentPiece) return;
+        let rotated = currentPiece.shape[0].map((_, index) => currentPiece.shape.map(row => row[index]).reverse());
+        let oldShape = currentPiece.shape;
+        currentPiece.shape = rotated;
+        if(checkCollision(currentPiece)) currentPiece.shape = oldShape;
+        drawTetris();
+    }
+
+    function tetrisDrop() {
+        if(!currentPiece) return;
+        while(!checkCollision(currentPiece)) {
+            currentPiece.y++;
+        }
+        currentPiece.y--;
+        mergePiece();
+        clearLines();
+        currentPiece = nextPieceObj;
+        nextPieceObj = createPiece();
+        drawNextPiece();
+        drawTetris();
+    }
+
+
+    // --- WORD SEARCH BATTLE LOUNGE ENGINE ---
+    const TARGET_WORDS = ["MARROW", "SAGINAW", "DETROIT", "RHODES", "WOODWARD", "ATWATER"];
+    let wsGridData = [];
+    let wsSelectedCells = [];
+    let wsScore = 0;
+
+    function initWordSearch() {
+        const gridContainer = document.getElementById('word-grid-container');
+        gridContainer.innerHTML = '';
+        wsSelectedCells = [];
+        wsScore = 0;
+        document.getElementById('ws-score').innerText = wsScore;
+
+        // Create 8x8 grid filled with random letters + target words placed
+        let size = 8;
+        wsGridData = Array(size).fill(0).map(() => Array(size).fill(''));
+
+        // Place target words simply or fill with random letters
+        let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for(let r=0; r<size; r++) {
+            for(let c=0; c<size; c++) {
+                wsGridData[r][c] = letters.charAt(Math.floor(Math.random() * letters.length));
+            }
+        }
+
+        // Inject target words horizontally/vertically for guaranteed solvability
+        let placedWords = ["MARROW", "RHODES", "SAGINAW", "DETROIT"];
+        placedWords.forEach((word, idx) => {
+            let row = idx * 2;
+            for(let i=0; i<word.length && i < size; i++) {
+                wsGridData[row][i] = word[i];
+            }
+        });
+
+        // Render cells
+        for(let r=0; r<size; r++) {
+            for(let c=0; c<size; c++) {
+                let cell = document.createElement('div');
+                cell.className = 'word-cell';
+                cell.innerText = wsGridData[r][c];
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+                cell.onclick = () => toggleWordCell(cell, r, c);
+                gridContainer.appendChild(cell);
+            }
+        }
+    }
+
+    function toggleWordCell(cell, r, c) {
+        if(cell.classList.contains('found')) return;
+        cell.classList.toggle('selected');
+        let idx = wsSelectedCells.findIndex(item => item.r === r && item.c === c);
+        if(idx >= 0) {
+            wsSelectedCells.splice(idx, 1);
+        } else {
+            wsSelectedCells.push({r, c, letter: wsGridData[r][c]});
+        }
+    }
+
+    function submitWordSelection() {
+        let formedWord = wsSelectedCells.map(item => item.letter).join('');
+        if(TARGET_WORDS.includes(formedWord)) {
+            wsScore += formedWord.length * 50;
+            document.getElementById('ws-score').innerText = wsScore;
+            wsSelectedCells.forEach(item => {
+                let cellEl = document.querySelector(`.word-cell[data-row='${item.r}'][data-col='${item.c}']`);
+                if(cellEl) {
+                    cellEl.classList.remove('selected');
+                    cellEl.classList.add('found');
+                }
+            });
+            wsSelectedCells = [];
+            speakGameEvent(`Correct! Found word ${formedWord}!`);
+        } else {
+            alert("Not a target legacy word! Try again.");
+            resetWordSelection();
+        }
+    }
+
+    function resetWordSelection() {
+        wsSelectedCells = [];
+        document.querySelectorAll('.word-cell.selected').forEach(el => el.classList.remove('selected'));
+    }
+
+    // P2P Placeholders
     function hostP2PRoom() { logTycoon("Hosting P2P room..."); }
     function joinP2PRoom() { logTycoon("Joining P2P room..."); }
 </script>
