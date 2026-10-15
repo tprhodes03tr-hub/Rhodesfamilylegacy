@@ -71,7 +71,7 @@
             border-radius: 12px;
             padding: 20px;
             width: 94%;
-            max-width: 880px;
+            max-width: 940px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.6);
         }
         .game-header {
@@ -90,6 +90,7 @@
             display: block;
             margin: 0 auto;
             max-width: 100%;
+            cursor: pointer;
         }
         .controls {
             display: flex;
@@ -193,24 +194,29 @@
             color: var(--text-light);
             margin: 10px 0;
         }
-        .dice-cube {
-            width: 90px;
-            height: 90px;
+        .dice-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
             margin: 20px auto;
+        }
+        .dice-cube {
+            width: 75px;
+            height: 75px;
             background: linear-gradient(135deg, #ff7b00, #ff4500);
-            border-radius: 16px;
+            border-radius: 14px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: bold;
             color: #fff;
-            box-shadow: 0 0 30px rgba(255, 123, 0, 0.7);
-            animation: spinDice 0.6s ease-in-out infinite alternate;
+            box-shadow: 0 0 25px rgba(255, 123, 0, 0.7);
+            animation: spinDice 0.5s ease-in-out infinite alternate;
         }
         @keyframes spinDice {
-            0% { transform: rotate(-12deg) scale(0.9); }
-            100% { transform: rotate(12deg) scale(1.1); }
+            0% { transform: rotate(-10deg) scale(0.92); }
+            100% { transform: rotate(10deg) scale(1.08); }
         }
         /* Word Search Board Styling */
         .word-grid {
@@ -294,7 +300,7 @@
                 <input type="text" id="room-code-input" placeholder="marrow / detroit">
                 <button class="ctrl-btn secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="joinP2PRoom()">Join</button>
             </div>
-            <label style="cursor: pointer;"><input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> Play vs AI Bot</label>
+            <label style="cursor: pointer;"><input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> Play vs AI Bot (Saginaw Bot)</label>
         </div>
 
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem;">
@@ -303,19 +309,19 @@
         </div>
 
         <div class="game-header">
-            <span id="tycoon-turn">TURN: Tommy</span>
-            <span>PROPERTIES: <span id="prop-count">0</span>/20</span>
+            <span id="tycoon-turn" style="color: var(--accent-orange); font-weight: bold;">TURN: Tommy</span>
+            <span>PROPERTIES: <span id="prop-count">0</span>/20 | BOT PROP: <span id="bot-prop-count">0</span></span>
         </div>
 
-        <canvas id="tycoonCanvas" width="820" height="480"></canvas>
+        <!-- Larger Canvas for bigger, highly legible tiles -->
+        <canvas id="tycoonCanvas" width="900" height="540" onclick="handleCanvasTouch(event)"></canvas>
 
-        <div id="log-box">Tycoon session active. Roll dice to navigate Detroit & Saginaw neon tiles[span_2](start_span)[span_2](end_span). Click any owned property tile to open Holographic 3D AR Deed view[span_3](start_span)[span_3](end_span).</div>
+        <div id="log-box">Tycoon session active. Roll two 3D dice to navigate Detroit & Saginaw[span_0](start_span)[span_0](end_span). Touch any tile on the board to pop up its Holographic 3D Deed view!</div>
 
         <div class="controls">
-            <button class="ctrl-btn" onclick="tycoonAction('roll')">ROLL DICE</button>
+            <button class="ctrl-btn" onclick="tycoonAction('roll')">ROLL TWO DICE</button>
             <button class="ctrl-btn secondary" onclick="tycoonAction('buy')">BUY DEED</button>
             <button class="ctrl-btn purple" onclick="tycoonAction('upgrade')">UPGRADE ($50)</button>
-            <button class="ctrl-btn secondary" onclick="openCurrentDeed3D()" style="background:#16a085; color:#fff;">3D DEED VIEW[span_4](start_span)[span_4](end_span)</button>
         </div>
     </div>
 
@@ -382,12 +388,15 @@
         </div>
     </div>
 
-    <!-- 3D ROLLING DICE MODAL -->
+    <!-- 3D TWO DICE ROLLING MODAL -->
     <div id="dice-modal" class="hidden">
-        <div class="ar-card" style="border-color: #ff7b00; box-shadow: 0 0 50px rgba(255, 123, 0, 0.7);">
-            <div class="ar-title">🎲 Rolling 3D Dice...</div>
-            <div id="dice-display-val" class="dice-cube">6</div>
-            <div id="dice-card-desc" class="ar-det" style="font-size: 0.95rem; color: #f0f2f5; margin: 10px 0;">Throwing across the Detroit & Saginaw board[span_5](start_span)[span_5](end_span)!</div>
+        <div class="ar-card" style="border-color: #ff7b00; box-shadow: 0 0 50px rgba(255, 123, 0, 0.7); width: 380px;">
+            <div class="ar-title">🎲 Rolling Two 3D Dice...</div>
+            <div class="dice-container">
+                <div id="dice-1" class="dice-cube">3</div>
+                <div id="dice-2" class="dice-cube">4</div>
+            </div>
+            <div id="dice-card-desc" class="ar-det" style="font-size: 1rem; color: #f0f2f5; margin: 10px 0;">Throwing across Detroit & Saginaw[span_1](start_span)[span_1](end_span)!</div>
         </div>
     </div>
 
@@ -416,41 +425,18 @@
         box.scrollTop = box.scrollHeight;
     }
 
-    let peer = null;
-    let conn = null;
-    function hostP2PRoom() {
-        let presets = ['marrow', 'detroit', 'saginaw', 'woodwork', 'legacy'];
-        let customCode = presets[Math.floor(Math.random() * presets.length)] + '-' + Math.floor(Math.random() * 90 + 10);
-        peer = new Peer(customCode);
-        peer.on('open', (id) => {
-            document.getElementById('room-code-input').value = id;
-            logTycoon(`Room hosted successfully! Code: ${id}`);
-        });
-        peer.on('connection', (c) => {
-            conn = c;
-            logTycoon(`Player connected from room code: ${conn.peer}`);
-        });
-    }
-
-    function joinP2PRoom() {
-        let code = document.getElementById('room-code-input').value.trim();
-        if(!code) return;
-        peer = new Peer();
-        peer.on('open', () => {
-            conn = peer.connect(code);
-            conn.on('open', () => { logTycoon(`Successfully joined family room ${code}!`); });
-        });
-    }
-
-    // --- 1. TYCOON ENGINE (Exact 20-Tile Layout Matching Reference) ---
+    // --- 1. TYCOON ENGINE (Expanded 900x540 Board & 20 Tiles) ---
     const tCanvas = document.getElementById('tycoonCanvas');
     const tCtx = tCanvas.getContext('2d');
 
     let tycoonGame = {
         funds: 1360,
+        botFunds: 1518,
         position: 0,
+        botPosition: 0,
         player: "Tommy",
         aiEnabled: true,
+        turn: "Tommy",
         tiles: [
             { name: "START (+200)", cost: 0, owner: "System", type: "start", color: "#2ecc71", rent: 0 },
             { name: "Woodward Ave", cost: 100, owner: "None", type: "prop", color: "#ff7b00", rent: 20 },
@@ -475,8 +461,12 @@
         ]
     };
 
+    // Stored coordinates for touch detection and rendering (900x540 canvas layout)
+    let tileRects = [];
+
     function toggleAI() {
         tycoonGame.aiEnabled = document.getElementById('ai-toggle').checked;
+        logTycoon(`AI Bot status: ${tycoonGame.aiEnabled ? 'Enabled (Saginaw Bot)' : 'Disabled'}`);
     }
 
     function updateBookProgress() {
@@ -485,79 +475,160 @@
 
     function drawTycoonBoard() {
         tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
-        
+        tileRects = [];
+
+        // Wider tile dimensions (145x85) for excellent readability
         let coords = [
-            {x: 670, y: 385}, {x: 540, y: 385}, {x: 410, y: 385}, {x: 280, y: 385}, {x: 150, y: 385}, 
-            {x: 10, y: 385}, {x: 10, y: 300}, {x: 10, y: 215}, {x: 10, y: 130}, {x: 10, y: 45},   
-            {x: 150, y: 15}, {x: 280, y: 15}, {x: 410, y: 15}, {x: 540, y: 15}, {x: 670, y: 15},   
-            {x: 670, y: 90}, {x: 670, y: 165}, {x: 670, y: 240}, {x: 670, y: 315}, {x: 670, y: 385} 
+            {x: 740, y: 435}, {x: 590, y: 435}, {x: 440, y: 435}, {x: 290, y: 435}, {x: 140, y: 435}, // Bottom (5)
+            {x: 10, y: 435}, {x: 10, y: 345}, {x: 10, y: 255}, {x: 10, y: 165}, {x: 10, y: 75},   // Left (5)
+            {x: 140, y: 15}, {x: 290, y: 15}, {x: 440, y: 15}, {x: 590, y: 15}, {x: 740, y: 15},   // Top (5)
+            {x: 740, y: 100}, {x: 740, y: 185}, {x: 740, y: 270}, {x: 740, y: 355}, {x: 740, y: 435} // Right (5)
         ];
 
         tycoonGame.tiles.forEach((t, i) => {
             let pt = coords[i] || {x: 50, y: 50};
+            let w = 150, h = 90;
+            tileRects.push({x: pt.x, y: pt.y, w: w, h: h, index: i});
             
-            tCtx.fillStyle = (i === tycoonGame.position) ? '#1e2438' : '#13151f';
+            let isPlayerHere = (tycoonGame.position === i);
+            let isBotHere = (tycoonGame.botPosition === i);
+
+            tCtx.fillStyle = (isPlayerHere || isBotHere) ? '#1e2438' : '#13151f';
             tCtx.strokeStyle = t.color;
-            tCtx.lineWidth = (i === tycoonGame.position) ? 3 : 1.5;
+            tCtx.lineWidth = (isPlayerHere || isBotHere) ? 3 : 1.5;
             
             tCtx.shadowColor = t.color;
-            tCtx.shadowBlur = (i === tycoonGame.position) ? 10 : 3;
-            tCtx.fillRect(pt.x, pt.y, 135, 75);
-            tCtx.strokeRect(pt.x, pt.y, 135, 75);
+            tCtx.shadowBlur = (isPlayerHere || isBotHere) ? 12 : 4;
+            tCtx.fillRect(pt.x, pt.y, w, h);
+            tCtx.strokeRect(pt.x, pt.y, w, h);
             tCtx.shadowBlur = 0;
 
+            // Tile Title (Larger font for readability)
             tCtx.fillStyle = '#f0f2f5';
-            tCtx.font = 'bold 10.5px Segoe UI';
-            tCtx.fillText(t.name.substring(0, 19), pt.x + 6, pt.y + 18);
+            tCtx.font = 'bold 12px Segoe UI';
+            tCtx.fillText(t.name.substring(0, 18), pt.x + 8, pt.y + 20);
             
+            // Cost / Type
             tCtx.fillStyle = '#a0aec0';
-            tCtx.font = '9.5px Segoe UI';
-            tCtx.fillText(t.cost > 0 ? `$${t.cost}` : t.type.toUpperCase(), pt.x + 6, pt.y + 38);
+            tCtx.font = '11px Segoe UI';
+            tCtx.fillText(t.cost > 0 ? `Cost: $${t.cost}` : t.type.toUpperCase(), pt.x + 8, pt.y + 42);
             
-            tCtx.fillStyle = t.owner === 'Tommy' ? '#00d2ff' : '#a0aec0';
-            tCtx.fillText(`Owner: ${t.owner.substring(0, 10)}`, pt.x + 6, pt.y + 58);
+            // Owner & Tokens
+            tCtx.fillStyle = t.owner === 'Tommy' ? '#00d2ff' : (t.owner === 'Saginaw Bot' ? '#ff7b00' : '#a0aec0');
+            tCtx.font = 'bold 10.5px Segoe UI';
+            tCtx.fillText(`Owner: ${t.owner.substring(0, 12)}`, pt.x + 8, pt.y + 64);
+
+            if(isPlayerHere || isBotHere) {
+                tCtx.fillStyle = '#fff';
+                tCtx.font = 'bold 11px Segoe UI';
+                let tokenStr = (isPlayerHere && isBotHere) ? '🚶🤖' : (isPlayerHere ? '🚶 Tommy' : '🤖 Bot');
+                tCtx.fillText(tokenStr, pt.x + 8, pt.y + 81);
+            }
         });
 
-        tCtx.font = "bold 15px Segoe UI";
-        tCtx.fillStyle = "rgba(0, 210, 255, 0.5)";
+        // Center Board Branding
+        tCtx.font = "bold 18px Segoe UI";
+        tCtx.fillStyle = "rgba(0, 210, 255, 0.6)";
         tCtx.textAlign = "center";
-        tCtx.fillText("DETROIT & SAGINAW[span_6](start_span)[span_6](end_span)", tCanvas.width/2 - 30, tCanvas.height/2 - 10);
+        tCtx.fillText("DETROIT & SAGINAW LEGACY BOARD[span_2](start_span)[span_2](end_span)", tCanvas.width/2, tCanvas.height/2 - 10);
+        tCtx.font = "13px Segoe UI";
+        tCtx.fillStyle = "#a0aec0";
+        tCtx.fillText("Touch any tile for 3D Holographic Deed", tCanvas.width/2, tCanvas.height/2 + 15);
         tCtx.textAlign = "left";
     }
 
+    // Touch / Click anywhere on canvas to open 3D Holographic Deed for that tile
+    function handleCanvasTouch(event) {
+        let rect = tCanvas.getBoundingClientRect();
+        let scaleX = tCanvas.width / rect.width;
+        let scaleY = tCanvas.height / rect.height;
+        let clickX = (event.clientX - rect.left) * scaleX;
+        let clickY = (event.clientY - rect.top) * scaleY;
+
+        for(let item of tileRects) {
+            if(clickX >= item.x && clickX <= item.x + item.w && clickY >= item.y && clickY <= item.y + item.h) {
+                let tile = tycoonGame.tiles[item.index];
+                openDeed3DForTile(tile);
+                break;
+            }
+        }
+    }
+
+    function openDeed3DForTile(tile) {
+        document.getElementById('ar-deed-name').innerText = tile.name;
+        document.getElementById('ar-deed-owner').innerText = `Owner: ${tile.owner}`;
+        document.getElementById('ar-deed-value').innerText = tile.cost > 0 ? `Valuation: $${tile.cost} (Rent: $${tile.rent})` : `Special Utility / System Tile`;
+        document.getElementById('ar-modal').classList.remove('hidden');
+    }
+
+    function openCurrentDeed3D() {
+        let tile = tycoonGame.tiles[tycoonGame.position];
+        openDeed3DForTile(tile);
+    }
+
+    function closeArModal() {
+        document.getElementById('ar-modal').classList.add('hidden');
+    }
+
+    function closeEventModal() {
+        document.getElementById('event-modal').classList.add('hidden');
+    }
+
+    // --- TWO DICE ROLL & TURN ENGINE WITH AI BOT ---
     function tycoonAction(action) {
         if(action === 'roll') {
-            let roll = Math.floor(Math.random() * 6) + 1;
-            document.getElementById('dice-display-val').innerText = roll;
+            if(tycoonGame.turn !== "Tommy") {
+                logTycoon("Please wait for Saginaw Bot's turn to finish.");
+                return;
+            }
+
+            // Roll TWO dice (1 to 6 each)
+            let die1 = Math.floor(Math.random() * 6) + 1;
+            let die2 = Math.floor(Math.random() * 6) + 1;
+            let rollSum = die1 + die2;
+
+            document.getElementById('dice-1').innerText = die1;
+            document.getElementById('dice-2').innerText = die2;
+            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${rollSum}) across Detroit & Saginaw[span_3](start_span)[span_3](end_span)!`;
             document.getElementById('dice-modal').classList.remove('hidden');
 
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
+                
                 let oldPos = tycoonGame.position;
-                tycoonGame.position = (tycoonGame.position + roll) % tycoonGame.tiles.length;
+                tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
                 
                 if(tycoonGame.position < oldPos) {
                     tycoonGame.funds += 200;
-                    logTycoon(`Passed Start! Collected +200 ME.`);
+                    logTycoon(`Tommy passed Start! Collected +200 ME.`);
                 }
 
                 let tile = tycoonGame.tiles[tycoonGame.position];
-                logTycoon(`Rolled a ${roll}. Landed on ${tile.name}.`);
+                logTycoon(`Tommy rolled ${rollSum} (${die1}+${die2}). Landed on ${tile.name}.`);
 
                 if(tile.type === 'event') {
                     let bonus = Math.random() > 0.5 ? 100 : -50;
                     tycoonGame.funds += bonus;
-                    document.getElementById('event-card-desc').innerText = `Mystery Suitcase Opened!\nAdjusted Marrow Energy by ${bonus} ME.`;
+                    document.getElementById('event-card-desc').innerText = `Mystery Suitcase Opened!\nAdjusted Tommy's Marrow Energy by ${bonus} ME.`;
                     document.getElementById('event-modal').classList.remove('hidden');
-                } else if(tile.owner !== "None" && tile.owner !== tycoonGame.player) {
+                } else if(tile.owner !== "None" && tile.owner !== "Tommy") {
                     tycoonGame.funds -= tile.rent;
-                    logTycoon(`Paid rent of ${tile.rent} ME to ${tile.owner}.`);
+                    tycoonGame.botFunds += tile.rent;
+                    logTycoon(`Tommy paid rent of ${tile.rent} ME to Saginaw Bot.`);
                 }
 
                 document.getElementById('tycoon-funds').innerText = tycoonGame.funds;
                 updateBookProgress();
                 drawTycoonBoard();
-            }, 1200);
+
+                // Switch turn to AI Bot if enabled
+                if(tycoonGame.aiEnabled) {
+                    tycoonGame.turn = "Saginaw Bot";
+                    document.getElementById('tycoon-turn').innerText = "TURN: Saginaw Bot 🤖";
+                    logTycoon("Saginaw Bot is taking its turn...");
+                    setTimeout(runAIBotTurn, 1500);
+                }
+            }, 1400);
 
         } else if(action === 'buy') {
             let tile = tycoonGame.tiles[tycoonGame.position];
@@ -567,21 +638,21 @@
             }
             if(tycoonGame.funds >= tile.cost) {
                 tycoonGame.funds -= tile.cost;
-                tile.owner = tycoonGame.player;
+                tile.owner = "Tommy";
                 document.getElementById('tycoon-funds').innerText = tycoonGame.funds;
                 updateBookProgress();
                 
-                let ownedCount = tycoonGame.tiles.filter(t => t.owner === tycoonGame.player).length;
+                let ownedCount = tycoonGame.tiles.filter(t => t.owner === "Tommy").length;
                 document.getElementById('prop-count').innerText = ownedCount;
 
-                logTycoon(`Successfully acquired ${tile.name} for ${tile.cost} ME!`);
+                logTycoon(`Tommy successfully acquired ${tile.name} for ${tile.cost} ME!`);
                 drawTycoonBoard();
             } else {
                 logTycoon(`Insufficient Marrow Energy.`);
             }
         } else if(action === 'upgrade') {
             let tile = tycoonGame.tiles[tycoonGame.position];
-            if(tile.owner === tycoonGame.player && tycoonGame.funds >= 50) {
+            if(tile.owner === "Tommy" && tycoonGame.funds >= 50) {
                 tycoonGame.funds -= 50;
                 tile.rent += 15;
                 document.getElementById('tycoon-funds').innerText = tycoonGame.funds;
@@ -593,20 +664,42 @@
         }
     }
 
-    function openCurrentDeed3D() {
-        let tile = tycoonGame.tiles[tycoonGame.position];
-        document.getElementById('ar-deed-name').innerText = tile.name;
-        document.getElementById('ar-deed-owner').innerText = `Owner: ${tile.owner}`;
-        document.getElementById('ar-deed-value').innerText = tile.cost > 0 ? `Valuation: $${tile.cost} (Rent: $${tile.rent})` : `Special Utility / System Tile`;
-        document.getElementById('ar-modal').classList.remove('hidden');
-    }
+    // AI Bot Turn Logic
+    function runAIBotTurn() {
+        let botDie1 = Math.floor(Math.random() * 6) + 1;
+        let botDie2 = Math.floor(Math.random() * 6) + 1;
+        let botRoll = botDie1 + botDie2;
 
-    function closeArModal() {
-        document.getElementById('ar-modal').classList.add('hidden');
-    }
+        let oldBotPos = tycoonGame.botPosition;
+        tycoonGame.botPosition = (tycoonGame.botPosition + botRoll) % tycoonGame.tiles.length;
+        if(tycoonGame.botPosition < oldBotPos) {
+            tycoonGame.botFunds += 200;
+        }
 
-    function closeEventModal() {
-        document.getElementById('event-modal').classList.add('hidden');
+        let botTile = tycoonGame.tiles[tycoonGame.botPosition];
+        logTycoon(`Saginaw Bot rolled ${botRoll} (${botDie1}+${botDie2}) and landed on ${botTile.name}.`);
+
+        // Bot property purchase / rent logic
+        if(botTile.cost > 0 && botTile.owner === "None" && tycoonGame.botFunds >= botTile.cost) {
+            tycoonGame.botFunds -= botTile.cost;
+            botTile.owner = "Saginaw Bot";
+            let botPropCount = tycoonGame.tiles.filter(t => t.owner === "Saginaw Bot").length;
+            document.getElementById('bot-prop-count').innerText = botPropCount;
+            logTycoon(`Saginaw Bot purchased ${botTile.name} for $${botTile.cost}!`);
+        } else if(botTile.owner !== "None" && botTile.owner !== "Saginaw Bot") {
+            tycoonGame.botFunds -= botTile.rent;
+            tycoonGame.funds += botTile.rent;
+            document.getElementById('tycoon-funds').innerText = tycoonGame.funds;
+            logTycoon(`Saginaw Bot paid rent of ${botTile.rent} ME to Tommy.`);
+        }
+
+        updateBookProgress();
+        drawTycoonBoard();
+
+        // Return turn to Tommy
+        tycoonGame.turn = "Tommy";
+        document.getElementById('tycoon-turn').innerText = "TURN: Tommy";
+        logTycoon("Your turn (Tommy)! Roll two dice.");
     }
 
     drawTycoonBoard();
@@ -801,6 +894,7 @@
     function resetWordSelection() {
         selectedCells = [];
         document.querySelectorAll('.word-cell').forEach(cell => {
+            if(!cell.classList.contains('found')) cell.classList.remove('selected');
             if(!cell.classList.contains('found')) cell.classList.remove('selected');
         });
     }
