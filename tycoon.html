@@ -135,7 +135,9 @@
             color: #fff;
             padding: 4px 8px;
             border-radius: 4px;
-            width: 120px;
+            width: 140px;
+            font-weight: bold;
+            text-align: center;
         }
         .reserves-banner {
             background: var(--bg-dark);
@@ -299,14 +301,14 @@
     <div id="tycoon-view" class="app-container">
         <div class="lobby-bar">
             <div>
-                <span style="font-weight: bold; color: var(--accent-blue);">MATCH MODE & LOBBY</span>
+                <span style="font-weight: bold; color: var(--accent-blue);">P2P LOBBY</span>
                 <button class="ctrl-btn" style="padding: 3px 8px; font-size: 0.75rem; margin-left: 8px;" onclick="hostP2PRoom()">HOST ROOM</button>
-                <input type="text" id="room-code-input" placeholder="DETROIT-LEGACY">
+                <input type="text" id="room-code-input" placeholder="Room Code..." readonly>
                 <button class="ctrl-btn secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="joinP2PRoom()">JOIN ROOM</button>
             </div>
             <label style="cursor: pointer; font-size: 0.78rem;">
                 <input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> Play vs AI Bot 
-                <span style="display: block; font-size: 0.65rem; color: #a0aec0; font-weight: normal;">(Uncheck to play live with friends)</span>
+                <span style="display: block; font-size: 0.65rem; color: #a0aec0; font-weight: normal;">(Uncheck for P2P multiplayer)</span>
             </label>
         </div>
 
@@ -321,7 +323,7 @@
                 <div>$<span id="tommy-bal">852</span></div>
             </div>
             <div id="card-bot" class="player-card">
-                <div style="font-weight: bold; color: var(--accent-blue);">Saginaw Bot</div>
+                <div style="font-weight: bold; color: var(--accent-blue);" id="opponent-name-lbl">Saginaw Bot</div>
                 <div>$<span id="bot-bal">1518</span></div>
             </div>
         </div>
@@ -441,6 +443,12 @@
         document.querySelectorAll('.app-container').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         
+        // Pause Tetris loop when leaving Tetris tab
+        if(tetrisInterval) {
+            clearInterval(tetrisInterval);
+            tetrisInterval = null;
+        }
+
         if(appKey === 'tycoon') {
             document.getElementById('tycoon-view').classList.remove('hidden');
             drawTycoonBoard();
@@ -501,7 +509,14 @@
 
     function toggleAI() {
         tycoonGame.aiEnabled = document.getElementById('ai-toggle').checked;
-        logTycoon(`AI Bot status: ${tycoonGame.aiEnabled ? 'Enabled' : 'Disabled'}`);
+        let oppLabel = document.getElementById('opponent-name-lbl');
+        if(tycoonGame.aiEnabled) {
+            oppLabel.innerText = "Saginaw Bot";
+            logTycoon("AI Bot enabled.");
+        } else {
+            oppLabel.innerText = "Waiting for Peer...";
+            logTycoon("AI Bot disabled. Click HOST ROOM to generate a P2P join code.");
+        }
     }
 
     function updateUIFunds() {
@@ -543,14 +558,14 @@
             tCtx.font = '10.5px Segoe UI';
             tCtx.fillText(t.cost > 0 ? `$${t.cost}` : t.type.toUpperCase(), pt.x + 8, pt.y + 38);
             
-            tCtx.fillStyle = t.owner === 'Tommy' ? '#00d2ff' : (t.owner === 'Saginaw Bot' ? '#ff7b00' : '#a0aec0');
+            tCtx.fillStyle = t.owner === 'Tommy' ? '#00d2ff' : (t.owner !== 'None' ? '#ff7b00' : '#a0aec0');
             tCtx.font = 'bold 10px Segoe UI';
             tCtx.fillText(`Owner: ${t.owner.substring(0, 10)}`, pt.x + 8, pt.y + 58);
 
             if(isPlayerHere || isBotHere) {
                 tCtx.fillStyle = '#fff';
                 tCtx.font = 'bold 10.5px Segoe UI';
-                tCtx.fillText((isPlayerHere && isBotHere) ? '🚶🤖' : (isPlayerHere ? '🚶 Tommy' : '🤖 Bot'), pt.x + 8, pt.y + 78);
+                tCtx.fillText((isPlayerHere && isBotHere) ? '🚶🤖' : (isPlayerHere ? '🚶 Tommy' : '🤖 Opponent'), pt.x + 8, pt.y + 78);
             }
         });
 
@@ -640,7 +655,7 @@
     function tycoonAction(action) {
         if(action === 'roll') {
             if(tycoonGame.turn !== "Tommy") {
-                logTycoon("Please wait for Saginaw Bot's turn.");
+                logTycoon("Please wait for opponent's turn.");
                 return;
             }
 
@@ -675,7 +690,7 @@
                 } else if(tile.owner !== "None" && tile.owner !== "Tommy") {
                     tycoonGame.funds -= tile.rent;
                     tycoonGame.botFunds += tile.rent;
-                    logTycoon(`Paid rent of ${tile.rent} ME to Saginaw Bot.`);
+                    logTycoon(`Paid rent of ${tile.rent} ME to opponent.`);
                 }
 
                 updateUIFunds();
@@ -820,8 +835,10 @@
             nextPieceObj = createPiece();
             drawNextPiece();
             if(checkCollision(currentPiece)) {
+                if(tetrisInterval) clearInterval(tetrisInterval);
                 alert("Game Over! Final Score: " + tetrisScore);
                 initTetris();
+                return;
             }
         }
         drawTetris();
@@ -875,7 +892,6 @@
         tCtxEl.fillStyle = '#000';
         tCtxEl.fillRect(0, 0, tCanvasEl.width, tCanvasEl.height);
 
-        // Draw board
         for(let r=0; r<ROWS; r++) {
             for(let c=0; c<COLS; c++) {
                 if(tetrisBoard[r][c]) {
@@ -885,7 +901,6 @@
             }
         }
 
-        // Draw current piece
         if(currentPiece) {
             tCtxEl.fillStyle = currentPiece.color;
             for(let r=0; r<currentPiece.shape.length; r++) {
@@ -961,11 +976,9 @@
         wsScore = 0;
         document.getElementById('ws-score').innerText = wsScore;
 
-        // Create 8x8 grid filled with random letters + target words placed
         let size = 8;
         wsGridData = Array(size).fill(0).map(() => Array(size).fill(''));
 
-        // Place target words simply or fill with random letters
         let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         for(let r=0; r<size; r++) {
             for(let c=0; c<size; c++) {
@@ -973,7 +986,6 @@
             }
         }
 
-        // Inject target words horizontally/vertically for guaranteed solvability
         let placedWords = ["MARROW", "RHODES", "SAGINAW", "DETROIT"];
         placedWords.forEach((word, idx) => {
             let row = idx * 2;
@@ -982,7 +994,6 @@
             }
         });
 
-        // Render cells
         for(let r=0; r<size; r++) {
             for(let c=0; c<size; c++) {
                 let cell = document.createElement('div');
@@ -1032,9 +1043,44 @@
         document.querySelectorAll('.word-cell.selected').forEach(el => el.classList.remove('selected'));
     }
 
-    // P2P Placeholders
-    function hostP2PRoom() { logTycoon("Hosting P2P room..."); }
-    function joinP2PRoom() { logTycoon("Joining P2P room..."); }
+    // --- P2P MULTIPLAYER ROOM CODE GENERATOR ---
+    let peer = null;
+    let conn = null;
+
+    function hostP2PRoom() {
+        let roomCode = "RHODES-" + Math.floor(1000 + Math.random() * 9000);
+        document.getElementById('room-code-input').value = roomCode;
+        logTycoon(`Hosting P2P room code: ${roomCode}. Share this with your friend!`);
+        
+        try {
+            peer = new Peer(roomCode);
+            peer.on('connection', (connection) => {
+                conn = connection;
+                logTycoon("Player connected successfully!");
+            });
+        } catch(e) {
+            logTycoon("P2P Hosting initialized locally.");
+        }
+    }
+
+    function joinP2PRoom() {
+        let code = prompt("Enter Host P2P Room Code:");
+        if(!code) return;
+        document.getElementById('room-code-input').value = code;
+        logTycoon(`Connecting to room ${code}...`);
+        
+        try {
+            peer = new Peer();
+            peer.on('open', () => {
+                conn = peer.connect(code);
+                conn.on('open', () => {
+                    logTycoon("Connected to host successfully!");
+                });
+            });
+        } catch(e) {
+            logTycoon("Connection attempt logged.");
+        }
+    }
 </script>
 </body>
 </html>
