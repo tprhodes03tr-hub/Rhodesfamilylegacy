@@ -179,6 +179,15 @@
     .game-btn.primary:hover {
       background-color: #66fcf1;
     }
+    .game-btn.secondary {
+      background-color: #16a085;
+      color: #fff;
+      border-color: #1abc9c;
+      text-align: center;
+    }
+    .game-btn.secondary:hover {
+      background-color: #1abc9c;
+    }
     .timer {
       color: #ff5555;
       font-weight: bold;
@@ -470,7 +479,8 @@
     </div>
 
     <div class="choice-grid" style="margin-bottom: 12px;">
-      <button class="game-btn primary" onclick="startCameraStream()">📷 Launch Camera Viewfinder</button>
+      <button class="game-btn primary" onclick="startCameraStream()">📷 Launch Viewfinder</button>
+      <button class="game-btn secondary" onclick="flipCamera()">🔄 Flip Camera</button>
       <button class="game-btn" onclick="executeLineageScan()">⚡ Run Archival Optical Match</button>
     </div>
 
@@ -531,7 +541,6 @@
       const btnMatrix = document.getElementById('btn-switch-matrix');
       const btnScanner = document.getElementById('btn-switch-scanner');
 
-      // Stop camera if switching away from scanner
       if (target !== 'scanner') {
         stopCameraStream();
       }
@@ -790,18 +799,29 @@
       }
     }
 
-    // --- LIVE OPTICAL LINEAGE SCANNER LOGIC ---
+    // --- LIVE OPTICAL LINEAGE SCANNER LOGIC WITH CAMERA FLIP ---
+    let currentFacingMode = 'environment'; // Default to rear camera
     let scannerStream = null;
 
     async function startCameraStream() {
       const videoElem = document.getElementById('scannerVideo');
+      if (scannerStream) {
+        scannerStream.getTracks().forEach(track => track.stop());
+      }
       try {
-        scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        scannerStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: currentFacingMode } 
+        });
         videoElem.srcObject = scannerStream;
-        speakText("Camera viewfinder active. Align subject.");
+        speakText(currentFacingMode === 'user' ? "Selfie camera active. Align face." : "Rear camera active. Align photograph.");
       } catch (err) {
         alert("Camera access denied or unavailable. You can still run the optical match simulation!");
       }
+    }
+
+    function flipCamera() {
+      currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+      startCameraStream();
     }
 
     function stopCameraStream() {
@@ -835,7 +855,6 @@
       const titleElem = document.getElementById('match-title');
       const descElem = document.getElementById('match-desc');
 
-      // Pick a random lineage match for the optical scan result
       const match = lineageMatches[Math.floor(Math.random() * lineageMatches.length)];
       
       titleElem.innerText = match.title;
