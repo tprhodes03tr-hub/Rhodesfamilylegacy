@@ -361,8 +361,20 @@
 
     <div class="ar-viewport">
       <a-scene embedded background="color: #020617" style="width: 100%; height: 100%;">
+        <assets>
+          <!-- Asset mapping for character sprites -->
+          <img id="marcus-img" src="marcus.png" crossorigin="anonymous">
+          <img id="guacan-img" src="guacan-sheet.png" crossorigin="anonymous">
+          <img id="xochitl-img" src="xochitl.png" crossorigin="anonymous">
+        </assets>
+
         <a-entity position="0 0 -3">
+          <!-- Default placeholder core before character selection -->
           <a-box id="ar-core-shape" position="0 0.5 0" rotation="0 45 0" color="#66fcf1" animation="property: rotation; to: 360 405 0; loop: true; dur: 8000"></a-box>
+          
+          <!-- Character Display Plane that morphs into Marcus Prime or Guacan -->
+          <a-plane id="character-display-plane" position="0 0.5 0" width="1.5" height="1.5" material="src: #marcus-img; transparent: true" visible="false" animation="property: rotation; to: 0 360 0; loop: true; dur: 12000"></a-plane>
+
           <a-torus position="0 0.5 0" radius="1.1" radius-tubular="0.02" color="#45a29e" animation="property: rotation; to: 0 360 360; loop: true; dur: 10000"></a-torus>
         </a-entity>
         <a-entity camera position="0 1.6 0"></a-entity>
@@ -371,7 +383,7 @@
 
     <!-- HOLOGRAPHIC LEDGER PREVIEW -->
     <div class="holographic-ledger" id="holographic-text">
-      📂 SCANNER READY: Select Guacan & Marcus Prime (or any two nodes) to synchronize genetic bridge.
+      📂 SCANNER READY: Select Guacan & Marcus Prime to project character avatars into the 3D grid.
     </div>
 
     <p id="matrix-instruction" style="font-size: 0.85rem; margin-bottom: 8px;">Select nodes to align frequency:</p>
@@ -406,16 +418,16 @@
         s1Text: "Perimeter sensors are locked on Sector Delta. Heavy Warden drones patrol the upper gantry. You need to bypass the security wall without draining your suit power.",
         s1a: "🥷 Stealth Override: Hack maintenance conduit (-10% Energy, +50 XP)",
         s1b: "⚡ Volt Blast: Punch through security door (-25% Shield, +30 XP)",
-        matrixReady: "📂 SCANNER READY: Select Guacan & Marcus Prime (or any two nodes) to synchronize genetic bridge."
+        matrixReady: "📂 SCANNER READY: Select Guacan & Marcus Prime to project character avatars into the 3D grid."
       },
       ESP: {
         sandboxTitle: "La Vanguardia Ancestral",
         energyLbl: "Energía",
         shieldLbl: "Escudo",
-        s1Text: "Los sensores perimetrales están bloqueados en el Sector Delta. Drones patrullan el pórtico superior. Debes sortear el muro de seguridad sin agotar la energía de tu traje.",
+        s1Text: "Los sensores perimetrales están bloqueados en el Sector Delta. Drones patrullan el pórtico superior. Debes sortear el muro sin agotar la energía de tu traje.",
         s1a: "🥷 Anulación sigilosa: Hackear conducto (-10% Energía, +50 XP)",
         s1b: "⚡ Ráfaga de Voltios: Romper puerta de seguridad (-25% Escudo, +30 XP)",
-        matrixReady: "📂 ESCáNER LISTO: Selecciona a Guacan y Marcus Prime (o dos nodos) para sincronizar el puente genético."
+        matrixReady: "📂 ESCÁNER LISTO: Selecciona a Guacan y Marcus Prime para proyectar avatares en la cuadrícula 3D."
       }
     };
 
@@ -576,7 +588,7 @@
       showScene('scene-1', 'CHAPTER 1: PERIMETER BREACH');
     }
 
-    // --- MARROW MATRIX CAMPAIGN & AR LOGIC ---
+    // --- MARROW MATRIX CAMPAIGN & AR CHARACTER PROJECTION LOGIC ---
     let currentEpoch = 'vanguard';
     let selectedNodes = [];
 
@@ -584,9 +596,9 @@
       vanguard: {
         title: "VANGUARD GRID (GUACAN & MARCUS PRIME)",
         nodes: [
-          { id: 'Guacan', label: "🌊 Guacan (Storm-Tide Sentinel • D.R.)", ledger: "Guacan Dossier[span_0](start_span)[span_0](end_span): Caribbean and Taino-Afro-Dominican Marronage anchor. Activates Tidal Surge Barrier against drone incursions." },
-          { id: 'Marcus', label: "🛡️ Marcus Prime (Detroit '313 Grid')", ledger: "Marcus Prime Dossier[span_1](start_span)[span_1](end_span): Kinetic storm surge operative utilizing resonance stacks and tectonic pulse capabilities." },
-          { id: 'Xochitl', label: "✨ Xochitl (Obsidian Sun)", ledger: "Xochitl Dossier[span_2](start_span)[span_2](end_span): Photonic intensity master wielding obsidian solar daggers and solar force-field shielding." },
+          { id: 'Guacan', label: "🌊 Guacan (Storm-Tide Sentinel • D.R.)", ledger: "Guacan Dossier: Caribbean & Taino-Afro-Dominican Marronage anchor. Tidal Surge Barrier active." },
+          { id: 'Marcus', label: "🛡️ Marcus Prime (Detroit '313 Grid')", ledger: "Marcus Prime Dossier: Detroit Industrial Diaspora. Kinetic storm surge operative active." },
+          { id: 'Xochitl', label: "✨ Xochitl (Obsidian Sun)", ledger: "Xochitl Dossier: Photonic intensity master wielding obsidian solar daggers." },
           { id: 'Chrono', label: "⏳ Chrono-Lock Vault", ledger: "Chrono-Lock Protocol: Temporal security barrier protecting classified ancestral schematics." }
         ]
       },
@@ -607,7 +619,8 @@
       document.getElementById('btn-epoch-history').classList.toggle('active', epoch === 'history');
       selectedNodes = [];
       renderEpochNodes();
-      document.getElementById('holographic-text').innerText = `📂 EPOCH LOADED: ${epochData[epoch].title}. Select any two nodes to inspect ledger.`;
+      document.getElementById('holographic-text').innerText = `📂 EPOCH LOADED: ${epochData[epoch].title}. Select nodes to project character avatars.`;
+      reset3DViewer();
     }
 
     function renderEpochNodes() {
@@ -627,28 +640,63 @@
       if (selectedNodes.includes(nodeObj.id)) {
         selectedNodes = selectedNodes.filter(id => id !== nodeObj.id);
         cardElem.classList.remove('selected');
-        ledgerBox.innerText = `📂 Node deselected. Ready for synchronization.`;
+        ledgerBox.innerText = `📂 Node deselected. Ready for projection.`;
       } else {
         if (selectedNodes.length < 2) {
           selectedNodes.push(nodeObj.id);
           cardElem.classList.add('selected');
           ledgerBox.innerText = nodeObj.ledger;
           speakText(nodeObj.label);
+          
+          // --- PROJECT CHARACTER AVATAR INTO 3D VIEWER ---
+          update3DCharacterProjection();
         }
       }
+    }
+
+    // Map selected nodes directly to character image planes in A-Frame
+    function update3DCharacterProjection() {
+      const boxEl = document.getElementById('ar-core-shape');
+      const planeEl = document.getElementById('character-display-plane');
+
+      if (selectedNodes.includes('Marcus')) {
+        boxEl.setAttribute('visible', 'false');
+        planeEl.setAttribute('visible', 'true');
+        planeEl.setAttribute('material', 'src', '#marcus-img');
+      } else if (selectedNodes.includes('Guacan')) {
+        boxEl.setAttribute('visible', 'false');
+        planeEl.setAttribute('visible', 'true');
+        planeEl.setAttribute('material', 'src', '#guacan-img');
+      } else if (selectedNodes.includes('Xochitl')) {
+        boxEl.setAttribute('visible', 'false');
+        planeEl.setAttribute('visible', 'true');
+        planeEl.setAttribute('material', 'src', '#xochitl-img');
+      } else {
+        reset3DViewer();
+      }
+    }
+
+    function reset3DViewer() {
+      const boxEl = document.getElementById('ar-core-shape');
+      const planeEl = document.getElementById('character-display-plane');
+      if(boxEl) boxEl.setAttribute('visible', 'true');
+      if(planeEl) planeEl.setAttribute('visible', 'false');
     }
 
     function resonancePulse() {
       const feedback = document.getElementById('matrix-feedback');
       const vaultBox = document.getElementById('vault-reward-box');
+
       if (selectedNodes.length === 2) {
         feedback.innerText = `✨ SUCCESS! Resonance locked between ${selectedNodes[0]} and ${selectedNodes[1]} (+500 Marrow XP)!`;
         speakText("Resonance frequency achieved. Vault records unlocked.");
+        
         vaultBox.classList.remove('hidden');
         setTimeout(() => {
           document.querySelectorAll('.node-card').forEach(c => c.classList.remove('selected'));
           selectedNodes = [];
-        }, 2000);
+          reset3DViewer();
+        }, 3500);
       } else {
         feedback.innerText = `⚠️ Select exactly two nodes (e.g. Guacan and Marcus Prime) to complete the bridge.`;
       }
