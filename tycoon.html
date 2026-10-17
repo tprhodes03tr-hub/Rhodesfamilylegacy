@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Legacy Hub: Neon Tycoon, Compact Chrono Tetris & Word Search</title>
+    <title>Family Legacy Hub: Neon Tycoon, Classic Tetris & Word Search</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -185,52 +185,45 @@
             color: #a0aec0;
         }
 
-        /* COMPACT SIDE-BY-SIDE TETRIS ARENA */
-        .tetris-arena {
+        /* CLASSIC TETRIS SINGLE PLAYER WITH SCREEN SHAKE */
+        .tetris-single-container {
             display: flex;
-            justify-content: center;
-            gap: 20px;
-            align-items: flex-start;
-            flex-wrap: wrap;
-        }
-        .player-grid-box {
-            background: var(--bg-dark);
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px;
-            text-align: center;
+            flex-direction: column;
+            align-items: center;
             position: relative;
         }
-        .sprite-avatar {
-            width: 42px;
-            height: 42px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 2px solid var(--accent-blue);
-            margin: 0 auto 3px auto;
-            display: block;
-            background: #000;
+        .tetris-touch-controls {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
         }
-        /* Floating Notification Banner for Garbage / Combo Alerts */
-        #battle-notification {
-            position: absolute;
-            top: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 123, 0, 0.9);
-            color: #fff;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.8rem;
+        .t-pad-btn {
+            background: #1f2833;
+            color: var(--accent-blue);
+            border: 1px solid var(--accent-blue);
+            padding: 10px 16px;
+            font-size: 0.9rem;
             font-weight: bold;
-            box-shadow: 0 0 15px rgba(255, 123, 0, 0.8);
-            z-index: 50;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            opacity: 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Courier New', Courier, monospace;
         }
-        #battle-notification.show {
-            opacity: 1;
+        .t-pad-btn:active {
+            background: var(--accent-blue);
+            color: #0b0c10;
+        }
+
+        /* Screen Shake Animation */
+        @keyframes screenShake {
+            0% { transform: translate(0, 0); border-color: var(--accent-blue); box-shadow: 0 0 30px rgba(102, 252, 241, 0.2); }
+            20% { transform: translate(-6px, 4px); border-color: var(--accent-orange); box-shadow: 0 0 50px rgba(255, 123, 0, 0.8); }
+            40% { transform: translate(6px, -4px); border-color: #2ecc71; box-shadow: 0 0 50px rgba(46, 204, 113, 0.8); }
+            60% { transform: translate(-4px, -2px); border-color: #9b59b6; box-shadow: 0 0 50px rgba(155, 89, 182, 0.8); }
+            80% { transform: translate(4px, 2px); border-color: var(--accent-orange); box-shadow: 0 0 50px rgba(255, 123, 0, 0.8); }
+            100% { transform: translate(0, 0); border-color: var(--accent-blue); box-shadow: 0 0 30px rgba(102, 252, 241, 0.2); }
+        .shake-effect {
+            animation: screenShake 0.5s ease-in-out;
         }
 
         /* Word Search Board Styling */
@@ -280,7 +273,7 @@
         }
         .ar-title { color: var(--accent-orange); font-size: 1rem; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; }
         .ar-det { font-size: 0.85rem; color: var(--text-light); margin: 6px 0; }
-        .dice-container { display: flex; gap: 10px; justifyContent: center; margin: 12px auto; }
+        .dice-container { display: flex; gap: 10px; justify-content: center; margin: 12px auto; }
         .dice-cube {
             width: 60px; height: 60px;
             background: linear-gradient(135deg, #ff7b00, #ff4500);
@@ -295,7 +288,7 @@
     <header>
         <div class="nav-tabs">
             <button class="tab-btn active" onclick="switchApp('tycoon', event)">🏛️ TYCOON</button>
-            <button class="tab-btn" onclick="switchApp('tetris', event)">⚔️ P2P TETRIS BATTLE</button>
+            <button class="tab-btn" onclick="switchApp('tetris', event)">🕹️ CLASSIC TETRIS</button>
             <button class="tab-btn" onclick="switchApp('wordsearch', event)">🔤 WORD TRIVIA</button>
         </div>
         <div style="margin-top: 5px; display: flex; justify-content: center; gap: 8px; align-items: center;">
@@ -339,38 +332,27 @@
         </div>
     </div>
 
-    <!-- 2. COMPACT SIDE-BY-SIDE / NOTIFICATION TETRIS BATTLE -->
+    <!-- 2. CLASSIC TETRIS WITH SCREEN SHAKE ON 5-IN-A-ROW -->
     <div id="tetris-view" class="app-container hidden">
         <div class="game-header">
-            <span>⚔️ DUAL-SCREEN TETRIS BATTLE</span>
-            <span>NOTIFICATIONS & INDEPENDENT VIEWS</span>
+            <span>🕹️ CLASSIC TETRIS & MARROW ENERGY</span>
+            <span>SCORE: <span id="tetris-score">0</span> | ME: <span id="tetris-marrow" style="color: var(--accent-orange);">0</span></span>
         </div>
         
-        <div id="battle-notification">Garbage lines incoming!</div>
-
-        <div class="tetris-arena">
-            <!-- Player 1: Marcus Prime -->
-            <div class="player-grid-box">
-                <img src="marcus.png" alt="Marcus" class="sprite-avatar">
-                <div style="font-size: 0.8rem; color: var(--accent-blue); font-weight: bold;">MARCUS PRIME (P1)</div>
-                <div style="font-size: 0.7rem; color: #94a3b8; margin: 2px 0;">Score: <span id="p1-score">0</span> | ME: <span id="p1-marrow" style="color: var(--accent-orange);">0</span></div>
-                <!-- Compact canvas sizing to prevent vertical crowding -->
-                <canvas id="p1Canvas" width="143" height="286" style="background:#000; margin: 4px auto;"></canvas>
-                <div style="font-size: 0.65rem; color: #2ecc71;">Keys: A/D Move, W Rotate, S Drop</div>
-            </div>
-
-            <!-- Player 2: Wakan -->
-            <div class="player-grid-box">
-                <img src="guacan-sheet.png" alt="Wakan" class="sprite-avatar">
-                <div style="font-size: 0.8rem; color: var(--accent-orange); font-weight: bold;">WAKAN (P2)</div>
-                <div style="font-size: 0.7rem; color: #94a3b8; margin: 2px 0;">Score: <span id="p2-score">0</span> | ME: <span id="p2-marrow" style="color: var(--accent-orange);">0</span></div>
-                <canvas id="p2Canvas" width="143" height="286" style="background:#000; margin: 4px auto;"></canvas>
-                <div style="font-size: 0.65rem; color: #2ecc71;">Keys: ⬅️/➡️ Move, ⬆️ Rotate, ⬇️ Drop</div>
+        <div class="tetris-single-container" id="tetris-card-wrapper">
+            <canvas id="tetrisCanvas" width="220" height="400" style="background:#000;"></canvas>
+            
+            <!-- On-Screen Touch Controls -->
+            <div class="tetris-touch-controls">
+                <button class="t-pad-btn" onclick="moveTetris('left')">⬅️</button>
+                <button class="t-pad-btn" onclick="moveTetris('rotate')">🔄</button>
+                <button class="t-pad-btn" onclick="moveTetris('right')">➡️</button>
+                <button class="t-pad-btn" onclick="moveTetris('drop')">⬇️</button>
             </div>
         </div>
 
-        <div class="controls">
-            <button class="ctrl-btn" onclick="initTetrisBattle()">🔄 START COMPACT BATTLE</button>
+        <div class="controls" style="margin-top: 12px;">
+            <button class="ctrl-btn" onclick="initClassicTetris()">🔄 RESTART TETRIS</button>
         </div>
     </div>
 
@@ -429,7 +411,7 @@
             drawTycoonBoard();
         } else if(appKey === 'tetris') {
             document.getElementById('tetris-view').classList.remove('hidden');
-            initTetrisBattle();
+            initClassicTetris();
         } else if(appKey === 'wordsearch') {
             document.getElementById('wordsearch-view').classList.remove('hidden');
             initWordSearch();
@@ -446,10 +428,6 @@
     // --- TYCOON SETUP ---
     const tCanvas = document.getElementById('tycoonCanvas');
     const tCtx = tCanvas.getContext('2d');
-    const treeImg = new Image();
-    treeImg.src = 'packed-marrow-tree.png';
-    treeImg.onload = () => drawTycoonBoard();
-
     const cityBoards = {
         detroit: {
             title: "Detroit & Saginaw Hub",
@@ -481,7 +459,6 @@
         ohio: { title: "Ohio", tiles: [] },
         dominican: { title: "Dominican Republic", tiles: [] }
     };
-    // Fallback fill for other city boards
     Object.keys(cityBoards).forEach(k => { if(k !== 'detroit') cityBoards[k].tiles = JSON.parse(JSON.stringify(cityBoards.detroit.tiles)); });
 
     let players = [
@@ -558,68 +535,58 @@
     }
 
 
-    // --- COMPACT 2-PLAYER TETRIS BATTLE WITH NOTIFICATIONS ---
-    const p1Canvas = document.getElementById('p1Canvas');
-    const p1Ctx = p1Canvas.getContext('2d');
-    const p2Canvas = document.getElementById('p2Canvas');
-    const p2Ctx = p2Canvas.getContext('2d');
-
-    const BLOCK_SZ = 13; // Compact size for mobile
+    // --- CLASSIC TETRIS WITH 5-IN-A-ROW SCREEN SHAKE & GLOW ---
+    const tetCanvas = document.getElementById('tetrisCanvas');
+    const tetCtx = tetCanvas.getContext('2d');
+    const BLOCK_SZ = 20;
     const COLS = 11;
-    const ROWS = 22;
+    const ROWS = 20;
     let tetrisInterval = null;
 
-    let p1State = { board: [], score: 0, marrow: 0, piece: null };
-    let p2State = { board: [], score: 0, marrow: 0, piece: null };
-
+    let tetState = { board: [], score: 0, marrow: 0, piece: null };
     const SHAPES = [[[1,1,1,1]], [[1,1],[1,1]], [[0,1,0],[1,1,1]], [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]]];
     const COLORS = ['#66fcf1', '#ff7b00', '#9b59b6', '#2ecc71', '#38bdf8'];
 
-    function createPiece() {
+    function createClassicPiece() {
         let idx = Math.floor(Math.random() * SHAPES.length);
-        return { shape: SHAPES[idx], color: COLORS[idx], x: 4, y: 0 };
+        return { shape: SHAPES[idx], color: COLORS[idx], x: 3, y: 0 };
     }
 
-    function showBattleNotification(msg) {
-        let banner = document.getElementById('battle-notification');
-        banner.innerText = msg;
-        banner.classList.add('show');
-        setTimeout(() => banner.classList.remove('show'), 1800);
-    }
-
-    function initTetrisBattle() {
-        p1State = { board: Array(ROWS).fill(0).map(() => Array(COLS).fill(0)), score: 0, marrow: 0, piece: createPiece() };
-        p2State = { board: Array(ROWS).fill(0).map(() => Array(COLS).fill(0)), score: 0, marrow: 0, piece: createPiece() };
+    function initClassicTetris() {
+        tetState = { board: Array(ROWS).fill(0).map(() => Array(COLS).fill(0)), score: 0, marrow: 0, piece: createClassicPiece() };
         if(tetrisInterval) clearInterval(tetrisInterval);
-        tetrisInterval = setInterval(tetrisTick, 450);
-        drawTetrisBattle();
+        tetrisInterval = setInterval(tetrisTick, 500);
+        drawClassicTetris();
     }
 
     function tetrisTick() {
-        updatePiece(p1State, p2State, "P1 sent garbage!");
-        updatePiece(p2State, p1State, "P2 sent garbage!");
-        drawTetrisBattle();
-    }
-
-    function updatePiece(active, opponent, alertMsg) {
-        active.piece.y++;
-        if(checkColl(active.piece, active.board)) {
-            active.piece.y--;
-            mergePiece(active);
-            let cleared = clearLines(active);
-            if(cleared >= 2) {
-                sendGarbage(opponent, cleared - 1);
-                showBattleNotification(alertMsg);
+        tetState.piece.y++;
+        if(checkClassicColl(tetState.piece, tetState.board)) {
+            tetState.piece.y--;
+            mergeClassicPiece();
+            let cleared = clearClassicLines();
+            
+            // Trigger screen shake and flash effect if 4 or 5 lines cleared simultaneously
+            if(cleared >= 4) {
+                triggerScreenShake();
             }
-            active.piece = createPiece();
-            if(checkColl(active.piece, active.board)) {
+
+            tetState.piece = createClassicPiece();
+            if(checkClassicColl(tetState.piece, tetState.board)) {
                 clearInterval(tetrisInterval);
-                alert("Game Over!");
+                alert("Game Over! Final Score: " + tetState.score);
             }
         }
+        drawClassicTetris();
     }
 
-    function checkColl(p, board) {
+    function triggerScreenShake() {
+        let wrapper = document.getElementById('tetris-card-wrapper');
+        wrapper.classList.add('shake-effect');
+        setTimeout(() => wrapper.classList.remove('shake-effect'), 500);
+    }
+
+    function checkClassicColl(p, board) {
         for(let r=0; r<p.shape.length; r++) {
             for(let c=0; c<p.shape[r].length; c++) {
                 if(p.shape[r][c]) {
@@ -631,75 +598,78 @@
         return false;
     }
 
-    function mergePiece(state) {
-        state.piece.shape.forEach((row, r) => {
+    function mergeClassicPiece() {
+        tetState.piece.shape.forEach((row, r) => {
             row.forEach((val, c) => {
-                if(val && state.piece.y + r >= 0) state.board[state.piece.y + r][state.piece.x + c] = state.piece.color;
+                if(val && tetState.piece.y + r >= 0) tetState.board[tetState.piece.y + r][tetState.piece.x + c] = tetState.piece.color;
             });
         });
     }
 
-    function clearLines(state) {
+    function clearClassicLines() {
         let cleared = 0;
         for(let r = ROWS - 1; r >= 0; r--) {
-            if(state.board[r].every(cell => cell !== 0)) {
-                state.board.splice(r, 1);
-                state.board.unshift(Array(COLS).fill(0));
+            if(tetState.board[r].every(cell => cell !== 0)) {
+                tetState.board.splice(r, 1);
+                tetState.board.unshift(Array(COLS).fill(0));
                 cleared++; r++;
             }
         }
         if(cleared > 0) {
-            state.score += cleared * 100;
-            state.marrow += cleared * 40;
-            document.getElementById('p1-score').innerText = p1State.score;
-            document.getElementById('p1-marrow').innerText = p1State.marrow;
-            document.getElementById('p2-score').innerText = p2State.score;
-            document.getElementById('p2-marrow').innerText = p2State.marrow;
+            tetState.score += cleared * 100 * (cleared >= 4 ? 2 : 1);
+            tetState.marrow += cleared * 50;
+            document.getElementById('tetris-score').innerText = tetState.score;
+            document.getElementById('tetris-marrow').innerText = tetState.marrow;
         }
         return cleared;
     }
 
-    function sendGarbage(opponent, count) {
-        for(let i=0; i<count; i++) {
-            opponent.board.shift();
-            let row = Array(COLS).fill('#9b59b6');
-            row[Math.floor(Math.random() * COLS)] = 0;
-            opponent.board.push(row);
-        }
-    }
-
-    function drawTetrisBattle() {
-        drawCanvas(p1Ctx, p1State);
-        drawCanvas(p2Ctx, p2State);
-    }
-
-    function drawCanvas(ctx, state) {
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, 143, 286);
-        state.board.forEach((row, r) => {
+    function drawClassicTetris() {
+        tetCtx.fillStyle = '#000';
+        tetCtx.fillRect(0, 0, tetCanvas.width, tetCanvas.height);
+        
+        tetState.board.forEach((row, r) => {
             row.forEach((col, c) => {
-                if(col) { ctx.fillStyle = col; ctx.fillRect(c * BLOCK_SZ, r * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1); }
+                if(col) { tetCtx.fillStyle = col; tetCtx.fillRect(c * BLOCK_SZ, r * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1); }
             });
         });
-        if(state.piece) {
-            ctx.fillStyle = state.piece.color;
-            state.piece.shape.forEach((row, r) => {
+
+        if(tetState.piece) {
+            tetCtx.fillStyle = tetState.piece.color;
+            tetState.piece.shape.forEach((row, r) => {
                 row.forEach((val, c) => {
-                    if(val) ctx.fillRect((state.piece.x + c) * BLOCK_SZ, (state.piece.y + r) * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1);
+                    if(val) tetCtx.fillRect((tetState.piece.x + c) * BLOCK_SZ, (tetState.piece.y + r) * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1);
                 });
             });
         }
     }
 
+    function moveTetris(action) {
+        if(!tetState.piece) return;
+        if(action === 'left') {
+            tetState.piece.x--;
+            if(checkClassicColl(tetState.piece, tetState.board)) tetState.piece.x++;
+        } else if(action === 'right') {
+            tetState.piece.x++;
+            if(checkClassicColl(tetState.piece, tetState.board)) tetState.piece.x--;
+        } else if(action === 'drop') {
+            tetState.piece.y++;
+            if(checkClassicColl(tetState.piece, tetState.board)) tetState.piece.y--;
+        } else if(action === 'rotate') {
+            let oldShape = tetState.piece.shape;
+            tetState.piece.shape = tetState.piece.shape[0].map((val, index) => tetState.piece.shape.map(row => row[index]).reverse());
+            if(checkClassicColl(tetState.piece, tetState.board)) tetState.piece.shape = oldShape;
+        }
+        drawClassicTetris();
+    }
+
     window.addEventListener('keydown', (e) => {
         if(document.getElementById('tetris-view').classList.contains('hidden')) return;
-        if(e.key === 'a') { p1State.piece.x--; if(checkColl(p1State.piece, p1State.board)) p1State.piece.x++; }
-        if(e.key === 'd') { p1State.piece.x++; if(checkColl(p1State.piece, p1State.board)) p1State.piece.x--; }
-        if(e.key === 's') { p1State.piece.y++; if(checkColl(p1State.piece, p1State.board)) p1State.piece.y--; }
-        if(e.key === 'ArrowLeft') { p2State.piece.x--; if(checkColl(p2State.piece, p2State.board)) p2State.piece.x++; }
-        if(e.key === 'ArrowRight') { p2State.piece.x++; if(checkColl(p2State.piece, p2State.board)) p2State.piece.x--; }
-        if(e.key === 'ArrowDown') { p2State.piece.y++; if(checkColl(p2State.piece, p2State.board)) p2State.piece.y--; }
-        drawTetrisBattle();
+        if(e.key === 'ArrowLeft' || e.key === 'a') moveTetris('left');
+        if(e.key === 'ArrowRight' || e.key === 'd') moveTetris('right');
+        if(e.key === 'ArrowDown' || e.key === 's') moveTetris('drop');
+        if(e.key === 'ArrowUp' || e.key === 'w') moveTetris('rotate');
+        drawClassicTetris();
     });
 
     // --- WORD SEARCH ---
