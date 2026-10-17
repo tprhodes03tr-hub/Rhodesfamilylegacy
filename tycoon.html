@@ -166,18 +166,22 @@
             color: #9b59b6;
         }
         .players-scoreboard {
-            display: flex;
-            gap: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
             margin-bottom: 10px;
+        }
+        @media(max-width: 768px) {
+            .players-scoreboard { grid-template-columns: repeat(2, 1fr); }
         }
         .player-card {
             background: var(--bg-dark);
             border: 1px solid var(--border-color);
-            padding: 6px 12px;
+            padding: 6px 8px;
             border-radius: 6px;
-            font-size: 0.8rem;
-            flex: 1;
+            font-size: 0.75rem;
             text-align: center;
+            cursor: pointer;
         }
         .player-card.active-turn {
             border-color: var(--accent-orange);
@@ -189,7 +193,7 @@
             border: 1px solid var(--border-color);
             padding: 6px 10px;
             border-radius: 8px;
-            height: 40px;
+            height: 45px;
             overflow-y: auto;
             font-size: 0.78rem;
             color: #a0aec0;
@@ -365,7 +369,7 @@
 
     <header>
         <div class="nav-tabs">
-            <button class="tab-btn active" onclick="switchApp('tycoon', event)">🏛️ NEON TYCOON</button>
+            <button class="tab-btn active" onclick="switchApp('tycoon', event)">🏛️ 8-PLAYER TYCOON</button>
             <button class="tab-btn" onclick="switchApp('tetris', event)">🕹️ CHRONO-GRID TETRIS</button>
             <button class="tab-btn" onclick="switchApp('wordsearch', event)">🔤 WORD TRIVIA</button>
         </div>
@@ -381,40 +385,32 @@
         </div>
     </header>
 
-    <!-- 1. NEON TYCOON BOARD -->
+    <!-- 1. 8-PLAYER NEON TYCOON BOARD -->
     <div id="tycoon-view" class="app-container">
         <div class="lobby-bar">
             <div>
-                <span id="txt-p2p" style="font-weight: bold; color: var(--accent-blue);">P2P LOBBY</span>
+                <span id="txt-p2p" style="font-weight: bold; color: var(--accent-blue);">8-PLAYER LOBBY</span>
                 <button class="ctrl-btn" id="btn-host" style="padding: 3px 8px; font-size: 0.75rem; margin-left: 8px;" onclick="hostP2PRoom()">HOST ROOM</button>
                 <input type="text" id="room-code-input" placeholder="Room Code..." readonly>
                 <button class="ctrl-btn secondary" id="btn-join" style="padding: 3px 8px; font-size: 0.75rem;" onclick="joinP2PRoom()">JOIN ROOM</button>
             </div>
             <label style="cursor: pointer; font-size: 0.78rem;">
-                <input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> <span id="txt-vsai">Play vs AI Bot</span>
+                <input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> <span id="txt-vsai">AI Ghost / Bot Mode</span>
             </label>
         </div>
 
         <div class="reserves-banner">
             <span id="txt-reserves">✨ MARROW ENERGY RESERVES</span>
-            <span id="tycoon-funds" style="color: var(--accent-orange); font-size: 1.1rem;">625 ME</span>
+            <span id="tycoon-funds" style="color: var(--accent-orange); font-size: 1.1rem;">850 ME</span>
         </div>
 
-        <div class="players-scoreboard">
-            <div id="card-tommy" class="player-card active-turn">
-                <div style="font-weight: bold; color: var(--accent-orange);">Tommy</div>
-                <div>$<span id="tommy-bal">852</span></div>
-            </div>
-            <div id="card-bot" class="player-card">
-                <div style="font-weight: bold; color: var(--accent-blue);" id="opponent-name-lbl">Saginaw Bot</div>
-                <div>$<span id="bot-bal">1518</span></div>
-            </div>
-        </div>
+        <!-- 8-Player Scoreboard Roster (Click slot to join/rename) -->
+        <div class="players-scoreboard" id="players-scoreboard-container"></div>
 
         <!-- Neon Computer Grid Canvas Board -->
         <canvas id="tycoonCanvas" width="900" height="540" onclick="handleCanvasTouch(event)"></canvas>
 
-        <div id="log-box">Your turn (Tommy)! Roll dice.</div>
+        <div id="log-box">Current Turn: Tommy! Roll dice or click slots above to join.</div>
 
         <div class="controls">
             <button class="ctrl-btn" id="btn-roll" onclick="tycoonAction('roll')">🎲 ROLL DICE</button>
@@ -540,10 +536,10 @@
             roll: "🎲 ROLL DICE",
             buy: "🏛️ BUY DEED",
             upg: "🏠 UPGRADE HOTEL ($50)",
-            p2p: "P2P LOBBY",
+            p2p: "8-PLAYER LOBBY",
             host: "HOST ROOM",
             join: "JOIN ROOM",
-            vsai: "Play vs AI Bot",
+            vsai: "AI Ghost / Bot Mode",
             reserves: "✨ MARROW ENERGY RESERVES",
             langBtn: "🌐 ESPAÑOL"
         },
@@ -551,10 +547,10 @@
             roll: "🎲 LANZAR DARDOS",
             buy: "🏛️ COMPRAR TÍTULO",
             upg: "🏠 MEJORAR HOTEL ($50)",
-            p2p: "VESTÍBULO P2P",
+            p2p: "VESTÍBULO 8 JUGADORES",
             host: "CREAR SALA",
             join: "UNIRSE",
-            vsai: "Jugar vs Bot IA",
+            vsai: "Modo Fantasma / Bot",
             reserves: "✨ RESERVAS DE ENERGÍA",
             langBtn: "🌐 ENGLISH"
         }
@@ -624,7 +620,7 @@
         speakGameEvent(msg);
     }
 
-    // --- TYCOON CANVAS SETUP ---
+    // --- 8-PLAYER TYCOON CANVAS SETUP ---
     const tCanvas = document.getElementById('tycoonCanvas');
     const tCtx = tCanvas.getContext('2d');
 
@@ -764,14 +760,22 @@
 
     let currentCityKey = 'detroit';
 
+    // Initial 8 Player Slots: Tommy, Angela, and 6 Open/Ghost Slots for family members to join
+    let players = [
+        { name: "Tommy", funds: 850, position: 0, isBot: false, color: "#ff7b00" },
+        { name: "Angela", funds: 850, position: 0, isBot: false, color: "#66fcf1" },
+        { name: "Ghost Bot 3", funds: 850, position: 0, isBot: true, color: "#2ecc71" },
+        { name: "Ghost Bot 4", funds: 850, position: 0, isBot: true, color: "#9b59b6" },
+        { name: "Ghost Bot 5", funds: 850, position: 0, isBot: true, color: "#38bdf8" },
+        { name: "Ghost Bot 6", funds: 850, position: 0, isBot: true, color: "#f39c12" },
+        { name: "Ghost Bot 7", funds: 850, position: 0, isBot: true, color: "#e74c3c" },
+        { name: "Ghost Bot 8", funds: 850, position: 0, isBot: true, color: "#a855f7" }
+    ];
+
+    let currentTurnIndex = 0;
+    let aiRosterEnabled = true;
+
     let tycoonGame = {
-        funds: 625,
-        botFunds: 1518,
-        position: 0,
-        botPosition: 0,
-        player: "Tommy",
-        aiEnabled: true,
-        turn: "Tommy",
         tiles: cityBoards.detroit.tiles
     };
 
@@ -780,28 +784,43 @@
     function changeCityBoard(cityKey) {
         currentCityKey = cityKey;
         tycoonGame.tiles = cityBoards[cityKey].tiles;
-        tycoonGame.position = 0;
-        tycoonGame.botPosition = 0;
+        players.forEach(p => p.position = 0);
         logTycoon(`Switched board map to ${cityBoards[cityKey].title}!`);
         drawTycoonBoard();
     }
 
     function toggleAI() {
-        tycoonGame.aiEnabled = document.getElementById('ai-toggle').checked;
-        let oppLabel = document.getElementById('opponent-name-lbl');
-        if(tycoonGame.aiEnabled) {
-            oppLabel.innerText = "Saginaw Bot";
-            logTycoon("AI Bot enabled.");
-        } else {
-            oppLabel.innerText = "Waiting for Peer...";
-            logTycoon("AI Bot disabled. Click HOST ROOM to generate a P2P join code.");
+        aiRosterEnabled = document.getElementById('ai-toggle').checked;
+        logTycoon(aiRosterEnabled ? "AI Ghost Bot mode enabled." : "AI Ghost Bot mode paused.");
+    }
+
+    function renamePlayerSlot(idx) {
+        let newName = prompt("Enter family member / player name for this slot:", players[idx].name);
+        if(newName && newName.trim() !== "") {
+            players[idx].name = newName.trim();
+            players[idx].isBot = false; // Turned human/active player
+            renderScoreboard();
+            drawTycoonBoard();
+            logTycoon(`Slot ${idx + 1} claimed by ${players[idx].name}!`);
         }
     }
 
-    function updateUIFunds() {
-        document.getElementById('tycoon-funds').innerText = `${tycoonGame.funds} ME`;
-        document.getElementById('tommy-bal').innerText = tycoonGame.funds;
-        document.getElementById('bot-bal').innerText = tycoonGame.botFunds;
+    function renderScoreboard() {
+        const container = document.getElementById('players-scoreboard-container');
+        container.innerHTML = '';
+        players.forEach((p, idx) => {
+            let card = document.createElement('div');
+            card.className = `player-card ${currentTurnIndex === idx ? 'active-turn' : ''}`;
+            card.id = `player-card-${idx}`;
+            card.onclick = () => renamePlayerSlot(idx);
+            card.innerHTML = `
+                <div style="font-weight: bold; color: ${p.color};">${p.name} ${p.isBot ? '(Ghost)' : ''}</div>
+                <div>$<span id="bal-${idx}">${p.funds}</span></div>
+                <div style="font-size: 0.65rem; color: #66fcf1; margin-top:2px;">[Click to Join/Rename]</div>
+            `;
+            container.appendChild(card);
+        });
+        document.getElementById('tycoon-funds').innerText = `${players[currentTurnIndex].funds} ME`;
     }
 
     function drawTycoonBoard() {
@@ -830,12 +849,11 @@
             let w = 150, h = 90;
             tileRects.push({x: pt.x, y: pt.y, w: w, h: h, index: i});
             
-            let isPlayerHere = (tycoonGame.position === i);
-            let isBotHere = (tycoonGame.botPosition === i);
+            let occupants = players.filter(p => p.position === i);
 
-            tCtx.fillStyle = (isPlayerHere || isBotHere) ? '#1f2833' : '#0b0c10';
+            tCtx.fillStyle = occupants.length > 0 ? '#1f2833' : '#0b0c10';
             tCtx.strokeStyle = t.color;
-            tCtx.lineWidth = (isPlayerHere || isBotHere) ? 2.5 : 1.5;
+            tCtx.lineWidth = occupants.length > 0 ? 2.5 : 1.5;
             
             tCtx.save();
             tCtx.shadowColor = t.color;
@@ -858,14 +876,15 @@
             tCtx.font = '10px Courier New';
             tCtx.fillText(t.cost > 0 ? `$${t.cost} (R:$${t.rent})` : t.type.toUpperCase(), pt.x + 8, pt.y + 45);
             
-            tCtx.fillStyle = t.owner === 'Tommy' ? '#66fcf1' : (t.owner !== 'None' ? '#ff7b00' : '#94a3b8');
+            tCtx.fillStyle = t.owner === 'None' ? '#94a3b8' : '#ff7b00';
             tCtx.font = 'bold 10px Courier New';
             tCtx.fillText(`Owner: ${t.owner.substring(0, 10)}`, pt.x + 8, pt.y + 65);
 
-            if(isPlayerHere || isBotHere) {
+            if(occupants.length > 0) {
                 tCtx.fillStyle = '#fff';
-                tCtx.font = 'bold 10.5px Courier New';
-                tCtx.fillText((isPlayerHere && isBotHere) ? '🚶🤖' : (isPlayerHere ? '🚶 Tommy' : '🤖 Bot'), pt.x + 8, pt.y + 83);
+                tCtx.font = 'bold 10px Courier New';
+                let occNames = occupants.map(o => o.name).join(', ');
+                tCtx.fillText(`📍 ${occNames.substring(0, 16)}`, pt.x + 8, pt.y + 83);
             }
         });
 
@@ -884,13 +903,14 @@
         tCtx.textAlign = "center";
         tCtx.shadowColor = "#66fcf1";
         tCtx.shadowBlur = 10;
-        tCtx.fillText("RHODES FAMILY LEGACY", cx, cy + 52);
+        tCtx.fillText("8-PLAYER FAMILY LEGACY", cx, cy + 52);
         
         tCtx.font = "11px Courier New";
         tCtx.fillStyle = "#ff7b00";
         tCtx.fillText(cityBoards[currentCityKey].title, cx, cy + 70);
         tCtx.textAlign = "left";
         tCtx.shadowBlur = 0;
+        renderScoreboard();
     }
 
     function handleCanvasTouch(event) {
@@ -919,9 +939,11 @@
     function closeEventModal() { document.getElementById('event-modal').classList.add('hidden'); }
 
     function tycoonAction(action) {
+        let activePlayer = players[currentTurnIndex];
+
         if(action === 'roll') {
-            if(tycoonGame.turn !== "Tommy") {
-                logTycoon("Please wait for opponent's turn.");
+            if(activePlayer.isBot && aiRosterEnabled) {
+                logTycoon("Please wait for ghost turn to complete.");
                 return;
             }
 
@@ -931,122 +953,117 @@
 
             document.getElementById('dice-1').innerText = die1;
             document.getElementById('dice-2').innerText = die2;
-            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${rollSum}) across ${cityBoards[currentCityKey].title}!`;
+            document.getElementById('dice-card-desc').innerText = `${activePlayer.name} rolled ${die1} and ${die2} (Total: ${rollSum})!`;
             document.getElementById('dice-modal').classList.remove('hidden');
 
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
                 
-                let oldPos = tycoonGame.position;
-                tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
+                let oldPos = activePlayer.position;
+                activePlayer.position = (activePlayer.position + rollSum) % tycoonGame.tiles.length;
                 
-                if(tycoonGame.position < oldPos) {
-                    tycoonGame.funds += 200;
-                    logTycoon(`Tommy passed Start! Collected +200 ME.`);
+                if(activePlayer.position < oldPos) {
+                    activePlayer.funds += 200;
+                    logTycoon(`${activePlayer.name} passed Start! Collected +200 ME.`);
                 }
 
-                let tile = tycoonGame.tiles[tycoonGame.position];
-                logTycoon(`Rolled a ${rollSum}. Landed on ${tile.name}.`);
+                let tile = tycoonGame.tiles[activePlayer.position];
+                logTycoon(`${activePlayer.name} landed on ${tile.name}.`);
 
                 if(tile.type === 'event') {
                     let bonus = Math.random() > 0.5 ? 100 : -50;
-                    tycoonGame.funds += bonus;
+                    activePlayer.funds += bonus;
                     document.getElementById('event-card-desc').innerText = `Mystery Suitcase Opened!\nAdjusted Marrow Energy by ${bonus} ME.`;
                     document.getElementById('event-modal').classList.remove('hidden');
-                } else if(tile.owner !== "None" && tile.owner !== "Tommy") {
-                    tycoonGame.funds -= tile.rent;
-                    tycoonGame.botFunds += tile.rent;
-                    logTycoon(`Paid rent of ${tile.rent} ME to opponent.`);
+                } else if(tile.owner !== "None" && tile.owner !== activePlayer.name) {
+                    activePlayer.funds -= tile.rent;
+                    let ownerObj = players.find(p => p.name === tile.owner);
+                    if(ownerObj) ownerObj.funds += tile.rent;
+                    logTycoon(`${activePlayer.name} paid rent of ${tile.rent} ME to ${tile.owner}.`);
                 }
 
-                updateUIFunds();
                 drawTycoonBoard();
-
-                if(tycoonGame.aiEnabled) {
-                    tycoonGame.turn = "Saginaw Bot";
-                    document.getElementById('card-tommy').classList.remove('active-turn');
-                    document.getElementById('card-bot').classList.add('active-turn');
-                    logTycoon("Opponent is taking its turn...");
-                    setTimeout(runAIBotTurn, 1400);
-                }
+                advanceTurn();
             }, 1200);
 
         } else if(action === 'buy') {
-            let tile = tycoonGame.tiles[tycoonGame.position];
+            let tile = tycoonGame.tiles[activePlayer.position];
             if(tile.cost === 0 || tile.owner !== "None") {
                 logTycoon(`Tile cannot be acquired.`);
                 return;
             }
-            if(tycoonGame.funds >= tile.cost) {
-                tycoonGame.funds -= tile.cost;
-                tile.owner = "Tommy";
-                updateUIFunds();
-                logTycoon(`Successfully acquired ${tile.name} for ${tile.cost} ME!`);
+            if(activePlayer.funds >= tile.cost) {
+                activePlayer.funds -= tile.cost;
+                tile.owner = activePlayer.name;
+                logTycoon(`${activePlayer.name} acquired ${tile.name} for ${tile.cost} ME!`);
                 drawTycoonBoard();
             } else {
                 logTycoon(`Insufficient Marrow Energy.`);
             }
         } else if(action === 'upgrade') {
-            let tile = tycoonGame.tiles[tycoonGame.position];
+            let tile = tycoonGame.tiles[activePlayer.position];
             const tycoonContainer = document.getElementById('tycoon-view');
 
-            if(tile.owner === "Tommy" && tycoonGame.funds >= 50) {
-                tycoonGame.funds -= 50;
+            if(tile.owner === activePlayer.name && activePlayer.funds >= 50) {
+                activePlayer.funds -= 50;
                 tile.rent += 30;
                 tile.hasHotel = true;
-                updateUIFunds();
                 
                 tycoonContainer.classList.add('word-shaking');
-                logTycoon(`Hotel built on ${tile.name}! Rent surged to ${tile.rent} ME.`);
-                speakGameEvent(`Hotel constructed on ${tile.name}! Energy surge active!`);
+                logTycoon(`${activePlayer.name} built a hotel on ${tile.name}! Rent: ${tile.rent} ME.`);
+                speakGameEvent(`Hotel constructed on ${tile.name}!`);
 
-                setTimeout(() => {
-                    tycoonContainer.classList.remove('word-shaking');
-                }, 400);
-
+                setTimeout(() => { tycoonContainer.classList.remove('word-shaking'); }, 400);
                 drawTycoonBoard();
             } else {
-                logTycoon(`You must own the current tile and have 50 ME to build a hotel.`);
+                logTycoon(`You must own the current tile and have 50 ME.`);
             }
         }
     }
 
-    function runAIBotTurn() {
-        let botDie1 = Math.floor(Math.random() * 6) + 1;
-        let botDie2 = Math.floor(Math.random() * 6) + 1;
-        let botRoll = botDie1 + botDie2;
+    function advanceTurn() {
+        currentTurnIndex = (currentTurnIndex + 1) % players.length;
+        renderScoreboard();
+        let nextPlayer = players[currentTurnIndex];
+        logTycoon(`Current Turn: ${nextPlayer.name}! Roll dice.`);
 
-        let oldBotPos = tycoonGame.botPosition;
-        tycoonGame.botPosition = (tycoonGame.botPosition + botRoll) % tycoonGame.tiles.length;
-        if(tycoonGame.botPosition < oldBotPos) tycoonGame.botFunds += 200;
+        if(nextPlayer.isBot && aiRosterEnabled) {
+            setTimeout(runNextBotTurn, 1000);
+        }
+    }
 
-        let botTile = tycoonGame.tiles[tycoonGame.botPosition];
-        logTycoon(`Opponent rolled ${botRoll} and landed on ${botTile.name}.`);
+    function runNextBotTurn() {
+        let bot = players[currentTurnIndex];
+        let die1 = Math.floor(Math.random() * 6) + 1;
+        let die2 = Math.floor(Math.random() * 6) + 1;
+        let rollSum = die1 + die2;
 
-        if(botTile.cost > 0 && botTile.owner === "None" && tycoonGame.botFunds >= botTile.cost) {
-            tycoonGame.botFunds -= botTile.cost;
-            botTile.owner = "Opponent";
-            logTycoon(`Opponent purchased ${botTile.name} for $${botTile.cost}!`);
-        } else if(botTile.owner !== "None" && botTile.owner !== "Opponent") {
-            tycoonGame.botFunds -= botTile.rent;
-            tycoonGame.funds += botTile.rent;
-            updateUIFunds();
-            logTycoon(`Opponent paid rent of ${botTile.rent} ME to Tommy.`);
+        let oldPos = bot.position;
+        bot.position = (bot.position + rollSum) % tycoonGame.tiles.length;
+        if(bot.position < oldPos) bot.funds += 200;
+
+        let tile = tycoonGame.tiles[bot.position];
+        logTycoon(`${bot.name} rolled ${rollSum} and landed on ${tile.name}.`);
+
+        if(tile.cost > 0 && tile.owner === "None" && bot.funds >= tile.cost) {
+            bot.funds -= tile.cost;
+            tile.owner = bot.name;
+            logTycoon(`${bot.name} purchased ${tile.name}!`);
+        } else if(tile.owner !== "None" && tile.owner !== bot.name) {
+            bot.funds -= tile.rent;
+            let ownerObj = players.find(p => p.name === tile.owner);
+            if(ownerObj) ownerObj.funds += tile.rent;
+            logTycoon(`${bot.name} paid rent of ${tile.rent} ME to ${tile.owner}.`);
         }
 
-        updateUIFunds();
         drawTycoonBoard();
-
-        tycoonGame.turn = "Tommy";
-        document.getElementById('card-bot').classList.remove('active-turn');
-        document.getElementById('card-tommy').classList.add('active-turn');
-        logTycoon("Your turn (Tommy)! Roll dice.");
+        advanceTurn();
     }
 
     drawTycoonBoard();
 
 
-    // --- CHRONO-GRID TETRIS (FLUSH EDGE-TO-EDGE CANVAS 264x462) ---
+    // --- CHRONO-GRID TETRIS (MULTI-PLAYER / SHARED LEADERBOARD) ---
     const tCanvasEl = document.getElementById('tetrisCanvas');
     const tCtxEl = tCanvasEl.getContext('2d');
     const nextCanvasEl = document.getElementById('nextCanvas');
@@ -1366,9 +1383,7 @@
             wordContainer.classList.add('word-shaking');
             speakGameEvent(`Success! Regional target ${formedWord} confirmed!`);
             
-            setTimeout(() => {
-                wordContainer.classList.remove('word-shaking');
-            }, 400);
+            setTimeout(() => { wordContainer.classList.remove('word-shaking'); }, 400);
 
         } else {
             speakGameEvent("Incorrect sequence. Try again.");
@@ -1388,13 +1403,13 @@
     function hostP2PRoom() {
         let roomCode = "RHODES-" + Math.floor(1000 + Math.random() * 9000);
         document.getElementById('room-code-input').value = roomCode;
-        logTycoon(`Hosting P2P room code: ${roomCode}. Share this with your family!`);
+        logTycoon(`Hosting 8-Player room code: ${roomCode}. Share with family!`);
         
         try {
             peer = new Peer(roomCode);
             peer.on('connection', (connection) => {
                 conn = connection;
-                logTycoon("Player connected successfully!");
+                logTycoon("Family member connected to P2P room!");
             });
         } catch(e) {
             logTycoon("P2P Hosting initialized locally.");
@@ -1412,7 +1427,7 @@
             peer.on('open', () => {
                 conn = peer.connect(code);
                 conn.on('open', () => {
-                    logTycoon("Connected to host successfully!");
+                    logTycoon("Connected to 8-player host successfully!");
                 });
             });
         } catch(e) {
