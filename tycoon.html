@@ -771,12 +771,29 @@
         p2Name: "Guest",
         p2Token: "🟠",
         myRole: "p1",
-        aiEnabled: true,
+        aiEnabled: false,
         turn: "Tommy",
         tiles: cityBoards.detroit.tiles
     };
 
     let tileRects = [];
+
+    // Load saved local client preferences on startup
+    window.addEventListener('DOMContentLoaded', () => {
+        let savedRole = localStorage.getItem('rhodes_my_role');
+        let savedName = localStorage.getItem('rhodes_my_name');
+        let savedToken = localStorage.getItem('rhodes_my_token');
+        let savedAI = localStorage.getItem('rhodes_ai_enabled');
+
+        if(savedRole) document.getElementById('player-role-select').value = savedRole;
+        if(savedName) document.getElementById('player-name-input').value = savedName;
+        if(savedToken) document.getElementById('player-color-select').value = savedToken;
+        if(savedAI !== null) {
+            tycoonGame.aiEnabled = (savedAI === 'true');
+            document.getElementById('ai-toggle').checked = tycoonGame.aiEnabled;
+        }
+        loadCloudState();
+    });
 
     function changeCityBoard(cityKey) {
         currentCityKey = cityKey;
@@ -785,10 +802,12 @@
         tycoonGame.p2Position = 0;
         logTycoon(`Switched board map to ${cityBoards[cityKey].title}!`);
         drawTycoonBoard();
+        saveCloudState();
     }
 
     function toggleAI() {
         tycoonGame.aiEnabled = document.getElementById('ai-toggle').checked;
+        localStorage.setItem('rhodes_ai_enabled', tycoonGame.aiEnabled);
         if(tycoonGame.aiEnabled) {
             tycoonGame.p2Name = "Saginaw Bot";
             logTycoon("AI Bot enabled.");
@@ -812,6 +831,10 @@
             tycoonGame.p2Name = nameVal;
             tycoonGame.p2Token = tokenVal;
         }
+
+        localStorage.setItem('rhodes_my_role', roleVal);
+        localStorage.setItem('rhodes_my_name', nameVal);
+        localStorage.setItem('rhodes_my_token', tokenVal);
 
         document.getElementById('p1-label-name').innerText = tycoonGame.p1Name;
         document.getElementById('p1-label-token').innerText = tycoonGame.p1Token;
@@ -838,21 +861,49 @@
         } catch(e) {}
     }
 
-    // Gentle sync interval that only pulls updates when board values actually change
+    function loadCloudState() {
+        let code = document.getElementById('room-code-input').value || "RHODES-1";
+        try {
+            let saved = localStorage.getItem('rhodes_tycoon_' + code);
+            if(saved) {
+                let parsed = JSON.parse(saved);
+                tycoonGame.funds = parsed.funds;
+                tycoonGame.p2Funds = parsed.p2Funds;
+                tycoonGame.position = parsed.position;
+                tycoonGame.p2Position = parsed.p2Position;
+                tycoonGame.tiles = parsed.tiles;
+                tycoonGame.turn = parsed.turn;
+                if(parsed.p1Name) tycoonGame.p1Name = parsed.p1Name;
+                if(parsed.p1Token) tycoonGame.p1Token = parsed.p1Token;
+                if(parsed.p2Name) tycoonGame.p2Name = parsed.p2Name;
+                if(parsed.p2Token) tycoonGame.p2Token = parsed.p2Token;
+
+                updateUIFunds();
+                drawTycoonBoard();
+            }
+        } catch(e) {}
+    }
+
+    // Gentle sync interval for cross-device updates
     setInterval(() => {
         let code = document.getElementById('room-code-input').value || "RHODES-1";
         try {
             let saved = localStorage.getItem('rhodes_tycoon_' + code);
             if(saved) {
                 let parsed = JSON.parse(saved);
-                if(parsed.funds !== tycoonGame.funds || parsed.p2Funds !== tycoonGame.p2Funds || parsed.position !== tycoonGame.position || parsed.p2Position !== tycoonGame.p2Position) {
-                    tycoonGame = parsed;
+                if(parsed.funds !== tycoonGame.funds || parsed.p2Funds !== tycoonGame.p2Funds || parsed.position !== tycoonGame.position || parsed.p2Position !== tycoonGame.p2Position || parsed.turn !== tycoonGame.turn) {
+                    tycoonGame.funds = parsed.funds;
+                    tycoonGame.p2Funds = parsed.p2Funds;
+                    tycoonGame.position = parsed.position;
+                    tycoonGame.p2Position = parsed.p2Position;
+                    tycoonGame.tiles = parsed.tiles;
+                    tycoonGame.turn = parsed.turn;
                     updateUIFunds();
                     drawTycoonBoard();
                 }
             }
         } catch(e) {}
-    }, 2000);
+    }, 1500);
 
     function drawTycoonBoard() {
         tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
