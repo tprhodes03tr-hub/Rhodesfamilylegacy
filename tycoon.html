@@ -383,7 +383,7 @@
         <div class="lobby-bar">
             <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                 <span id="txt-p2p" style="font-weight: bold; color: var(--accent-blue);">FAMILY LOBBY</span>
-                <input type="text" id="player-name-input" placeholder="Your Name" value="Tommy" style="width: 90px;" oninput="updateProfile()">
+                <input type="text" id="player-name-input" placeholder="Your Name" value="Tommy" style="width: 90px;" onchange="updateProfile()">
                 <select id="player-role-select" onchange="updateProfile()" style="width: 75px;">
                     <option value="p1">Host (P1)</option>
                     <option value="p2">Guest (P2)</option>
@@ -394,7 +394,7 @@
                     <option value="🟢">🟢 Green</option>
                     <option value="🟣">🟣 Purple</option>
                 </select>
-                <input type="text" id="room-code-input" placeholder="Room Code" value="RHODES-1" style="width: 90px;" oninput="updateProfile()">
+                <input type="text" id="room-code-input" placeholder="Room Code" value="RHODES-1" style="width: 90px;" onchange="updateProfile()">
             </div>
             <label style="cursor: pointer; font-size: 0.78rem;">
                 <input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> <span id="txt-vsai">Play vs AI Bot</span>
@@ -770,7 +770,7 @@
         p1Token: "🔵",
         p2Name: "Guest",
         p2Token: "🟠",
-        myRole: "p1", // "p1" or "p2"
+        myRole: "p1",
         aiEnabled: true,
         turn: "Tommy",
         tiles: cityBoards.detroit.tiles
@@ -794,7 +794,7 @@
             logTycoon("AI Bot enabled.");
         } else {
             tycoonGame.p2Name = "Guest";
-            logTycoon("AI Bot disabled. Set your role to Guest (P2) on your phone.");
+            logTycoon("AI Bot disabled.");
         }
         saveCloudState();
     }
@@ -838,31 +838,7 @@
         } catch(e) {}
     }
 
-    function loadCloudState() {
-        let code = document.getElementById('room-code-input').value || "RHODES-1";
-        try {
-            let saved = localStorage.getItem('rhodes_tycoon_' + code);
-            if(saved) {
-                let parsed = JSON.parse(saved);
-                // Keep our local role selection intact while syncing board/scores
-                let myCurrentRole = document.getElementById('player-role-select').value;
-                let myCurrentName = document.getElementById('player-name-input').value;
-                let myCurrentToken = document.getElementById('player-color-select').value;
-
-                tycoonGame = parsed;
-
-                document.getElementById('player-role-select').value = myCurrentRole;
-                document.getElementById('player-name-input').value = myCurrentName;
-                document.getElementById('player-color-select').value = myCurrentToken;
-                updateProfile();
-
-                updateUIFunds();
-                drawTycoonBoard();
-            }
-        } catch(e) {}
-    }
-
-    // Auto-poll local storage for instant cross-device sync
+    // Gentle sync interval that only pulls updates when board values actually change
     setInterval(() => {
         let code = document.getElementById('room-code-input').value || "RHODES-1";
         try {
@@ -876,7 +852,7 @@
                 }
             }
         } catch(e) {}
-    }, 1000);
+    }, 2000);
 
     function drawTycoonBoard() {
         tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
@@ -998,9 +974,6 @@
     function tycoonAction(action) {
         updateProfile();
         updateUIFunds();
-
-        let isMyTurn = (tycoonGame.myRole === 'p1' && tycoonGame.turn === tycoonGame.p1Name) || 
-                       (tycoonGame.myRole === 'p2' && tycoonGame.turn === tycoonGame.p2Name);
 
         if(action === 'roll') {
             let die1 = Math.floor(Math.random() * 6) + 1;
