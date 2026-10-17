@@ -72,21 +72,30 @@
       position: relative;
     }
 
-    @keyframes shake {
-      0% { transform: translate(1px, 1px) rotate(0deg); }
-      20% { transform: translate(-3px, 0px) rotate(-1deg); }
-      40% { transform: translate(3px, 2px) rotate(1deg); }
-      60% { transform: translate(-1px, -1px) rotate(0deg); }
-      80% { transform: translate(3px, 1px) rotate(-1deg); }
+    /* ARCADE SHAKE & FLASH EFFECTS */
+    @keyframes arcadeShake {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      20% { transform: translate(-4px, 2px) rotate(-0.5deg); }
+      40% { transform: translate(4px, -2px) rotate(0.5deg); }
+      60% { transform: translate(-3px, -1px) rotate(-0.3deg); }
+      80% { transform: translate(3px, 2px) rotate(0.3deg); }
       100% { transform: translate(0, 0) rotate(0deg); }
     }
-    @keyframes redFlash {
-      0% { background-color: #0b0c10; border-color: #66fcf1; }
-      50% { background-color: #3b0a0a; border-color: #ff5555; box-shadow: 0 0 50px rgba(255, 85, 85, 0.8); }
-      100% { background-color: #0b0c10; border-color: #66fcf1; }
+    @keyframes crashFlash {
+      0% { background-color: #0b0c10; border-color: #66fcf1; box-shadow: 0 0 35px rgba(102, 252, 241, 0.3); }
+      50% { background-color: #3b0a0a; border-color: #ff5555; box-shadow: 0 0 60px rgba(255, 85, 85, 0.9); }
+      100% { background-color: #0b0c10; border-color: #66fcf1; box-shadow: 0 0 35px rgba(102, 252, 241, 0.3); }
     }
-    .shaking {
-      animation: shake 0.4s ease infinite, redFlash 0.4s ease infinite;
+    @keyframes turboFlash {
+      0% { background-color: #0b0c10; border-color: #66fcf1; box-shadow: 0 0 35px rgba(102, 252, 241, 0.3); }
+      50% { background-color: #1e1b4b; border-color: #f59e0b; box-shadow: 0 0 60px rgba(245, 158, 11, 0.9); }
+      100% { background-color: #0b0c10; border-color: #66fcf1; box-shadow: 0 0 35px rgba(102, 252, 241, 0.3); }
+    }
+    .shake-crash {
+      animation: arcadeShake 0.35s ease-in-out, crashFlash 0.35s ease-in-out;
+    }
+    .shake-turbo {
+      animation: arcadeShake 0.4s ease-in-out, turboFlash 0.4s ease-in-out;
     }
 
     @keyframes bridgePulseWave {
@@ -96,7 +105,7 @@
       100% { transform: scale(1); border-color: #66fcf1; box-shadow: 0 0 35px rgba(102, 252, 241, 0.3); background-color: #0b0c10; }
     }
     .resonance-active {
-      animation: shake 0.45s ease-in-out, bridgePulseWave 0.45s ease-in-out;
+      animation: arcadeShake 0.45s ease-in-out, bridgePulseWave 0.45s ease-in-out;
     }
 
     .sandbox-header {
@@ -497,8 +506,8 @@
     </div>
   </div>
 
-  <!-- PORTAL 4: NEON GRID RACER (EXPANDED CANVAS) -->
-  <div class="sandbox-container hidden" id="portal-racer">
+  <!-- PORTAL 4: NEON GRID RACER (SHAKE & FLASH INTEGRATED) -->
+  <div class="sandbox-container" id="portal-racer">
     <div class="sandbox-header">Vanguard Grid • Detroit Speedway</div>
     <h1>Cyber-Grid Grand Prix</h1>
 
@@ -513,12 +522,12 @@
       <button class="epoch-btn" id="btn-car-villain" onclick="selectRacerCar('villain')">⚡ Ashen Dragster</button>
     </div>
 
-    <!-- Expanded 420x380 Canvas -->
-    <canvas id="racerCanvas" width="420" height="380" style="background: radial-gradient(circle, #0f172a 0%, #020617 100%); border: 2px solid #66fcf1; border-radius: 8px; display: block; margin: 0 auto 12px auto; width: 100%; max-width: 420px; box-shadow: inset 0 0 25px rgba(0,255,255,0.25);"></canvas>
+    <!-- Enhanced High-Fidelity Canvas -->
+    <canvas id="racerCanvas" width="420" height="380" style="background: linear-gradient(180deg, #020617 0%, #090d16 100%); border: 2px solid #66fcf1; border-radius: 8px; display: block; margin: 0 auto 12px auto; width: 100%; max-width: 420px; box-shadow: inset 0 0 35px rgba(0,255,255,0.3);"></canvas>
 
     <div class="choice-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 8px;">
-      <button class="game-btn primary" onclick="steerRacer(-30)">◄ STEER LEFT</button>
-      <button class="game-btn primary" onclick="steerRacer(30)">STEER RIGHT ►</button>
+      <button class="game-btn primary" onclick="steerRacer(-35)">◄ STEER LEFT</button>
+      <button class="game-btn primary" onclick="steerRacer(35)">STEER RIGHT ►</button>
     </div>
     <div style="margin-top: 8px;">
       <button class="game-btn secondary" onclick="triggerTurboBoost()" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 900; width: 100%; padding: 12px; border-radius: 6px; cursor: pointer;">🔥 IGNITE TURBO BOOST! (<span id="boost-status">READY</span>)</button>
@@ -532,8 +541,68 @@
   </div>
 
   <script>
+    // --- WEB AUDIO API SOUND ENGINE ---
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      try {
+        initAudio();
+        if (!audioCtx) return;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        let now = audioCtx.currentTime;
+
+        if (type === 'steer') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(110, now + 0.08);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } else if (type === 'orb') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } else if (type === 'crash') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(120, now);
+          osc.frequency.linearRampToValueAtTime(40, now + 0.25);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === 'turbo') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(80, now);
+          osc.frequency.exponentialRampToValueAtTime(300, now + 0.5);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        }
+      } catch (e) {
+        console.log("Audio play error:", e);
+      }
+    }
+
     // --- PORTAL SWITCHER ---
     function switchPortal(target) {
+      initAudio();
       const sandboxPortal = document.getElementById('portal-sandbox');
       const matrixPortal = document.getElementById('portal-matrix');
       const scannerPortal = document.getElementById('portal-scanner');
@@ -578,6 +647,24 @@
       }
     }
 
+    // --- SCREEN SHAKE & FLASH TRIGGER ---
+    function triggerScreenEffect(effectType) {
+      const racerBox = document.getElementById('portal-racer');
+      if (!racerBox) return;
+      
+      // Remove existing animation classes to re-trigger
+      racerBox.classList.remove('shake-crash', 'shake-turbo');
+      void racerBox.offsetWidth; // Force DOM reflow
+      
+      if (effectType === 'crash') {
+        racerBox.classList.add('shake-crash');
+        setTimeout(() => racerBox.classList.remove('shake-crash'), 350);
+      } else if (effectType === 'turbo') {
+        racerBox.classList.add('shake-turbo');
+        setTimeout(() => racerBox.classList.remove('shake-turbo'), 400);
+      }
+    }
+
     // --- ISAAC'S SANDBOX ENGINE ---
     let gameStats = { energy: 100, shield: 90, xp: 0 };
     let timerInterval;
@@ -615,6 +702,7 @@
     }
 
     function makeChoice(choiceKey) {
+      playSound('orb');
       if (choiceKey === 's1_stealth') {
         gameStats.energy -= 10;
         gameStats.xp += 50;
@@ -655,13 +743,14 @@
     }
 
     function triggerLockdownWarning(warningMsg) {
+      playSound('crash');
       const consoleBox = document.getElementById('portal-sandbox');
-      consoleBox.classList.add('shaking');
+      consoleBox.classList.add('shake-crash');
       const feedback = document.getElementById('cipher-feedback');
       if (feedback) feedback.innerText = `⚠️ WARNING: ${warningMsg} ⚠️`;
       speakText("Warning. Security lockdown engaged.");
       setTimeout(() => {
-        consoleBox.classList.remove('shaking');
+        consoleBox.classList.remove('shake-crash');
         if (timeLeft <= 0) triggerApexVictory();
       }, 2500);
     }
@@ -674,6 +763,7 @@
         clearInterval(timerInterval);
         gameStats.xp += 150;
         updateStats();
+        playSound('orb');
         speakText("Cipher accepted. Lineage confirmed.");
         triggerApexVictory();
       } else {
@@ -720,6 +810,7 @@
     };
 
     function switchEpoch(epoch) {
+      playSound('stealth');
       currentEpoch = epoch;
       document.getElementById('btn-epoch-vanguard').classList.toggle('active', epoch === 'vanguard');
       document.getElementById('btn-epoch-history').classList.toggle('active', epoch === 'history');
@@ -742,6 +833,7 @@
     }
 
     function selectNode(cardElem, nodeObj) {
+      playSound('stealth');
       const ledgerBox = document.getElementById('holographic-text');
       if (selectedNodes.includes(nodeObj.id)) {
         selectedNodes = selectedNodes.filter(id => id !== nodeObj.id);
@@ -791,6 +883,7 @@
       const vaultBox = document.getElementById('vault-reward-box');
 
       if (selectedNodes.length === 2) {
+        playSound('orb');
         matrixContainer.classList.add('resonance-active');
         setTimeout(() => matrixContainer.classList.remove('resonance-active'), 500);
         feedback.innerText = `✨ SUCCESS! Resonance locked between ${selectedNodes[0]} and ${selectedNodes[1]} (+500 Marrow XP)!`;
@@ -811,6 +904,7 @@
     let scannerStream = null;
 
     async function startCameraStream() {
+      playSound('stealth');
       const videoElem = document.getElementById('scannerVideo');
       if (scannerStream) scannerStream.getTracks().forEach(track => track.stop());
       try {
@@ -823,6 +917,7 @@
     }
 
     function flipCamera() {
+      playSound('stealth');
       currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
       startCameraStream();
     }
@@ -841,6 +936,7 @@
     ];
 
     function executeLineageScan() {
+      playSound('orb');
       const resultCard = document.getElementById('scanner-result-box');
       const match = lineageMatches[Math.floor(Math.random() * lineageMatches.length)];
       document.getElementById('match-title').innerText = match.title;
@@ -849,16 +945,16 @@
       speakText("Optical match confirmed.");
     }
 
-    // --- NEON RACER ENGINE (EXPANDED CANVAS) ---
+    // --- NEON RACER ENGINE (WITH SHAKE & FLASH) ---
     let racerCanvas, racerCtx;
     let racerAnimId = null;
     let carType = 'hero';
     let racerState = {
       x: 210,
-      y: 280,
+      y: 290,
       speed: 130,
       baseSpeed: 130,
-      maxSpeed: 260,
+      maxSpeed: 270,
       distance: 0,
       marrowEarned: 0,
       turboActive: false,
@@ -868,6 +964,7 @@
     };
 
     function selectRacerCar(type) {
+      playSound('stealth');
       carType = type;
       document.getElementById('btn-car-hero').classList.toggle('active', type === 'hero');
       document.getElementById('btn-car-villain').classList.toggle('active', type === 'villain');
@@ -887,11 +984,14 @@
     }
 
     function steerRacer(dx) {
+      playSound('steer');
       racerState.x = Math.max(65, Math.min(355, racerState.x + dx));
     }
 
     function triggerTurboBoost() {
       if (racerState.turboActive) return;
+      playSound('turbo');
+      triggerScreenEffect('turbo');
       racerState.turboActive = true;
       racerState.turboTimer = 110;
       document.getElementById('boost-status').innerText = "ACTIVE!";
@@ -929,45 +1029,78 @@
 
       racerCtx.clearRect(0, 0, racerCanvas.width, racerCanvas.height);
 
-      racerCtx.strokeStyle = "rgba(102, 252, 241, 0.18)";
-      racerCtx.lineWidth = 1.5;
-      for (let i = 0; i < racerCanvas.width; i += 45) {
+      // --- PERSPECTIVE GRID & NEON HIGHWAY RAILS ---
+      racerCtx.strokeStyle = "rgba(102, 252, 241, 0.25)";
+      racerCtx.lineWidth = 1;
+      for (let i = 40; i <= 380; i += 60) {
         racerCtx.beginPath();
         racerCtx.moveTo(i, 0);
-        racerCtx.lineTo(i, racerCanvas.height);
+        racerCtx.lineTo(i + ((i - 210) * 0.4), racerCanvas.height);
         racerCtx.stroke();
       }
 
-      racerCtx.strokeStyle = carType === 'hero' ? "#38bdf8" : "#ef4444";
-      racerCtx.lineWidth = 3.5;
-      racerCtx.strokeRect(40, 15, 340, 350);
+      // Moving center dashes
+      racerCtx.strokeStyle = "rgba(56, 189, 248, 0.4)";
+      racerCtx.lineWidth = 2;
+      racerCtx.setLineDash([15, 15]);
+      racerCtx.lineDashOffset = -(racerState.distance % 30);
+      racerCtx.beginPath();
+      racerCtx.moveTo(210, 0);
+      racerCtx.lineTo(210, racerCanvas.height);
+      racerCtx.stroke();
+      racerCtx.setLineDash([]);
 
+      // Neon Border Rails
+      racerCtx.strokeStyle = carType === 'hero' ? "#38bdf8" : "#ef4444";
+      racerCtx.lineWidth = 4;
+      racerCtx.shadowColor = racerCtx.strokeStyle;
+      racerCtx.shadowBlur = 12;
+      racerCtx.strokeRect(40, 15, 340, 350);
+      racerCtx.shadowBlur = 0;
+
+      // --- RENDER ORBS ---
       racerState.orbs.forEach((orb, index) => {
         orb.y += (currentSpeed / 22);
+        
+        racerCtx.shadowColor = "#f59e0b";
+        racerCtx.shadowBlur = 10;
         racerCtx.fillStyle = "#f59e0b";
         racerCtx.beginPath();
         racerCtx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
         racerCtx.fill();
+        racerCtx.shadowBlur = 0;
+
         racerCtx.strokeStyle = "#fff";
         racerCtx.lineWidth = 2;
         racerCtx.stroke();
 
-        if (Math.abs(orb.x - racerState.x) < 30 && Math.abs(orb.y - racerState.y) < 30) {
+        if (Math.abs(orb.x - racerState.x) < 32 && Math.abs(orb.y - racerState.y) < 32) {
+          playSound('orb');
           racerState.marrowEarned += 25;
           racerState.orbs.splice(index, 1);
         }
         if (orb.y > 400) racerState.orbs.splice(index, 1);
       });
 
-      racerCtx.fillStyle = "#ef4444";
+      // --- RENDER OBSTACLES ---
       racerState.obstacles.forEach((obs, index) => {
         obs.y += (currentSpeed / 22);
+        
+        racerCtx.shadowColor = "#ef4444";
+        racerCtx.shadowBlur = 12;
+        racerCtx.fillStyle = "#1e1b4b";
         racerCtx.fillRect(obs.x - 26, obs.y, obs.width, obs.height);
-        racerCtx.strokeStyle = "#facc15";
-        racerCtx.lineWidth = 2;
+        racerCtx.strokeStyle = "#ef4444";
+        racerCtx.lineWidth = 2.5;
         racerCtx.strokeRect(obs.x - 26, obs.y, obs.width, obs.height);
+        racerCtx.shadowBlur = 0;
 
-        if (Math.abs(obs.x - racerState.x) < 32 && Math.abs(obs.y - racerState.y) < 28) {
+        racerCtx.fillStyle = "#f59e0b";
+        racerCtx.fillRect(obs.x - 20, obs.y + 6, 40, 4);
+
+        if (Math.abs(obs.x - racerState.x) < 34 && Math.abs(obs.y - racerState.y) < 30) {
+          playSound('crash');
+          triggerScreenEffect('crash'); // <-- Triggers screen shake and red flash on impact
           racerState.distance = Math.max(0, racerState.distance - 150);
           racerState.marrowEarned = Math.max(0, racerState.marrowEarned - 10);
           racerState.obstacles.splice(index, 1);
@@ -975,30 +1108,48 @@
         if (obs.y > 410) racerState.obstacles.splice(index, 1);
       });
 
+      // --- RENDER RACER VEHICLE SPRITE ---
       racerCtx.save();
       racerCtx.translate(racerState.x, racerState.y);
+      
       if (carType === 'hero') {
-        racerCtx.fillStyle = "#0a2540";
-        racerCtx.fillRect(-22, -18, 44, 36);
+        racerCtx.shadowColor = "#38bdf8";
+        racerCtx.shadowBlur = 15;
+        racerCtx.fillStyle = "#0f172a";
+        racerCtx.fillRect(-22, -22, 44, 44);
         racerCtx.strokeStyle = "#38bdf8";
-        racerCtx.lineWidth = 2.5;
-        racerCtx.strokeRect(-22, -18, 44, 36);
+        racerCtx.lineWidth = 3;
+        racerCtx.strokeRect(-22, -22, 44, 44);
+
         racerCtx.fillStyle = "#38bdf8";
-        racerCtx.fillRect(-14, -12, 28, 14);
+        racerCtx.fillRect(-12, -14, 24, 20);
+
+        racerCtx.fillStyle = "#66fcf1";
+        racerCtx.fillRect(-18, 16, 36, 4);
       } else {
-        racerCtx.fillStyle = "#2b0a0a";
-        racerCtx.fillRect(-24, -20, 48, 40);
+        racerCtx.shadowColor = "#ef4444";
+        racerCtx.shadowBlur = 15;
+        racerCtx.fillStyle = "#180808";
+        racerCtx.fillRect(-24, -24, 48, 48);
         racerCtx.strokeStyle = "#ef4444";
-        racerCtx.lineWidth = 2.5;
-        racerCtx.strokeRect(-24, -20, 48, 40);
+        racerCtx.lineWidth = 3;
+        racerCtx.strokeRect(-24, -24, 48, 48);
+
         racerCtx.fillStyle = "#f59e0b";
-        racerCtx.fillRect(-16, -12, 32, 12);
+        racerCtx.fillRect(-14, -16, 28, 22);
+
+        racerCtx.fillStyle = "#ff5555";
+        racerCtx.fillRect(-20, 18, 40, 4);
       }
 
       if (racerState.turboActive) {
         racerCtx.fillStyle = "#f59e0b";
-        racerCtx.fillRect(-12, 18, 24, 22 + Math.random() * 12);
+        racerCtx.fillRect(-14, 22, 28, 30 + Math.random() * 15);
+      } else {
+        racerCtx.fillStyle = "#38bdf8";
+        racerCtx.fillRect(-10, 22, 20, 10 + Math.random() * 8);
       }
+
       racerCtx.restore();
 
       document.getElementById('racer-status').innerText = `Distance: ${racerState.distance}m | Marrow Earned: ${racerState.marrowEarned} ME`;
