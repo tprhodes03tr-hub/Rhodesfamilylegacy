@@ -383,16 +383,18 @@
         <div class="lobby-bar">
             <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                 <span id="txt-p2p" style="font-weight: bold; color: var(--accent-blue);">FAMILY LOBBY</span>
-                <input type="text" id="player-name-input" placeholder="Your Name" value="Tommy" style="width: 100px;" oninput="updateProfile()">
-                <select id="player-color-select" onchange="updateProfile()">
-                    <option value="🔵">🔵 Blue Dot</option>
-                    <option value="🟠">🟠 Orange Dot</option>
-                    <option value="🟢">🟢 Green Dot</option>
-                    <option value="🟣">🟣 Purple Dot</option>
+                <input type="text" id="player-name-input" placeholder="Your Name" value="Tommy" style="width: 90px;" oninput="updateProfile()">
+                <select id="player-role-select" onchange="updateProfile()" style="width: 75px;">
+                    <option value="p1">Host (P1)</option>
+                    <option value="p2">Guest (P2)</option>
                 </select>
-                <button class="ctrl-btn" id="btn-host" style="padding: 3px 8px; font-size: 0.75rem;" onclick="hostCloudRoom()">HOST ROOM</button>
-                <input type="text" id="room-code-input" placeholder="Room Code..." value="RHODES-1" style="width: 100px;" oninput="updateProfile()">
-                <button class="ctrl-btn secondary" id="btn-join" style="padding: 3px 8px; font-size: 0.75rem;" onclick="joinCloudRoom()">JOIN ROOM</button>
+                <select id="player-color-select" onchange="updateProfile()" style="width: 85px;">
+                    <option value="🔵">🔵 Blue</option>
+                    <option value="🟠">🟠 Orange</option>
+                    <option value="🟢">🟢 Green</option>
+                    <option value="🟣">🟣 Purple</option>
+                </select>
+                <input type="text" id="room-code-input" placeholder="Room Code" value="RHODES-1" style="width: 90px;" oninput="updateProfile()">
             </div>
             <label style="cursor: pointer; font-size: 0.78rem;">
                 <input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> <span id="txt-vsai">Play vs AI Bot</span>
@@ -410,8 +412,8 @@
                 <div>$<span id="p1-bal">625</span></div>
             </div>
             <div id="card-p2" class="player-card">
-                <div style="font-weight: bold; color: var(--accent-blue);"><span id="p2-label-name">Saginaw Bot</span> <span id="p2-label-token">🟠</span></div>
-                <div>$<span id="p2-bal">1518</span></div>
+                <div style="font-weight: bold; color: var(--accent-blue);"><span id="p2-label-name">Guest</span> <span id="p2-label-token">🟠</span></div>
+                <div>$<span id="p2-bal">625</span></div>
             </div>
         </div>
 
@@ -542,8 +544,6 @@
             buy: "🏛️ BUY DEED",
             upg: "🏠 UPGRADE HOTEL ($50)",
             p2p: "FAMILY LOBBY",
-            host: "HOST ROOM",
-            join: "JOIN ROOM",
             vsai: "Play vs AI Bot",
             reserves: "✨ MARROW ENERGY RESERVES",
             langBtn: "🌐 ESPAÑOL"
@@ -553,8 +553,6 @@
             buy: "🏛️ COMPRAR TÍTULO",
             upg: "🏠 MEJORAR HOTEL ($50)",
             p2p: "VESTÍBULO FAMILIAR",
-            host: "CREAR SALA",
-            join: "UNIRSE",
             vsai: "Jugar vs Bot IA",
             reserves: "✨ RESERVAS DE ENERGÍA",
             langBtn: "🌐 ENGLISH"
@@ -567,8 +565,6 @@
         document.getElementById('btn-buy').innerText = i18n[currentLang].buy;
         document.getElementById('btn-upg').innerText = i18n[currentLang].upg;
         document.getElementById('txt-p2p').innerText = i18n[currentLang].p2p;
-        document.getElementById('btn-host').innerText = i18n[currentLang].host;
-        document.getElementById('btn-join').innerText = i18n[currentLang].join;
         document.getElementById('txt-vsai').innerText = i18n[currentLang].vsai;
         document.getElementById('txt-reserves').innerText = i18n[currentLang].reserves;
         document.getElementById('lang-btn').innerText = i18n[currentLang].langBtn;
@@ -767,13 +763,14 @@
 
     let tycoonGame = {
         funds: 625,
-        p2Funds: 1518,
+        p2Funds: 625,
         position: 0,
         p2Position: 0,
         p1Name: "Tommy",
         p1Token: "🔵",
-        p2Name: "Saginaw Bot",
+        p2Name: "Guest",
         p2Token: "🟠",
+        myRole: "p1", // "p1" or "p2"
         aiEnabled: true,
         turn: "Tommy",
         tiles: cityBoards.detroit.tiles
@@ -792,50 +789,46 @@
 
     function toggleAI() {
         tycoonGame.aiEnabled = document.getElementById('ai-toggle').checked;
-        let oppNameLbl = document.getElementById('p2-label-name');
         if(tycoonGame.aiEnabled) {
-            oppNameLbl.innerText = "Saginaw Bot";
             tycoonGame.p2Name = "Saginaw Bot";
             logTycoon("AI Bot enabled.");
         } else {
-            oppNameLbl.innerText = "Guest Player";
-            tycoonGame.p2Name = "Guest Player";
-            logTycoon("AI Bot disabled. Both devices can now play together using Cloud Sync rooms!");
+            tycoonGame.p2Name = "Guest";
+            logTycoon("AI Bot disabled. Set your role to Guest (P2) on your phone.");
         }
         saveCloudState();
     }
 
     function updateProfile() {
-        let p1Name = document.getElementById('player-name-input').value || "Tommy";
-        let p1Token = document.getElementById('player-color-select').value;
-        tycoonGame.p1Name = p1Name;
-        tycoonGame.p1Token = p1Token;
+        let nameVal = document.getElementById('player-name-input').value || "Tommy";
+        let roleVal = document.getElementById('player-role-select').value;
+        let tokenVal = document.getElementById('player-color-select').value;
+        
+        tycoonGame.myRole = roleVal;
+        if(roleVal === 'p1') {
+            tycoonGame.p1Name = nameVal;
+            tycoonGame.p1Token = tokenVal;
+        } else {
+            tycoonGame.p2Name = nameVal;
+            tycoonGame.p2Token = tokenVal;
+        }
 
-        document.getElementById('p1-label-name').innerText = p1Name;
-        document.getElementById('p1-label-token').innerText = p1Token;
+        document.getElementById('p1-label-name').innerText = tycoonGame.p1Name;
+        document.getElementById('p1-label-token').innerText = tycoonGame.p1Token;
+        document.getElementById('p2-label-name').innerText = tycoonGame.p2Name;
+        document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
+
         saveCloudState();
     }
 
     function updateUIFunds() {
-        document.getElementById('tycoon-funds').innerText = `${tycoonGame.funds} ME`;
+        document.getElementById('tycoon-funds').innerText = `${tycoonGame.myRole === 'p1' ? tycoonGame.funds : tycoonGame.p2Funds} ME`;
         document.getElementById('p1-bal').innerText = tycoonGame.funds;
         document.getElementById('p2-bal').innerText = tycoonGame.p2Funds;
+        document.getElementById('p1-label-name').innerText = tycoonGame.p1Name;
+        document.getElementById('p1-label-token').innerText = tycoonGame.p1Token;
         document.getElementById('p2-label-name').innerText = tycoonGame.p2Name;
         document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
-    }
-
-    function hostCloudRoom() {
-        updateProfile();
-        let code = document.getElementById('room-code-input').value || "RHODES-1";
-        logTycoon(`Hosting Cloud Room: ${code}. Share this room code with your family!`);
-        saveCloudState();
-    }
-
-    function joinCloudRoom() {
-        updateProfile();
-        let code = document.getElementById('room-code-input').value || "RHODES-1";
-        logTycoon(`Joined Cloud Room: ${code}. Syncing with host...`);
-        loadCloudState();
     }
 
     function saveCloudState() {
@@ -851,31 +844,39 @@
             let saved = localStorage.getItem('rhodes_tycoon_' + code);
             if(saved) {
                 let parsed = JSON.parse(saved);
+                // Keep our local role selection intact while syncing board/scores
+                let myCurrentRole = document.getElementById('player-role-select').value;
+                let myCurrentName = document.getElementById('player-name-input').value;
+                let myCurrentToken = document.getElementById('player-color-select').value;
+
                 tycoonGame = parsed;
-                document.getElementById('player-name-input').value = tycoonGame.p1Name;
-                document.getElementById('player-color-select').value = tycoonGame.p1Token;
+
+                document.getElementById('player-role-select').value = myCurrentRole;
+                document.getElementById('player-name-input').value = myCurrentName;
+                document.getElementById('player-color-select').value = myCurrentToken;
+                updateProfile();
+
                 updateUIFunds();
                 drawTycoonBoard();
-                logTycoon(`Synced successfully with room ${code}!`);
             }
         } catch(e) {}
     }
 
-    // Auto-poll local storage every 1.5 seconds for instant cross-device/tab sync
+    // Auto-poll local storage for instant cross-device sync
     setInterval(() => {
         let code = document.getElementById('room-code-input').value || "RHODES-1";
         try {
             let saved = localStorage.getItem('rhodes_tycoon_' + code);
             if(saved) {
                 let parsed = JSON.parse(saved);
-                if(parsed.funds !== tycoonGame.funds || parsed.position !== tycoonGame.position || parsed.tiles[1].owner !== tycoonGame.tiles[1].owner) {
+                if(parsed.funds !== tycoonGame.funds || parsed.p2Funds !== tycoonGame.p2Funds || parsed.position !== tycoonGame.position || parsed.p2Position !== tycoonGame.p2Position) {
                     tycoonGame = parsed;
                     updateUIFunds();
                     drawTycoonBoard();
                 }
             }
         } catch(e) {}
-    }, 1500);
+    }, 1000);
 
     function drawTycoonBoard() {
         tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
@@ -931,7 +932,7 @@
             tCtx.font = '10px Courier New';
             tCtx.fillText(t.cost > 0 ? `$${t.cost} (R:$${t.rent})` : t.type.toUpperCase(), pt.x + 8, pt.y + 45);
             
-            tCtx.fillStyle = (t.owner === tycoonGame.p1Name) ? '#66fcf1' : (t.owner !== 'None' ? '#ff7b00' : '#94a3b8');
+            tCtx.fillStyle = (t.owner === tycoonGame.p1Name) ? '#66fcf1' : (t.owner === tycoonGame.p2Name ? '#ff7b00' : '#94a3b8');
             tCtx.font = 'bold 10px Courier New';
             tCtx.fillText(`Owner: ${t.owner.substring(0, 10)}`, pt.x + 8, pt.y + 65);
 
@@ -997,6 +998,10 @@
     function tycoonAction(action) {
         updateProfile();
         updateUIFunds();
+
+        let isMyTurn = (tycoonGame.myRole === 'p1' && tycoonGame.turn === tycoonGame.p1Name) || 
+                       (tycoonGame.myRole === 'p2' && tycoonGame.turn === tycoonGame.p2Name);
+
         if(action === 'roll') {
             let die1 = Math.floor(Math.random() * 6) + 1;
             let die2 = Math.floor(Math.random() * 6) + 1;
@@ -1010,70 +1015,85 @@
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
                 
-                let oldPos = tycoonGame.position;
-                tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
-                
-                if(tycoonGame.position < oldPos) {
-                    tycoonGame.funds += 200;
-                    logTycoon(`${tycoonGame.p1Name} passed Start! Collected +200 ME.`);
-                }
+                if(tycoonGame.myRole === 'p1') {
+                    let oldPos = tycoonGame.position;
+                    tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
+                    if(tycoonGame.position < oldPos) tycoonGame.funds += 200;
+                    
+                    let tile = tycoonGame.tiles[tycoonGame.position];
+                    logTycoon(`${tycoonGame.p1Name} rolled ${rollSum}. Landed on ${tile.name}.`);
 
-                let tile = tycoonGame.tiles[tycoonGame.position];
-                logTycoon(`Rolled a ${rollSum}. Landed on ${tile.name}.`);
+                    if(tile.type === 'event') {
+                        let bonus = Math.random() > 0.5 ? 100 : -50;
+                        tycoonGame.funds += bonus;
+                    } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
+                        tycoonGame.funds -= tile.rent;
+                        tycoonGame.p2Funds += tile.rent;
+                    }
+                    tycoonGame.turn = tycoonGame.p2Name;
+                } else {
+                    let oldPos = tycoonGame.p2Position;
+                    tycoonGame.p2Position = (tycoonGame.p2Position + rollSum) % tycoonGame.tiles.length;
+                    if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
+                    
+                    let tile = tycoonGame.tiles[tycoonGame.p2Position];
+                    logTycoon(`${tycoonGame.p2Name} rolled ${rollSum}. Landed on ${tile.name}.`);
 
-                if(tile.type === 'event') {
-                    let bonus = Math.random() > 0.5 ? 100 : -50;
-                    tycoonGame.funds += bonus;
-                    document.getElementById('event-card-desc').innerText = `Mystery Suitcase Opened!\nAdjusted Marrow Energy by ${bonus} ME.`;
-                    document.getElementById('event-modal').classList.remove('hidden');
-                } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
-                    tycoonGame.funds -= tile.rent;
-                    tycoonGame.p2Funds += tile.rent;
-                    logTycoon(`Paid rent of ${tile.rent} ME to ${tycoonGame.p2Name}.`);
+                    if(tile.type === 'event') {
+                        let bonus = Math.random() > 0.5 ? 100 : -50;
+                        tycoonGame.p2Funds += bonus;
+                    } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
+                        tycoonGame.p2Funds -= tile.rent;
+                        tycoonGame.funds += tile.rent;
+                    }
+                    tycoonGame.turn = tycoonGame.p1Name;
                 }
 
                 updateUIFunds();
                 drawTycoonBoard();
                 saveCloudState();
-
-                if(tycoonGame.aiEnabled) {
-                    tycoonGame.turn = tycoonGame.p2Name;
-                    document.getElementById('card-p1').classList.remove('active-turn');
-                    document.getElementById('card-p2').classList.add('active-turn');
-                    logTycoon("Opponent is taking its turn...");
-                    setTimeout(runAIBotTurn, 1400);
-                }
             }, 1200);
 
         } else if(action === 'buy') {
-            let tile = tycoonGame.tiles[tycoonGame.position];
+            let activePos = (tycoonGame.myRole === 'p1') ? tycoonGame.position : tycoonGame.p2Position;
+            let activeName = (tycoonGame.myRole === 'p1') ? tycoonGame.p1Name : tycoonGame.p2Name;
+            let tile = tycoonGame.tiles[activePos];
+
             if(tile.cost === 0 || tile.owner !== "None") {
                 logTycoon(`Tile cannot be acquired.`);
                 return;
             }
-            if(tycoonGame.funds >= tile.cost) {
-                tycoonGame.funds -= tile.cost;
-                tile.owner = tycoonGame.p1Name;
+            let myFunds = (tycoonGame.myRole === 'p1') ? tycoonGame.funds : tycoonGame.p2Funds;
+            if(myFunds >= tile.cost) {
+                if(tycoonGame.myRole === 'p1') tycoonGame.funds -= tile.cost;
+                else tycoonGame.p2Funds -= tile.cost;
+
+                tile.owner = activeName;
                 updateUIFunds();
-                logTycoon(`Successfully acquired ${tile.name} for ${tile.cost} ME!`);
+                logTycoon(`${activeName} acquired ${tile.name} for ${tile.cost} ME!`);
                 drawTycoonBoard();
                 saveCloudState();
             } else {
                 logTycoon(`Insufficient Marrow Energy.`);
             }
         } else if(action === 'upgrade') {
-            let tile = tycoonGame.tiles[tycoonGame.position];
+            let activePos = (tycoonGame.myRole === 'p1') ? tycoonGame.position : tycoonGame.p2Position;
+            let activeName = (tycoonGame.myRole === 'p1') ? tycoonGame.p1Name : tycoonGame.p2Name;
+            let tile = tycoonGame.tiles[activePos];
+            let myFunds = (tycoonGame.myRole === 'p1') ? tycoonGame.funds : tycoonGame.p2Funds;
             const tycoonContainer = document.getElementById('tycoon-view');
 
-            if(tile.owner === tycoonGame.p1Name && tycoonGame.funds >= 50) {
-                tycoonGame.funds -= 50;
+            if(tile.owner === activeName && myFunds >= 50) {
+                if(tycoonGame.myRole === 'p1') tycoonGame.funds -= 50;
+                else tycoonGame.p2Funds -= 50;
+
                 tile.rent += 30;
                 tile.hasHotel = true;
                 updateUIFunds();
                 
                 tycoonContainer.classList.add('word-shaking');
                 logTycoon(`Hotel built on ${tile.name}! Rent surged to ${tile.rent} ME.`);
-                speakGameEvent(`Hotel constructed on ${tile.name}! Energy surge active!`);
+                speakGameEvent(`Hotel constructed on ${tile.name}!`);
 
                 setTimeout(() => {
                     tycoonContainer.classList.remove('word-shaking');
@@ -1082,42 +1102,9 @@
                 drawTycoonBoard();
                 saveCloudState();
             } else {
-                logTycoon(`You must own the current tile and have 50 ME to build a hotel.`);
+                logTycoon(`You must own the tile and have 50 ME.`);
             }
         }
-    }
-
-    function runAIBotTurn() {
-        let botDie1 = Math.floor(Math.random() * 6) + 1;
-        let botDie2 = Math.floor(Math.random() * 6) + 1;
-        let botRoll = botDie1 + botDie2;
-
-        let oldBotPos = tycoonGame.p2Position;
-        tycoonGame.p2Position = (tycoonGame.p2Position + botRoll) % tycoonGame.tiles.length;
-        if(tycoonGame.p2Position < oldBotPos) tycoonGame.p2Funds += 200;
-
-        let botTile = tycoonGame.tiles[tycoonGame.p2Position];
-        logTycoon(`${tycoonGame.p2Name} rolled ${botRoll} and landed on ${botTile.name}.`);
-
-        if(botTile.cost > 0 && botTile.owner === "None" && tycoonGame.p2Funds >= botTile.cost) {
-            tycoonGame.p2Funds -= botTile.cost;
-            botTile.owner = tycoonGame.p2Name;
-            logTycoon(`${tycoonGame.p2Name} purchased ${botTile.name} for $${botTile.cost}!`);
-        } else if(botTile.owner !== "None" && botTile.owner !== tycoonGame.p2Name) {
-            tycoonGame.p2Funds -= botTile.rent;
-            tycoonGame.funds += botTile.rent;
-            updateUIFunds();
-            logTycoon(`${tycoonGame.p2Name} paid rent of ${botTile.rent} ME to ${tycoonGame.p1Name}.`);
-        }
-
-        updateUIFunds();
-        drawTycoonBoard();
-        saveCloudState();
-
-        tycoonGame.turn = tycoonGame.p1Name;
-        document.getElementById('card-p2').classList.remove('active-turn');
-        document.getElementById('card-p1').classList.add('active-turn');
-        logTycoon(`Your turn (${tycoonGame.p1Name})! Roll dice.`);
     }
 
     drawTycoonBoard();
