@@ -890,13 +890,14 @@
             tCtx.font = 'bold 10px Courier New';
             tCtx.fillText(`Owner: ${t.owner.substring(0, 10)}`, pt.x + 8, pt.y + 65);
 
+            // Render both P1 and P2 tokens distinctly on the tile if present
             if(isP1Here || isP2Here) {
                 tCtx.fillStyle = '#fff';
                 tCtx.font = 'bold 13px Courier New';
-                let tokenStr = "";
-                if(isP1Here) tokenStr += tycoonGame.p1Token + " ";
-                if(isP2Here) tokenStr += tycoonGame.p2Token;
-                tCtx.fillText(tokenStr, pt.x + 8, pt.y + 83);
+                let renderTokens = "";
+                if(isP1Here) renderTokens += tycoonGame.p1Token + " ";
+                if(isP2Here) renderTokens += tycoonGame.p2Token;
+                tCtx.fillText(renderTokens, pt.x + 8, pt.y + 83);
             }
         });
 
@@ -965,6 +966,7 @@
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
                 
+                // Advance position depending on whether current user is P1 or P2
                 if(tycoonGame.myRole === 'p1') {
                     let oldPos = tycoonGame.position;
                     tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
@@ -974,8 +976,7 @@
                     logTycoon(`${tycoonGame.p1Name} rolled ${rollSum}. Landed on ${tile.name}.`);
 
                     if(tile.type === 'event') {
-                        let bonus = Math.random() > 0.5 ? 100 : -50;
-                        tycoonGame.funds += bonus;
+                        tycoonGame.funds += (Math.random() > 0.5 ? 100 : -50);
                     } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
                         tycoonGame.funds -= tile.rent;
                         tycoonGame.p2Funds += tile.rent;
@@ -989,8 +990,7 @@
                     logTycoon(`${tycoonGame.p2Name} rolled ${rollSum}. Landed on ${tile.name}.`);
 
                     if(tile.type === 'event') {
-                        let bonus = Math.random() > 0.5 ? 100 : -50;
-                        tycoonGame.p2Funds += bonus;
+                        tycoonGame.p2Funds += (Math.random() > 0.5 ? 100 : -50);
                     } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
                         tycoonGame.p2Funds -= tile.rent;
                         tycoonGame.funds += tile.rent;
@@ -999,11 +999,7 @@
 
                 updateUIFunds();
                 drawTycoonBoard();
-                broadcastState();
-
-                if(tycoonGame.gameMode === 'ai' && tycoonGame.myRole === 'p1') {
-                    setTimeout(() => triggerAiTurn(), 1500);
-                }
+                broadcastState(); // Instantly syncs both token positions to peer
 
             }, 1200);
 
@@ -1056,28 +1052,6 @@
                 logTycoon(`You must own the tile and have 50 ME.`);
             }
         }
-    }
-
-    function triggerAiTurn() {
-        let aiRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
-        let oldPos = tycoonGame.p2Position;
-        tycoonGame.p2Position = (tycoonGame.p2Position + aiRoll) % tycoonGame.tiles.length;
-        if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
-
-        let tile = tycoonGame.tiles[tycoonGame.p2Position];
-        logTycoon(`AI Bot 101 rolled ${aiRoll} and landed on ${tile.name}.`);
-
-        if(tile.owner === "None" && tile.cost > 0 && tycoonGame.p2Funds >= tile.cost) {
-            tycoonGame.p2Funds -= tile.cost;
-            tile.owner = tycoonGame.p2Name;
-            logTycoon(`AI Bot 101 purchased ${tile.name}!`);
-        } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
-            tycoonGame.p2Funds -= tile.rent;
-            tycoonGame.funds += tile.rent;
-        }
-
-        updateUIFunds();
-        drawTycoonBoard();
     }
 
 
