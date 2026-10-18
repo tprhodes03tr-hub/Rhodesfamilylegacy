@@ -755,7 +755,7 @@
         document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
     }
 
-    // --- P2P HOST & JOIN WORKFLOW ---
+    // --- P2P HOST & JOIN WORKFLOW (FIXED INTELLIGENT MERGE) ---
     function hostP2PSession() {
         if(peer) peer.destroy();
         let customCode = document.getElementById('room-code-input').value || "RHODES-1";
@@ -794,8 +794,23 @@
 
     function setupConnectionEvents() {
         if(!conn) return;
-        conn.on('data', (data) => {
-            tycoonGame = data;
+        conn.on('data', (incomingData) => {
+            // Intelligently merge shared board/game state while preserving local role identities
+            if(incomingData.tiles) tycoonGame.tiles = incomingData.tiles;
+            if(incomingData.position !== undefined) tycoonGame.position = incomingData.position;
+            if(incomingData.p2Position !== undefined) tycoonGame.p2Position = incomingData.p2Position;
+            if(incomingData.funds !== undefined) tycoonGame.funds = incomingData.funds;
+            if(incomingData.p2Funds !== undefined) tycoonGame.p2Funds = incomingData.p2Funds;
+            
+            // Sync the remote player's identity without wiping our own profile
+            if(tycoonGame.myRole === 'p1' && incomingData.p2Name) {
+                tycoonGame.p2Name = incomingData.p2Name;
+                tycoonGame.p2Token = incomingData.p2Token;
+            } else if(tycoonGame.myRole === 'p2' && incomingData.p1Name) {
+                tycoonGame.p1Name = incomingData.p1Name;
+                tycoonGame.p1Token = incomingData.p1Token;
+            }
+
             updateUIFunds();
             drawTycoonBoard();
             logTycoon(`Synced board state from peer.`);
