@@ -390,12 +390,12 @@
         <div class="lobby-bar">
             <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                 <span id="txt-p2p" style="font-weight: bold; color: var(--accent-blue);">FAMILY LOBBY</span>
-                <input type="text" id="player-name-input" placeholder="Your Name" value="Tommy" style="width: 85px;" oninput="applyProfileSettings()">
+                <input type="text" id="player-name-input" placeholder="Your Name" value="Tommy" style="width: 85px;" onchange="applyProfileSettings()">
                 <select id="game-mode-select" style="width: 95px;" onchange="applyProfileSettings()">
                     <option value="ai">🤖 vs AI Bot</option>
                     <option value="p2p">👥 P2P Lobby</option>
                 </select>
-                <select id="player-role-select" style="width: 85px;" onchange="applyProfileSettings()">
+                <select id="player-role-select" style="width: 75px;" onchange="applyProfileSettings()">
                     <option value="p1">Host (P1)</option>
                     <option value="p2">Guest (P2)</option>
                 </select>
@@ -431,7 +431,7 @@
         <!-- Neon Computer Grid Canvas Board -->
         <canvas id="tycoonCanvas" width="900" height="540" onclick="handleCanvasTouch(event)"></canvas>
 
-        <div id="log-box">Computer = Host (P1) clicks HOST/SYNC. Phone = Guest (P2) clicks JOIN!</div>
+        <div id="log-box">Host clicks HOST/SYNC, Guest clicks JOIN with the same Room Code!</div>
 
         <div class="controls">
             <button class="ctrl-btn" id="btn-roll" onclick="tycoonAction('roll')">🎲 ROLL DICE</button>
@@ -672,4 +672,750 @@
                 { name: "GOLDEN STATE VAULT", cost: 290, owner: "None", type: "prop", color: "#2ecc71", rent: 72 },
                 { name: "Magnolia Avenue", cost: 270, owner: "None", type: "prop", color: "#68", rent: 68 },
                 { name: "Orange Crest", cost: 310, owner: "None", type: "prop", color: "#2ecc71", rent: 78 },
-                { name:
+                { name: "California Legacy", cost: 330, owner: "None", type: "prop", color: "#2ecc71", rent: 88 },
+                { name: "Riverside Estate", cost: 360, owner: "None", type: "prop", color: "#2ecc71", rent: 98 }
+            ]
+        }
+    };
+
+    let currentCityKey = 'detroit';
+
+    let tycoonGame = {
+        funds: 625,
+        p2Funds: 625,
+        position: 0,
+        p2Position: 0,
+        p1Name: "Tommy",
+        p1Token: "🔵",
+        p2Name: "Guest P2",
+        p2Token: "🟠",
+        myRole: "p1",
+        gameMode: "ai",
+        turn: "Tommy",
+        tiles: JSON.parse(JSON.stringify(cityBoards.detroit.tiles))
+    };
+
+    let tileRects = [];
+    let peer = null;
+    let conn = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+        tCanvas = document.getElementById('tycoonCanvas');
+        if (tCanvas) tCtx = tCanvas.getContext('2d');
+
+        let savedRole = localStorage.getItem('rhodes_my_role');
+        let savedName = localStorage.getItem('rhodes_my_name');
+        let savedToken = localStorage.getItem('rhodes_my_token');
+        let savedRoom = localStorage.getItem('rhodes_room_code');
+        let savedMode = localStorage.getItem('rhodes_game_mode');
+
+        if(savedRole) document.getElementById('player-role-select').value = savedRole;
+        if(savedName) document.getElementById('player-name-input').value = savedName;
+        if(savedToken) document.getElementById('player-color-select').value = savedToken;
+        if(savedRoom) document.getElementById('room-code-input').value = savedRoom;
+        if(savedMode) document.getElementById('game-mode-select').value = savedMode;
+
+        applyProfileSettings();
+        
+        treeImg.src = 'packed-marrow-tree.png';
+        treeImg.onload = function() {
+            drawTycoonBoard();
+        };
+    });
+
+    function applyProfileSettings() {
+        let nameVal = document.getElementById('player-name-input').value || "Tommy";
+        let roleVal = document.getElementById('player-role-select').value;
+        let tokenVal = document.getElementById('player-color-select').value;
+        let modeVal = document.getElementById('game-mode-select').value;
+        
+        tycoonGame.myRole = roleVal;
+        tycoonGame.gameMode = modeVal;
+
+        if(roleVal === 'p1') {
+            tycoonGame.p1Name = nameVal;
+            tycoonGame.p1Token = tokenVal;
+            if(tycoonGame.p2Token === tokenVal) tycoonGame.p2Token = "🟠";
+        } else {
+            tycoonGame.p2Name = nameVal;
+            tycoonGame.p2Token = tokenVal;
+            if(tycoonGame.p1Token === tokenVal) tycoonGame.p1Token = "🔵";
+        }
+
+        updateUIFunds();
+    }
+
+    function updateUIFunds() {
+        document.getElementById('tycoon-funds').innerText = `${tycoonGame.myRole === 'p1' ? tycoonGame.funds : tycoonGame.p2Funds} ME`;
+        document.getElementById('p1-bal').innerText = tycoonGame.funds;
+        document.getElementById('p2-bal').innerText = tycoonGame.p2Funds;
+        document.getElementById('p1-label-name').innerText = tycoonGame.p1Name;
+        document.getElementById('p1-label-token').innerText = tycoonGame.p1Token;
+        document.getElementById('p2-label-name').innerText = tycoonGame.p2Name;
+        document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
+    }
+
+    // --- P2P HOST & JOIN WORKFLOW ---
+    function hostP2PSession() {
+        if(peer) peer.destroy();
+        let customCode = document.getElementById('room-code-input').value || "RHODES-1";
+        let hostId = "rhodes-hub-" + customCode.toLowerCase();
+        
+        peer = new Peer(hostId);
+        peer.on('open', (id) => {
+            logTycoon(`Hosting room [${customCode}]! Ready for Guest to JOIN.`);
+        });
+        peer.on('connection', (incomingConn) => {
+            conn = incomingConn;
+            setupConnectionEvents();
+            logTycoon(`Guest successfully connected to your board!`);
+            broadcastState();
+        });
+        peer.on('error', (err) => {
+            logTycoon(`Host error: Room code might be taken. Try another.`);
+        });
+    }
+
+    function joinP2PSession() {
+        if(peer) peer.destroy();
+        let targetCode = document.getElementById('room-code-input').value || "RHODES-1";
+        let hostId = "rhodes-hub-" + targetCode.toLowerCase();
+
+        peer = new Peer();
+        peer.on('open', (id) => {
+            logTycoon(`Connecting to Host [${targetCode}]...`);
+            conn = peer.connect(hostId);
+            setupConnectionEvents();
+        });
+        peer.on('error', (err) => {
+            logTycoon(`Failed to join. Make sure Host clicked SYNC first.`);
+        });
+    }
+
+    function setupConnectionEvents() {
+        if(!conn) return;
+        conn.on('data', (data) => {
+            tycoonGame = data;
+            updateUIFunds();
+            drawTycoonBoard();
+            logTycoon(`Synced board state from peer.`);
+        });
+        conn.on('open', () => {
+            logTycoon(`Connected! P2P multiplayer session active.`);
+            broadcastState();
+        });
+    }
+
+    function broadcastState() {
+        if(conn && conn.open) {
+            conn.send(tycoonGame);
+        }
+    }
+
+    function resetTycoonGame() {
+        tycoonGame.funds = 625;
+        tycoonGame.p2Funds = 625;
+        tycoonGame.position = 0;
+        tycoonGame.p2Position = 0;
+        tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[currentCityKey].tiles));
+        updateUIFunds();
+        drawTycoonBoard();
+        logTycoon(`Board reset for all players!`);
+        broadcastState();
+    }
+
+    function manualSync() {
+        applyProfileSettings();
+        if(tycoonGame.gameMode === 'p2p') {
+            hostP2PSession();
+        } else {
+            logTycoon(`AI Bot mode active.`);
+            drawTycoonBoard();
+        }
+    }
+
+    function changeCityBoard(cityKey) {
+        currentCityKey = cityKey;
+        tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[cityKey].tiles));
+        tycoonGame.position = 0;
+        tycoonGame.p2Position = 0;
+        logTycoon(`Switched board map to ${cityBoards[cityKey].title}!`);
+        drawTycoonBoard();
+        broadcastState();
+    }
+
+    function drawTycoonBoard() {
+        if (!tCtx) return;
+        tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
+        tileRects = [];
+
+        tCtx.strokeStyle = 'rgba(69, 162, 158, 0.15)';
+        tCtx.lineWidth = 1;
+        let gridSize = 30;
+        for (let x = 0; x < tCanvas.width; x += gridSize) {
+            tCtx.beginPath(); tCtx.moveTo(x, 0); tCtx.lineTo(x, tCanvas.height); tCtx.stroke();
+        }
+        for (let y = 0; y < tCanvas.height; y += gridSize) {
+            tCtx.beginPath(); tCtx.moveTo(0, y); tCtx.lineTo(tCanvas.width, y); tCtx.stroke();
+        }
+
+        let coords = [
+            {x: 740, y: 435}, {x: 590, y: 435}, {x: 440, y: 435}, {x: 290, y: 435}, {x: 140, y: 435},
+            {x: 10, y: 435}, {x: 10, y: 345}, {x: 10, y: 255}, {x: 10, y: 165}, {x: 10, y: 75},
+            {x: 140, y: 15}, {x: 290, y: 15}, {x: 440, y: 15}, {x: 590, y: 15}, {x: 740, y: 15},
+            {x: 740, y: 100}, {x: 740, y: 185}, {x: 740, y: 270}, {x: 740, y: 355}, {x: 740, y: 435}
+        ];
+
+        tycoonGame.tiles.forEach((t, i) => {
+            let pt = coords[i] || {x: 50, y: 50};
+            let w = 150, h = 90;
+            tileRects.push({x: pt.x, y: pt.y, w: w, h: h, index: i});
+            
+            let isP1Here = (tycoonGame.position === i);
+            let isP2Here = (tycoonGame.p2Position === i);
+
+            tCtx.fillStyle = (isP1Here || isP2Here) ? '#1f2833' : '#0b0c10';
+            tCtx.strokeStyle = t.color;
+            tCtx.lineWidth = (isP1Here || isP2Here) ? 2.5 : 1.5;
+            
+            tCtx.save();
+            tCtx.shadowColor = t.color;
+            tCtx.shadowBlur = 8;
+            tCtx.fillRect(pt.x, pt.y, w, h);
+            tCtx.strokeRect(pt.x, pt.y, w, h);
+            tCtx.restore();
+
+            if (t.hasHotel) {
+                tCtx.fillStyle = '#ff7b00';
+                tCtx.font = 'bold 10px Courier New';
+                tCtx.fillText("🏨 [HOTEL]", pt.x + 8, pt.y + 15);
+            }
+
+            tCtx.fillStyle = '#f0f2f5';
+            tCtx.font = 'bold 11px Courier New';
+            tCtx.fillText(t.name.substring(0, 18), pt.x + 8, pt.y + (t.hasHotel ? 30 : 20));
+            
+            tCtx.fillStyle = '#66fcf1';
+            tCtx.font = '10px Courier New';
+            tCtx.fillText(t.cost > 0 ? `$${t.cost} (R:$${t.rent})` : t.type.toUpperCase(), pt.x + 8, pt.y + 45);
+            
+            tCtx.fillStyle = (t.owner === tycoonGame.p1Name) ? '#66fcf1' : (t.owner === tycoonGame.p2Name ? '#ff7b00' : '#94a3b8');
+            tCtx.font = 'bold 10px Courier New';
+            tCtx.fillText(`Owner: ${t.owner.substring(0, 10)}`, pt.x + 8, pt.y + 65);
+
+            if(isP1Here || isP2Here) {
+                tCtx.fillStyle = '#fff';
+                tCtx.font = 'bold 13px Courier New';
+                let tokenStr = "";
+                if(isP1Here) tokenStr += tycoonGame.p1Token + " ";
+                if(isP2Here) tokenStr += tycoonGame.p2Token;
+                tCtx.fillText(tokenStr, pt.x + 8, pt.y + 83);
+            }
+        });
+
+        let cx = tCanvas.width / 2;
+        let cy = tCanvas.height / 2;
+
+        tCtx.save();
+        tCtx.shadowColor = '#66fcf1';
+        tCtx.shadowBlur = 20;
+        let imgSize = 135;
+        tCtx.drawImage(treeImg, cx - (imgSize / 2), cy - (imgSize / 2) - 25, imgSize, imgSize);
+        tCtx.restore();
+
+        tCtx.font = "bold 14px Courier New";
+        tCtx.fillStyle = "#66fcf1";
+        tCtx.textAlign = "center";
+        tCtx.shadowColor = "#66fcf1";
+        tCtx.shadowBlur = 10;
+        tCtx.fillText("RHODES FAMILY LEGACY", cx, cy + 52);
+        
+        tCtx.font = "11px Courier New";
+        tCtx.fillStyle = "#ff7b00";
+        tCtx.fillText(cityBoards[currentCityKey].title, cx, cy + 70);
+        tCtx.textAlign = "left";
+        tCtx.shadowBlur = 0;
+    }
+
+    function handleCanvasTouch(event) {
+        let rect = tCanvas.getBoundingClientRect();
+        let scaleX = tCanvas.width / rect.width;
+        let scaleY = tCanvas.height / rect.height;
+        let clickX = (event.clientX - rect.left) * scaleX;
+        let clickY = (event.clientY - rect.top) * scaleY;
+
+        for(let item of tileRects) {
+            if(clickX >= item.x && clickX <= item.x + item.w && clickY >= item.y && clickY <= item.y + item.h) {
+                openDeed3DForTile(tycoonGame.tiles[item.index]);
+                break;
+            }
+        }
+    }
+
+    function openDeed3DForTile(tile) {
+        document.getElementById('ar-deed-name').innerText = tile.name;
+        document.getElementById('ar-deed-owner').innerText = `Owner: ${tile.owner}`;
+        document.getElementById('ar-deed-value').innerText = tile.cost > 0 ? `Valuation: $${tile.cost} (Rent: $${tile.rent})` : `Special Utility / System Tile`;
+        document.getElementById('ar-modal').classList.remove('hidden');
+    }
+
+    function closeArModal() { document.getElementById('ar-modal').classList.add('hidden'); }
+    function closeEventModal() { document.getElementById('event-modal').classList.add('hidden'); }
+
+    function tycoonAction(action) {
+        applyProfileSettings();
+
+        if(action === 'roll') {
+            let die1 = Math.floor(Math.random() * 6) + 1;
+            let die2 = Math.floor(Math.random() * 6) + 1;
+            let rollSum = die1 + die2;
+
+            document.getElementById('dice-1').innerText = die1;
+            document.getElementById('dice-2').innerText = die2;
+            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${rollSum}) across ${cityBoards[currentCityKey].title}!`;
+            document.getElementById('dice-modal').classList.remove('hidden');
+
+            setTimeout(() => {
+                document.getElementById('dice-modal').classList.add('hidden');
+                
+                if(tycoonGame.myRole === 'p1') {
+                    let oldPos = tycoonGame.position;
+                    tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
+                    if(tycoonGame.position < oldPos) tycoonGame.funds += 200;
+                    
+                    let tile = tycoonGame.tiles[tycoonGame.position];
+                    logTycoon(`${tycoonGame.p1Name} rolled ${rollSum}. Landed on ${tile.name}.`);
+
+                    if(tile.type === 'event') {
+                        let bonus = Math.random() > 0.5 ? 100 : -50;
+                        tycoonGame.funds += bonus;
+                    } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
+                        tycoonGame.funds -= tile.rent;
+                        tycoonGame.p2Funds += tile.rent;
+                    }
+                } else {
+                    let oldPos = tycoonGame.p2Position;
+                    tycoonGame.p2Position = (tycoonGame.p2Position + rollSum) % tycoonGame.tiles.length;
+                    if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
+                    
+                    let tile = tycoonGame.tiles[tycoonGame.p2Position];
+                    logTycoon(`${tycoonGame.p2Name} rolled ${rollSum}. Landed on ${tile.name}.`);
+
+                    if(tile.type === 'event') {
+                        let bonus = Math.random() > 0.5 ? 100 : -50;
+                        tycoonGame.p2Funds += bonus;
+                    } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
+                        tycoonGame.p2Funds -= tile.rent;
+                        tycoonGame.funds += tile.rent;
+                    }
+                }
+
+                updateUIFunds();
+                drawTycoonBoard();
+                broadcastState();
+
+                if(tycoonGame.gameMode === 'ai' && tycoonGame.myRole === 'p1') {
+                    setTimeout(() => triggerAiTurn(), 1500);
+                }
+
+            }, 1200);
+
+        } else if(action === 'buy') {
+            let activePos = (tycoonGame.myRole === 'p1') ? tycoonGame.position : tycoonGame.p2Position;
+            let activeName = (tycoonGame.myRole === 'p1') ? tycoonGame.p1Name : tycoonGame.p2Name;
+            let tile = tycoonGame.tiles[activePos];
+
+            if(tile.cost === 0 || tile.owner !== "None") {
+                logTycoon(`Tile cannot be acquired.`);
+                return;
+            }
+            let myFunds = (tycoonGame.myRole === 'p1') ? tycoonGame.funds : tycoonGame.p2Funds;
+            if(myFunds >= tile.cost) {
+                if(tycoonGame.myRole === 'p1') tycoonGame.funds -= tile.cost;
+                else tycoonGame.p2Funds -= tile.cost;
+
+                tile.owner = activeName;
+                updateUIFunds();
+                logTycoon(`${activeName} acquired ${tile.name} for ${tile.cost} ME!`);
+                drawTycoonBoard();
+                broadcastState();
+            } else {
+                logTycoon(`Insufficient Marrow Energy.`);
+            }
+        } else if(action === 'upgrade') {
+            let activePos = (tycoonGame.myRole === 'p1') ? tycoonGame.position : tycoonGame.p2Position;
+            let activeName = (tycoonGame.myRole === 'p1') ? tycoonGame.p1Name : tycoonGame.p2Name;
+            let tile = tycoonGame.tiles[activePos];
+            let myFunds = (tycoonGame.myRole === 'p1') ? tycoonGame.funds : tycoonGame.p2Funds;
+            const tycoonContainer = document.getElementById('tycoon-view');
+
+            if(tile.owner === activeName && myFunds >= 50) {
+                if(tycoonGame.myRole === 'p1') tycoonGame.funds -= 50;
+                else tycoonGame.p2Funds -= 50;
+
+                tile.rent += 30;
+                tile.hasHotel = true;
+                updateUIFunds();
+                
+                tycoonContainer.classList.add('word-shaking');
+                logTycoon(`Hotel built on ${tile.name}! Rent surged to ${tile.rent} ME.`);
+                speakGameEvent(`Hotel constructed on ${tile.name}!`);
+
+                setTimeout(() => { tycoonContainer.classList.remove('word-shaking'); }, 400);
+
+                drawTycoonBoard();
+                broadcastState();
+            } else {
+                logTycoon(`You must own the tile and have 50 ME.`);
+            }
+        }
+    }
+
+    function triggerAiTurn() {
+        let aiRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
+        let oldPos = tycoonGame.p2Position;
+        tycoonGame.p2Position = (tycoonGame.p2Position + aiRoll) % tycoonGame.tiles.length;
+        if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
+
+        let tile = tycoonGame.tiles[tycoonGame.p2Position];
+        logTycoon(`AI Bot 101 rolled ${aiRoll} and landed on ${tile.name}.`);
+
+        if(tile.owner === "None" && tile.cost > 0 && tycoonGame.p2Funds >= tile.cost) {
+            tycoonGame.p2Funds -= tile.cost;
+            tile.owner = tycoonGame.p2Name;
+            logTycoon(`AI Bot 101 purchased ${tile.name}!`);
+        } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
+            tycoonGame.p2Funds -= tile.rent;
+            tycoonGame.funds += tile.rent;
+        }
+
+        updateUIFunds();
+        drawTycoonBoard();
+    }
+
+
+    // --- CHRONO-GRID TETRIS ---
+    let tCanvasEl, tCtxEl, nextCanvasEl, nextCtxEl;
+    const BLOCK_SZ = 22;
+    const COLS = 12;
+    const ROWS = 21;
+    let tetrisBoard = Array(ROWS).fill(0).map(() => Array(COLS).fill(0));
+    let tetrisScore = 0;
+    let tetrisMarrow = 0;
+    let tetrisLevel = 1;
+    let tetrisInterval = null;
+
+    const SHAPES = [
+        [[1,1,1,1]],
+        [[1,1],[1,1]],
+        [[0,1,0],[1,1,1]],
+        [[1,0,0],[1,1,1]],
+        [[0,0,1],[1,1,1]],
+        [[0,1,1],[1,1,0]],
+        [[1,1,0],[0,1,1]]
+    ];
+    const COLORS = ['#66fcf1', '#ff7b00', '#9b59b6', '#2ecc71', '#38bdf8', '#f39c12', '#a855f7'];
+
+    let currentPiece = null;
+    let nextPieceObj = null;
+
+    function createPiece() {
+        let idx = Math.floor(Math.random() * SHAPES.length);
+        return {
+            shape: SHAPES[idx],
+            color: COLORS[idx],
+            x: Math.floor(COLS / 2) - Math.floor(SHAPES[idx][0].length / 2),
+            y: 0
+        };
+    }
+
+    function initTetris() {
+        tCanvasEl = document.getElementById('tetrisCanvas');
+        tCtxEl = tCanvasEl ? tCanvasEl.getContext('2d') : null;
+        nextCanvasEl = document.getElementById('nextCanvas');
+        nextCtxEl = nextCanvasEl ? nextCanvasEl.getContext('2d') : null;
+
+        tetrisBoard = Array(ROWS).fill(0).map(() => Array(COLS).fill(0));
+        tetrisScore = 0;
+        tetrisMarrow = 0;
+        tetrisLevel = 1;
+        document.getElementById('tetris-score').innerText = tetrisScore;
+        document.getElementById('tetris-marrow').innerText = tetrisMarrow;
+        document.getElementById('tetris-level').innerText = tetrisLevel;
+
+        currentPiece = createPiece();
+        nextPieceObj = createPiece();
+
+        if(tetrisInterval) clearInterval(tetrisInterval);
+        tetrisInterval = setInterval(tetrisTick, 500);
+        drawTetris();
+        drawNextPiece();
+    }
+
+    function tetrisTick() {
+        currentPiece.y++;
+        if(checkCollision(currentPiece)) {
+            currentPiece.y--;
+            mergePiece();
+            clearLines();
+            currentPiece = nextPieceObj;
+            nextPieceObj = createPiece();
+            drawNextPiece();
+            if(checkCollision(currentPiece)) {
+                if(tetrisInterval) clearInterval(tetrisInterval);
+                alert("Chrono-Grid Lockdown! Final Score: " + tetrisScore);
+                initTetris();
+                return;
+            }
+        }
+        drawTetris();
+    }
+
+    function checkCollision(p) {
+        for(let r=0; r<p.shape.length; r++) {
+            for(let c=0; c<p.shape[r].length; c++) {
+                if(p.shape[r][c]) {
+                    let newX = p.x + c;
+                    let newY = p.y + r;
+                    if(newX < 0 || newX >= COLS || newY >= ROWS) return true;
+                    if(newY >= 0 && tetrisBoard[newY][newX]) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function mergePiece() {
+        for(let r=0; r<currentPiece.shape.length; r++) {
+            for(let c=0; c<currentPiece.shape[r].length; c++) {
+                if(currentPiece.shape[r][c] && currentPiece.y + r >= 0) {
+                    tetrisBoard[currentPiece.y + r][currentPiece.x + c] = currentPiece.color;
+                }
+            }
+        }
+    }
+
+    function clearLines() {
+        let linesCleared = 0;
+        for(let r = ROWS - 1; r >= 0; r--) {
+            if(tetrisBoard[r].every(cell => cell !== 0)) {
+                tetrisBoard.splice(r, 1);
+                tetrisBoard.unshift(Array(COLS).fill(0));
+                linesCleared++;
+                r++;
+            }
+        }
+        if(linesCleared > 0) {
+            tetrisScore += linesCleared * 120 * tetrisLevel;
+            tetrisMarrow += linesCleared * 50;
+            tetrisLevel = Math.floor(tetrisScore / 600) + 1;
+            document.getElementById('tetris-score').innerText = tetrisScore;
+            document.getElementById('tetris-marrow').innerText = tetrisMarrow;
+            document.getElementById('tetris-level').innerText = tetrisLevel;
+
+            if(linesCleared >= 4) {
+                const tetrisContainer = document.getElementById('tetris-view');
+                tetrisContainer.classList.add('chrono-shaking');
+                document.getElementById('marcus-panel').classList.add('charged');
+                document.getElementById('wakan-panel').classList.add('charged');
+                document.getElementById('marcus-status').innerText = "⚡ SURGE ACTIVE";
+                document.getElementById('wakan-status').innerText = "⚡ RESONANCE";
+                speakGameEvent("Marrow Energy Surge! Marcus Prime and Wakan synchronized!");
+
+                setTimeout(() => {
+                    tetrisContainer.classList.remove('chrono-shaking');
+                    document.getElementById('marcus-panel').classList.remove('charged');
+                    document.getElementById('wakan-panel').classList.remove('charged');
+                    document.getElementById('marcus-status').innerText = "ONLINE";
+                    document.getElementById('wakan-status').innerText = "CHARGING";
+                }, 1200);
+            }
+        }
+    }
+
+    function drawTetris() {
+        if (!tCtxEl) return;
+        tCtxEl.fillStyle = '#000';
+        tCtxEl.fillRect(0, 0, tCanvasEl.width, tCanvasEl.height);
+
+        tCtxEl.strokeStyle = 'rgba(102, 252, 241, 0.08)';
+        tCtxEl.lineWidth = 1;
+        for (let x = 0; x <= tCanvasEl.width; x += BLOCK_SZ) {
+            tCtxEl.beginPath(); tCtxEl.moveTo(x, 0); tCtxEl.lineTo(x, tCanvasEl.height); tCtxEl.stroke();
+        }
+        for (let y = 0; y <= tCanvasEl.height; y += BLOCK_SZ) {
+            tCtxEl.beginPath(); tCtxEl.moveTo(0, y); tCtxEl.lineTo(tCanvasEl.width, y); tCtxEl.stroke();
+        }
+
+        for(let r=0; r<ROWS; r++) {
+            for(let c=0; c<COLS; c++) {
+                if(tetrisBoard[r][c]) {
+                    tCtxEl.fillStyle = tetrisBoard[r][c];
+                    tCtxEl.fillRect(c * BLOCK_SZ, r * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1);
+                }
+            }
+        }
+
+        if(currentPiece) {
+            tCtxEl.fillStyle = currentPiece.color;
+            for(let r=0; r<currentPiece.shape.length; r++) {
+                for(let c=0; c<currentPiece.shape[r].length; c++) {
+                    if(currentPiece.shape[r][c]) {
+                        tCtxEl.fillRect((currentPiece.x + c) * BLOCK_SZ, (currentPiece.y + r) * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1);
+                    }
+                }
+            }
+        }
+    }
+
+    function drawNextPiece() {
+        if (!nextCtxEl) return;
+        nextCtxEl.fillStyle = '#000';
+        nextCtxEl.fillRect(0, 0, nextCanvasEl.width, nextCanvasEl.height);
+        if(!nextPieceObj) return;
+
+        nextCtxEl.fillStyle = nextPieceObj.color;
+        let sz = 18;
+        let offsetX = (nextCanvasEl.width - nextPieceObj.shape[0].length * sz) / 2;
+        let offsetY = (nextCanvasEl.height - nextPieceObj.shape.length * sz) / 2;
+
+        for(let r=0; r<nextPieceObj.shape.length; r++) {
+            for(let c=0; c<nextPieceObj.shape[r].length; c++) {
+                if(nextPieceObj.shape[r][c]) {
+                    nextCtxEl.fillRect(offsetX + c * sz, offsetY + r * sz, sz - 1, sz - 1);
+                }
+            }
+        }
+    }
+
+    function tetrisMove(dir) {
+        if(!currentPiece) return;
+        currentPiece.x += dir;
+        if(checkCollision(currentPiece)) currentPiece.x -= dir;
+        drawTetris();
+    }
+
+    function tetrisRotate() {
+        if(!currentPiece) return;
+        let rotated = currentPiece.shape[0].map((_, index) => currentPiece.shape.map(row => row[index]).reverse());
+        let oldShape = currentPiece.shape;
+        currentPiece.shape = rotated;
+        if(checkCollision(currentPiece)) currentPiece.shape = oldShape;
+        drawTetris();
+    }
+
+    function tetrisDrop() {
+        if(!currentPiece) return;
+        while(!checkCollision(currentPiece)) { currentPiece.y++; }
+        currentPiece.y--;
+        mergePiece();
+        clearLines();
+        currentPiece = nextPieceObj;
+        nextPieceObj = createPiece();
+        drawNextPiece();
+        drawTetris();
+    }
+
+
+    // --- MULTI-REGION WORD TRIVIA LOUNGE ---
+    const WORD_CATEGORIES = {
+        family: ["MARROW", "SAGINAW", "DETROIT", "RHODES", "WRIGHT", "MITCHELL"],
+        caribbean: ["DOMINICANO", "QUISQUEYA", "SANTO", "SANTIAGO", "CARIBE", "MALECON"],
+        ohio: ["CINCINNATI", "CLEVELAND", "COLUMBUS", "BUCKEYE", "DAYTON", "TOLEDO"],
+        west: ["RIVERSIDE", "RUBIDOUX", "PHOENIX", "TUCSON", "ARIZONA", "MISSION"]
+    };
+
+    let activeCategory = 'family';
+    let wsGridData = [];
+    let wsSelectedCells = [];
+    let wsScore = 0;
+
+    function setWordCategory(catKey, evt) {
+        activeCategory = catKey;
+        document.querySelectorAll('#wordsearch-view .tab-btn').forEach(btn => btn.classList.remove('active'));
+        if(evt && evt.target) evt.target.classList.add('active');
+        initWordSearch();
+    }
+
+    function initWordSearch() {
+        const gridContainer = document.getElementById('word-grid-container');
+        if (!gridContainer) return;
+        gridContainer.innerHTML = '';
+        wsSelectedCells = [];
+
+        let targets = WORD_CATEGORIES[activeCategory];
+        document.getElementById('word-target-banner').innerText = `Find targets: ${targets.join(', ')}`;
+
+        let size = 9;
+        wsGridData = Array(size).fill(0).map(() => Array(size).fill(''));
+
+        let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for(let r=0; r<size; r++) {
+            for(let c=0; c<size; c++) {
+                wsGridData[r][c] = letters.charAt(Math.floor(Math.random() * letters.length));
+            }
+        }
+
+        targets.forEach((word, idx) => {
+            let row = (idx * 2) % size;
+            let startCol = Math.floor(Math.random() * (size - word.length + 1));
+            for(let i=0; i<word.length; i++) {
+                wsGridData[row][startCol + i] = word[i];
+            }
+        });
+
+        for(let r=0; r<size; r++) {
+            for(let c=0; c<size; c++) {
+                let cell = document.createElement('div');
+                cell.className = 'word-cell';
+                cell.innerText = wsGridData[r][c];
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+                cell.onclick = () => toggleWordCell(cell, r, c);
+                gridContainer.appendChild(cell);
+            }
+        }
+    }
+
+    function toggleWordCell(cell, r, c) {
+        if(cell.classList.contains('found')) return;
+        cell.classList.toggle('selected');
+        let idx = wsSelectedCells.findIndex(item => item.r === r && item.c === c);
+        if(idx >= 0) wsSelectedCells.splice(idx, 1);
+        else wsSelectedCells.push({r, c, letter: wsGridData[r][c]});
+    }
+
+    function submitWordSelection() {
+        let formedWord = wsSelectedCells.map(item => item.letter).join('');
+        let targets = WORD_CATEGORIES[activeCategory];
+        const wordContainer = document.getElementById('wordsearch-view');
+
+        if(targets.includes(formedWord)) {
+            wsScore += formedWord.length * 50;
+            document.getElementById('ws-score').innerText = wsScore;
+            
+            wsSelectedCells.forEach(item => {
+                let cellEl = document.querySelector(`.word-cell[data-row='${item.r}'][data-col='${item.c}']`);
+                if(cellEl) {
+                    cellEl.classList.remove('selected');
+                    cellEl.classList.add('found');
+                }
+            });
+            wsSelectedCells = [];
+
+            wordContainer.classList.add('word-shaking');
+            speakGameEvent(`Success! Regional target ${formedWord} confirmed!`);
+            setTimeout(() => { wordContainer.classList.remove('word-shaking'); }, 400);
+        } else {
+            speakGameEvent("Incorrect sequence. Try again.");
+            resetWordSelection();
+        }
+    }
+
+    function resetWordSelection() {
+        wsSelectedCells = [];
+        document.querySelectorAll('.word-cell.selected').forEach(el => el.classList.remove('selected'));
+    }
+</script>
+</body>
+</html>
