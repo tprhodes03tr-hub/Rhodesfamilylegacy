@@ -405,8 +405,9 @@
                     <option value="🟢">🟢 Green</option>
                     <option value="🟣">🟣 Purple</option>
                 </select>
-                <input type="text" id="room-code-input" placeholder="Room" value="RHODES-1" style="width: 75px;">
-                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="manualSync()">SYNC</button>
+                <input type="text" id="room-code-input" placeholder="Room" value="RHODES-1" style="width: 70px;">
+                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="manualSync()">HOST / SYNC</button>
+                <button class="ctrl-btn purple" style="padding: 3px 6px; font-size: 0.7rem;" onclick="joinP2PSession()">🔗 JOIN</button>
                 <button class="ctrl-btn danger" style="padding: 3px 6px; font-size: 0.7rem;" onclick="resetTycoonGame()">RESET</button>
             </div>
         </div>
@@ -422,7 +423,7 @@
                 <div>$<span id="p1-bal">625</span></div>
             </div>
             <div id="card-p2" class="player-card">
-                <div style="font-weight: bold; color: var(--accent-blue);"><span id="p2-label-name">AI Bot 101</span> <span id="p2-label-token">🟠</span></div>
+                <div style="font-weight: bold; color: var(--accent-blue);"><span id="p2-label-name">Guest P2</span> <span id="p2-label-token">🟠</span></div>
                 <div>$<span id="p2-bal">625</span></div>
             </div>
         </div>
@@ -430,7 +431,7 @@
         <!-- Neon Computer Grid Canvas Board -->
         <canvas id="tycoonCanvas" width="900" height="540" onclick="handleCanvasTouch(event)"></canvas>
 
-        <div id="log-box">Your turn! Roll dice and click SYNC to connect P2P or play vs AI Bot.</div>
+        <div id="log-box">Host clicks HOST/SYNC, Guest clicks JOIN with the same Room Code!</div>
 
         <div class="controls">
             <button class="ctrl-btn" id="btn-roll" onclick="tycoonAction('roll')">🎲 ROLL DICE</button>
@@ -669,7 +670,7 @@
                 { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
                 { name: "Santa Ana River Trail", cost: 250, owner: "None", type: "prop", color: "#9b59b6", rent: 62 },
                 { name: "GOLDEN STATE VAULT", cost: 290, owner: "None", type: "prop", color: "#2ecc71", rent: 72 },
-                { name: "Magnolia Avenue", cost: 270, owner: "None", type: "prop", color: "#2ecc71", rent: 68 },
+                { name: "Magnolia Avenue", cost: 270, owner: "None", type: "prop", color: "#68", rent: 68 },
                 { name: "Orange Crest", cost: 310, owner: "None", type: "prop", color: "#2ecc71", rent: 78 },
                 { name: "California Legacy", cost: 330, owner: "None", type: "prop", color: "#2ecc71", rent: 88 },
                 { name: "Riverside Estate", cost: 360, owner: "None", type: "prop", color: "#2ecc71", rent: 98 }
@@ -700,9 +701,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
         tCanvas = document.getElementById('tycoonCanvas');
-        if (tCanvas) {
-            tCtx = tCanvas.getContext('2d');
-        }
+        if (tCanvas) tCtx = tCanvas.getContext('2d');
 
         let savedRole = localStorage.getItem('rhodes_my_role');
         let savedName = localStorage.getItem('rhodes_my_name');
@@ -764,16 +763,16 @@
         
         peer = new Peer(hostId);
         peer.on('open', (id) => {
-            logTycoon(`Hosting P2P Room! Share ID: ${id}`);
+            logTycoon(`Hosting room [${customCode}]! Ready for Guest to JOIN.`);
         });
         peer.on('connection', (incomingConn) => {
             conn = incomingConn;
             setupConnectionEvents();
-            logTycoon(`Player joined your board successfully!`);
+            logTycoon(`Guest successfully connected to your board!`);
             broadcastState();
         });
         peer.on('error', (err) => {
-            logTycoon(`Host Error: ID may be in use. Try a new room code.`);
+            logTycoon(`Host error: Room code might be taken. Try another.`);
         });
     }
 
@@ -784,12 +783,12 @@
 
         peer = new Peer();
         peer.on('open', (id) => {
-            logTycoon(`Connecting to host ID: ${hostId}...`);
+            logTycoon(`Connecting to Host [${targetCode}]...`);
             conn = peer.connect(hostId);
             setupConnectionEvents();
         });
         peer.on('error', (err) => {
-            logTycoon(`Connection failed. Check Host ID / Room Code.`);
+            logTycoon(`Failed to join. Make sure Host clicked SYNC first.`);
         });
     }
 
@@ -799,10 +798,10 @@
             tycoonGame = data;
             updateUIFunds();
             drawTycoonBoard();
-            logTycoon(`Synced state from peer.`);
+            logTycoon(`Synced board state from peer.`);
         });
         conn.on('open', () => {
-            logTycoon(`P2P Secure Link Established! Ready to play.`);
+            logTycoon(`Connected! P2P multiplayer session active.`);
             broadcastState();
         });
     }
@@ -821,18 +820,14 @@
         tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[currentCityKey].tiles));
         updateUIFunds();
         drawTycoonBoard();
-        logTycoon(`Board reset!`);
+        logTycoon(`Board reset for all players!`);
         broadcastState();
     }
 
     function manualSync() {
         applyProfileSettings();
         if(tycoonGame.gameMode === 'p2p') {
-            if(tycoonGame.myRole === 'p1') {
-                hostP2PSession();
-            } else {
-                joinP2PSession();
-            }
+            hostP2PSession();
         } else {
             logTycoon(`AI Bot mode active.`);
             drawTycoonBoard();
