@@ -383,22 +383,20 @@
         <div class="lobby-bar">
             <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                 <span id="txt-p2p" style="font-weight: bold; color: var(--accent-blue);">FAMILY LOBBY</span>
-                <input type="text" id="player-name-input" placeholder="Your Name" value="Tommy" style="width: 90px;" onchange="updateProfile()">
-                <select id="player-role-select" onchange="updateProfile()" style="width: 75px;">
+                <input type="text" id="player-name-input" placeholder="Your Name" value="Tommy" style="width: 85px;">
+                <select id="player-role-select" style="width: 75px;">
                     <option value="p1">Host (P1)</option>
                     <option value="p2">Guest (P2)</option>
                 </select>
-                <select id="player-color-select" onchange="updateProfile()" style="width: 85px;">
+                <select id="player-color-select" style="width: 80px;">
                     <option value="🔵">🔵 Blue</option>
                     <option value="🟠">🟠 Orange</option>
                     <option value="🟢">🟢 Green</option>
                     <option value="🟣">🟣 Purple</option>
                 </select>
-                <input type="text" id="room-code-input" placeholder="Room Code" value="RHODES-1" style="width: 90px;" onchange="updateProfile()">
+                <input type="text" id="room-code-input" placeholder="Room" value="RHODES-1" style="width: 80px;">
+                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="manualSync()">SYNC</button>
             </div>
-            <label style="cursor: pointer; font-size: 0.78rem;">
-                <input type="checkbox" id="ai-toggle" checked onchange="toggleAI()"> <span id="txt-vsai">Play vs AI Bot</span>
-            </label>
         </div>
 
         <div class="reserves-banner">
@@ -420,7 +418,7 @@
         <!-- Neon Computer Grid Canvas Board -->
         <canvas id="tycoonCanvas" width="900" height="540" onclick="handleCanvasTouch(event)"></canvas>
 
-        <div id="log-box">Your turn! Roll dice.</div>
+        <div id="log-box">Your turn! Roll dice and click SYNC to update devices.</div>
 
         <div class="controls">
             <button class="ctrl-btn" id="btn-roll" onclick="tycoonAction('roll')">🎲 ROLL DICE</button>
@@ -535,7 +533,6 @@
     </div>
 
 <script>
-    // --- LANGUAGE TRANSLATION ENGINE (EN / ES) ---
     let currentLang = 'EN';
 
     const i18n = {
@@ -544,7 +541,6 @@
             buy: "🏛️ BUY DEED",
             upg: "🏠 UPGRADE HOTEL ($50)",
             p2p: "FAMILY LOBBY",
-            vsai: "Play vs AI Bot",
             reserves: "✨ MARROW ENERGY RESERVES",
             langBtn: "🌐 ESPAÑOL"
         },
@@ -553,7 +549,6 @@
             buy: "🏛️ COMPRAR TÍTULO",
             upg: "🏠 MEJORAR HOTEL ($50)",
             p2p: "VESTÍBULO FAMILIAR",
-            vsai: "Jugar vs Bot IA",
             reserves: "✨ RESERVAS DE ENERGÍA",
             langBtn: "🌐 ENGLISH"
         }
@@ -565,7 +560,6 @@
         document.getElementById('btn-buy').innerText = i18n[currentLang].buy;
         document.getElementById('btn-upg').innerText = i18n[currentLang].upg;
         document.getElementById('txt-p2p').innerText = i18n[currentLang].p2p;
-        document.getElementById('txt-vsai').innerText = i18n[currentLang].vsai;
         document.getElementById('txt-reserves').innerText = i18n[currentLang].reserves;
         document.getElementById('lang-btn').innerText = i18n[currentLang].langBtn;
     }
@@ -771,54 +765,29 @@
         p2Name: "Guest",
         p2Token: "🟠",
         myRole: "p1",
-        aiEnabled: false,
         turn: "Tommy",
         tiles: cityBoards.detroit.tiles
     };
 
     let tileRects = [];
 
-    // Load saved local client preferences on startup
+    // Load saved settings on startup
     window.addEventListener('DOMContentLoaded', () => {
         let savedRole = localStorage.getItem('rhodes_my_role');
         let savedName = localStorage.getItem('rhodes_my_name');
         let savedToken = localStorage.getItem('rhodes_my_token');
-        let savedAI = localStorage.getItem('rhodes_ai_enabled');
+        let savedRoom = localStorage.getItem('rhodes_room_code');
 
         if(savedRole) document.getElementById('player-role-select').value = savedRole;
         if(savedName) document.getElementById('player-name-input').value = savedName;
         if(savedToken) document.getElementById('player-color-select').value = savedToken;
-        if(savedAI !== null) {
-            tycoonGame.aiEnabled = (savedAI === 'true');
-            document.getElementById('ai-toggle').checked = tycoonGame.aiEnabled;
-        }
-        loadCloudState();
+        if(savedRoom) document.getElementById('room-code-input').value = savedRoom;
+
+        applyProfileSettings();
+        manualSync();
     });
 
-    function changeCityBoard(cityKey) {
-        currentCityKey = cityKey;
-        tycoonGame.tiles = cityBoards[cityKey].tiles;
-        tycoonGame.position = 0;
-        tycoonGame.p2Position = 0;
-        logTycoon(`Switched board map to ${cityBoards[cityKey].title}!`);
-        drawTycoonBoard();
-        saveCloudState();
-    }
-
-    function toggleAI() {
-        tycoonGame.aiEnabled = document.getElementById('ai-toggle').checked;
-        localStorage.setItem('rhodes_ai_enabled', tycoonGame.aiEnabled);
-        if(tycoonGame.aiEnabled) {
-            tycoonGame.p2Name = "Saginaw Bot";
-            logTycoon("AI Bot enabled.");
-        } else {
-            tycoonGame.p2Name = "Guest";
-            logTycoon("AI Bot disabled.");
-        }
-        saveCloudState();
-    }
-
-    function updateProfile() {
+    function applyProfileSettings() {
         let nameVal = document.getElementById('player-name-input').value || "Tommy";
         let roleVal = document.getElementById('player-role-select').value;
         let tokenVal = document.getElementById('player-color-select').value;
@@ -835,13 +804,9 @@
         localStorage.setItem('rhodes_my_role', roleVal);
         localStorage.setItem('rhodes_my_name', nameVal);
         localStorage.setItem('rhodes_my_token', tokenVal);
+        localStorage.setItem('rhodes_room_code', document.getElementById('room-code-input').value);
 
-        document.getElementById('p1-label-name').innerText = tycoonGame.p1Name;
-        document.getElementById('p1-label-token').innerText = tycoonGame.p1Token;
-        document.getElementById('p2-label-name').innerText = tycoonGame.p2Name;
-        document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
-
-        saveCloudState();
+        updateUIFunds();
     }
 
     function updateUIFunds() {
@@ -861,7 +826,8 @@
         } catch(e) {}
     }
 
-    function loadCloudState() {
+    function manualSync() {
+        applyProfileSettings();
         let code = document.getElementById('room-code-input').value || "RHODES-1";
         try {
             let saved = localStorage.getItem('rhodes_tycoon_' + code);
@@ -880,30 +846,23 @@
 
                 updateUIFunds();
                 drawTycoonBoard();
+                logTycoon(`Synced successfully with room ${code}!`);
+            } else {
+                saveCloudState();
+                logTycoon(`Initialized new room ${code}.`);
             }
         } catch(e) {}
     }
 
-    // Gentle sync interval for cross-device updates
-    setInterval(() => {
-        let code = document.getElementById('room-code-input').value || "RHODES-1";
-        try {
-            let saved = localStorage.getItem('rhodes_tycoon_' + code);
-            if(saved) {
-                let parsed = JSON.parse(saved);
-                if(parsed.funds !== tycoonGame.funds || parsed.p2Funds !== tycoonGame.p2Funds || parsed.position !== tycoonGame.position || parsed.p2Position !== tycoonGame.p2Position || parsed.turn !== tycoonGame.turn) {
-                    tycoonGame.funds = parsed.funds;
-                    tycoonGame.p2Funds = parsed.p2Funds;
-                    tycoonGame.position = parsed.position;
-                    tycoonGame.p2Position = parsed.p2Position;
-                    tycoonGame.tiles = parsed.tiles;
-                    tycoonGame.turn = parsed.turn;
-                    updateUIFunds();
-                    drawTycoonBoard();
-                }
-            }
-        } catch(e) {}
-    }, 1500);
+    function changeCityBoard(cityKey) {
+        currentCityKey = cityKey;
+        tycoonGame.tiles = cityBoards[cityKey].tiles;
+        tycoonGame.position = 0;
+        tycoonGame.p2Position = 0;
+        logTycoon(`Switched board map to ${cityBoards[cityKey].title}!`);
+        drawTycoonBoard();
+        saveCloudState();
+    }
 
     function drawTycoonBoard() {
         tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
@@ -1023,8 +982,7 @@
     function closeEventModal() { document.getElementById('event-modal').classList.add('hidden'); }
 
     function tycoonAction(action) {
-        updateProfile();
-        updateUIFunds();
+        applyProfileSettings();
 
         if(action === 'roll') {
             let die1 = Math.floor(Math.random() * 6) + 1;
@@ -1131,10 +1089,8 @@
         }
     }
 
-    drawTycoonBoard();
 
-
-    // --- CHRONO-GRID TETRIS (FLUSH EDGE-TO-EDGE CANVAS 264x462) ---
+    // --- CHRONO-GRID TETRIS ---
     const tCanvasEl = document.getElementById('tetrisCanvas');
     const tCtxEl = tCanvasEl.getContext('2d');
     const nextCanvasEl = document.getElementById('nextCanvas');
@@ -1363,7 +1319,7 @@
     }
 
 
-    // --- MULTI-REGION WORD TRIVIA ENGINE ---
+    // --- MULTI-REGION WORD TRIVIA LOUNGE ---
     const WORD_CATEGORIES = {
         family: ["MARROW", "SAGINAW", "DETROIT", "RHODES", "WRIGHT", "MITCHELL"],
         caribbean: ["DOMINICANO", "QUISQUEYA", "SANTO", "SANTIAGO", "CARIBE", "MALECON"],
