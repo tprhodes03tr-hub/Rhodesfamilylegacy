@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prism-Ghost: Spectrum Heist • Rhodes Family Legacy</title>
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #04060b;
+      color: #e2e8f0;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px;
+      min-height: 100vh;
+    }
+    .wrapper {
+      width: 100%;
+      max-width: 640px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+    .header-tag {
+      background: rgba(176, 0, 255, 0.15);
+      border: 1px solid rgba(176, 0, 255, 0.4);
+      color: #c084fc;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+    .game-title {
+      font-size: clamp(20px, 4vw, 26px);
+      font-weight: 900;
+      text-align: center;
+      color: #c084fc;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .stats-bar {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      background: #0d1322;
+      border: 1px solid #581c87;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      font-weight: bold;
+    }
+    .game-canvas-container {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #020617;
+      border: 2px solid #c084fc;
+      border-radius: 10px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 30px rgba(176, 0, 255, 0.25);
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      width: 100%;
+    }
+    .action-btn {
+      background: #112233;
+      color: #66fcf1;
+      border: 1px solid #45a29e;
+      padding: 14px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 8px;
+      font-family: 'Courier New', Courier, monospace;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+    .action-btn:hover {
+      background: #45a29e;
+      color: #04060b;
+    }
+    .action-btn.special {
+      grid-column: span 2;
+      background: #581c87;
+      border-color: #c084fc;
+      color: #f8fafc;
+    }
+    .action-btn.special:hover {
+      background: #7e22ce;
+    }
+    .back-link {
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-top: 10px;
+    }
+    .back-link:hover {
+      color: #f8fafc;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header-tag">🔮 SYNDICATE ELITE • STANDALONE MODULE</div>
+    <h1 class="game-title">Prism-Ghost: Spectrum Heist</h1>
+
+    <div class="stats-bar">
+      <span>✨ Quantum Sync: <strong id="stat-sync">100%</strong></span>
+      <span>🛡️ Refraction Shield: <strong id="stat-shield">ACTIVE</strong></span>
+      <span>🏆 Vault Keys: <strong id="stat-score">0</strong> / 3</span>
+    </div>
+
+    <div class="game-canvas-container">
+      <canvas id="heistCanvas" width="600" height="450"></canvas>
+    </div>
+
+    <div class="controls-grid">
+      <button class="action-btn" onclick="moveGhost('left')">◀ Shift Left</button>
+      <button class="action-btn" onclick="moveGhost('right')">Shift Right ▶</button>
+      <button class="action-btn special" onclick="triggerDecoy()">✨ Deploy Quantum Decoy & Scramble Sensors</button>
+    </div>
+
+    <a href="index.html" class="back-link">← Return to Master Legacy Hub</a>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('heistCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let ghostX = 300;
+    let ghostY = 380;
+    let score = 0;
+    let syncHealth = 100;
+    let lasers = [
+      { x: 100, y: 100, speed: 2, active: true },
+      { x: 300, y: 180, speed: -2.5, active: true },
+      { x: 500, y: 260, speed: 1.8, active: true }
+    ];
+    let starlightOrbs = [
+      { x: Math.random() * 500 + 50, y: Math.random() * 200 + 50, collected: false }
+    ];
+
+    function moveGhost(dir) {
+      if (dir === 'left' && ghostX > 40) ghostX -= 40;
+      if (dir === 'right' && ghostX < canvas.width - 40) ghostX += 40;
+    }
+
+    function triggerDecoy() {
+      syncHealth = Math.min(100, syncHealth + 15);
+      document.getElementById('stat-sync').innerText = syncHealth + '%';
+      // Temporarily disable lasers
+      lasers.forEach(l => l.active = false);
+      setTimeout(() => {
+        lasers.forEach(l => l.active = true);
+      }, 2000);
+    }
+
+    function updateGame() {
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Grid Lines
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < canvas.width; i += 40) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+      }
+
+      // Draw Lasers (Syndicate Security Beams)
+      lasers.forEach(l => {
+        if (l.active) {
+          l.x += l.speed;
+          if (l.x <= 20 || l.x >= canvas.width - 20) l.speed *= -1;
+
+          ctx.strokeStyle = '#ff5555';
+          ctx.lineWidth = 4;
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = '#ff5555';
+          ctx.beginPath();
+          ctx.moveTo(l.x, l.y);
+          ctx.lineTo(l.x + 80, l.y);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+
+          // Collision check
+          if (Math.abs(ghostX - l.x) < 30 && Math.abs(ghostY - l.y) < 20) {
+            syncHealth -= 1;
+            document.getElementById('stat-sync').innerText = syncHealth + '%';
+          }
+        }
+      });
+
+      // Draw Starlight Orbs
+      starlightOrbs.forEach(orb => {
+        if (!orb.collected) {
+          ctx.fillStyle = '#66fcf1';
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = '#66fcf1';
+          ctx.beginPath();
+          ctx.arc(orb.x, orb.y, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          // Check collection
+          if (Math.abs(ghostX - orb.x) < 25 && Math.abs(ghostY - orb.y) < 25) {
+            orb.collected = true;
+            score++;
+            document.getElementById('stat-score').innerText = score;
+            if (score < 3) {
+              starlightOrbs.push({ x: Math.random() * 500 + 50, y: Math.random() * 250 + 40, collected: false });
+            }
+          }
+        }
+      });
+
+      // Draw Prism-Ghost Avatar
+      ctx.fillStyle = '#c084fc';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#c084fc';
+      ctx.beginPath();
+      ctx.arc(ghostX, ghostY, 18, 0, Math.PI * 2);
+      ctx.fill();
+      // Refraction shield ring
+      ctx.strokeStyle = '#66fcf1';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(ghostX, ghostY, 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      requestAnimationFrame(updateGame);
+    }
+
+    updateGame();
+  </script>
+</body>
+</html>
