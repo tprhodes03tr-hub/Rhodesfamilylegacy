@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Family Legacy Hub: Neon Tycoon, Chrono-Grid Tetris & Word Search</title>
+    <!-- Include PeerJS for real internet P2P multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
             --bg-dark: #020617;
@@ -428,7 +430,7 @@
         <!-- Neon Computer Grid Canvas Board -->
         <canvas id="tycoonCanvas" width="900" height="540" onclick="handleCanvasTouch(event)"></canvas>
 
-        <div id="log-box">Your turn! Roll dice and click SYNC or play vs AI Bot.</div>
+        <div id="log-box">Your turn! Roll dice and click SYNC to connect P2P or play vs AI Bot.</div>
 
         <div class="controls">
             <button class="ctrl-btn" id="btn-roll" onclick="tycoonAction('roll')">🎲 ROLL DICE</button>
@@ -588,22 +590,15 @@
     function toggleVoiceNarration() {
         isVoiceEnabled = !isVoiceEnabled;
         const btn = document.getElementById('voiceToggleBtn');
-        if (btn) {
-            btn.textContent = isVoiceEnabled ? "🔊 Voice: ON" : "🔇 Voice: OFF";
-        }
-        if (!isVoiceEnabled && 'speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-        }
+        if (btn) btn.textContent = isVoiceEnabled ? "🔊 Voice: ON" : "🔇 Voice: OFF";
+        if (!isVoiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     }
 
     function switchApp(appKey, evt) {
         document.querySelectorAll('.app-container').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         
-        if(tetrisInterval) {
-            clearInterval(tetrisInterval);
-            tetrisInterval = null;
-        }
+        if(tetrisInterval) { clearInterval(tetrisInterval); tetrisInterval = null; }
 
         if(appKey === 'tycoon') {
             document.getElementById('tycoon-view').classList.remove('hidden');
@@ -631,9 +626,7 @@
 
     const treeImg = new Image();
     treeImg.src = 'packed-marrow-tree.png';
-    treeImg.onload = function() {
-        drawTycoonBoard();
-    };
+    treeImg.onload = function() { drawTycoonBoard(); };
 
     const cityBoards = {
         detroit: {
@@ -731,7 +724,7 @@
                 { name: "Lake Erie Shore", cost: 245, owner: "None", type: "prop", color: "#9b59b6", rent: 61 },
                 { name: "BUCKEYE VAULT", cost: 285, owner: "None", type: "prop", color: "#2ecc71", rent: 71 },
                 { name: "Toledo River", cost: 265, owner: "None", type: "prop", color: "#2ecc71", rent: 66 },
-                { name: "Granville Historic", cost: 305, owner: "None", type: "prop", color: "#76", rent: 76 },
+                { name: "Granville Historic", cost: 305, owner: "None", type: "prop", color: "#2ecc71", rent: 76 },
                 { name: "Ohio Family Legacy", cost: 325, owner: "None", type: "prop", color: "#2ecc71", rent: 86 },
                 { name: "Midwest Estate", cost: 355, owner: "None", type: "prop", color: "#2ecc71", rent: 96 }
             ]
@@ -772,31 +765,21 @@
         p2Position: 0,
         p1Name: "Tommy",
         p1Token: "🔵",
-        p2Name: "AI Bot 101",
+        p2Name: "Guest",
         p2Token: "🟠",
         myRole: "p1",
         gameMode: "ai",
         turn: "Tommy",
-        tiles: cityBoards.detroit.tiles
+        tiles: JSON.parse(JSON.stringify(cityBoards.detroit.tiles))
     };
 
     let tileRects = [];
+    let peer = null;
+    let conn = null;
 
     window.addEventListener('DOMContentLoaded', () => {
-        let savedRole = localStorage.getItem('rhodes_my_role');
-        let savedName = localStorage.getItem('rhodes_my_name');
-        let savedToken = localStorage.getItem('rhodes_my_token');
-        let savedRoom = localStorage.getItem('rhodes_room_code');
-        let savedMode = localStorage.getItem('rhodes_game_mode');
-
-        if(savedRole) document.getElementById('player-role-select').value = savedRole;
-        if(savedName) document.getElementById('player-name-input').value = savedName;
-        if(savedToken) document.getElementById('player-color-select').value = savedToken;
-        if(savedRoom) document.getElementById('room-code-input').value = savedRoom;
-        if(savedMode) document.getElementById('game-mode-select').value = savedMode;
-
         applyProfileSettings();
-        manualSync();
+        drawTycoonBoard();
     });
 
     function applyProfileSettings() {
@@ -808,27 +791,16 @@
         tycoonGame.myRole = roleVal;
         tycoonGame.gameMode = modeVal;
 
-        if(modeVal === 'ai') {
-            tycoonGame.p2Name = "AI Bot 101";
-            tycoonGame.p2Token = "🟠";
-        } else {
-            tycoonGame.p2Name = "Guest P2";
-            tycoonGame.p2Token = "🟠";
-        }
-
         if(roleVal === 'p1') {
             tycoonGame.p1Name = nameVal;
             tycoonGame.p1Token = tokenVal;
+            // Default P2 to orange if same color selected
+            if(tycoonGame.p2Token === tokenVal) tycoonGame.p2Token = "🟠";
         } else {
             tycoonGame.p2Name = nameVal;
             tycoonGame.p2Token = tokenVal;
+            if(tycoonGame.p1Token === tokenVal) tycoonGame.p1Token = "🔵";
         }
-
-        localStorage.setItem('rhodes_my_role', roleVal);
-        localStorage.setItem('rhodes_my_name', nameVal);
-        localStorage.setItem('rhodes_my_token', tokenVal);
-        localStorage.setItem('rhodes_room_code', document.getElementById('room-code-input').value);
-        localStorage.setItem('rhodes_game_mode', modeVal);
 
         updateUIFunds();
     }
@@ -843,16 +815,52 @@
         document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
     }
 
-    function saveCloudState() {
-        let code = document.getElementById('room-code-input').value || "RHODES-1";
-        try {
-            localStorage.setItem('rhodes_tycoon_' + code, JSON.stringify(tycoonGame));
-        } catch(e) {}
+    // --- REAL P2P NETWORKING VIA PEERJS ---
+    function initializeP2P() {
+        let roomCode = document.getElementById('room-code-input').value || "RHODES-1";
+        if(peer) peer.destroy();
+
+        let myPeerId = "rhodes-" + roomCode.toLowerCase() + "-" + tycoonGame.myRole;
+        peer = new Peer(myPeerId);
+
+        peer.on('open', (id) => {
+            logTycoon(`P2P Hub online! ID: ${id}`);
+            if(tycoonGame.myRole === 'p2') {
+                let hostPeerId = "rhodes-" + roomCode.toLowerCase() + "-p1";
+                logTycoon(`Connecting to Host: ${hostPeerId}...`);
+                conn = peer.connect(hostPeerId);
+                setupConnectionEvents();
+            }
+        });
+
+        peer.on('connection', (incomingConn) => {
+            conn = incomingConn;
+            setupConnectionEvents();
+            logTycoon(`Guest connected to your board!`);
+            broadcastState();
+        });
+    }
+
+    function setupConnectionEvents() {
+        if(!conn) return;
+        conn.on('data', (data) => {
+            tycoonGame = data;
+            updateUIFunds();
+            drawTycoonBoard();
+            logTycoon(`Received state update from peer.`);
+        });
+        conn.on('open', () => {
+            logTycoon(`P2P Data Channel Open & Active!`);
+        });
+    }
+
+    function broadcastState() {
+        if(conn && conn.open) {
+            conn.send(tycoonGame);
+        }
     }
 
     function resetTycoonGame() {
-        let code = document.getElementById('room-code-input').value || "RHODES-1";
-        localStorage.removeItem('rhodes_tycoon_' + code);
         tycoonGame.funds = 625;
         tycoonGame.p2Funds = 625;
         tycoonGame.position = 0;
@@ -860,35 +868,18 @@
         tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[currentCityKey].tiles));
         updateUIFunds();
         drawTycoonBoard();
-        logTycoon(`Game reset to initial starting state for room ${code}!`);
+        logTycoon(`Board reset for room!`);
+        broadcastState();
     }
 
     function manualSync() {
         applyProfileSettings();
-        let code = document.getElementById('room-code-input').value || "RHODES-1";
-        try {
-            let saved = localStorage.getItem('rhodes_tycoon_' + code);
-            if(saved) {
-                let parsed = JSON.parse(saved);
-                tycoonGame.funds = parsed.funds;
-                tycoonGame.p2Funds = parsed.p2Funds;
-                tycoonGame.position = parsed.position;
-                tycoonGame.p2Position = parsed.p2Position;
-                tycoonGame.tiles = parsed.tiles;
-                tycoonGame.turn = parsed.turn;
-                if(parsed.p1Name) tycoonGame.p1Name = parsed.p1Name;
-                if(parsed.p1Token) tycoonGame.p1Token = parsed.p1Token;
-                if(parsed.p2Name) tycoonGame.p2Name = parsed.p2Name;
-                if(parsed.p2Token) tycoonGame.p2Token = parsed.p2Token;
-
-                updateUIFunds();
-                drawTycoonBoard();
-                logTycoon(`Synced successfully with room ${code}!`);
-            } else {
-                saveCloudState();
-                logTycoon(`Initialized new room ${code}.`);
-            }
-        } catch(e) {}
+        if(tycoonGame.gameMode === 'p2p') {
+            initializeP2P();
+        } else {
+            logTycoon(`Switched to AI Bot mode.`);
+            drawTycoonBoard();
+        }
     }
 
     function changeCityBoard(cityKey) {
@@ -898,7 +889,7 @@
         tycoonGame.p2Position = 0;
         logTycoon(`Switched board map to ${cityBoards[cityKey].title}!`);
         drawTycoonBoard();
-        saveCloudState();
+        broadcastState();
     }
 
     function drawTycoonBoard() {
@@ -959,6 +950,7 @@
             tCtx.font = 'bold 10px Courier New';
             tCtx.fillText(`Owner: ${t.owner.substring(0, 10)}`, pt.x + 8, pt.y + 65);
 
+            // Display both distinct player token symbols on their current tile
             if(isP1Here || isP2Here) {
                 tCtx.fillStyle = '#fff';
                 tCtx.font = 'bold 13px Courier New';
@@ -1034,61 +1026,82 @@
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
                 
-                let oldPos = tycoonGame.position;
-                tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
-                if(tycoonGame.position < oldPos) tycoonGame.funds += 200;
-                
-                let tile = tycoonGame.tiles[tycoonGame.position];
-                logTycoon(`${tycoonGame.p1Name} rolled ${rollSum}. Landed on ${tile.name}.`);
+                if(tycoonGame.myRole === 'p1') {
+                    let oldPos = tycoonGame.position;
+                    tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
+                    if(tycoonGame.position < oldPos) tycoonGame.funds += 200;
+                    
+                    let tile = tycoonGame.tiles[tycoonGame.position];
+                    logTycoon(`${tycoonGame.p1Name} rolled ${rollSum}. Landed on ${tile.name}.`);
 
-                if(tile.type === 'event') {
-                    let bonus = Math.random() > 0.5 ? 100 : -50;
-                    tycoonGame.funds += bonus;
-                } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
-                    tycoonGame.funds -= tile.rent;
-                    tycoonGame.p2Funds += tile.rent;
-                } else if(tile.owner === "None" && tile.cost > 0 && tycoonGame.funds >= tile.cost && tycoonGame.gameMode === 'ai') {
-                    // AI auto-buy simulation logic if desired, or leave for player
+                    if(tile.type === 'event') {
+                        let bonus = Math.random() > 0.5 ? 100 : -50;
+                        tycoonGame.funds += bonus;
+                    } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
+                        tycoonGame.funds -= tile.rent;
+                        tycoonGame.p2Funds += tile.rent;
+                    }
+                } else {
+                    let oldPos = tycoonGame.p2Position;
+                    tycoonGame.p2Position = (tycoonGame.p2Position + rollSum) % tycoonGame.tiles.length;
+                    if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
+                    
+                    let tile = tycoonGame.tiles[tycoonGame.p2Position];
+                    logTycoon(`${tycoonGame.p2Name} rolled ${rollSum}. Landed on ${tile.name}.`);
+
+                    if(tile.type === 'event') {
+                        let bonus = Math.random() > 0.5 ? 100 : -50;
+                        tycoonGame.p2Funds += bonus;
+                    } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
+                        tycoonGame.p2Funds -= tile.rent;
+                        tycoonGame.funds += tile.rent;
+                    }
                 }
 
                 updateUIFunds();
                 drawTycoonBoard();
-                saveCloudState();
+                broadcastState();
 
-                // If playing vs AI, trigger AI turn after brief delay
-                if(tycoonGame.gameMode === 'ai') {
+                // If playing vs AI Bot solo
+                if(tycoonGame.gameMode === 'ai' && tycoonGame.myRole === 'p1') {
                     setTimeout(() => triggerAiTurn(), 1500);
                 }
 
             }, 1200);
 
         } else if(action === 'buy') {
-            let activePos = tycoonGame.position;
-            let activeName = tycoonGame.p1Name;
+            let activePos = (tycoonGame.myRole === 'p1') ? tycoonGame.position : tycoonGame.p2Position;
+            let activeName = (tycoonGame.myRole === 'p1') ? tycoonGame.p1Name : tycoonGame.p2Name;
             let tile = tycoonGame.tiles[activePos];
 
             if(tile.cost === 0 || tile.owner !== "None") {
                 logTycoon(`Tile cannot be acquired.`);
                 return;
             }
-            if(tycoonGame.funds >= tile.cost) {
-                tycoonGame.funds -= tile.cost;
+            let myFunds = (tycoonGame.myRole === 'p1') ? tycoonGame.funds : tycoonGame.p2Funds;
+            if(myFunds >= tile.cost) {
+                if(tycoonGame.myRole === 'p1') tycoonGame.funds -= tile.cost;
+                else tycoonGame.p2Funds -= tile.cost;
+
                 tile.owner = activeName;
                 updateUIFunds();
                 logTycoon(`${activeName} acquired ${tile.name} for ${tile.cost} ME!`);
                 drawTycoonBoard();
-                saveCloudState();
+                broadcastState();
             } else {
                 logTycoon(`Insufficient Marrow Energy.`);
             }
         } else if(action === 'upgrade') {
-            let activePos = tycoonGame.position;
-            let activeName = tycoonGame.p1Name;
+            let activePos = (tycoonGame.myRole === 'p1') ? tycoonGame.position : tycoonGame.p2Position;
+            let activeName = (tycoonGame.myRole === 'p1') ? tycoonGame.p1Name : tycoonGame.p2Name;
             let tile = tycoonGame.tiles[activePos];
+            let myFunds = (tycoonGame.myRole === 'p1') ? tycoonGame.funds : tycoonGame.p2Funds;
             const tycoonContainer = document.getElementById('tycoon-view');
 
-            if(tile.owner === activeName && tycoonGame.funds >= 50) {
-                tycoonGame.funds -= 50;
+            if(tile.owner === activeName && myFunds >= 50) {
+                if(tycoonGame.myRole === 'p1') tycoonGame.funds -= 50;
+                else tycoonGame.p2Funds -= 50;
+
                 tile.rent += 30;
                 tile.hasHotel = true;
                 updateUIFunds();
@@ -1097,12 +1110,10 @@
                 logTycoon(`Hotel built on ${tile.name}! Rent surged to ${tile.rent} ME.`);
                 speakGameEvent(`Hotel constructed on ${tile.name}!`);
 
-                setTimeout(() => {
-                    tycoonContainer.classList.remove('word-shaking');
-                }, 400);
+                setTimeout(() => { tycoonContainer.classList.remove('word-shaking'); }, 400);
 
                 drawTycoonBoard();
-                saveCloudState();
+                broadcastState();
             } else {
                 logTycoon(`You must own the tile and have 50 ME.`);
             }
@@ -1129,7 +1140,6 @@
 
         updateUIFunds();
         drawTycoonBoard();
-        saveCloudState();
     }
 
 
@@ -1254,12 +1264,10 @@
             if(linesCleared >= 4) {
                 const tetrisContainer = document.getElementById('tetris-view');
                 tetrisContainer.classList.add('chrono-shaking');
-                
                 document.getElementById('marcus-panel').classList.add('charged');
                 document.getElementById('wakan-panel').classList.add('charged');
                 document.getElementById('marcus-status').innerText = "⚡ SURGE ACTIVE";
                 document.getElementById('wakan-status').innerText = "⚡ RESONANCE";
-
                 speakGameEvent("Marrow Energy Surge! Marcus Prime and Wakan synchronized!");
 
                 setTimeout(() => {
@@ -1291,8 +1299,6 @@
                 if(tetrisBoard[r][c]) {
                     tCtxEl.fillStyle = tetrisBoard[r][c];
                     tCtxEl.fillRect(c * BLOCK_SZ, r * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1);
-                    tCtxEl.fillStyle = 'rgba(255,255,255,0.25)';
-                    tCtxEl.fillRect(c * BLOCK_SZ + 4, r * BLOCK_SZ + 4, BLOCK_SZ - 9, BLOCK_SZ - 9);
                 }
             }
         }
@@ -1303,9 +1309,6 @@
                 for(let c=0; c<currentPiece.shape[r].length; c++) {
                     if(currentPiece.shape[r][c]) {
                         tCtxEl.fillRect((currentPiece.x + c) * BLOCK_SZ, (currentPiece.y + r) * BLOCK_SZ, BLOCK_SZ - 1, BLOCK_SZ - 1);
-                        tCtxEl.fillStyle = 'rgba(255,255,255,0.35)';
-                        tCtxEl.fillRect((currentPiece.x + c) * BLOCK_SZ + 4, (currentPiece.y + r) * BLOCK_SZ + 4, BLOCK_SZ - 9, BLOCK_SZ - 9);
-                        tCtxEl.fillStyle = currentPiece.color;
                     }
                 }
             }
@@ -1349,9 +1352,7 @@
 
     function tetrisDrop() {
         if(!currentPiece) return;
-        while(!checkCollision(currentPiece)) {
-            currentPiece.y++;
-        }
+        while(!checkCollision(currentPiece)) { currentPiece.y++; }
         currentPiece.y--;
         mergePiece();
         clearLines();
@@ -1425,11 +1426,8 @@
         if(cell.classList.contains('found')) return;
         cell.classList.toggle('selected');
         let idx = wsSelectedCells.findIndex(item => item.r === r && item.c === c);
-        if(idx >= 0) {
-            wsSelectedCells.splice(idx, 1);
-        } else {
-            wsSelectedCells.push({r, c, letter: wsGridData[r][c]});
-        }
+        if(idx >= 0) wsSelectedCells.splice(idx, 1);
+        else wsSelectedCells.push({r, c, letter: wsGridData[r][c]});
     }
 
     function submitWordSelection() {
@@ -1452,11 +1450,7 @@
 
             wordContainer.classList.add('word-shaking');
             speakGameEvent(`Success! Regional target ${formedWord} confirmed!`);
-            
-            setTimeout(() => {
-                wordContainer.classList.remove('word-shaking');
-            }, 400);
-
+            setTimeout(() => { wordContainer.classList.remove('word-shaking'); }, 400);
         } else {
             speakGameEvent("Incorrect sequence. Try again.");
             resetWordSelection();
