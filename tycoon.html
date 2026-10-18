@@ -574,4 +574,102 @@
         document.getElementById('btn-upg').innerText = i18n[currentLang].upg;
         document.getElementById('txt-p2p').innerText = i18n[currentLang].p2p;
         document.getElementById('txt-reserves').innerText = i18n[currentLang].reserves;
-        document.getElementById('lang-
+        document.getElementById('lang-btn').innerText = i18n[currentLang].langBtn;
+    }
+
+    let isVoiceEnabled = true;
+
+    function speakGameEvent(text) {
+        if (isVoiceEnabled && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.1;
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    function toggleVoiceNarration() {
+        isVoiceEnabled = !isVoiceEnabled;
+        const btn = document.getElementById('voiceToggleBtn');
+        if (btn) btn.textContent = isVoiceEnabled ? "🔊 Voice: ON" : "🔇 Voice: OFF";
+        if (!isVoiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    }
+
+    function switchApp(appKey, evt) {
+        document.querySelectorAll('.app-container').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        if(tetrisInterval) { clearInterval(tetrisInterval); tetrisInterval = null; }
+
+        if(appKey === 'tycoon') {
+            document.getElementById('tycoon-view').classList.remove('hidden');
+            drawTycoonBoard();
+        } else if(appKey === 'tetris') {
+            document.getElementById('tetris-view').classList.remove('hidden');
+            initTetris();
+        } else if(appKey === 'wordsearch') {
+            document.getElementById('wordsearch-view').classList.remove('hidden');
+            initWordSearch();
+        }
+        evt.target.classList.add('active');
+    }
+
+    function logTycoon(msg) {
+        const box = document.getElementById('log-box');
+        box.innerHTML += `<br>&gt; ${msg}`;
+        box.scrollTop = box.scrollHeight;
+        speakGameEvent(msg);
+    }
+
+    // --- TYCOON CANVAS SETUP ---
+    let tCanvas, tCtx;
+    const treeImg = new Image();
+
+    const cityBoards = {
+        detroit: {
+            title: "Detroit & Saginaw Hub",
+            tiles: [
+                { name: "START (+200)", cost: 0, owner: "System", type: "start", color: "#2ecc71", rent: 0 },
+                { name: "Woodward Ave", cost: 100, owner: "None", type: "prop", color: "#ff7b00", rent: 20 },
+                { name: "Grand River Depot", cost: 120, owner: "None", type: "prop", color: "#ff7b00", rent: 25 },
+                { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
+                { name: "Eastern Market", cost: 130, owner: "None", type: "prop", color: "#66fcf1", rent: 30 },
+                { name: "MICHIGAN TRANSIT", cost: 150, owner: "None", type: "prop", color: "#66fcf1", rent: 35 },
+                { name: "West Grand Blvd", cost: 140, owner: "None", type: "prop", color: "#66fcf1", rent: 30 },
+                { name: "Conant Gardens", cost: 160, owner: "None", type: "prop", color: "#e74c3c", rent: 40 },
+                { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
+                { name: "I-75 Northway", cost: 180, owner: "None", type: "prop", color: "#e74c3c", rent: 45 },
+                { name: "SAGINAW REUNION", cost: 0, owner: "System", type: "rest", color: "#f39c12", rent: 0 },
+                { name: "Hoyt Public Library", cost: 200, owner: "None", type: "prop", color: "#f39c12", rent: 50 },
+                { name: "Bancroft House", cost: 220, owner: "None", type: "prop", color: "#9b59b6", rent: 55 },
+                { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
+                { name: "Ojibway Island", cost: 240, owner: "None", type: "prop", color: "#9b59b6", rent: 60 },
+                { name: "LINEAGE VAULT", cost: 280, owner: "None", type: "prop", color: "#2ecc71", rent: 70 },
+                { name: "Saginaw Riverwalk", cost: 260, owner: "None", type: "prop", color: "#2ecc71", rent: 65 },
+                { name: "Atwater Street", cost: 300, owner: "None", type: "prop", color: "#2ecc71", rent: 75 },
+                { name: "Rhodes Family Legacy", cost: 320, owner: "None", type: "prop", color: "#2ecc71", rent: 85 },
+                { name: "The Atwater Estate", cost: 350, owner: "None", type: "prop", color: "#2ecc71", rent: 95 }
+            ]
+        },
+        riverside: {
+            title: "Riverside, California Route",
+            tiles: [
+                { name: "START (+200)", cost: 0, owner: "System", type: "start", color: "#2ecc71", rent: 0 },
+                { name: "Mission Inn Ave", cost: 110, owner: "None", type: "prop", color: "#ff7b00", rent: 22 },
+                { name: "Mount Rubidoux", cost: 130, owner: "None", type: "prop", color: "#ff7b00", rent: 28 },
+                { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
+                { name: "Citrus Heritage Park", cost: 140, owner: "None", type: "prop", color: "#66fcf1", rent: 32 },
+                { name: "CALIFORNIA TRANSIT", cost: 150, owner: "None", type: "prop", color: "#66fcf1", rent: 35 },
+                { name: "University Ave", cost: 150, owner: "None", type: "prop", color: "#66fcf1", rent: 33 },
+                { name: "Fox Performing Arts", cost: 170, owner: "None", type: "prop", color: "#e74c3c", rent: 42 },
+                { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
+                { name: "Fairmount Park", cost: 190, owner: "None", type: "prop", color: "#e74c3c", rent: 48 },
+                { name: "PACIFIC SUN REST", cost: 0, owner: "System", type: "rest", color: "#f39c12", rent: 0 },
+                { name: "UCR Botanical Gardens", cost: 210, owner: "None", type: "prop", color: "#f39c12", rent: 52 },
+                { name: "Tyler Mall Plaza", cost: 230, owner: "None", type: "prop", color: "#9b59b6", rent: 58 },
+                { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
+                { name: "Santa Ana River Trail", cost: 250, owner: "None", type: "prop", color: "#9b59b6", rent: 62 },
+                { name: "GOLDEN STATE VAULT", cost: 290, owner: "None", type: "prop", color: "#2ecc71", rent: 72 },
+                { name: "Magnolia Avenue", cost: 270, owner: "None", type: "prop", color: "#68", rent: 68 },
+                { name: "Orange Crest", cost: 310, owner: "None", type: "prop", color: "#2ecc71", rent: 78 },
+                { name:
