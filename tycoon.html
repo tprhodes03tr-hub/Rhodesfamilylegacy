@@ -405,8 +405,9 @@
                     <option value="🟢">🟢 Green</option>
                     <option value="🟣">🟣 Purple</option>
                 </select>
-                <input type="text" id="room-code-input" placeholder="Room" value="RHODES-1" style="width: 70px;">
-                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="manualSync()">HOST / SYNC</button>
+                <input type="text" id="room-code-input" placeholder="Room" value="DETROIT-MARROW" style="width: 110px;">
+                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="generateCompoundRoom()">⚡ CODE</button>
+                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="hostP2PSession()">HOST</button>
                 <button class="ctrl-btn purple" style="padding: 3px 6px; font-size: 0.7rem;" onclick="joinP2PSession()">🔗 JOIN</button>
                 <button class="ctrl-btn danger" style="padding: 3px 6px; font-size: 0.7rem;" onclick="resetTycoonGame()">RESET</button>
             </div>
@@ -423,7 +424,7 @@
                 <div>$<span id="p1-bal">625</span></div>
             </div>
             <div id="card-p2" class="player-card">
-                <div style="font-weight: bold; color: var(--accent-blue);"><span id="p2-label-name">Guest P2</span> <span id="p2-label-token">🟠</span></div>
+                <div style="font-weight: bold; color: var(--accent-blue);"><span id="p2-label-name">Bot 101</span> <span id="p2-label-token">🤖</span></div>
                 <div>$<span id="p2-bal">625</span></div>
             </div>
         </div>
@@ -431,7 +432,7 @@
         <!-- Neon Computer Grid Canvas Board -->
         <canvas id="tycoonCanvas" width="900" height="540" onclick="handleCanvasTouch(event)"></canvas>
 
-        <div id="log-box">Host clicks HOST/SYNC, Guest clicks JOIN with the same Room Code!</div>
+        <div id="log-box">Click ⚡ CODE for a unique room, Host clicks HOST, Guest clicks JOIN!</div>
 
         <div class="controls">
             <button class="ctrl-btn" id="btn-roll" onclick="tycoonAction('roll')">🎲 ROLL DICE</button>
@@ -668,9 +669,9 @@
                 { name: "UCR Botanical Gardens", cost: 210, owner: "None", type: "prop", color: "#f39c12", rent: 52 },
                 { name: "Tyler Mall Plaza", cost: 230, owner: "None", type: "prop", color: "#9b59b6", rent: 58 },
                 { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
-                { name: "Santa Ana River Trail", cost: 250, owner: "None", type: "prop", color: "#9b59b6", rent: 62 },
+                { name: "Santa Ana River Trail", cost: 250, owner: "None", type: "prop", color: "#62", rent: 62 },
                 { name: "GOLDEN STATE VAULT", cost: 290, owner: "None", type: "prop", color: "#2ecc71", rent: 72 },
-                { name: "Magnolia Avenue", cost: 270, owner: "None", type: "prop", color: "#68", rent: 68 },
+                { name: "Magnolia Avenue", cost: 270, owner: "None", type: "prop", color: "#66fcf1", rent: 68 },
                 { name: "Orange Crest", cost: 310, owner: "None", type: "prop", color: "#2ecc71", rent: 78 },
                 { name: "California Legacy", cost: 330, owner: "None", type: "prop", color: "#2ecc71", rent: 88 },
                 { name: "Riverside Estate", cost: 360, owner: "None", type: "prop", color: "#2ecc71", rent: 98 }
@@ -687,8 +688,8 @@
         p2Position: 0,
         p1Name: "Tommy",
         p1Token: "🔵",
-        p2Name: "Guest P2",
-        p2Token: "🟠",
+        p2Name: "Bot 101",
+        p2Token: "🤖",
         myRole: "p1",
         gameMode: "ai",
         turn: "Tommy",
@@ -723,6 +724,16 @@
         };
     });
 
+    function generateCompoundRoom() {
+        const prefixes = ["DETROIT", "SAGINAW", "VANGUARD", "MARROW", "ROADS", "WRIGHT", "MITCHELL", "ATWATER"];
+        const suffixes = ["HUB", "VAULT", "GRID", "REUNION", "ESTATE", "CORRIDOR", "LEGACY", "STATION"];
+        let p = prefixes[Math.floor(Math.random() * prefixes.length)];
+        let s = suffixes[Math.floor(Math.random() * suffixes.length)];
+        let code = `${p}-${s}`;
+        document.getElementById('room-code-input').value = code;
+        logTycoon(`Generated compound room code: [${code}]`);
+    }
+
     function applyProfileSettings() {
         let nameVal = document.getElementById('player-name-input').value || "Tommy";
         let roleVal = document.getElementById('player-role-select').value;
@@ -732,10 +743,15 @@
         tycoonGame.myRole = roleVal;
         tycoonGame.gameMode = modeVal;
 
+        if(modeVal === 'ai') {
+            tycoonGame.p2Name = "Bot 101";
+            tycoonGame.p2Token = "🤖";
+        }
+
         if(roleVal === 'p1') {
             tycoonGame.p1Name = nameVal;
             tycoonGame.p1Token = tokenVal;
-            if(tycoonGame.p2Token === tokenVal) tycoonGame.p2Token = "🟠";
+            if(tycoonGame.p2Token === tokenVal && modeVal !== 'ai') tycoonGame.p2Token = "🟠";
         } else {
             tycoonGame.p2Name = nameVal;
             tycoonGame.p2Token = tokenVal;
@@ -755,15 +771,14 @@
         document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
     }
 
-    // --- P2P HOST & JOIN WORKFLOW (FIXED INTELLIGENT MERGE) ---
+    // --- P2P HOST & JOIN WORKFLOW (FIXED & STREAMLINED) ---
     function hostP2PSession() {
         if(peer) peer.destroy();
-        let customCode = document.getElementById('room-code-input').value || "RHODES-1";
-        let hostId = "rhodes-hub-" + customCode.toLowerCase();
+        let customCode = document.getElementById('room-code-input').value.trim() || "DETROIT-MARROW";
         
-        peer = new Peer(hostId);
+        peer = new Peer(customCode);
         peer.on('open', (id) => {
-            logTycoon(`Hosting room [${customCode}]! Ready for Guest to JOIN.`);
+            logTycoon(`Hosting room [${customCode}]! Waiting for Guest to join.`);
         });
         peer.on('connection', (incomingConn) => {
             conn = incomingConn;
@@ -772,37 +787,34 @@
             broadcastState();
         });
         peer.on('error', (err) => {
-            logTycoon(`Host error: Room code might be taken. Try another.`);
+            logTycoon(`Host error: Room code might be in use. Try clicking ⚡ CODE.`);
         });
     }
 
     function joinP2PSession() {
         if(peer) peer.destroy();
-        let targetCode = document.getElementById('room-code-input').value || "RHODES-1";
-        let hostId = "rhodes-hub-" + targetCode.toLowerCase();
+        let targetCode = document.getElementById('room-code-input').value.trim() || "DETROIT-MARROW";
 
         peer = new Peer();
         peer.on('open', (id) => {
             logTycoon(`Connecting to Host [${targetCode}]...`);
-            conn = peer.connect(hostId);
+            conn = peer.connect(targetCode);
             setupConnectionEvents();
         });
         peer.on('error', (err) => {
-            logTycoon(`Failed to join. Make sure Host clicked SYNC first.`);
+            logTycoon(`Failed to join. Make sure Host clicked HOST first.`);
         });
     }
 
     function setupConnectionEvents() {
         if(!conn) return;
         conn.on('data', (incomingData) => {
-            // Intelligently merge shared board/game state while preserving local role identities
             if(incomingData.tiles) tycoonGame.tiles = incomingData.tiles;
             if(incomingData.position !== undefined) tycoonGame.position = incomingData.position;
             if(incomingData.p2Position !== undefined) tycoonGame.p2Position = incomingData.p2Position;
             if(incomingData.funds !== undefined) tycoonGame.funds = incomingData.funds;
             if(incomingData.p2Funds !== undefined) tycoonGame.p2Funds = incomingData.p2Funds;
             
-            // Sync the remote player's identity without wiping our own profile
             if(tycoonGame.myRole === 'p1' && incomingData.p2Name) {
                 tycoonGame.p2Name = incomingData.p2Name;
                 tycoonGame.p2Token = incomingData.p2Token;
@@ -813,10 +825,10 @@
 
             updateUIFunds();
             drawTycoonBoard();
-            logTycoon(`Synced board state from peer.`);
+            logTycoon(`Board state synchronized with peer.`);
         });
         conn.on('open', () => {
-            logTycoon(`Connected! P2P multiplayer session active.`);
+            logTycoon(`P2P Connection Established Successfully!`);
             broadcastState();
         });
     }
@@ -837,16 +849,6 @@
         drawTycoonBoard();
         logTycoon(`Board reset for all players!`);
         broadcastState();
-    }
-
-    function manualSync() {
-        applyProfileSettings();
-        if(tycoonGame.gameMode === 'p2p') {
-            hostP2PSession();
-        } else {
-            logTycoon(`AI Bot mode active.`);
-            drawTycoonBoard();
-        }
     }
 
     function changeCityBoard(cityKey) {
@@ -987,87 +989,60 @@
 
             document.getElementById('dice-1').innerText = die1;
             document.getElementById('dice-2').innerText = die2;
-            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${rollSum}) across ${cityBoards[currentCityKey].title}!`;
+            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${rollSum}) across board!`;
             document.getElementById('dice-modal').classList.remove('hidden');
 
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
                 
-                if(tycoonGame.myRole === 'p1') {
-                    let oldPos = tycoonGame.position;
-                    tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
-                    if(tycoonGame.position < oldPos) tycoonGame.funds += 200;
-                    
-                    let tile = tycoonGame.tiles[tycoonGame.position];
-                    logTycoon(`${tycoonGame.p1Name} rolled ${rollSum}. Landed on ${tile.name}.`);
+                let oldPos = tycoonGame.position;
+                tycoonGame.position = (tycoonGame.position + rollSum) % tycoonGame.tiles.length;
+                if(tycoonGame.position < oldPos) tycoonGame.funds += 200;
+                
+                let tile = tycoonGame.tiles[tycoonGame.position];
+                logTycoon(`${tycoonGame.p1Name} rolled ${rollSum}. Landed on ${tile.name}.`);
 
-                    if(tile.type === 'event') {
-                        let bonus = Math.random() > 0.5 ? 100 : -50;
-                        tycoonGame.funds += bonus;
-                    } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
-                        tycoonGame.funds -= tile.rent;
-                        tycoonGame.p2Funds += tile.rent;
-                    }
-                } else {
-                    let oldPos = tycoonGame.p2Position;
-                    tycoonGame.p2Position = (tycoonGame.p2Position + rollSum) % tycoonGame.tiles.length;
-                    if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
-                    
-                    let tile = tycoonGame.tiles[tycoonGame.p2Position];
-                    logTycoon(`${tycoonGame.p2Name} rolled ${rollSum}. Landed on ${tile.name}.`);
-
-                    if(tile.type === 'event') {
-                        let bonus = Math.random() > 0.5 ? 100 : -50;
-                        tycoonGame.p2Funds += bonus;
-                    } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
-                        tycoonGame.p2Funds -= tile.rent;
-                        tycoonGame.funds += tile.rent;
-                    }
+                if(tile.type === 'event') {
+                    let bonus = Math.random() > 0.5 ? 100 : -50;
+                    tycoonGame.funds += bonus;
+                } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
+                    tycoonGame.funds -= tile.rent;
+                    tycoonGame.p2Funds += tile.rent;
                 }
 
                 updateUIFunds();
                 drawTycoonBoard();
                 broadcastState();
 
-                if(tycoonGame.gameMode === 'ai' && tycoonGame.myRole === 'p1') {
-                    setTimeout(() => triggerAiTurn(), 1500);
+                if(tycoonGame.gameMode === 'ai') {
+                    setTimeout(() => triggerAiTurn(), 1400);
                 }
 
             }, 1200);
 
         } else if(action === 'buy') {
-            let activePos = (tycoonGame.myRole === 'p1') ? tycoonGame.position : tycoonGame.p2Position;
-            let activeName = (tycoonGame.myRole === 'p1') ? tycoonGame.p1Name : tycoonGame.p2Name;
-            let tile = tycoonGame.tiles[activePos];
+            let tile = tycoonGame.tiles[tycoonGame.position];
 
             if(tile.cost === 0 || tile.owner !== "None") {
                 logTycoon(`Tile cannot be acquired.`);
                 return;
             }
-            let myFunds = (tycoonGame.myRole === 'p1') ? tycoonGame.funds : tycoonGame.p2Funds;
-            if(myFunds >= tile.cost) {
-                if(tycoonGame.myRole === 'p1') tycoonGame.funds -= tile.cost;
-                else tycoonGame.p2Funds -= tile.cost;
-
-                tile.owner = activeName;
+            if(tycoonGame.funds >= tile.cost) {
+                tycoonGame.funds -= tile.cost;
+                tile.owner = tycoonGame.p1Name;
                 updateUIFunds();
-                logTycoon(`${activeName} acquired ${tile.name} for ${tile.cost} ME!`);
+                logTycoon(`${tycoonGame.p1Name} acquired ${tile.name} for ${tile.cost} ME!`);
                 drawTycoonBoard();
                 broadcastState();
             } else {
                 logTycoon(`Insufficient Marrow Energy.`);
             }
         } else if(action === 'upgrade') {
-            let activePos = (tycoonGame.myRole === 'p1') ? tycoonGame.position : tycoonGame.p2Position;
-            let activeName = (tycoonGame.myRole === 'p1') ? tycoonGame.p1Name : tycoonGame.p2Name;
-            let tile = tycoonGame.tiles[activePos];
-            let myFunds = (tycoonGame.myRole === 'p1') ? tycoonGame.funds : tycoonGame.p2Funds;
+            let tile = tycoonGame.tiles[tycoonGame.position];
             const tycoonContainer = document.getElementById('tycoon-view');
 
-            if(tile.owner === activeName && myFunds >= 50) {
-                if(tycoonGame.myRole === 'p1') tycoonGame.funds -= 50;
-                else tycoonGame.p2Funds -= 50;
-
+            if(tile.owner === tycoonGame.p1Name && tycoonGame.funds >= 50) {
+                tycoonGame.funds -= 50;
                 tile.rent += 30;
                 tile.hasHotel = true;
                 updateUIFunds();
@@ -1093,12 +1068,12 @@
         if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
 
         let tile = tycoonGame.tiles[tycoonGame.p2Position];
-        logTycoon(`AI Bot 101 rolled ${aiRoll} and landed on ${tile.name}.`);
+        logTycoon(`Bot 101 rolled ${aiRoll} and landed on ${tile.name}.`);
 
         if(tile.owner === "None" && tile.cost > 0 && tycoonGame.p2Funds >= tile.cost) {
             tycoonGame.p2Funds -= tile.cost;
             tile.owner = tycoonGame.p2Name;
-            logTycoon(`AI Bot 101 purchased ${tile.name}!`);
+            logTycoon(`Bot 101 purchased ${tile.name}!`);
         } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
             tycoonGame.p2Funds -= tile.rent;
             tycoonGame.funds += tile.rent;
