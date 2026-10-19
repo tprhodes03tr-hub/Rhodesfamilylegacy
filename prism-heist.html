@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Prism-Ghost & Mother Luta • Upgraded Tier Combat Arcade</title>
+  <title>Prism-Ghost: Spectrum Heist • Syndicate Elite Arcade</title>
   <style>
     * {
       box-sizing: border-box;
@@ -22,7 +22,7 @@
     }
     .wrapper {
       width: 100%;
-      max-width: 540px;
+      max-width: 480px;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -30,19 +30,19 @@
     }
     .arcade-cabinet {
       background: #090d16;
-      border: 2px solid #66fcf1;
+      border: 2px solid #c084fc;
       border-radius: 14px;
       padding: 16px;
       width: 100%;
-      box-shadow: 0 0 35px rgba(102, 252, 241, 0.3);
+      box-shadow: 0 0 35px rgba(192, 132, 252, 0.3);
       text-align: center;
     }
     .cabinet-title {
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       font-weight: bold;
-      color: #66fcf1;
+      color: #c084fc;
       text-transform: uppercase;
-      letter-spacing: 2px;
+      letter-spacing: 1.5px;
       margin-bottom: 8px;
     }
     .hud-bar {
@@ -52,19 +52,20 @@
       border: 1px solid #1e293b;
       padding: 8px;
       border-radius: 6px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: #38bdf8;
       margin-bottom: 12px;
       font-weight: bold;
     }
     canvas {
       width: 100%;
-      height: 320px;
-      background: radial-gradient(circle, #0f172a 0%, #020617 100%);
-      border: 1px solid #66fcf1;
+      height: 280px;
+      background: #020617;
+      border: 1px solid #c084fc;
       border-radius: 8px;
       display: block;
       margin-bottom: 14px;
+      touch-action: none;
     }
     .control-deck {
       display: flex;
@@ -90,20 +91,20 @@
       color: #04060b;
     }
     .special-btn {
-      background: #b45309;
-      color: #fbbf24;
-      border: 1px solid #fbbf24;
+      background: #581c87;
+      color: #c084fc;
+      border: 1px solid #c084fc;
       width: 100%;
       padding: 12px;
       font-family: 'Courier New', Courier, monospace;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: bold;
       cursor: pointer;
       border-radius: 8px;
       text-transform: uppercase;
     }
     .special-btn:active {
-      background: #fbbf24;
+      background: #c084fc;
       color: #04060b;
     }
     .back-link {
@@ -115,28 +116,28 @@
       text-transform: uppercase;
     }
     .back-link:hover {
-      color: #66fcf1;
+      color: #c084fc;
     }
   </style>
 </head>
 <body>
   <div class="wrapper">
     <div class="arcade-cabinet">
-      <div class="cabinet-title">Prism-Ghost & Mother Luta Arena</div>
+      <div class="cabinet-title">Prism-Ghost: Spectrum Heist</div>
       
       <div class="hud-bar">
-        <span>⚡ Energy: <strong id="hud-energy" style="color: #4ade80;">100%</strong></span>
-        <span>✨ Score: <strong id="hud-score" style="color: #f59e0b;">0</strong></span>
+        <span>🛡️ Shield: <strong id="hud-shield" style="color: #4ade80;">ACTIVE</strong></span>
+        <span>🔑 Vault Keys: <strong id="hud-keys" style="color: #f59e0b;">0 / 3</strong></span>
       </div>
 
-      <canvas id="gameCanvas" width="480" height="320"></canvas>
+      <canvas id="gameCanvas" width="400" height="280"></canvas>
 
       <div class="control-deck">
-        <button class="arcade-btn" id="leftBtn">◀ Move Left</button>
-        <button class="arcade-btn" id="rightBtn">Move Right ▶</button>
+        <button class="arcade-btn" id="leftBtn">◀ Shift Left</button>
+        <button class="arcade-btn" id="rightBtn">Shift Right ▶</button>
       </div>
 
-      <button class="special-btn" id="fireBtn">🔥 Fire Feather Dart / Summon Energy Surge</button>
+      <button class="special-btn" id="decoyBtn">✨ Deploy Quantum Decoy & Scramble Sensors</button>
     </div>
 
     <a href="index.html" class="back-link">← Return to Main Legacy Hub</a>
@@ -146,146 +147,157 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Load Sprite Assets
-    const lutaSprite = new Image();
-    lutaSprite.src = 'mother-luta.png';
-
-    // Player Object
+    // Player (Purple Dot)
     let player = {
-      x: 50,
-      y: canvas.height - 90,
-      width: 45,
-      height: 60,
-      speed: 5
+      x: canvas.width / 2 - 12,
+      y: canvas.height - 40,
+      radius: 12,
+      speed: 5,
+      color: '#c084fc'
     };
 
-    // Projectiles
-    let projectils = [];
+    // Target Vault Key (Cyan Node)
+    let keyNode = {
+      x: Math.random() * (canvas.width - 60) + 30,
+      y: 40,
+      radius: 9,
+      collected: 0
+    };
 
-    // Enemy Drones / Targets
-    let enemies = [
-      { x: 380, y: 80, width: 35, height: 35, speed: 1.5, active: true },
-      { x: 420, y: 180, width: 35, height: 35, speed: -2, active: true }
+    // Moving Laser Barriers (Red Beams)
+    let lasers = [
+      { x: 40, y: 80, width: 110, speed: 2, dir: 1 },
+      { x: 160, y: 135, width: 90, speed: -2.5, dir: -1 },
+      { x: 70, y: 195, width: 130, speed: 2.8, dir: 1 }
     ];
 
-    let score = 0;
-    let energy = 100;
+    let keysCollected = 0;
+    let decoyActive = false;
+    let gameActive = true;
 
-    // Controls
+    // Controls state
     let moveLeft = false;
     let moveRight = false;
 
-    document.getElementById('leftBtn').addEventListener('mousedown', () => moveLeft = true);
-    document.getElementById('leftBtn').addEventListener('mouseup', () => moveLeft = false);
-    document.getElementById('leftBtn').addEventListener('touchstart', (e) => { e.preventDefault(); moveLeft = true; });
-    document.getElementById('leftBtn').addEventListener('touchend', (e) => { e.preventDefault(); moveLeft = false; });
+    // Touch and Mouse Event Listeners for Shift Buttons
+    const leftBtn = document.getElementById('leftBtn');
+    const rightBtn = document.getElementById('rightBtn');
 
-    document.getElementById('rightBtn').addEventListener('mousedown', () => moveRight = true);
-    document.getElementById('rightBtn').addEventListener('mouseup', () => moveRight = false);
-    document.getElementById('rightBtn').addEventListener('touchstart', (e) => { e.preventDefault(); moveRight = true; });
-    document.getElementById('rightBtn').addEventListener('touchend', (e) => { e.preventDefault(); moveRight = false; });
+    leftBtn.addEventListener('mousedown', () => moveLeft = true);
+    leftBtn.addEventListener('mouseup', () => moveLeft = false);
+    leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); moveLeft = true; });
+    leftBtn.addEventListener('touchend', (e) => { e.preventDefault(); moveLeft = false; });
 
-    document.getElementById('fireBtn').addEventListener('click', () => {
-      projectils.push({
-        x: player.x + player.width,
-        y: player.y + player.height / 2,
-        width: 12,
-        height: 6,
-        speed: 8
-      });
+    rightBtn.addEventListener('mousedown', () => moveRight = true);
+    rightBtn.addEventListener('mouseup', () => moveRight = false);
+    rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); moveRight = true; });
+    rightBtn.addEventListener('touchend', (e) => { e.preventDefault(); moveRight = false; });
+
+    document.getElementById('decoyBtn').addEventListener('click', () => {
+      decoyActive = true;
+      document.getElementById('hud-shield').style.color = '#38bdf8';
+      document.getElementById('hud-shield').innerText = 'DECOY ENGAGED';
+      setTimeout(() => {
+        decoyActive = false;
+        document.getElementById('hud-shield').style.color = '#4ade80';
+        document.getElementById('hud-shield').innerText = 'ACTIVE';
+      }, 3000);
     });
 
     function update() {
-      // Move Player
-      if (moveLeft && player.x > 10) player.x -= player.speed;
-      if (moveRight && player.x < canvas.width / 2) player.x += player.speed;
+      if (!gameActive) return;
 
-      // Update Projectiles
-      projectils.forEach((p, index) => {
-        p.x += p.speed;
-        if (p.x > canvas.width) {
-          projectils.splice(index, 1);
+      // Handle movement
+      if (moveLeft && player.x > player.radius + 5) player.x -= player.speed;
+      if (moveRight && player.x < canvas.width - player.radius - 5) player.x += player.speed;
+
+      // Animate and check lasers
+      lasers.forEach(laser => {
+        laser.x += laser.speed * laser.dir;
+        if (laser.x <= 10 || laser.x + laser.width >= canvas.width - 10) {
+          laser.dir *= -1;
         }
 
-        // Check collision with enemies
-        enemies.forEach(enemy => {
+        // Collision detection with player dot
+        if (!decoyActive) {
           if (
-            enemy.active &&
-            p.x < enemy.x + enemy.width &&
-            p.x + p.width > enemy.x &&
-            p.y < enemy.y + enemy.height &&
-            p.y + p.height > enemy.y
+            player.x + player.radius > laser.x &&
+            player.x - player.radius < laser.x + laser.width &&
+            player.y + player.radius > laser.y &&
+            player.y - player.radius < laser.y + 6
           ) {
-            enemy.active = false;
-            score += 100;
-            document.getElementById('hud-score').innerText = score;
-            projectils.splice(index, 1);
-
-            // Respawn enemy after delay
-            setTimeout(() => {
-              enemy.active = true;
-              enemy.y = Math.random() * 180 + 40;
-            }, 2000);
-          }
-        });
-      });
-
-      // Move Enemies
-      enemies.forEach(enemy => {
-        if (enemy.active) {
-          enemy.y += enemy.speed;
-          if (enemy.y <= 30 || enemy.y >= canvas.height - 70) {
-            enemy.speed *= -1;
+            // Hit laser penalty: bounce player back to start position
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 40;
           }
         }
       });
+
+      // Check key collection
+      let distX = player.x - keyNode.x;
+      let distY = player.y - keyNode.y;
+      let distance = Math.sqrt(distX * distX + distY * distY);
+
+      if (distance < player.radius + keyNode.radius) {
+        keysCollected++;
+        document.getElementById('hud-keys').innerText = `${keysCollected} / 3`;
+        
+        if (keysCollected >= 3) {
+          gameActive = false;
+          alert('🎉 SPECTRUM HEIST SUCCESSFUL! All 3 Vault Keys Secured!');
+          window.location.href = 'index.html';
+        } else {
+          // Relocate key node to a new random spot
+          keyNode.x = Math.random() * (canvas.width - 60) + 30;
+          keyNode.y = Math.random() * 90 + 35;
+        }
+      }
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw Grid Lines
+      // Draw Grid Background lines
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 1;
-      for (let i = 0; i < canvas.width; i += 30) {
+      for (let i = 0; i < canvas.width; i += 25) {
         ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
       }
-
-      // Draw Rendered Sprite (Mother Luta / Character)
-      if (lutaSprite.complete) {
-        ctx.drawImage(lutaSprite, player.x, player.y, player.width, player.height);
-      } else {
-        // Fallback glowing box if sprite loads
-        ctx.fillStyle = '#f59e0b';
-        ctx.fillRect(player.x, player.y, player.width, player.height);
+      for (let j = 0; j < canvas.height; j += 25) {
+        ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
       }
 
-      // Draw Projectiles
+      // Draw Cyan Key Node
       ctx.fillStyle = '#66fcf1';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
       ctx.shadowColor = '#66fcf1';
-      projectils.forEach(p => {
-        ctx.fillRect(p.x, p.y, p.width, p.height);
+      ctx.beginPath();
+      ctx.arc(keyNode.x, keyNode.y, keyNode.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw Red Moving Laser Beams
+      ctx.fillStyle = '#ff5555';
+      ctx.shadowColor = '#ff5555';
+      lasers.forEach(laser => {
+        ctx.fillRect(laser.x, laser.y, laser.width, 5);
       });
 
-      // Draw Enemies / Drones
-      enemies.forEach(enemy => {
-        if (enemy.active) {
-          ctx.fillStyle = '#ff5555';
-          ctx.shadowColor = '#ff5555';
-          ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-        }
-      });
+      // Draw Player Purple Dot
+      ctx.fillStyle = decoyActive ? '#38bdf8' : player.color;
+      ctx.shadowColor = decoyActive ? '#38bdf8' : '#c084fc';
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      ctx.fill();
       ctx.shadowBlur = 0;
     }
 
-    function loop() {
+    function gameLoop() {
       update();
       draw();
-      requestAnimationFrame(loop);
+      requestAnimationFrame(gameLoop);
     }
 
-    loop();
+    gameLoop();
   </script>
 </body>
 </html>
