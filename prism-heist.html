@@ -147,21 +147,24 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Player (Purple Dot)
+    // Load Prism-Ghost Sprite Asset
+    const prismSprite = new Image();
+    prismSprite.src = 'prism-ghost.png'; // Falls back to her iconic glowing quantum avatar if image is loading
+
+    // Player Object (Prism-Ghost)
     let player = {
-      x: canvas.width / 2 - 12,
-      y: canvas.height - 40,
-      radius: 12,
-      speed: 5,
-      color: '#c084fc'
+      x: canvas.width / 2 - 15,
+      y: canvas.height - 45,
+      width: 30,
+      height: 38,
+      speed: 5
     };
 
     // Target Vault Key (Cyan Node)
     let keyNode = {
       x: Math.random() * (canvas.width - 60) + 30,
       y: 40,
-      radius: 9,
-      collected: 0
+      radius: 9
     };
 
     // Moving Laser Barriers (Red Beams)
@@ -179,7 +182,6 @@
     let moveLeft = false;
     let moveRight = false;
 
-    // Touch and Mouse Event Listeners for Shift Buttons
     const leftBtn = document.getElementById('leftBtn');
     const rightBtn = document.getElementById('rightBtn');
 
@@ -208,8 +210,8 @@
       if (!gameActive) return;
 
       // Handle movement
-      if (moveLeft && player.x > player.radius + 5) player.x -= player.speed;
-      if (moveRight && player.x < canvas.width - player.radius - 5) player.x += player.speed;
+      if (moveLeft && player.x > 10) player.x -= player.speed;
+      if (moveRight && player.x < canvas.width - player.width - 10) player.x += player.speed;
 
       // Animate and check lasers
       lasers.forEach(laser => {
@@ -218,27 +220,27 @@
           laser.dir *= -1;
         }
 
-        // Collision detection with player dot
+        // Collision detection with player bounding box
         if (!decoyActive) {
           if (
-            player.x + player.radius > laser.x &&
-            player.x - player.radius < laser.x + laser.width &&
-            player.y + player.radius > laser.y &&
-            player.y - player.radius < laser.y + 6
+            player.x < laser.x + laser.width &&
+            player.x + player.width > laser.x &&
+            player.y < laser.y + 6 &&
+            player.y + player.height > laser.y
           ) {
-            // Hit laser penalty: bounce player back to start position
-            player.x = canvas.width / 2;
-            player.y = canvas.height - 40;
+            // Hit laser penalty: reset position
+            player.x = canvas.width / 2 - 15;
+            player.y = canvas.height - 45;
           }
         }
       });
 
       // Check key collection
-      let distX = player.x - keyNode.x;
-      let distY = player.y - keyNode.y;
+      let distX = (player.x + player.width / 2) - keyNode.x;
+      let distY = (player.y + player.height / 2) - keyNode.y;
       let distance = Math.sqrt(distX * distX + distY * distY);
 
-      if (distance < player.radius + keyNode.radius) {
+      if (distance < (player.width / 2) + keyNode.radius) {
         keysCollected++;
         document.getElementById('hud-keys').innerText = `${keysCollected} / 3`;
         
@@ -247,7 +249,6 @@
           alert('🎉 SPECTRUM HEIST SUCCESSFUL! All 3 Vault Keys Secured!');
           window.location.href = 'index.html';
         } else {
-          // Relocate key node to a new random spot
           keyNode.x = Math.random() * (canvas.width - 60) + 30;
           keyNode.y = Math.random() * 90 + 35;
         }
@@ -282,12 +283,17 @@
         ctx.fillRect(laser.x, laser.y, laser.width, 5);
       });
 
-      // Draw Player Purple Dot
-      ctx.fillStyle = decoyActive ? '#38bdf8' : player.color;
-      ctx.shadowColor = decoyActive ? '#38bdf8' : '#c084fc';
-      ctx.beginPath();
-      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-      ctx.fill();
+      // Render Prism-Ghost Character Sprite (Falling back to glowing quantum aura box if loading)
+      if (prismSprite.complete && prismSprite.naturalWidth !== 0) {
+        ctx.shadowBlur = decoyActive ? 18 : 10;
+        ctx.shadowColor = decoyActive ? '#38bdf8' : '#c084fc';
+        ctx.drawImage(prismSprite, player.x, player.y, player.width, player.height);
+      } else {
+        ctx.fillStyle = decoyActive ? '#38bdf8' : '#c084fc';
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#c084fc';
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+      }
       ctx.shadowBlur = 0;
     }
 
