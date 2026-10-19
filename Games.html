@@ -960,7 +960,6 @@
       document.getElementById('match-desc').innerText = match.desc;
       resultCard.classList.remove('hidden');
       
-      // Speak the match aloud to the family member scanning their face
       speakText(`Archival optical match verified. ${match.title}`);
     }
 
@@ -1131,18 +1130,18 @@
       requestAnimationFrame(racerLoop);
     }
 
-    // --- ROBUST UPGRADED A-TIER PRISM-GHOST ARCADE ENGINE ---
+    // --- FULLY UPGRADED ACTION PRISM-GHOST ARCADE ENGINE ---
     let prismCanvas, prismCtx;
     let prismRunning = false;
     let prismState = {
-      x: 300, y: 360, targetX: 300,
+      x: 300, y: 80, targetX: 300, vy: 2.5,
       score: 0, syncHealth: 100,
       lasers: [
-        { x: 80, y: 110, speed: 2.2, width: 90, active: true },
-        { x: 250, y: 190, speed: -2.8, width: 110, active: true },
-        { x: 150, y: 270, speed: 3.0, width: 80, active: true }
+        { x: 50, y: 150, speed: 2.5, width: 120, active: true },
+        { x: 200, y: 250, speed: -3.0, width: 140, active: true },
+        { x: 100, y: 350, speed: 2.0, width: 100, active: true }
       ],
-      orbs: [{ x: 300, y: 80, collected: false }]
+      orbs: [{ x: 300, y: 200, collected: false }]
     };
 
     function initPrismEngine() {
@@ -1151,6 +1150,9 @@
       prismCtx = prismCanvas.getContext('2d');
       prismState.x = prismCanvas.width / 2;
       prismState.targetX = prismState.x;
+      prismState.y = 60;
+      prismState.score = 0;
+      prismState.syncHealth = 100;
       if (!prismRunning) {
         prismRunning = true;
         prismLoop();
@@ -1159,14 +1161,16 @@
 
     function movePrism(dir) {
       playSound('steer');
-      if (dir === 'left') prismState.targetX = Math.max(50, prismState.targetX - 90);
-      if (dir === 'right') prismState.targetX = Math.min(prismCanvas.width - 50, prismState.targetX + 90);
+      if (dir === 'left') prismState.targetX = Math.max(40, prismState.targetX - 80);
+      if (dir === 'right') prismState.targetX = Math.min(prismCanvas.width - 40, prismState.targetX + 80);
     }
 
     function triggerDecoy() {
       playSound('turbo');
-      prismState.syncHealth = Math.min(100, prismState.syncHealth + 20);
-      document.getElementById('prism-sync').innerText = prismState.syncHealth + '%';
+      prismState.syncHealth = Math.min(100, prismState.syncHealth + 25);
+      const syncEl = document.getElementById('prism-sync');
+      if (syncEl) syncEl.innerText = prismState.syncHealth + '%';
+      
       prismState.lasers.forEach(l => l.active = false);
       setTimeout(() => {
         prismState.lasers.forEach(l => l.active = true);
@@ -1175,12 +1179,17 @@
 
     function prismLoop() {
       if (prismCanvas && prismCtx && prismCanvas.offsetParent !== null) {
-        prismState.x += (prismState.targetX - prismState.x) * 0.2;
+        prismState.x += (prismState.targetX - prismState.x) * 0.25;
+        
+        prismState.y += prismState.vy;
+        if (prismState.y > prismCanvas.height - 40) {
+          prismState.y = 50;
+        }
 
         prismCtx.fillStyle = '#020617';
         prismCtx.fillRect(0, 0, prismCanvas.width, prismCanvas.height);
 
-        prismCtx.strokeStyle = 'rgba(192, 132, 252, 0.12)';
+        prismCtx.strokeStyle = 'rgba(192, 132, 252, 0.15)';
         prismCtx.lineWidth = 1;
         for (let i = 0; i < prismCanvas.width; i += 50) {
           prismCtx.beginPath(); prismCtx.moveTo(i, 0); prismCtx.lineTo(i, prismCanvas.height); prismCtx.stroke();
@@ -1195,8 +1204,8 @@
             if (l.x <= 20 || l.x >= prismCanvas.width - l.width - 20) l.speed *= -1;
 
             prismCtx.strokeStyle = '#ef4444';
-            prismCtx.lineWidth = 5;
-            prismCtx.shadowBlur = 18;
+            prismCtx.lineWidth = 4;
+            prismCtx.shadowBlur = 15;
             prismCtx.shadowColor = '#ef4444';
             prismCtx.beginPath();
             prismCtx.moveTo(l.x, l.y);
@@ -1204,10 +1213,11 @@
             prismCtx.stroke();
             prismCtx.shadowBlur = 0;
 
-            if (Math.abs(prismState.x - (l.x + l.width / 2)) < 35 && Math.abs(prismState.y - l.y) < 25) {
+            if (Math.abs(prismState.x - (l.x + l.width / 2)) < 30 && Math.abs(prismState.y - l.y) < 20) {
               playSound('crash');
-              prismState.syncHealth = Math.max(0, prismState.syncHealth - 1.5);
-              document.getElementById('prism-sync').innerText = Math.round(prismState.syncHealth) + '%';
+              prismState.syncHealth = Math.max(0, prismState.syncHealth - 2);
+              const syncEl = document.getElementById('prism-sync');
+              if (syncEl) syncEl.innerText = Math.round(prismState.syncHealth) + '%';
             }
           }
         });
@@ -1218,18 +1228,22 @@
             prismCtx.shadowBlur = 15;
             prismCtx.shadowColor = '#66fcf1';
             prismCtx.beginPath();
-            prismCtx.arc(orb.x, orb.y, 14, 0, Math.PI * 2);
+            prismCtx.arc(orb.x, orb.y, 12, 0, Math.PI * 2);
             prismCtx.fill();
             prismCtx.shadowBlur = 0;
 
-            if (Math.abs(prismState.x - orb.x) < 30 && Math.abs(prismState.y - orb.y) < 30) {
+            if (Math.abs(prismState.x - orb.x) < 28 && Math.abs(prismState.y - orb.y) < 28) {
               playSound('orb');
               orb.collected = true;
               prismState.score++;
-              document.getElementById('prism-score').innerText = prismState.score;
-              if (prismState.score < 3) {
-                prismState.orbs.push({ x: Math.random() * 460 + 70, y: Math.random() * 220 + 50, collected: false });
-              }
+              const scoreEl = document.getElementById('prism-score');
+              if (scoreEl) scoreEl.innerText = prismState.score;
+              
+              prismState.orbs.push({ 
+                x: Math.random() * (prismCanvas.width - 100) + 50, 
+                y: Math.random() * (prismCanvas.height - 100) + 50, 
+                collected: false 
+              });
             }
           }
         });
@@ -1239,11 +1253,11 @@
         prismCtx.shadowBlur = 25;
         prismCtx.shadowColor = '#c084fc';
         if (spriteImg && spriteImg.complete && spriteImg.naturalWidth !== 0) {
-          prismCtx.drawImage(spriteImg, prismState.x - 35, prismState.y - 50, 70, 95);
+          prismCtx.drawImage(spriteImg, prismState.x - 28, prismState.y - 35, 56, 70);
         } else {
           prismCtx.fillStyle = '#c084fc';
           prismCtx.beginPath();
-          prismCtx.arc(prismState.x, prismState.y, 22, 0, Math.PI * 2);
+          prismCtx.arc(prismState.x, prismState.y, 20, 0, Math.PI * 2);
           prismCtx.fill();
         }
         prismCtx.restore();
