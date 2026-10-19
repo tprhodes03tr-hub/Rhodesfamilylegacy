@@ -452,7 +452,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 3: LIVE OPTICAL LINEAGE SCANNER (AUTOMATED FAMILY ROUTING & VOICE) -->
+  <!-- PORTAL 3: LIVE OPTICAL LINEAGE SCANNER -->
   <div class="sandbox-container hidden" id="portal-scanner">
     <div class="sandbox-header">Archival Optical Lineage Scanner</div>
     <h1>Ancestral DNA Matcher</h1>
@@ -964,9 +964,9 @@
       speakText(`Archival optical match verified. ${match.title}`);
     }
 
-    // --- UPGRADED NEON RACER ENGINE ---
+    // --- ROBUST UPGRADED NEON RACER ENGINE ---
     let racerCanvas, racerCtx;
-    let racerAnimId = null;
+    let racerRunning = false;
     let carType = 'hero';
     let racerState = {
       x: 210, y: 300, speed: 130, baseSpeed: 130, maxSpeed: 270,
@@ -991,7 +991,10 @@
       racerState.marrowEarned = 0;
       racerState.obstacles = [];
       racerState.orbs = [];
-      if (!racerAnimId) racerLoop();
+      if (!racerRunning) {
+        racerRunning = true;
+        racerLoop();
+      }
     }
 
     function steerRacer(dx) {
@@ -1009,138 +1012,135 @@
     }
 
     function racerLoop() {
-      if (!racerCanvas || racerCtx.canvas.offsetParent === null) {
-        racerAnimId = requestAnimationFrame(racerLoop);
-        return;
-      }
-
-      let currentSpeed = racerState.baseSpeed;
-      if (racerState.turboActive) {
-        currentSpeed = racerState.maxSpeed;
-        racerState.turboTimer--;
-        if (racerState.turboTimer <= 0) {
-          racerState.turboActive = false;
-          document.getElementById('boost-status').innerText = "READY";
+      if (racerCanvas && racerCtx && racerCanvas.offsetParent !== null) {
+        let currentSpeed = racerState.baseSpeed;
+        if (racerState.turboActive) {
+          currentSpeed = racerState.maxSpeed;
+          racerState.turboTimer--;
+          if (racerState.turboTimer <= 0) {
+            racerState.turboActive = false;
+            document.getElementById('boost-status').innerText = "READY";
+          }
         }
-      }
 
-      racerState.distance += Math.round(currentSpeed / 20);
-      document.getElementById('racer-speed').innerText = currentSpeed + " MPH";
-      document.getElementById('racer-me').innerText = racerState.marrowEarned + " ME";
+        racerState.distance += Math.round(currentSpeed / 20);
+        document.getElementById('racer-speed').innerText = currentSpeed + " MPH";
+        document.getElementById('racer-me').innerText = racerState.marrowEarned + " ME";
 
-      if (Math.random() < 0.04 && racerState.obstacles.length < 3) {
-        const laneX = [95, 170, 245, 320];
-        racerState.obstacles.push({ x: laneX[Math.floor(Math.random() * laneX.length)], y: -50, width: 52, height: 26 });
-      }
+        if (Math.random() < 0.04 && racerState.obstacles.length < 3) {
+          const laneX = [95, 170, 245, 320];
+          racerState.obstacles.push({ x: laneX[Math.floor(Math.random() * laneX.length)], y: -50, width: 52, height: 26 });
+        }
 
-      if (Math.random() < 0.05 && racerState.orbs.length < 3) {
-        const laneX = [115, 205, 285, 345];
-        racerState.orbs.push({ x: laneX[Math.floor(Math.random() * laneX.length)], y: -40, radius: 12 });
-      }
+        if (Math.random() < 0.05 && racerState.orbs.length < 3) {
+          const laneX = [115, 205, 285, 345];
+          racerState.orbs.push({ x: laneX[Math.floor(Math.random() * laneX.length)], y: -40, radius: 12 });
+        }
 
-      racerCtx.clearRect(0, 0, racerCanvas.width, racerCanvas.height);
+        racerCtx.clearRect(0, 0, racerCanvas.width, racerCanvas.height);
 
-      racerCtx.strokeStyle = "rgba(102, 252, 241, 0.25)";
-      racerCtx.lineWidth = 1;
-      for (let i = 40; i <= 380; i += 60) {
+        racerCtx.strokeStyle = "rgba(102, 252, 241, 0.25)";
+        racerCtx.lineWidth = 1;
+        for (let i = 40; i <= 380; i += 60) {
+          racerCtx.beginPath();
+          racerCtx.moveTo(i, 0);
+          racerCtx.lineTo(i + ((i - 210) * 0.4), racerCanvas.height);
+          racerCtx.stroke();
+        }
+
+        racerCtx.strokeStyle = "rgba(56, 189, 248, 0.4)";
+        racerCtx.lineWidth = 2;
+        racerCtx.setLineDash([15, 15]);
+        racerCtx.lineDashOffset = -(racerState.distance % 30);
         racerCtx.beginPath();
-        racerCtx.moveTo(i, 0);
-        racerCtx.lineTo(i + ((i - 210) * 0.4), racerCanvas.height);
+        racerCtx.moveTo(210, 0);
+        racerCtx.lineTo(210, racerCanvas.height);
         racerCtx.stroke();
-      }
+        racerCtx.setLineDash([]);
 
-      racerCtx.strokeStyle = "rgba(56, 189, 248, 0.4)";
-      racerCtx.lineWidth = 2;
-      racerCtx.setLineDash([15, 15]);
-      racerCtx.lineDashOffset = -(racerState.distance % 30);
-      racerCtx.beginPath();
-      racerCtx.moveTo(210, 0);
-      racerCtx.lineTo(210, racerCanvas.height);
-      racerCtx.stroke();
-      racerCtx.setLineDash([]);
+        racerState.orbs.forEach((orb, index) => {
+          orb.y += (currentSpeed / 22);
+          racerCtx.shadowColor = "#f59e0b";
+          racerCtx.shadowBlur = 10;
+          racerCtx.fillStyle = "#f59e0b";
+          racerCtx.beginPath();
+          racerCtx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+          racerCtx.fill();
+          racerCtx.shadowBlur = 0;
 
-      racerState.orbs.forEach((orb, index) => {
-        orb.y += (currentSpeed / 22);
-        racerCtx.shadowColor = "#f59e0b";
-        racerCtx.shadowBlur = 10;
-        racerCtx.fillStyle = "#f59e0b";
-        racerCtx.beginPath();
-        racerCtx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
-        racerCtx.fill();
-        racerCtx.shadowBlur = 0;
+          if (Math.abs(orb.x - racerState.x) < 32 && Math.abs(orb.y - racerState.y) < 32) {
+            playSound('orb');
+            racerState.marrowEarned += 25;
+            racerState.orbs.splice(index, 1);
+          }
+          if (orb.y > 400) racerState.orbs.splice(index, 1);
+        });
 
-        if (Math.abs(orb.x - racerState.x) < 32 && Math.abs(orb.y - racerState.y) < 32) {
-          playSound('orb');
-          racerState.marrowEarned += 25;
-          racerState.orbs.splice(index, 1);
-        }
-        if (orb.y > 400) racerState.orbs.splice(index, 1);
-      });
+        racerState.obstacles.forEach((obs, index) => {
+          obs.y += (currentSpeed / 22);
+          racerCtx.shadowColor = "#ef4444";
+          racerCtx.shadowBlur = 12;
+          racerCtx.fillStyle = "#1e1b4b";
+          racerCtx.fillRect(obs.x - 26, obs.y, obs.width, obs.height);
+          racerCtx.strokeStyle = "#ef4444";
+          racerCtx.lineWidth = 2.5;
+          racerCtx.strokeRect(obs.x - 26, obs.y, obs.width, obs.height);
+          racerCtx.shadowBlur = 0;
 
-      racerState.obstacles.forEach((obs, index) => {
-        obs.y += (currentSpeed / 22);
-        racerCtx.shadowColor = "#ef4444";
+          if (Math.abs(obs.x - racerState.x) < 34 && Math.abs(obs.y - racerState.y) < 30) {
+            playSound('crash');
+            triggerScreenEffect('crash');
+            racerState.distance = Math.max(0, racerState.distance - 150);
+            racerState.marrowEarned = Math.max(0, racerState.marrowEarned - 10);
+            racerState.obstacles.splice(index, 1);
+          }
+          if (obs.y > 410) racerState.obstacles.splice(index, 1);
+        });
+
+        racerCtx.save();
+        racerCtx.translate(racerState.x, racerState.y);
+        
+        racerCtx.shadowColor = (carType === 'hero') ? "#38bdf8" : "#f59e0b";
         racerCtx.shadowBlur = 12;
-        racerCtx.fillStyle = "#1e1b4b";
-        racerCtx.fillRect(obs.x - 26, obs.y, obs.width, obs.height);
-        racerCtx.strokeStyle = "#ef4444";
+        racerCtx.fillStyle = "#000";
+        racerCtx.fillRect(-22, -18, 8, 14);
+        racerCtx.fillRect(14, -18, 8, 14);
+        racerCtx.fillRect(-22, 10, 8, 14);
+        racerCtx.fillRect(14, 10, 8, 14);
+
+        racerCtx.fillStyle = (carType === 'hero') ? "#0f172a" : "#2e1065";
+        racerCtx.beginPath();
+        racerCtx.moveTo(0, -28);
+        racerCtx.lineTo(16, -10);
+        racerCtx.lineTo(18, 22);
+        racerCtx.lineTo(-18, 22);
+        racerCtx.lineTo(-16, -10);
+        racerCtx.closePath();
+        racerCtx.fill();
+
+        racerCtx.strokeStyle = (carType === 'hero') ? "#38bdf8" : "#c084fc";
         racerCtx.lineWidth = 2.5;
-        racerCtx.strokeRect(obs.x - 26, obs.y, obs.width, obs.height);
-        racerCtx.shadowBlur = 0;
+        racerCtx.stroke();
 
-        if (Math.abs(obs.x - racerState.x) < 34 && Math.abs(obs.y - racerState.y) < 30) {
-          playSound('crash');
-          triggerScreenEffect('crash');
-          racerState.distance = Math.max(0, racerState.distance - 150);
-          racerState.marrowEarned = Math.max(0, racerState.marrowEarned - 10);
-          racerState.obstacles.splice(index, 1);
-        }
-        if (obs.y > 410) racerState.obstacles.splice(index, 1);
-      });
+        racerCtx.fillStyle = "#66fcf1";
+        racerCtx.fillRect(-8, -4, 16, 18);
+        racerCtx.restore();
 
-      racerCtx.save();
-      racerCtx.translate(racerState.x, racerState.y);
-      
-      racerCtx.shadowColor = (carType === 'hero') ? "#38bdf8" : "#f59e0b";
-      racerCtx.shadowBlur = 12;
-      racerCtx.fillStyle = "#000";
-      racerCtx.fillRect(-22, -18, 8, 14);
-      racerCtx.fillRect(14, -18, 8, 14);
-      racerCtx.fillRect(-22, 10, 8, 14);
-      racerCtx.fillRect(14, 10, 8, 14);
-
-      racerCtx.fillStyle = (carType === 'hero') ? "#0f172a" : "#2e1065";
-      racerCtx.beginPath();
-      racerCtx.moveTo(0, -28);
-      racerCtx.lineTo(16, -10);
-      racerCtx.lineTo(18, 22);
-      racerCtx.lineTo(-18, 22);
-      racerCtx.lineTo(-16, -10);
-      racerCtx.closePath();
-      racerCtx.fill();
-
-      racerCtx.strokeStyle = (carType === 'hero') ? "#38bdf8" : "#c084fc";
-      racerCtx.lineWidth = 2.5;
-      racerCtx.stroke();
-
-      racerCtx.fillStyle = "#66fcf1";
-      racerCtx.fillRect(-8, -4, 16, 18);
-      racerCtx.restore();
-
-      document.getElementById('racer-status').innerText = `Distance: ${racerState.distance}m | Marrow Earned: ${racerState.marrowEarned} ME`;
-      racerAnimId = requestAnimationFrame(racerLoop);
+        document.getElementById('racer-status').innerText = `Distance: ${racerState.distance}m | Marrow Earned: ${racerState.marrowEarned} ME`;
+      }
+      requestAnimationFrame(racerLoop);
     }
 
-    // --- UPGRADED A-TIER PRISM-GHOST ARCADE ENGINE ---
+    // --- ROBUST UPGRADED A-TIER PRISM-GHOST ARCADE ENGINE ---
     let prismCanvas, prismCtx;
-    let prismAnimId = null;
+    let prismRunning = false;
     let prismState = {
       x: 300, y: 360, targetX: 300,
       score: 0, syncHealth: 100,
       lasers: [
-        { x: 80, y: 110, speed: 2.2, width: 90 },
-        { x: 250, y: 190, speed: -2.8, width: 110 },
-        { x: 150, y: 270, speed: 3.0, width: 80 }
+        { x: 80, y: 110, speed: 2.2, width: 90, active: true },
+        { x: 250, y: 190, speed: -2.8, width: 110, active: true },
+        { x: 150, y: 270, speed: 3.0, width: 80, active: true }
       ],
       orbs: [{ x: 300, y: 80, collected: false }]
     };
@@ -1151,7 +1151,10 @@
       prismCtx = prismCanvas.getContext('2d');
       prismState.x = prismCanvas.width / 2;
       prismState.targetX = prismState.x;
-      if (!prismAnimId) prismLoop();
+      if (!prismRunning) {
+        prismRunning = true;
+        prismLoop();
+      }
     }
 
     function movePrism(dir) {
@@ -1171,85 +1174,81 @@
     }
 
     function prismLoop() {
-      if (!prismCanvas || prismCtx.canvas.offsetParent === null) {
-        prismAnimId = requestAnimationFrame(prismLoop);
-        return;
-      }
+      if (prismCanvas && prismCtx && prismCanvas.offsetParent !== null) {
+        prismState.x += (prismState.targetX - prismState.x) * 0.2;
 
-      prismState.x += (prismState.targetX - prismState.x) * 0.2;
+        prismCtx.fillStyle = '#020617';
+        prismCtx.fillRect(0, 0, prismCanvas.width, prismCanvas.height);
 
-      prismCtx.fillStyle = '#020617';
-      prismCtx.fillRect(0, 0, prismCanvas.width, prismCanvas.height);
-
-      prismCtx.strokeStyle = 'rgba(192, 132, 252, 0.12)';
-      prismCtx.lineWidth = 1;
-      for (let i = 0; i < prismCanvas.width; i += 50) {
-        prismCtx.beginPath(); prismCtx.moveTo(i, 0); prismCtx.lineTo(i, prismCanvas.height); prismCtx.stroke();
-      }
-      for (let j = 0; j < prismCanvas.height; j += 50) {
-        prismCtx.beginPath(); prismCtx.moveTo(0, j); prismCtx.lineTo(prismCanvas.width, j); prismCtx.stroke();
-      }
-
-      prismState.lasers.forEach(l => {
-        if (l.active !== false) {
-          l.x += l.speed;
-          if (l.x <= 20 || l.x >= prismCanvas.width - l.width - 20) l.speed *= -1;
-
-          prismCtx.strokeStyle = '#ef4444';
-          prismCtx.lineWidth = 5;
-          prismCtx.shadowBlur = 18;
-          prismCtx.shadowColor = '#ef4444';
-          prismCtx.beginPath();
-          prismCtx.moveTo(l.x, l.y);
-          prismCtx.lineTo(l.x + l.width, l.y);
-          prismCtx.stroke();
-          prismCtx.shadowBlur = 0;
-
-          if (Math.abs(prismState.x - (l.x + l.width / 2)) < 35 && Math.abs(prismState.y - l.y) < 25) {
-            playSound('crash');
-            prismState.syncHealth = Math.max(0, prismState.syncHealth - 1.5);
-            document.getElementById('prism-sync').innerText = Math.round(prismState.syncHealth) + '%';
-          }
+        prismCtx.strokeStyle = 'rgba(192, 132, 252, 0.12)';
+        prismCtx.lineWidth = 1;
+        for (let i = 0; i < prismCanvas.width; i += 50) {
+          prismCtx.beginPath(); prismCtx.moveTo(i, 0); prismCtx.lineTo(i, prismCanvas.height); prismCtx.stroke();
         }
-      });
+        for (let j = 0; j < prismCanvas.height; j += 50) {
+          prismCtx.beginPath(); prismCtx.moveTo(0, j); prismCtx.lineTo(prismCanvas.width, j); prismCtx.stroke();
+        }
 
-      prismState.orbs.forEach(orb => {
-        if (!orb.collected) {
-          prismCtx.fillStyle = '#66fcf1';
-          prismCtx.shadowBlur = 15;
-          prismCtx.shadowColor = '#66fcf1';
-          prismCtx.beginPath();
-          prismCtx.arc(orb.x, orb.y, 14, 0, Math.PI * 2);
-          prismCtx.fill();
-          prismCtx.shadowBlur = 0;
+        prismState.lasers.forEach(l => {
+          if (l.active) {
+            l.x += l.speed;
+            if (l.x <= 20 || l.x >= prismCanvas.width - l.width - 20) l.speed *= -1;
 
-          if (Math.abs(prismState.x - orb.x) < 30 && Math.abs(prismState.y - orb.y) < 30) {
-            playSound('orb');
-            orb.collected = true;
-            prismState.score++;
-            document.getElementById('prism-score').innerText = prismState.score;
-            if (prismState.score < 3) {
-              prismState.orbs.push({ x: Math.random() * 460 + 70, y: Math.random() * 220 + 50, collected: false });
+            prismCtx.strokeStyle = '#ef4444';
+            prismCtx.lineWidth = 5;
+            prismCtx.shadowBlur = 18;
+            prismCtx.shadowColor = '#ef4444';
+            prismCtx.beginPath();
+            prismCtx.moveTo(l.x, l.y);
+            prismCtx.lineTo(l.x + l.width, l.y);
+            prismCtx.stroke();
+            prismCtx.shadowBlur = 0;
+
+            if (Math.abs(prismState.x - (l.x + l.width / 2)) < 35 && Math.abs(prismState.y - l.y) < 25) {
+              playSound('crash');
+              prismState.syncHealth = Math.max(0, prismState.syncHealth - 1.5);
+              document.getElementById('prism-sync').innerText = Math.round(prismState.syncHealth) + '%';
             }
           }
+        });
+
+        prismState.orbs.forEach(orb => {
+          if (!orb.collected) {
+            prismCtx.fillStyle = '#66fcf1';
+            prismCtx.shadowBlur = 15;
+            prismCtx.shadowColor = '#66fcf1';
+            prismCtx.beginPath();
+            prismCtx.arc(orb.x, orb.y, 14, 0, Math.PI * 2);
+            prismCtx.fill();
+            prismCtx.shadowBlur = 0;
+
+            if (Math.abs(prismState.x - orb.x) < 30 && Math.abs(prismState.y - orb.y) < 30) {
+              playSound('orb');
+              orb.collected = true;
+              prismState.score++;
+              document.getElementById('prism-score').innerText = prismState.score;
+              if (prismState.score < 3) {
+                prismState.orbs.push({ x: Math.random() * 460 + 70, y: Math.random() * 220 + 50, collected: false });
+              }
+            }
+          }
+        });
+
+        const spriteImg = document.getElementById('prismSpriteAsset');
+        prismCtx.save();
+        prismCtx.shadowBlur = 25;
+        prismCtx.shadowColor = '#c084fc';
+        if (spriteImg && spriteImg.complete && spriteImg.naturalWidth !== 0) {
+          prismCtx.drawImage(spriteImg, prismState.x - 35, prismState.y - 50, 70, 95);
+        } else {
+          prismCtx.fillStyle = '#c084fc';
+          prismCtx.beginPath();
+          prismCtx.arc(prismState.x, prismState.y, 22, 0, Math.PI * 2);
+          prismCtx.fill();
         }
-      });
-
-      const spriteImg = document.getElementById('prismSpriteAsset');
-      prismCtx.save();
-      prismCtx.shadowBlur = 25;
-      prismCtx.shadowColor = '#c084fc';
-      if (spriteImg && spriteImg.complete && spriteImg.naturalWidth !== 0) {
-        prismCtx.drawImage(spriteImg, prismState.x - 35, prismState.y - 50, 70, 95);
-      } else {
-        prismCtx.fillStyle = '#c084fc';
-        prismCtx.beginPath();
-        prismCtx.arc(prismState.x, prismState.y, 22, 0, Math.PI * 2);
-        prismCtx.fill();
+        prismCtx.restore();
       }
-      prismCtx.restore();
-
-      prismAnimId = requestAnimationFrame(prismLoop);
+      requestAnimationFrame(prismLoop);
     }
 
     window.onload = () => {
