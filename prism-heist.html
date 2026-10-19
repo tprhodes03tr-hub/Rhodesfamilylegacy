@@ -24,11 +24,11 @@
             border-radius: 12px;
             padding: 15px;
             width: 100%;
-            max-width: 380px;
+            max-width: 360px;
             text-align: center;
         }
         h2 {
-            font-size: 14px;
+            font-size: 13px;
             letter-spacing: 2px;
             color: #e9d5ff;
             margin: 5px 0 10px 0;
@@ -39,7 +39,7 @@
             border: 1px solid #7e22ce;
             border-radius: 6px;
             padding: 8px;
-            font-size: 11px;
+            font-size: 10px;
             margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
@@ -55,14 +55,14 @@
         .controls {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 6px;
+            gap: 8px;
             margin-bottom: 8px;
         }
         button {
             background: #2e1065;
             color: #f3e8ff;
             border: 1px solid #a855f7;
-            padding: 8px;
+            padding: 10px;
             border-radius: 6px;
             font-family: inherit;
             font-weight: bold;
@@ -95,7 +95,7 @@
 <body>
 
 <div class="cabinet">
-    <div style="font-size: 9px; color: #c084fc; letter-spacing: 1px;">SYNDICATE ELITE • A-TIER ARCADE</div>
+    <div style="font-size: 8px; color: #c084fc; letter-spacing: 1px;">SYNDICATE ELITE • A-TIER ARCADE</div>
     <h2>PRISM-GHOST: SPECTRUM HEIST</h2>
     
     <div class="hud">
@@ -104,13 +104,11 @@
         <span id="keys-label">KEYS: 0/3</span>
     </div>
 
-    <canvas id="gameCanvas" width="340" height="200"></canvas>
+    <canvas id="gameCanvas" width="320" height="220"></canvas>
 
     <div class="controls">
-        <button onclick="movePlayer('LEFT')">◄ SHIFT LEFT</button>
-        <button onclick="movePlayer('RIGHT')">SHIFT RIGHT ►</button>
-        <button onclick="movePlayer('UP')">▲ STEP FORWARD</button>
-        <button onclick="movePlayer('DOWN')">▼ STEP BACK</button>
+        <button onclick="steer(-1)">◄ STEER LEFT</button>
+        <button onclick="steer(1)">STEER RIGHT ►</button>
         <button class="action-btn" onclick="deployDecoy()">✨ DEPLOY QUANTUM DECOY</button>
     </div>
 
@@ -126,40 +124,38 @@ let shield = 100;
 let keysCollected = 0;
 let targetKeys = 3;
 
-// Player Position 
-let playerX = 170;
-let playerY = 160;
+// 4 distinct vertical stealth lanes
+const lanes = [60, 120, 180, 240];
+let currentLaneIndex = 1;
 
-// Security Droids & Keys
-let droids = [
-    { x: 50, y: 50, speed: 2, dir: 1 },
-    { x: 200, y: 90, speed: -2.5, dir: -1 },
-    { x: 100, y: 130, speed: 1.8, dir: 1 }
+let playerX = lanes[currentLaneIndex];
+let playerY = 180;
+
+// Load Character Sprite Asset
+const prismSprite = new Image();
+prismSprite.src = 'prism-ghost.png';
+
+let obstacles = [
+    { lane: 0, y: -50, speed: 2 },
+    { lane: 2, y: -150, speed: 2.5 },
+    { lane: 3, y: -100, speed: 2 }
 ];
 
-let keys = [
-    { x: 60, y: 50, collected: false },
-    { x: 280, y: 90, collected: false },
-    { x: 170, y: 130, collected: false }
+let vaultKeys = [
+    { lane: 1, y: -80, collected: false },
+    { lane: 3, y: -200, collected: false },
+    { lane: 0, y: -300, collected: false }
 ];
 
-function movePlayer(dir) {
-    if (dir === 'LEFT') playerX -= 30;
-    if (dir === 'RIGHT') playerX += 30;
-    if (dir === 'UP') playerY -= 25;
-    if (dir === 'DOWN') playerY += 25;
-
-    // Boundaries
-    if (playerX < 25) playerX = 25;
-    if (playerX > 315) playerX = 315;
-    if (playerY < 25) playerY = 25;
-    if (playerY > 185) playerY = 185;
+function steer(direction) {
+    currentLaneIndex += direction;
+    if (currentLaneIndex < 0) currentLaneIndex = 0;
+    if (currentLaneIndex > lanes.length - 1) currentLaneIndex = lanes.length - 1;
+    playerX = lanes[currentLaneIndex];
 }
 
 function deployDecoy() {
-    droids.forEach(droid => {
-        droid.x += (Math.random() - 0.5) * 60;
-    });
+    obstacles.forEach(obs => obs.y -= 120);
 }
 
 function resetGame() {
@@ -171,52 +167,54 @@ function resetGame() {
 
 function resetChapter() {
     keysCollected = 0;
-    keys.forEach(k => {
+    vaultKeys.forEach(k => {
         k.collected = false;
-        k.x = Math.floor(Math.random() * 250) + 45;
-        k.y = Math.floor(Math.random() * 120) + 40;
+        k.lane = Math.floor(Math.random() * lanes.length);
+        k.y = -Math.random() * 200 - 50;
     });
-    droids.forEach(d => {
-        d.speed = (1.5 + (chapter * 0.6)) * (Math.random() > 0.5 ? 1 : -1);
+    obstacles.forEach(obs => {
+        obs.lane = Math.floor(Math.random() * lanes.length);
+        obs.y = -Math.random() * 200 - 50;
+        obs.speed = 1.8 + (chapter * 0.5);
     });
-    playerX = 170;
-    playerY = 160;
 }
 
 function update() {
-    droids.forEach(droid => {
-        droid.x += droid.speed;
-        if (droid.x < 20 || droid.x > 320) {
-            droid.speed *= -1;
+    obstacles.forEach(obs => {
+        obs.y += obs.speed;
+        if (obs.y > canvas.height + 20) {
+            obs.y = -50;
+            obs.lane = Math.floor(Math.random() * lanes.length);
         }
 
-        // Collision Check
-        let dist = Math.hypot(playerX - droid.x, playerY - droid.y);
-        if (dist < 16) {
+        if (obs.lane === currentLaneIndex && Math.abs(obs.y - playerY) < 20) {
             shield -= 25;
-            playerX = 170;
-            playerY = 160;
+            obs.y = -100;
             if (shield <= 0) {
-                alert("CRITICAL BREACH! SHIELD DEPLETED. RESTARTING HEIST...");
+                alert("CRITICAL SYSTEM BREACH! PRISM-GHOST CAUGHT. RESTARTING...");
                 resetGame();
             }
         }
     });
 
-    // Key Collection Check
-    keys.forEach(k => {
+    vaultKeys.forEach(k => {
         if (!k.collected) {
-            let dist = Math.hypot(playerX - k.x, playerY - k.y);
-            if (dist < 16) {
+            k.y += 2;
+            if (k.y > canvas.height + 20) {
+                k.y = -100;
+                k.lane = Math.floor(Math.random() * lanes.length);
+            }
+
+            if (k.lane === currentLaneIndex && Math.abs(k.y - playerY) < 20) {
                 k.collected = true;
                 keysCollected++;
                 if (keysCollected >= targetKeys) {
                     if (chapter < 4) {
                         chapter++;
-                        alert(`VAULT SECURED! INFILTRATING CHAPTER ${chapter}`);
+                        alert(`VAULT CODE SECURED! ADVANCING TO CHAPTER ${chapter}`);
                         resetChapter();
                     } else {
-                        alert("ULTIMATE HEIST COMPLETE! ALL VAULT CODES CRACKED.");
+                        alert("LEGENDARY HEIST COMPLETE! ALL VAULT CODES CRACKED.");
                         resetGame();
                     }
                 }
@@ -229,49 +227,60 @@ function draw() {
     ctx.fillStyle = '#05020a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Perspective Grid Lines
     ctx.strokeStyle = '#1e1b4b';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i < canvas.width; i += 20) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-    }
-    for (let j = 0; j < canvas.height; j += 20) {
-        ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
-    }
+    ctx.lineWidth = 1;
+    lanes.forEach(lx => {
+        ctx.beginPath();
+        ctx.moveTo(lx, 0);
+        ctx.lineTo(lx, canvas.height);
+        ctx.stroke();
+    });
 
-    // Draw Keys
-    keys.forEach(k => {
+    ctx.strokeStyle = '#7e22ce';
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(150, 0);
+    ctx.lineTo(150, canvas.height);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    vaultKeys.forEach(k => {
         if (!k.collected) {
             ctx.fillStyle = '#facc15';
             ctx.beginPath();
-            ctx.arc(k.x, k.y, 5, 0, Math.PI * 2);
+            ctx.arc(lanes[k.lane], k.y, 6, 0, Math.PI * 2);
             ctx.shadowColor = '#facc15';
-            ctx.shadowBlur = 8;
+            ctx.shadowBlur = 10;
             ctx.fill();
             ctx.shadowBlur = 0;
         }
     });
 
-    // Draw Droids
-    droids.forEach(droid => {
+    obstacles.forEach(obs => {
         ctx.fillStyle = '#ef4444';
-        ctx.fillRect(droid.x - 14, droid.y - 3, 28, 6);
+        ctx.fillRect(lanes[obs.lane] - 16, obs.y - 4, 32, 8);
         ctx.shadowColor = '#ef4444';
-        ctx.shadowBlur = 10;
-        ctx.fillRect(droid.x - 14, droid.y - 3, 28, 6);
+        ctx.shadowBlur = 12;
+        ctx.fillRect(lanes[obs.lane] - 16, obs.y - 4, 32, 8);
         ctx.shadowBlur = 0;
     });
 
-    // Draw Player
-    ctx.fillStyle = '#c084fc';
-    ctx.beginPath();
-    ctx.arc(playerX, playerY, 8, 0, Math.PI * 2);
-    ctx.shadowColor = '#c084fc';
-    ctx.shadowBlur = 12;
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    // Draw Prism-Ghost Character Sprite with Fallback
+    if (prismSprite.complete && prismSprite.naturalWidth !== 0) {
+        ctx.shadowColor = '#c084fc';
+        ctx.shadowBlur = 15;
+        ctx.drawImage(prismSprite, playerX - 16, playerY - 16, 32, 32);
+        ctx.shadowBlur = 0;
+    } else {
+        ctx.fillStyle = '#c084fc';
+        ctx.beginPath();
+        ctx.arc(playerX, playerY, 10, 0, Math.PI * 2);
+        ctx.shadowColor = '#c084fc';
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
 
-    // HUD Update
     document.getElementById('chapter-label').innerText = `CH: ${chapter} / 4`;
     document.getElementById('shield-label').innerText = `SHIELD: ${shield}%`;
     document.getElementById('keys-label').innerText = `KEYS: ${keysCollected}/${targetKeys}`;
