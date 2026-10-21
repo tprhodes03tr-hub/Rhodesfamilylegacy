@@ -1034,7 +1034,11 @@
       voltState.chapter = 1;
       voltState.beams = [];
       voltState.enemies = [];
+      voltPaused = true;
+      document.getElementById('volt-pause-btn').innerText = "START GAME";
+      document.getElementById('volt-status-label').innerText = "STATUS: READY";
       updateVoltHUD();
+      drawVoltStatic();
     }
 
     function updateVoltHUD() {
@@ -1085,6 +1089,25 @@
       }
     }
 
+    function drawVoltStatic() {
+      if (!voltCanvas || !voltCtx) return;
+      voltCtx.fillStyle = '#020617';
+      voltCtx.fillRect(0, 0, voltCanvas.width, voltCanvas.height);
+      voltCtx.fillStyle = '#1e293b';
+      voltCtx.fillRect(0, 380, voltCanvas.width, 70);
+      voltCtx.strokeStyle = '#60a5fa'; voltCtx.lineWidth = 2;
+      voltCtx.beginPath(); voltCtx.moveTo(0, 380); voltCtx.lineTo(voltCanvas.width, 380); voltCtx.stroke();
+      
+      voltCtx.save();
+      if (voltLoaded && voltSprite.naturalWidth !== 0) {
+        voltCtx.drawImage(voltSprite, voltState.x - 32, voltState.y - 50, 64, 80);
+      } else {
+        voltCtx.fillStyle = '#1e3a8a'; voltCtx.strokeStyle = '#60a5fa'; voltCtx.lineWidth = 3;
+        voltCtx.beginPath(); voltCtx.arc(voltState.x, voltState.y - 10, 26, 0, Math.PI * 2); voltCtx.fill(); voltCtx.stroke();
+      }
+      voltCtx.restore();
+    }
+
     function voltLoop() {
       if (voltCanvas && voltCtx && voltCanvas.offsetParent !== null) {
         if (!voltPaused && voltState.health > 0) {
@@ -1132,13 +1155,13 @@
           // Beams
           voltState.beams.forEach((b, idx) => {
             b.x += b.speed;
-            voltCtx.strokeStyle = '#60a5fa'; voltCtx.shadowColor = '#60a5fa'; voltCtx.shadowBlur = 15;
+            voltCtx.strokeStyle = '#60a5fa'; voltCtx.shadowColor = '#60a5fa'; voltCtx.shadowBlur = 18;
             voltCtx.lineWidth = 5;
-            voltCtx.beginPath(); voltCtx.moveTo(b.x, b.y); voltCtx.lineTo(b.x + 40, b.y); voltCtx.stroke();
+            voltCtx.beginPath(); voltCtx.moveTo(b.x, b.y); voltCtx.lineTo(b.x + 50, b.y); voltCtx.stroke();
             voltCtx.shadowBlur = 0;
 
             voltState.enemies.forEach((e, eIdx) => {
-              if (Math.abs(b.x - e.x) < 30 && Math.abs(b.y - e.y) < 30) {
+              if (Math.abs(b.x - e.x) < 35 && Math.abs(b.y - e.y) < 35) {
                 playSound('orb');
                 voltState.score++;
                 voltState.beams.splice(idx, 1);
@@ -1197,6 +1220,8 @@
             document.getElementById('volt-status-label').innerText = "STATUS: SYSTEM OVERLOAD (GAME OVER)";
             document.getElementById('volt-pause-btn').innerText = "RESTART";
           }
+        } else if (voltPaused) {
+          drawVoltStatic();
         }
       }
       if (voltRunning) {
@@ -1300,8 +1325,7 @@
         prismState.roboticDroids.forEach((d, idx) => {
           d.x -= d.speed;
           prismCtx.fillStyle = '#1e1b4b';
-          prismCtx.strokeStyle = '#c084fc';
-          prismCtx.lineWidth = 2;
+          prismCtx.strokeStyle = '#c084fc'; prismCtx.lineWidth = 2;
           prismCtx.fillRect(d.x - 16, d.y - 30, 32, 32);
           prismCtx.strokeRect(d.x - 16, d.y - 30, 32, 32);
           prismCtx.fillStyle = '#c084fc';
@@ -1552,7 +1576,7 @@
           magmaCtx.fillStyle = '#f59e0b';
           magmaCtx.fillRect(d.x - 10, d.y - 24, 20, 6);
 
-          if (Math.abs(magmaState.x - d.x) < 30 && Math.abs(voltState.y - d.y) < 30) {
+          if (Math.abs(magmaState.x - d.x) < 30 && Math.abs(d.y - 340) < 30) {
             playSound('crash');
             magmaState.shield = Math.max(0, magmaState.shield - 15);
             document.getElementById('magma-shield').innerText = magmaState.shield + '%';
@@ -1568,6 +1592,7 @@
           magmaCtx.fillStyle = '#7f1d1d'; magmaCtx.strokeStyle = '#f87171'; magmaCtx.lineWidth = 3;
           magmaCtx.beginPath(); magmaCtx.arc(magmaState.x, magmaState.y - 10, 26, 0, Math.PI * 2); magmaCtx.fill(); magmaCtx.stroke();
         }
+        voltCtx = null; // Prevent reference collisions
         magmaCtx.restore();
       }
       requestAnimationFrame(magmaLoop);
@@ -1576,6 +1601,7 @@
     window.onload = () => {
       updateStats();
       renderEpochNodes();
+      initVoltEngine();
     };
   </script>
 </body>
