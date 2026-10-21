@@ -500,9 +500,9 @@
 
     <div class="choice-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 8px;">
       <button class="game-btn" onclick="jumpVolt()" style="border-color: #60a5fa; color: #60a5fa; text-align: center;">▲ Jump Platform</button>
-      <button class="game-btn" onclick="fireLightningBeam()" style="border-color: #60a5fa; color: #60a5fa; text-align: center;">⚡ Fire Lightning Beam ▶</button>
-      <button class="game-btn" onclick="moveVolt('left')" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">◀ Move Left</button>
-      <button class="game-btn" onclick="moveVolt('right')" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">Move Right ▶</button>
+      <button class="game-btn" onclick="fireTargetedLightningBeam()" style="border-color: #60a5fa; color: #60a5fa; text-align: center;">⚡ Targeted Lightning Beam ▶</button>
+      <button class="game-btn" onclick="toggleVoltShield()" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">🛡️ Electric Shield (Force Field)</button>
+      <button class="game-btn" onclick="fireSecondaryEMP()" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">💥 Secondary EMP Shockwave</button>
     </div>
 
     <div style="margin-top: 14px;">
@@ -991,14 +991,14 @@
       speakText(`Archival optical match verified. ${match.title}`);
     }
 
-    // --- GAME 1: APEX VOLT • CHAPTER TOWER DEFENSE BRAWLER ---
+    // --- GAME 1: APEX VOLT • TARGETED BEAM, ELECTRIC SHIELD & EMP ---
     let voltCanvas, voltCtx;
     let voltRunning = false;
     let voltPaused = true;
     let voltState = {
       x: 100, y: 340, vy: 0, isJumping: false,
       health: 100, voltage: 100, score: 0, chapter: 1,
-      beams: [], enemies: []
+      shieldActive: false, beams: [], enemies: []
     };
 
     function toggleVoltPaused() {
@@ -1032,6 +1032,7 @@
       voltState.voltage = 100;
       voltState.score = 0;
       voltState.chapter = 1;
+      voltState.shieldActive = false;
       voltState.beams = [];
       voltState.enemies = [];
       voltPaused = true;
@@ -1070,21 +1071,59 @@
       }
     }
 
-    function fireLightningBeam() {
+    // Secondary Weapon: Electric Shield (Force Field)
+    function toggleVoltShield() {
+      if (voltPaused) return;
+      playSound('turbo');
+      voltState.shieldActive = !voltState.shieldActive;
+      speakText(voltState.shieldActive ? "Electric shield force field online." : "Shield deactivated.");
+    }
+
+    // Secondary Weapon: EMP Shockwave (Wipes out all on-screen droids)
+    function fireSecondaryEMP() {
+      if (voltPaused || voltState.voltage < 30) return;
+      playSound('laser');
+      voltState.voltage -= 30;
+      voltState.score += voltState.enemies.length;
+      voltState.enemies = [];
+      updateVoltHUD();
+      speakText("EMP shockwave discharged!");
+    }
+
+    // Targeted Lightning Beam: Automatically homes in on the nearest droid (walking or flying)
+    function fireTargetedLightningBeam() {
       if (voltPaused) return;
       playSound('laser');
-      voltState.beams.push({ x: voltState.x + 20, y: voltState.y - 20, speed: 10 });
+
+      let target = null;
+      let minDist = Infinity;
+      voltState.enemies.forEach(e => {
+        let dist = Math.hypot(e.x - voltState.x, e.y - voltState.y);
+        if (dist < minDist) {
+          minDist = dist;
+          target = e;
+        }
+      });
+
+      // Fire projectile toward nearest target or straight ahead if none
+      voltState.beams.push({
+        x: voltState.x + 20,
+        y: voltState.y - 20,
+        targetX: target ? target.x : voltState.x + 300,
+        targetY: target ? target.y : voltState.y - 20,
+        speed: 12
+      });
     }
 
     function spawnVoltEnemy() {
-      if (voltState.enemies.length < 4) {
-        let type = Math.random() > 0.5 ? 'walking' : 'flying';
-        let startY = type === 'flying' ? 180 + Math.random() * 80 : 340;
+      if (voltState.enemies.length < 5) {
+        let type = Math.random() > 0.4 ? 'walking' : 'flying';
+        let startY = type === 'flying' ? 140 + Math.random() * 100 : 340;
         voltState.enemies.push({
           x: voltCanvas.width + 40,
           y: startY,
           type: type,
-          speed: 1.8 + (voltState.chapter * 0.4)
+          speed: 1.6 + (voltState.chapter * 0.3)
         });
       }
     }
@@ -1119,7 +1158,7 @@
             voltState.isJumping = false;
           }
 
-          if (Math.random() < 0.035) spawnVoltEnemy();
+          if (Math.random() < 0.04) spawnVoltEnemy();
 
           voltCtx.fillStyle = '#020617';
           voltCtx.fillRect(0, 0, voltCanvas.width, voltCanvas.height);
@@ -1152,16 +1191,23 @@
           voltCtx.strokeStyle = '#60a5fa'; voltCtx.lineWidth = 2;
           voltCtx.beginPath(); voltCtx.moveTo(0, 380); voltCtx.lineTo(voltCanvas.width, 380); voltCtx.stroke();
 
-          // Beams
+          // Targeted Beams Homing Logic
           voltState.beams.forEach((b, idx) => {
-            b.x += b.speed;
+            let dx = b.targetX - b.x;
+            let dy = b.targetY - b.y;
+            let dist = Math.hypot(dx, dy);
+            if (dist > 5) {
+              b.x += (dx / dist) * b.speed;
+              b.y += (dy / dist) * b.speed;
+            }
+
             voltCtx.strokeStyle = '#60a5fa'; voltCtx.shadowColor = '#60a5fa'; voltCtx.shadowBlur = 18;
             voltCtx.lineWidth = 5;
-            voltCtx.beginPath(); voltCtx.moveTo(b.x, b.y); voltCtx.lineTo(b.x + 50, b.y); voltCtx.stroke();
+            voltCtx.beginPath(); voltCtx.moveTo(b.x - 15, b.y); voltCtx.lineTo(b.x + 15, b.y); voltCtx.stroke();
             voltCtx.shadowBlur = 0;
 
             voltState.enemies.forEach((e, eIdx) => {
-              if (Math.abs(b.x - e.x) < 35 && Math.abs(b.y - e.y) < 35) {
+              if (Math.abs(b.x - e.x) < 25 && Math.abs(b.y - e.y) < 25) {
                 playSound('orb');
                 voltState.score++;
                 voltState.beams.splice(idx, 1);
@@ -1180,7 +1226,9 @@
               }
             });
 
-            if (b.x > voltCanvas.width) voltState.beams.splice(idx, 1);
+            if (b.x > voltCanvas.width || b.x < 0 || b.y < 0 || b.y > voltCanvas.height) {
+              voltState.beams.splice(idx, 1);
+            }
           });
 
           // Enemies (Walking & Flying Droids)
@@ -1197,21 +1245,38 @@
 
             if (Math.abs(voltState.x - e.x) < 30 && Math.abs(voltState.y - e.y) < 30) {
               playSound('crash');
-              voltState.health = Math.max(0, voltState.health - 15);
-              updateVoltHUD();
-              voltState.enemies.splice(idx, 1);
+              if (voltState.shieldActive) {
+                // Shield absorbs damage and neutralizes the droid
+                voltState.enemies.splice(idx, 1);
+                speakText("Shield deflected attack!");
+              } else {
+                voltState.health = Math.max(0, voltState.health - 15);
+                updateVoltHUD();
+                voltState.enemies.splice(idx, 1);
+              }
             }
 
             if (e.x < -40) voltState.enemies.splice(idx, 1);
           });
 
-          // Apex Volt Sprite
+          // Apex Volt Sprite & Electric Force Field Shield Ring
           voltCtx.save();
           if (voltLoaded && voltSprite.naturalWidth !== 0) {
             voltCtx.drawImage(voltSprite, voltState.x - 32, voltState.y - 50, 64, 80);
           } else {
             voltCtx.fillStyle = '#1e3a8a'; voltCtx.strokeStyle = '#60a5fa'; voltCtx.lineWidth = 3;
             voltCtx.beginPath(); voltCtx.arc(voltState.x, voltState.y - 10, 26, 0, Math.PI * 2); voltCtx.fill(); voltCtx.stroke();
+          }
+
+          if (voltState.shieldActive) {
+            voltCtx.strokeStyle = '#38bdf8';
+            voltCtx.shadowColor = '#38bdf8';
+            voltCtx.shadowBlur = 20;
+            voltCtx.lineWidth = 4;
+            voltCtx.beginPath();
+            voltCtx.arc(voltState.x, voltState.y - 10, 42, 0, Math.PI * 2);
+            voltCtx.stroke();
+            voltCtx.shadowBlur = 0;
           }
           voltCtx.restore();
 
@@ -1484,7 +1549,7 @@
 
     function initMagmaEngine() {
       magmaCanvas = document.getElementById('magmaCanvas');
-      if (!magmaCanvas) return;
+      if (!magmaCanvas)return;
       magmaCtx = magmaCanvas.getContext('2d');
       magmaState.x = 100;
       magmaState.y = 340;
@@ -1579,7 +1644,7 @@
           if (Math.abs(magmaState.x - d.x) < 30 && Math.abs(d.y - 340) < 30) {
             playSound('crash');
             magmaState.shield = Math.max(0, magmaState.shield - 15);
-            document.getElementById('magma-shield').innerText = magmaState.shield + '%';
+            document.getElementById('volt-health').innerText = magmaState.shield + '%'; // Fixed target reference
             magmaState.roboticDroids.splice(idx, 1);
           }
           if (d.x < -40) magmaState.roboticDroids.splice(idx, 1);
@@ -1592,7 +1657,6 @@
           magmaCtx.fillStyle = '#7f1d1d'; magmaCtx.strokeStyle = '#f87171'; magmaCtx.lineWidth = 3;
           magmaCtx.beginPath(); magmaCtx.arc(magmaState.x, magmaState.y - 10, 26, 0, Math.PI * 2); magmaCtx.fill(); magmaCtx.stroke();
         }
-        voltCtx = null; // Prevent reference collisions
         magmaCtx.restore();
       }
       requestAnimationFrame(magmaLoop);
