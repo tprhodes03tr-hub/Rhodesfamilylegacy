@@ -212,14 +212,14 @@
     <button class="switch-btn" id="btn-switch-scanner" onclick="switchPortal('scanner')">📷 Scan</button>
   </div>
 
-  <!-- PORTAL 4: APEX VOLT • POLISHED TOWER DEFENSE & POLICE HELICOPTER BOSS BRAWLER -->
+  <!-- PORTAL 4: APEX VOLT • CHAPTERS, REALISTIC POLICE CHOOPERS & MARCUS PRIME BOSS SHOWDOWN -->
   <div class="sandbox-container volt-container" id="portal-volt">
     <div class="sandbox-header" id="volt-chapter-subtitle">Chapter 1 • Electric Generator Sector</div>
-    <h1 style="color: #60a5fa;">Apex Volt: Gantry & Police Chopper Sector</h1>
+    <h1 style="color: #60a5fa;">Apex Volt: Gantry & Marcus Prime Clash</h1>
 
     <div class="stats-bar" style="border-color: #1e3a8a; color: #60a5fa;">
       <span>❤️ Health: <strong id="volt-health" style="color: #22c55e;">100%</strong></span>
-      <span>⚡ Voltage: <strong id="volt-power">100%</strong></span>
+      <span>⚡ Voltage Capacitor: <strong id="volt-power">0% (Charging)</strong></span>
       <span>🤖 Droids Defeated: <strong id="volt-score" style="color: #f59e0b;">0</strong> / 25</span>
     </div>
 
@@ -234,14 +234,14 @@
       <canvas id="voltCanvas" width="600" height="450" style="width: 100%; height: 100%; display: block;"></canvas>
     </div>
 
-    <!-- SEPARATE CONTROLS: MOVEMENT & ACTIONS NEVER CONFLICT -->
+    <!-- CLEAN CONTROLS -->
     <div class="choice-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 8px;">
       <button class="game-btn" onclick="moveVolt('left')" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">◀ Move Left</button>
       <button class="game-btn" onclick="moveVolt('right')" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">Move Right ▶</button>
       <button class="game-btn" onclick="jumpVolt()" style="border-color: #60a5fa; color: #60a5fa; text-align: center;">▲ Jump / Leap Ledges</button>
       <button class="game-btn" onclick="fireTargetedLightningBeam()" style="border-color: #60a5fa; color: #60a5fa; text-align: center;">⚡ Lightning Beam</button>
       <button class="game-btn" onclick="toggleVoltShield()" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">🛡️ Electric Force Field</button>
-      <button class="game-btn" onclick="fireSecondaryEMP()" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">💥 EMP Shockwave Blast</button>
+      <button class="game-btn" id="emp-btn" onclick="fireSecondaryEMP()" style="background: #1e3a8a; border-color: #60a5fa; color: #94a3b8; text-align: center;">💥 EMP Shockwave (Charging 0%)</button>
     </div>
 
     <div style="margin-top: 14px;">
@@ -249,7 +249,7 @@
     </div>
   </div>
 
-  <!-- OTHER PORTALS (PRISM, WAKAN, MAGMA, SANDBOX, MATRIX, SCANNER) -->
+  <!-- OTHER PORTALS -->
   <div class="sandbox-container prism-container hidden" id="portal-prism">
     <div class="sandbox-header" style="color: #c084fc;">Prism-Ghost • Cyber Vault Sector</div>
     <h1 style="color: #c084fc;">Prism-Ghost: Spectrum Heist</h1>
@@ -283,6 +283,11 @@
     voltSprite.src = 'apex-volt.png';
     let voltLoaded = false;
     voltSprite.onload = () => { voltLoaded = true; };
+
+    const marcusSprite = new Image();
+    marcusSprite.src = 'marcus.png';
+    let marcusLoaded = false;
+    marcusSprite.onload = () => { marcusLoaded = true; };
 
     let audioCtx = null;
     function initAudio() {
@@ -322,14 +327,15 @@
       if (target === 'volt') initVoltEngine();
     }
 
-    // --- APEX VOLT ADVANCED ENGINE ---
+    // --- APEX VOLT ADVANCED ENGINE WITH MARCUS PRIME BOSS SHOWDOWN ---
     let voltCanvas, voltCtx;
     let voltRunning = false;
     let voltPaused = true;
     let voltState = {
       x: 100, y: 340, vy: 0, isJumping: false,
-      health: 100, voltage: 100, score: 0, chapter: 1,
-      shieldActive: false, beams: [], enemies: [], enemyProjectiles: [], policeHelicopters: [], tickerText: "SECURE THE GENERATOR GRID"
+      health: 100, voltage: 0, score: 0, chapter: 1,
+      shieldActive: false, beams: [], enemies: [], enemyProjectiles: [], policeHelicopters: [],
+      marcusBoss: null, tickerText: "SECURE THE GENERATOR GRID"
     };
 
     function toggleVoltPaused() {
@@ -350,8 +356,9 @@
       if (!voltCanvas) return;
       voltCtx = voltCanvas.getContext('2d');
       voltState.x = 100; voltState.y = 340; voltState.vy = 0; voltState.isJumping = false;
-      voltState.health = 100; voltState.voltage = 100; voltState.score = 0; voltState.chapter = 1;
+      voltState.health = 100; voltState.voltage = 0; voltState.score = 0; voltState.chapter = 1;
       voltState.shieldActive = false; voltState.beams = []; voltState.enemies = []; voltState.enemyProjectiles = []; voltState.policeHelicopters = [];
+      voltState.marcusBoss = null; voltState.tickerText = "SECURE THE GENERATOR GRID";
       voltPaused = true;
       document.getElementById('volt-pause-btn').innerText = "START GAME";
       document.getElementById('volt-status-label').innerText = "STATUS: READY";
@@ -364,17 +371,25 @@
       document.getElementById('volt-power').innerText = voltState.voltage + '%';
       document.getElementById('volt-score').innerText = voltState.score;
       document.getElementById('volt-chapter-subtitle').innerText = `Chapter ${voltState.chapter} • ${getVoltChapterName()}`;
+      
+      let empBtn = document.getElementById('emp-btn');
+      if (voltState.voltage >= 100) {
+        empBtn.innerText = "💥 EMP SHOCKWAVE READY (100%)";
+        empBtn.style.color = "#60a5fa"; empBtn.style.borderColor = "#60a5fa";
+      } else {
+        empBtn.innerText = `💥 EMP Shockwave (Charging ${voltState.voltage}%)`;
+        empBtn.style.color = "#94a3b8"; empBtn.style.borderColor = "#3b82f6";
+      }
     }
 
     function getVoltChapterName() {
       if (voltState.chapter === 1) return "Electric Generator & Gantry Sector";
-      if (voltState.chapter === 2) return "High-Voltage Power Core Vault";
-      return "Police Helicopter Air Strike";
+      if (voltState.chapter === 2) return "Police Chopper Air Strike";
+      return "Final Clash: Marcus Prime Showdown";
     }
 
     function moveVolt(dir) {
       if (voltPaused) return;
-      playSound('steer');
       if (dir === 'left') voltState.x = Math.max(50, voltState.x - 45);
       if (dir === 'right') voltState.x = Math.min(voltCanvas.width - 50, voltState.x + 45);
     }
@@ -383,7 +398,7 @@
       if (voltPaused) return;
       if (!voltState.isJumping) {
         playSound('steer');
-        voltState.vy = -13; // Reaches upper landing ledges (y ≈ 240)
+        voltState.vy = -13;
         voltState.isJumping = true;
       }
     }
@@ -395,11 +410,12 @@
     }
 
     function fireSecondaryEMP() {
-      if (voltPaused || voltState.voltage < 30) return;
+      if (voltPaused || voltState.voltage < 100) return;
       playSound('laser');
-      voltState.voltage -= 30;
+      voltState.voltage = 0;
       voltState.score += voltState.enemies.length + voltState.policeHelicopters.length;
       voltState.enemies = []; voltState.policeHelicopters = []; voltState.enemyProjectiles = [];
+      if (voltState.marcusBoss) voltState.marcusBoss.health -= 30; // Damage boss with EMP
       updateVoltHUD();
       checkChapterProgression();
     }
@@ -410,6 +426,8 @@
       let target = null;
       let minDist = Infinity;
       let allTargets = [...voltState.policeHelicopters, ...voltState.enemies];
+      if (voltState.marcusBoss) allTargets.push(voltState.marcusBoss);
+
       allTargets.forEach(t => {
         let dist = Math.hypot(t.x - voltState.x, t.y - voltState.y);
         if (dist < minDist) { minDist = dist; target = t; }
@@ -424,15 +442,15 @@
     }
 
     function spawnVoltEnemy() {
-      if (voltState.chapter === 3) {
+      if (voltState.chapter === 2) {
         if (voltState.policeHelicopters.length < 2 && Math.random() < 0.04) {
-          voltState.policeHelicopters.push({ x: voltCanvas.width + 80, y: 110, speed: 1.4, shootTimer: 0 });
+          voltState.policeHelicopters.push({ x: voltCanvas.width + 80, y: 110, speed: 1.5, shootTimer: 0 });
         }
-      } else {
+      } else if (voltState.chapter === 1) {
         if (voltState.enemies.length < 5) {
           let type = Math.random() > 0.4 ? 'walking' : 'flying';
           let startY = type === 'flying' ? 160 + Math.random() * 80 : 340;
-          voltState.enemies.push({ x: voltCanvas.width + 40, y: startY, type: type, speed: 1.6, shootTimer: 0 });
+          voltState.enemies.push({ x: voltCanvas.width + 40, y: startY, type: type, speed: 1.5, shootTimer: 0 });
         }
       }
     }
@@ -440,10 +458,8 @@
     function drawVoltStatic() {
       if (!voltCanvas || !voltCtx) return;
       voltCtx.fillStyle = '#020617'; voltCtx.fillRect(0, 0, voltCanvas.width, voltCanvas.height);
-      // Upper Landing Ledges
       voltCtx.fillStyle = '#1e293b'; voltCtx.fillRect(80, 240, 180, 16); voltCtx.fillRect(340, 240, 180, 16);
       voltCtx.strokeStyle = '#60a5fa'; voltCtx.lineWidth = 2; voltCtx.strokeRect(80, 240, 180, 16); voltCtx.strokeRect(340, 240, 180, 16);
-      // Ground Platform
       voltCtx.fillRect(0, 380, voltCanvas.width, 70);
       voltCtx.beginPath(); voltCtx.moveTo(0, 380); voltCtx.lineTo(voltCanvas.width, 380); voltCtx.stroke();
       
@@ -463,7 +479,6 @@
           voltState.y += voltState.vy;
           voltState.vy += 0.8;
 
-          // Upper Ledges Landing Check
           let onLedge1 = (voltState.x >= 70 && voltState.x <= 270 && voltState.y >= 230 && voltState.y <= 250 && voltState.vy >= 0);
           let onLedge2 = (voltState.x >= 330 && voltState.x <= 530 && voltState.y >= 230 && voltState.y <= 250 && voltState.vy >= 0);
           if (onLedge1 || onLedge2) {
@@ -472,42 +487,71 @@
             voltState.y = 340; voltState.vy = 0; voltState.isJumping = false;
           }
 
-          if (Math.random() < 0.035) spawnVoltEnemy();
+          if (voltState.chapter < 3 && Math.random() < 0.035) spawnVoltEnemy();
 
           voltCtx.fillStyle = '#020617'; voltCtx.fillRect(0, 0, voltCanvas.width, voltCanvas.height);
 
-          // Upper Landing Ledges
           voltCtx.fillStyle = '#1e293b'; voltCtx.fillRect(80, 240, 180, 16); voltCtx.fillRect(340, 240, 180, 16);
           voltCtx.strokeStyle = '#60a5fa'; voltCtx.lineWidth = 2; voltCtx.strokeRect(80, 240, 180, 16); voltCtx.strokeRect(340, 240, 180, 16);
 
-          // Ground Platform
           voltCtx.fillRect(0, 380, voltCanvas.width, 70);
           voltCtx.beginPath(); voltCtx.moveTo(0, 380); voltCtx.lineTo(voltCanvas.width, 380); voltCtx.stroke();
 
-          // Authentic Police Helicopters (Rotary Blades & Searchlights)
+          // Realistic Detailed Police Helicopters
           voltState.policeHelicopters.forEach((h, hIdx) => {
             h.x -= h.speed; h.shootTimer++;
-            // Police Chopper Body
-            voltCtx.fillStyle = '#1e293b'; voltCtx.strokeStyle = '#38bdf8'; voltCtx.lineWidth = 2;
-            voltCtx.fillRect(h.x - 35, h.y - 18, 70, 32); voltCtx.strokeRect(h.x - 35, h.y - 18, 70, 32);
-            // Cockpit & Red/Blue Police Lights
-            voltCtx.fillStyle = '#0ea5e9'; voltCtx.fillRect(h.x + 10, h.y - 14, 18, 14);
+            // Fuselage
+            voltCtx.fillStyle = '#334155'; voltCtx.strokeStyle = '#38bdf8'; voltCtx.lineWidth = 2;
+            voltCtx.beginPath(); voltCtx.ellipse(h.x, h.y, 35, 16, 0, 0, Math.PI * 2); voltCtx.fill(); voltCtx.stroke();
+            // Tail boom & rotor
+            voltCtx.fillRect(h.x + 30, h.y - 4, 25, 8);
             voltCtx.fillStyle = (Math.floor(Date.now() / 150) % 2 === 0) ? '#ef4444' : '#3b82f6';
-            voltCtx.fillRect(h.x - 10, h.y - 24, 8, 6);
-            // Rotary Blade
-            voltCtx.strokeStyle = '#94a3b8'; voltCtx.lineWidth = 3;
+            voltCtx.fillRect(h.x - 6, h.y - 20, 12, 6);
+            // Main rotary blade
+            voltCtx.strokeStyle = '#94a3b8'; voltCtx.lineWidth = 4;
             voltCtx.beginPath(); voltCtx.moveTo(h.x - 45, h.y - 22); voltCtx.lineTo(h.x + 45, h.y - 22); voltCtx.stroke();
-            // Searchlight Beam
+            // Searchlight cone
             voltCtx.fillStyle = "rgba(56, 189, 248, 0.12)";
-            voltCtx.beginPath(); voltCtx.moveTo(h.x, h.y + 14); voltCtx.lineTo(h.x - 70, 380); voltCtx.lineTo(h.x + 70, 380); voltCtx.fill();
+            voltCtx.beginPath(); voltCtx.moveTo(h.x, h.y + 12); voltCtx.lineTo(h.x - 80, 380); voltCtx.lineTo(h.x + 80, 380); voltCtx.fill();
 
-            // Chopper fires missiles
-            if (h.shootTimer % 75 === 0) {
+            if (h.shootTimer % 70 === 0) {
               voltState.enemyProjectiles.push({ x: h.x, y: h.y, speed: 3.8 });
             }
 
             if (h.x < -80) voltState.policeHelicopters.splice(hIdx, 1);
           });
+
+          // Marcus Prime Boss Showdown (Chapter 3)
+          if (voltState.chapter === 3 && voltState.marcusBoss) {
+            let boss = voltState.marcusBoss;
+            boss.x += boss.dir * boss.speed;
+            if (boss.x > 520 || boss.x > 400) boss.dir = -1;
+            if (boss.x < 350) boss.dir = 1;
+            boss.shootTimer++;
+
+            voltCtx.save();
+            if (marcusLoaded && marcusSprite.naturalWidth !== 0) {
+              voltCtx.drawImage(marcusSprite, boss.x - 32, boss.y - 50, 64, 80);
+            } else {
+              voltCtx.fillStyle = '#1e3a8a'; voltCtx.strokeStyle = '#60a5fa'; voltCtx.lineWidth = 3;
+              voltCtx.fillRect(boss.x - 20, boss.y - 40, 40, 60);
+            }
+
+            // Boss Health Bar
+            voltCtx.fillStyle = '#7f1d1d'; voltCtx.fillRect(boss.x - 35, boss.y - 65, 70, 8);
+            voltCtx.fillStyle = '#22c55e'; voltCtx.fillRect(boss.x - 35, boss.y - 65, (boss.health / 100) * 70, 8);
+            voltCtx.restore();
+
+            if (boss.shootTimer % 80 === 0) {
+              voltState.enemyProjectiles.push({ x: boss.x, y: boss.y - 20, speed: 4.2 });
+            }
+
+            if (boss.health <= 0) {
+              voltState.marcusBoss = null;
+              voltState.tickerText = "VICTORY! MARCUS PRIME CLASH WON!";
+              speakText("Marcus Prime defeated. Vanguard honor secured.");
+            }
+          }
 
           // Beams
           voltState.beams.forEach((b, idx) => {
@@ -521,17 +565,29 @@
 
             voltState.enemies.forEach((e, eIdx) => {
               if (Math.abs(b.x - e.x) < 25 && Math.abs(b.y - e.y) < 25) {
-                playSound('orb'); voltState.score++; voltState.beams.splice(idx, 1); voltState.enemies.splice(eIdx, 1);
+                playSound('orb'); voltState.score++;
+                voltState.voltage = Math.min(100, voltState.voltage + 10);
+                voltState.beams.splice(idx, 1); voltState.enemies.splice(eIdx, 1);
                 updateVoltHUD(); checkChapterProgression();
               }
             });
 
             voltState.policeHelicopters.forEach((h, hIdx) => {
               if (Math.abs(b.x - h.x) < 35 && Math.abs(b.y - h.y) < 25) {
-                playSound('crash'); voltState.score += 3; voltState.beams.splice(idx, 1); voltState.policeHelicopters.splice(hIdx, 1);
+                playSound('crash'); voltState.score += 3;
+                voltState.voltage = Math.min(100, voltState.voltage + 20);
+                voltState.beams.splice(idx, 1); voltState.policeHelicopters.splice(hIdx, 1);
                 updateVoltHUD(); checkChapterProgression();
               }
             });
+
+            if (voltState.marcusBoss && Math.abs(b.x - voltState.marcusBoss.x) < 30 && Math.abs(b.y - voltState.marcusBoss.y) < 35) {
+              playSound('crash');
+              voltState.marcusBoss.health -= 12;
+              voltState.voltage = Math.min(100, voltState.voltage + 15);
+              voltState.beams.splice(idx, 1);
+              updateVoltHUD();
+            }
 
             if (b.x > voltCanvas.width || b.x < 0 || b.y < 0 || b.y > voltCanvas.height) voltState.beams.splice(idx, 1);
           });
@@ -545,7 +601,7 @@
             voltCtx.fillStyle = '#ef4444'; voltCtx.fillRect(e.x - 10, e.y - 24, 20, 6);
 
             if (e.shootTimer % 95 === 0) {
-              voltState.enemyProjectiles.push({ x: e.x, y: e.y - 15, speed: 3.2 });
+              voltState.enemyProjectiles.push({ x: e.x, y: e.y - 15, speed: 3.0 });
             }
 
             if (Math.abs(voltState.x - e.x) < 30 && Math.abs(voltState.y - e.y) < 30) {
@@ -572,7 +628,7 @@
             if (ep.x < 0) voltState.enemyProjectiles.splice(pIdx, 1);
           });
 
-          // Cinematic Ticker Overlay (Non-blocking story dialogue)
+          // Cinematic Ticker Overlay
           voltCtx.fillStyle = "rgba(15, 23, 42, 0.85)";
           voltCtx.fillRect(50, 15, 500, 26);
           voltCtx.strokeStyle = "#60a5fa"; voltCtx.lineWidth = 1; voltCtx.strokeRect(50, 15, 500, 26);
@@ -607,13 +663,17 @@
     }
 
     function checkChapterProgression() {
-      // Balanced milestone progression: requires defeating 10 droids for Chapter 2, and 15 more for Police Choppers
+      // Balanced milestone progression: requires defeating 10 droids for Chapter 2, 10 more for Police Choppers, and final boss showdown
       if (voltState.score >= 10 && voltState.chapter === 1) {
         voltState.chapter = 2; voltState.score = 0;
-        voltState.tickerText = "CHAPTER 2: POWER CORE VAULT BREACHED";
-      } else if (voltState.score >= 15 && voltState.chapter === 2) {
+        voltState.tickerText = "CHAPTER 2: POLICE HELICOPTER ASSAULT INBOUND!";
+        speakText("Police helicopters inbound.");
+      } else if (voltState.score >= 10 && voltState.chapter === 2) {
         voltState.chapter = 3; voltState.score = 0;
-        voltState.tickerText = "CHAPTER 3: POLICE HELICOPTER ASSAULT INBOUND!";
+        voltState.policeHelicopters = [];
+        voltState.marcusBoss = { x: 450, y: 340, health: 100, speed: 1.2, dir: -1, shootTimer: 0 };
+        voltState.tickerText = "CHAPTER 3: BOSS SHOWDOWN VS MARCUS PRIME";
+        speakText("Final showdown against Marcus Prime.");
       }
     }
 
