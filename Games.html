@@ -497,7 +497,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 4: APEX VOLT - DETROIT ROOFTOP SIEGE -->
+  <!-- PORTAL 4: APEX VOLT - DETROIT ROOFTOP SIEGE (ACTIVE HAZARDS & COMBAT) -->
   <div class="sandbox-container volt-container hidden" id="portal-volt">
     <div class="sandbox-header" style="color: #60a5fa;">Vanguard Grid • Detroit Skyline Storm Assault</div>
     <h1 style="color: #60a5fa;">Apex Volt: Detroit Rooftop Siege</h1>
@@ -509,7 +509,7 @@
     </div>
 
     <div class="game-toolbar">
-      <span style="color: #60a5fa; font-weight: bold;" id="volt-action-log">Leap onto ledges and battle searchlight helicopters!</span>
+      <span style="color: #60a5fa; font-weight: bold;" id="volt-action-log">Dodge incoming droids and attack security forces!</span>
       <div>
         <button class="sys-btn" id="volt-btn-pause" onclick="toggleVoltPause()">Pause</button>
       </div>
@@ -537,7 +537,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 5: PRISM-GHOST - ALABASTER SYNDICATE 3-CHAPTER VAULT HEIST -->
+  <!-- PORTAL 5: PRISM-GHOST - ALABASTER SYNDICATE 3-CHAPTER VAULT HEIST (ACTIVE FLASHING LASERS & GUARDS) -->
   <div class="sandbox-container prism-container hidden" id="portal-prism">
     <div class="sandbox-header" style="color: #c084fc;">Alabaster Syndicate • 3-Chapter Vault Infiltration</div>
     <h1 style="color: #c084fc;">Prism-Ghost: Vault Heist</h1>
@@ -549,7 +549,7 @@
     </div>
 
     <div class="game-toolbar">
-      <span style="color: #c084fc; font-weight: bold;" id="prism-status-bar">Breach military base, evade laser grids, and steal the artifact!</span>
+      <span style="color: #c084fc; font-weight: bold;" id="prism-status-bar">Evade pulsing electrified lasers and active patrol guards!</span>
       <div>
         <button class="sys-btn" id="prism-btn-pause" onclick="togglePrismPause()">Pause</button>
       </div>
@@ -616,7 +616,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 7: MAGMA-WEAVER - VOLCANIC SIEGE -->
+  <!-- PORTAL 7: MAGMA-WEAVER - VOLCANIC SIEGE (ACTIVE VOLCANIC HAZARDS & SPAWNS) -->
   <div class="sandbox-container magma-container hidden" id="portal-magma">
     <div class="sandbox-header" style="color: #f87171;">Volcanic Sector • Thermal Core Siege</div>
     <h1 style="color: #f87171;">Magma-Weaver: Volcanic Siege</h1>
@@ -627,7 +627,7 @@
     </div>
 
     <div class="game-toolbar">
-      <span style="color: #f87171; font-weight: bold;" id="magma-status-bar">Build obsidian slabs and launch thermal fire daggers!</span>
+      <span style="color: #f87171; font-weight: bold;" id="magma-status-bar">Destroy incoming thermal hazards and volcanic droids!</span>
       <div>
         <button class="sys-btn" id="magma-btn-pause" onclick="toggleMagmaPause()">Pause</button>
       </div>
@@ -1058,9 +1058,9 @@
       speakText(`Archival optical match verified. ${match.title}`);
     }
 
-    // --- BRAWLER ENGINES ---
+    // --- BRAWLER ENGINES (FULLY ACTIVE HAZARDS & COMBAT) ---
 
-    // 1. APEX VOLT BRAWLER ENGINE
+    // 1. APEX VOLT BRAWLER ENGINE (ACTIVE HAZARD COLLISION & DAMAGE)
     let voltCanvas, voltCtx;
     let voltRunning = false;
     let voltPaused = false;
@@ -1191,11 +1191,21 @@
         }
 
         voltState.enemies.forEach((e, idx) => {
-          e.x -= 2.0;
+          e.x -= 2.2;
           voltCtx.fillStyle = '#ef4444';
           voltCtx.beginPath();
           voltCtx.arc(e.x, e.y, 14, 0, Math.PI * 2);
           voltCtx.fill();
+
+          // Active Collision with Apex Volt
+          if (Math.abs(voltState.x - e.x) < 28 && Math.abs(voltState.y - e.y) < 35) {
+            playSound('crash');
+            voltState.voltagePower = Math.max(0, voltState.voltagePower - 10);
+            document.getElementById('volt-power').innerText = voltState.voltagePower + '%';
+            voltState.enemies.splice(idx, 1);
+            document.getElementById('volt-action-log').innerText = "⚠️ Apex Volt hit by enemy droid!";
+          }
+
           if (e.x < -30) voltState.enemies.splice(idx, 1);
         });
 
@@ -1207,7 +1217,7 @@
           voltCtx.fill();
 
           voltState.enemies.forEach((e, eIdx) => {
-            if (Math.abs(p.x - e.x) < 25) {
+            if (Math.abs(p.x - e.x) < 28) {
               playSound('crash');
               voltState.enemies.splice(eIdx, 1);
               voltState.projectiles.splice(idx, 1);
@@ -1233,17 +1243,17 @@
     }
 
 
-    // 2. PRISM-GHOST: ALABASTER SYNDICATE 3-CHAPTER VAULT HEIST ENGINE
+    // 2. PRISM-GHOST: PULSING LASERS & MOVING GUARDS
     let prismCanvas, prismCtx;
     let prismRunning = false;
     let prismPaused = false;
     let prismState = {
       x: 100, y: 360, vx: 0, vy: 0, isJumping: false,
       syncHealth: 100, score: 0, chapter: 1, phaseMode: false,
-      projectiles: [], guards: [{ x: 450, y: 340, active: true }],
+      projectiles: [], guards: [{ x: 450, y: 340, active: true, dir: 1 }],
       lasers: [{ x: 250, active: true }, { x: 400, active: true }],
       artifact: { x: 520, y: 340, secured: false },
-      completed: false, scrollX: 0
+      completed: false, scrollX: 0, laserTimer: 0
     };
 
     function initPrismEngine() {
@@ -1258,7 +1268,7 @@
       prismState.phaseMode = false;
       prismState.completed = false;
       prismState.projectiles = [];
-      prismState.guards = [{ x: 450, y: 340, active: true }];
+      prismState.guards = [{ x: 450, y: 340, active: true, dir: 1 }];
       prismState.lasers = [{ x: 250, active: true }, { x: 400, active: true }];
       prismState.artifact = { x: 520, y: 340, secured: false };
       if (!prismRunning) {
@@ -1320,9 +1330,9 @@
       } else if (ability === 'shift') {
         prismState.phaseMode = true;
         setTimeout(() => { prismState.phaseMode = false; }, 3500);
-        document.getElementById('prism-status-bar').innerText = "Quantum Phase Shift active: Untouchable by laser grids!";
+        document.getElementById('prism-status-bar').innerText = "Quantum Phase Shift active: Untouchable!";
       } else if (ability === 'cloak') {
-        document.getElementById('prism-status-bar').innerText = "Optical Camouflage engaged: Unseen by patrol guards!";
+        document.getElementById('prism-status-bar').innerText = "Optical Camouflage engaged!";
       }
       prismState.score += 350;
       document.getElementById('prism-score').innerText = prismState.score;
@@ -1338,6 +1348,7 @@
             prismState.isJumping = false;
           }
         }
+        prismState.laserTimer++;
 
         prismCtx.fillStyle = '#030208';
         prismCtx.fillRect(0, 0, prismCanvas.width, prismCanvas.height);
@@ -1361,27 +1372,50 @@
         prismCtx.stroke();
 
         if (!prismState.completed) {
-          prismState.lasers.forEach(l => {
-            prismCtx.strokeStyle = prismState.phaseMode ? 'rgba(239, 68, 68, 0.3)' : '#ef4444';
-            prismCtx.lineWidth = 3;
-            prismCtx.beginPath();
-            prismCtx.moveTo(l.x, prismCanvas.height - 60);
-            prismCtx.lineTo(l.x, 80);
-            prismCtx.stroke();
+          // Pulsing / Flashing Lasers On & Off every 90 frames
+          let laserActive = Math.floor(prismState.laserTimer / 90) % 2 === 0;
 
-            if (!prismState.phaseMode && Math.abs(prismState.x - l.x) < 20) {
-              playSound('crash');
-              prismState.syncHealth = Math.max(0, prismState.syncHealth - 1);
-              document.getElementById('prism-sync').innerText = prismState.syncHealth + '%';
+          prismState.lasers.forEach(l => {
+            if (laserActive) {
+              prismCtx.strokeStyle = prismState.phaseMode ? 'rgba(239, 68, 68, 0.3)' : '#ef4444';
+              prismCtx.lineWidth = 3;
+              prismCtx.beginPath();
+              prismCtx.moveTo(l.x, prismCanvas.height - 60);
+              prismCtx.lineTo(l.x, 80);
+              prismCtx.stroke();
+
+              if (!prismState.phaseMode && Math.abs(prismState.x - l.x) < 22) {
+                playSound('crash');
+                prismState.syncHealth = Math.max(0, prismState.syncHealth - 1);
+                document.getElementById('prism-sync').innerText = prismState.syncHealth + '%';
+                document.getElementById('prism-status-bar').innerText = "⚠️ Laser hit! Sync health dropping!";
+              }
+            } else {
+              // Dim / Off state
+              prismCtx.strokeStyle = 'rgba(239, 68, 68, 0.15)';
+              prismCtx.lineWidth = 1;
+              prismCtx.beginPath();
+              prismCtx.moveTo(l.x, prismCanvas.height - 60);
+              prismCtx.lineTo(l.x, 80);
+              prismCtx.stroke();
             }
           });
 
+          // Moving Security Guards patrolling toward player
           prismState.guards.forEach(g => {
-            g.x += Math.sin(Date.now() * 0.003) * 1.5;
+            g.x += g.dir * 1.2;
+            if (g.x <= 200 || g.x >= 500) g.dir *= -1;
+
             prismCtx.fillStyle = '#311042';
             prismCtx.strokeStyle = '#c084fc';
             prismCtx.fillRect(g.x - 20, g.y - 40, 40, 60);
             prismCtx.strokeRect(g.x - 20, g.y - 40, 40, 60);
+
+            if (Math.abs(prismState.x - g.x) < 28) {
+              playSound('crash');
+              prismState.syncHealth = Math.max(0, prismState.syncHealth - 1.5);
+              document.getElementById('prism-sync').innerText = Math.round(prismState.syncHealth) + '%';
+            }
           });
 
           prismState.projectiles.forEach((p, idx) => {
@@ -1558,6 +1592,13 @@
           wakanCtx.beginPath();
           wakanCtx.arc(t.x, t.y, 14, 0, Math.PI * 2);
           wakanCtx.fill();
+
+          if (Math.abs(wakanState.x - t.x) < 28) {
+            playSound('crash');
+            wakanState.tideStability = Math.max(0, wakanState.tideStability - 10);
+            document.getElementById('wakan-tide').innerText = wakanState.tideStability + '%';
+            wakanState.threats.splice(idx, 1);
+          }
           if (t.x < -30) wakanState.threats.splice(idx, 1);
         });
 
@@ -1595,14 +1636,14 @@
     }
 
 
-    // 4. MAGMA-WEAVER BRAWLER ENGINE
+    // 4. MAGMA-WEAVER: ACTIVE VOLCANIC HAZARDS & SPAWNS
     let magmaCanvas, magmaCtx;
     let magmaRunning = false;
     let magmaPaused = false;
     let magmaState = {
       x: 100, y: 340, vx: 0, vy: 0, isJumping: false,
       thermalCore: 100, score: 0,
-      projectiles: []
+      projectiles: [], hazards: []
     };
 
     function initMagmaEngine() {
@@ -1614,6 +1655,7 @@
       magmaState.thermalCore = 100;
       magmaState.score = 0;
       magmaState.projectiles = [];
+      magmaState.hazards = [];
       if (!magmaRunning) {
         magmaRunning = true;
         magmaLoop();
@@ -1681,12 +1723,42 @@
         magmaCtx.lineTo(magmaCanvas.width, magmaCanvas.height - 70);
         magmaCtx.stroke();
 
+        // Spawn Volcanic Droids / Hazards incoming
+        if (Math.random() < 0.03 && magmaState.hazards.length < 3) {
+          magmaState.hazards.push({ x: magmaCanvas.width + 30, y: magmaCanvas.height - 110, w: 36, h: 22 });
+        }
+
+        magmaState.hazards.forEach((h, idx) => {
+          h.x -= 2.0;
+          magmaCtx.fillStyle = '#ef4444';
+          magmaCtx.fillRect(h.x - 18, h.y, h.w, h.h);
+
+          if (Math.abs(magmaState.x - h.x) < 28) {
+            playSound('crash');
+            magmaState.thermalCore = Math.max(0, magmaState.thermalCore - 12);
+            document.getElementById('magma-core').innerText = magmaState.thermalCore + '%';
+            magmaState.hazards.splice(idx, 1);
+            document.getElementById('magma-status-bar').innerText = "⚠️ Thermal hit on Magma-Weaver core!";
+          }
+          if (h.x < -30) magmaState.hazards.splice(idx, 1);
+        });
+
         magmaState.projectiles.forEach((p, idx) => {
           p.x += p.vx;
           magmaCtx.fillStyle = '#f87171';
           magmaCtx.beginPath();
           magmaCtx.arc(p.x, p.y, 7, 0, Math.PI * 2);
           magmaCtx.fill();
+
+          magmaState.hazards.forEach((h, hIdx) => {
+            if (Math.abs(p.x - h.x) < 25) {
+              playSound('crash');
+              magmaState.hazards.splice(hIdx, 1);
+              magmaState.projectiles.splice(idx, 1);
+              magmaState.score += 750;
+              document.getElementById('magma-score').innerText = magmaState.score;
+            }
+          });
           if (p.x > magmaCanvas.width) magmaState.projectiles.splice(idx, 1);
         });
 
