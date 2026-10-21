@@ -372,7 +372,7 @@
     <button class="switch-btn magma-btn" id="btn-switch-magma" onclick="switchPortal('magma')">🌋 Magma</button>
   </div>
 
-  <!-- PORTAL 1: ISAAC'S SANDBOX (UNTOUCHED) -->
+  <!-- PORTAL 1: ISAAC'S SANDBOX -->
   <div class="sandbox-container" id="portal-sandbox">
     <div class="sandbox-header">Isaac's Sandbox • Lockdown Edition</div>
     <h1>The Ancestral Vanguard</h1>
@@ -428,7 +428,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 2: MARROW MATRIX AR (UNTOUCHED) -->
+  <!-- PORTAL 2: MARROW MATRIX AR -->
   <div class="sandbox-container hidden" id="portal-matrix">
     <div class="sandbox-header">Marrow Matrix • 3D/AR Campaign Edition</div>
     <h1>Ancestral Resonance Hub</h1>
@@ -465,7 +465,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 3: LIVE OPTICAL LINEAGE SCANNER (UNTOUCHED) -->
+  <!-- PORTAL 3: LIVE OPTICAL LINEAGE SCANNER -->
   <div class="sandbox-container hidden" id="portal-scanner">
     <div class="sandbox-header">Archival Optical Lineage Scanner</div>
     <h1>Ancestral DNA Matcher</h1>
@@ -811,7 +811,7 @@
       }
     }
 
-    // --- ISAAC'S SANDBOX ENGINE (UNTOUCHED) ---
+    // --- ISAAC'S SANDBOX ENGINE ---
     let gameStats = { energy: 100, shield: 90, xp: 0 };
     let timerInterval;
     let timeLeft = 60;
@@ -916,7 +916,7 @@
       showScene('scene-1', 'CHAPTER 1: PERIMETER BREACH');
     }
 
-    // --- MARROW MATRIX AR LOGIC (UNTOUCHED) ---
+    // --- MARROW MATRIX AR LOGIC ---
     let currentEpoch = 'vanguard';
     let selectedNodes = [];
 
@@ -1012,7 +1012,7 @@
       }
     }
 
-    // --- OPTICAL LINEAGE SCANNER LOGIC (UNTOUCHED) ---
+    // --- OPTICAL LINEAGE SCANNER LOGIC ---
     let currentFacingMode = 'environment';
     let scannerStream = null;
 
@@ -1058,7 +1058,7 @@
       speakText(`Archival optical match verified. ${match.title}`);
     }
 
-    // --- UPGRADED 2D BRAWLER ENGINES ---
+    // --- BRAWLER ENGINES ---
 
     // 1. APEX VOLT BRAWLER ENGINE
     let voltCanvas, voltCtx;
@@ -1260,4 +1260,454 @@
       prismState.projectiles = [];
       prismState.guards = [{ x: 450, y: 340, active: true }];
       prismState.lasers = [{ x: 250, active: true }, { x: 400, active: true }];
-      prismState.artifact = { x: 520
+      prismState.artifact = { x: 520, y: 340, secured: false };
+      if (!prismRunning) {
+        prismRunning = true;
+        prismLoop();
+      }
+    }
+
+    function togglePrismPause() {
+      prismPaused = !prismPaused;
+      let btn = document.getElementById('prism-btn-pause');
+      btn.innerText = prismPaused ? "Resume" : "Pause";
+      btn.classList.toggle('active-mode', prismPaused);
+    }
+
+    function movePrism(action) {
+      playSound('steer');
+      if (prismState.completed) return;
+      if (action === 'left') {
+        prismState.x = Math.max(40, prismState.x - 40);
+        document.getElementById('prism-status-bar').innerText = "Prism-Ghost slips back into shadow corridors.";
+      } else if (action === 'right') {
+        prismState.x = Math.min(prismCanvas.width - 40, prismState.x + 40);
+        prismState.scrollX += 15;
+        document.getElementById('prism-status-bar').innerText = `Prism-Ghost breaching Ch. ${prismState.chapter} military base!`;
+        
+        if (prismState.x >= 500 && !prismState.completed) {
+          if (prismState.chapter < 3) {
+            prismState.chapter++;
+            prismState.x = 100;
+            playSound('orb');
+            if (prismState.chapter === 2) {
+              document.getElementById('prism-chapter-label').innerText = "CH. 2: INNER VAULT";
+              document.getElementById('prism-status-bar').innerText = "Chapter 1 Complete! Entering Inner Vault corridors.";
+            } else if (prismState.chapter === 3) {
+              document.getElementById('prism-chapter-label').innerText = "CH. 3: ARTIFACT CORE";
+              document.getElementById('prism-status-bar').innerText = "Chapter 2 Complete! Approaching the Apex Vault Core.";
+            }
+          } else {
+            prismState.artifact.secured = true;
+            prismState.completed = true;
+            playSound('turbo');
+            document.getElementById('prism-status-bar').innerText = "OPERATION SUCCESSFUL: ARTIFACT SECURED!";
+          }
+        }
+      } else if (action === 'jump' && !prismState.isJumping) {
+        prismState.isJumping = true;
+        prismState.vy = -12;
+        document.getElementById('prism-status-bar').innerText = "Prism-Ghost leaps over security laser barriers!";
+      }
+    }
+
+    function triggerPrismAbility(ability) {
+      playSound('turbo');
+      if (prismState.completed) return;
+      if (ability === 'strike') {
+        prismState.projectiles.push({ x: prismState.x + 20, y: prismState.y - 20, vx: 10 });
+        document.getElementById('prism-status-bar').innerText = "Quantum Ghost Blade neutralizes security guard!";
+      } else if (ability === 'shift') {
+        prismState.phaseMode = true;
+        setTimeout(() => { prismState.phaseMode = false; }, 3500);
+        document.getElementById('prism-status-bar').innerText = "Quantum Phase Shift active: Untouchable by laser grids!";
+      } else if (ability === 'cloak') {
+        document.getElementById('prism-status-bar').innerText = "Optical Camouflage engaged: Unseen by patrol guards!";
+      }
+      prismState.score += 350;
+      document.getElementById('prism-score').innerText = prismState.score;
+    }
+
+    function prismLoop() {
+      if (prismCanvas && prismCtx && prismCanvas.offsetParent !== null && !prismPaused) {
+        if (prismState.isJumping) {
+          prismState.y += prismState.vy;
+          prismState.vy += 0.8;
+          if (prismState.y >= 360) {
+            prismState.y = 360;
+            prismState.isJumping = false;
+          }
+        }
+
+        prismCtx.fillStyle = '#030208';
+        prismCtx.fillRect(0, 0, prismCanvas.width, prismCanvas.height);
+
+        prismCtx.strokeStyle = prismState.chapter === 1 ? '#4338ca' : prismState.chapter === 2 ? '#7e22ce' : '#581c87';
+        prismCtx.lineWidth = 1;
+        for (let i = 0; i < prismCanvas.width; i += 60) {
+          prismCtx.beginPath();
+          prismCtx.moveTo(i, 0);
+          prismCtx.lineTo(i, prismCanvas.height);
+          prismCtx.stroke();
+        }
+
+        prismCtx.fillStyle = '#1e1b4b';
+        prismCtx.fillRect(0, prismCanvas.height - 60, prismCanvas.width, 60);
+        prismCtx.strokeStyle = '#c084fc';
+        prismCtx.lineWidth = 2;
+        prismCtx.beginPath();
+        prismCtx.moveTo(0, prismCanvas.height - 60);
+        prismCtx.lineTo(prismCanvas.width, prismCanvas.height - 60);
+        prismCtx.stroke();
+
+        if (!prismState.completed) {
+          prismState.lasers.forEach(l => {
+            prismCtx.strokeStyle = prismState.phaseMode ? 'rgba(239, 68, 68, 0.3)' : '#ef4444';
+            prismCtx.lineWidth = 3;
+            prismCtx.beginPath();
+            prismCtx.moveTo(l.x, prismCanvas.height - 60);
+            prismCtx.lineTo(l.x, 80);
+            prismCtx.stroke();
+
+            if (!prismState.phaseMode && Math.abs(prismState.x - l.x) < 20) {
+              playSound('crash');
+              prismState.syncHealth = Math.max(0, prismState.syncHealth - 1);
+              document.getElementById('prism-sync').innerText = prismState.syncHealth + '%';
+            }
+          });
+
+          prismState.guards.forEach(g => {
+            g.x += Math.sin(Date.now() * 0.003) * 1.5;
+            prismCtx.fillStyle = '#311042';
+            prismCtx.strokeStyle = '#c084fc';
+            prismCtx.fillRect(g.x - 20, g.y - 40, 40, 60);
+            prismCtx.strokeRect(g.x - 20, g.y - 40, 40, 60);
+          });
+
+          prismState.projectiles.forEach((p, idx) => {
+            p.x += p.vx;
+            prismCtx.fillStyle = '#c084fc';
+            prismCtx.beginPath();
+            prismCtx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+            prismCtx.fill();
+
+            prismState.guards.forEach((g, gIdx) => {
+              if (Math.abs(p.x - g.x) < 25) {
+                playSound('crash');
+                prismState.guards.splice(gIdx, 1);
+                prismState.projectiles.splice(idx, 1);
+                prismState.score += 1000;
+                document.getElementById('prism-score').innerText = prismState.score;
+              }
+            });
+            if (p.x > prismCanvas.width) prismState.projectiles.splice(idx, 1);
+          });
+
+          if (prismState.chapter === 3) {
+            prismCtx.fillStyle = '#38bdf8';
+            prismCtx.shadowColor = '#38bdf8';
+            prismCtx.shadowBlur = 15;
+            prismCtx.beginPath();
+            prismCtx.arc(prismState.artifact.x, prismState.artifact.y - 20, 18, 0, Math.PI * 2);
+            prismCtx.fill();
+            prismCtx.shadowBlur = 0;
+          }
+
+          prismCtx.save();
+          prismCtx.globalAlpha = prismState.phaseMode ? 0.4 : 1.0;
+          if (prismLoaded && prismSprite.naturalWidth !== 0) {
+            prismCtx.drawImage(prismSprite, prismState.x - 32, prismState.y - 65, 64, 80);
+          } else {
+            prismCtx.fillStyle = '#581c87';
+            prismCtx.beginPath();
+            prismCtx.arc(prismState.x, prismState.y - 20, 26, 0, Math.PI * 2);
+            prismCtx.fill();
+          }
+          prismCtx.restore();
+
+        } else {
+          prismCtx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+          prismCtx.fillRect(50, 50, prismCanvas.width - 100, prismCanvas.height - 100);
+          prismCtx.strokeStyle = '#c084fc';
+          prismCtx.lineWidth = 3;
+          prismCtx.strokeRect(50, 50, prismCanvas.width - 100, prismCanvas.height - 100);
+
+          prismCtx.fillStyle = '#c084fc';
+          prismCtx.font = 'bold 16px "Courier New", monospace';
+          prismCtx.textAlign = 'center';
+          prismCtx.fillText("OPERATION SUCCESSFUL!", prismCanvas.width / 2, 110);
+
+          prismCtx.fillStyle = '#e2e8f0';
+          prismCtx.font = '12px "Courier New", monospace';
+          prismCtx.fillText("Alabaster Syndicate artifact successfully stolen.", prismCanvas.width / 2, 160);
+          prismCtx.fillText("Prism-Ghost escapes into the digital shadows.", prismCanvas.width / 2, 190);
+
+          prismCtx.fillStyle = '#f59e0b';
+          prismCtx.font = 'bold 14px "Courier New", monospace';
+          prismCtx.fillText("CHAPTER 4: ALABASTER STRONGHOLD — COMING SOON!", prismCanvas.width / 2, 260);
+
+          prismCtx.fillStyle = '#38bdf8';
+          prismCtx.font = '11px "Courier New", monospace';
+          prismCtx.fillText("Join mailing list at Rhodes Family Legacy storefront.", prismCanvas.width / 2, 310);
+        }
+      }
+      requestAnimationFrame(prismLoop);
+    }
+
+
+    // 3. WAKAN BRAWLER ENGINE
+    let wakanCanvas, wakanCtx;
+    let wakanRunning = false;
+    let wakanPaused = false;
+    let wakanState = {
+      x: 100, y: 340, vx: 0, vy: 0, isJumping: false,
+      tideStability: 100, score: 0,
+      projectiles: [], threats: [], waveOffset: 0
+    };
+
+    function initWakanEngine() {
+      wakanCanvas = document.getElementById('wakanCanvas');
+      if (!wakanCanvas) return;
+      wakanCtx = wakanCanvas.getContext('2d');
+      wakanState.x = 100;
+      wakanState.y = 340;
+      wakanState.tideStability = 100;
+      wakanState.score = 0;
+      wakanState.projectiles = [];
+      wakanState.threats = [];
+      if (!wakanRunning) {
+        wakanRunning = true;
+        wakanLoop();
+      }
+    }
+
+    function toggleWakanPause() {
+      wakanPaused = !wakanPaused;
+      let btn = document.getElementById('wakan-btn-pause');
+      btn.innerText = wakanPaused ? "Resume" : "Pause";
+      btn.classList.toggle('active-mode', wakanPaused);
+    }
+
+    function moveWakan(action) {
+      playSound('steer');
+      if (action === 'left') {
+        wakanState.x = Math.max(40, wakanState.x - 40);
+        document.getElementById('wakan-status-bar').innerText = "Wakan surfs backward along the Caribbean swell.";
+      } else if (action === 'right') {
+        wakanState.x = Math.min(wakanCanvas.width - 40, wakanState.x + 40);
+        document.getElementById('wakan-status-bar').innerText = "Wakan charges forward into the maritime tide!";
+      } else if (action === 'jump' && !wakanState.isJumping) {
+        wakanState.isJumping = true;
+        wakanState.vy = -12;
+        document.getElementById('wakan-status-bar').innerText = "Wakan dives through the tsunami wave!";
+      }
+    }
+
+    function triggerWakanAbility(ability) {
+      playSound('turbo');
+      if (ability === 'tsunami') {
+        wakanState.projectiles.push({ x: wakanState.x + 20, y: wakanState.y - 20, vx: 10, type: 'tsunami' });
+        document.getElementById('wakan-status-bar').innerText = "🌊 Tsunami Wave unleashed!";
+      } else if (ability === 'conch') {
+        wakanState.projectiles.push({ x: wakanState.x + 20, y: wakanState.y - 20, vx: 7, type: 'conch' });
+        document.getElementById('wakan-status-bar').innerText = "🐚 Conch Sonic Blast fired!";
+      } else if (ability === 'shield') {
+        wakanState.tideStability = Math.min(100, wakanState.tideStability + 20);
+        document.getElementById('wakan-status-bar').innerText = "🛡️ Hydro Shield active!";
+      }
+      wakanState.score += 250;
+      document.getElementById('wakan-score').innerText = wakanState.score;
+    }
+
+    function wakanLoop() {
+      if (wakanCanvas && wakanCtx && wakanCanvas.offsetParent !== null && !wakanPaused) {
+        if (wakanState.isJumping) {
+          wakanState.y += wakanState.vy;
+          wakanState.vy += 0.8;
+          if (wakanState.y >= 340) {
+            wakanState.y = 340;
+            wakanState.isJumping = false;
+          }
+        }
+        wakanState.waveOffset += 0.06;
+
+        wakanCtx.fillStyle = '#020617';
+        wakanCtx.fillRect(0, 0, wakanCanvas.width, wakanCanvas.height);
+
+        let grad = wakanCtx.createLinearGradient(0, 100, 0, wakanCanvas.height);
+        grad.addColorStop(0, 'rgba(56, 189, 248, 0.7)');
+        grad.addColorStop(0.5, 'rgba(3, 105, 161, 0.5)');
+        grad.addColorStop(1, 'rgba(2, 6, 23, 0.95)');
+        wakanCtx.fillStyle = grad;
+        wakanCtx.beginPath();
+        wakanCtx.moveTo(0, 180);
+        for (let i = 0; i <= wakanCanvas.width; i += 15) {
+          wakanCtx.lineTo(i, 180 + Math.sin(i * 0.03 + wakanState.waveOffset) * 28);
+        }
+        wakanCtx.lineTo(wakanCanvas.width, wakanCanvas.height);
+        wakanCtx.lineTo(0, wakanCanvas.height);
+        wakanCtx.fill();
+
+        if (Math.random() < 0.03 && wakanState.threats.length < 3) {
+          wakanState.threats.push({ x: wakanCanvas.width + 30, y: Math.random() > 0.5 ? 240 : 330, type: Math.random() > 0.5 ? 'shark' : 'jet' });
+        }
+
+        wakanState.threats.forEach((t, idx) => {
+          t.x -= 2.2;
+          wakanCtx.fillStyle = t.type === 'shark' ? '#0284c7' : '#f43f5e';
+          wakanCtx.beginPath();
+          wakanCtx.arc(t.x, t.y, 14, 0, Math.PI * 2);
+          wakanCtx.fill();
+          if (t.x < -30) wakanState.threats.splice(idx, 1);
+        });
+
+        wakanState.projectiles.forEach((p, idx) => {
+          p.x += p.vx;
+          wakanCtx.fillStyle = '#38bdf8';
+          wakanCtx.beginPath();
+          wakanCtx.arc(p.x, p.y, p.type === 'tsunami' ? 14 : 8, 0, Math.PI * 2);
+          wakanCtx.fill();
+
+          wakanState.threats.forEach((t, tIdx) => {
+            if (Math.abs(p.x - t.x) < 30) {
+              playSound('crash');
+              wakanState.threats.splice(tIdx, 1);
+              wakanState.projectiles.splice(idx, 1);
+              wakanState.score += 500;
+              document.getElementById('wakan-score').innerText = wakanState.score;
+            }
+          });
+          if (p.x > wakanCanvas.width) wakanState.projectiles.splice(idx, 1);
+        });
+
+        wakanCtx.save();
+        if (wakanLoaded && wakanSprite.naturalWidth !== 0) {
+          wakanCtx.drawImage(wakanSprite, wakanState.x - 32, wakanState.y - 65, 64, 80);
+        } else {
+          wakanCtx.fillStyle = '#0369a1';
+          wakanCtx.beginPath();
+          wakanCtx.arc(wakanState.x, wakanState.y - 20, 26, 0, Math.PI * 2);
+          wakanCtx.fill();
+        }
+        wakanCtx.restore();
+      }
+      requestAnimationFrame(wakanLoop);
+    }
+
+
+    // 4. MAGMA-WEAVER BRAWLER ENGINE
+    let magmaCanvas, magmaCtx;
+    let magmaRunning = false;
+    let magmaPaused = false;
+    let magmaState = {
+      x: 100, y: 340, vx: 0, vy: 0, isJumping: false,
+      thermalCore: 100, score: 0,
+      projectiles: []
+    };
+
+    function initMagmaEngine() {
+      magmaCanvas = document.getElementById('magmaCanvas');
+      if (!magmaCanvas) return;
+      magmaCtx = magmaCanvas.getContext('2d');
+      magmaState.x = 100;
+      magmaState.y = 340;
+      magmaState.thermalCore = 100;
+      magmaState.score = 0;
+      magmaState.projectiles = [];
+      if (!magmaRunning) {
+        magmaRunning = true;
+        magmaLoop();
+      }
+    }
+
+    function toggleMagmaPause() {
+      magmaPaused = !magmaPaused;
+      let btn = document.getElementById('magma-btn-pause');
+      btn.innerText = magmaPaused ? "Resume" : "Pause";
+      btn.classList.toggle('active-mode', magmaPaused);
+    }
+
+    function moveMagma(action) {
+      playSound('steer');
+      if (action === 'left') {
+        magmaState.x = Math.max(40, magmaState.x - 40);
+        document.getElementById('magma-status-bar').innerText = "Magma-Weaver repositions across obsidian sector.";
+      } else if (action === 'right') {
+        magmaState.x = Math.min(magmaCanvas.width - 40, magmaState.x + 40);
+        document.getElementById('magma-status-bar').innerText = "Magma-Weaver advances on thermal core siege!";
+      } else if (action === 'jump' && !magmaState.isJumping) {
+        magmaState.isJumping = true;
+        magmaState.vy = -12;
+        document.getElementById('magma-status-bar').innerText = "Magma-Weaver leaps into volcanic air!";
+      }
+    }
+
+    function triggerMagmaAbility(ability) {
+      playSound('turbo');
+      if (ability === 'strike') {
+        magmaState.projectiles.push({ x: magmaState.x + 20, y: magmaState.y - 20, vx: 10, type: 'strike' });
+        document.getElementById('magma-status-bar').innerText = "Magma Strike unleashed!";
+      } else if (ability === 'strafe') {
+        magmaState.projectiles.push({ x: magmaState.x + 20, y: magmaState.y - 20, vx: 7, type: 'strafe' });
+        document.getElementById('magma-status-bar').innerText = "Solar Strafe fire daggers dropped!";
+      } else if (ability === 'shield') {
+        magmaState.thermalCore = Math.min(100, magmaState.thermalCore + 20);
+        document.getElementById('magma-status-bar').innerText = "Obsidian Hardening Shield active!";
+      }
+      magmaState.score += 250;
+      document.getElementById('magma-score').innerText = magmaState.score;
+    }
+
+    function magmaLoop() {
+      if (magmaCanvas && magmaCtx && magmaCanvas.offsetParent !== null && !magmaPaused) {
+        if (magmaState.isJumping) {
+          magmaState.y += magmaState.vy;
+          magmaState.vy += 0.8;
+          if (magmaState.y >= 340) {
+            magmaState.y = 340;
+            magmaState.isJumping = false;
+          }
+        }
+
+        magmaCtx.fillStyle = '#0a0303';
+        magmaCtx.fillRect(0, 0, magmaCanvas.width, magmaCanvas.height);
+
+        magmaCtx.fillStyle = '#450a0a';
+        magmaCtx.fillRect(0, magmaCanvas.height - 70, magmaCanvas.width, 70);
+        magmaCtx.strokeStyle = '#f87171';
+        magmaCtx.lineWidth = 2;
+        magmaCtx.beginPath();
+        magmaCtx.moveTo(0, magmaCanvas.height - 70);
+        magmaCtx.lineTo(magmaCanvas.width, magmaCanvas.height - 70);
+        magmaCtx.stroke();
+
+        magmaState.projectiles.forEach((p, idx) => {
+          p.x += p.vx;
+          magmaCtx.fillStyle = '#f87171';
+          magmaCtx.beginPath();
+          magmaCtx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+          magmaCtx.fill();
+          if (p.x > magmaCanvas.width) magmaState.projectiles.splice(idx, 1);
+        });
+
+        magmaCtx.save();
+        if (magmaLoaded && magmaSprite.naturalWidth !== 0) {
+          magmaCtx.drawImage(magmaSprite, magmaState.x - 32, magmaState.y - 65, 64, 80);
+        } else {
+          magmaCtx.fillStyle = '#7f1d1d';
+          magmaCtx.beginPath();
+          magmaCtx.arc(magmaState.x, magmaState.y - 20, 26, 0, Math.PI * 2);
+          magmaCtx.fill();
+        }
+        magmaCtx.restore();
+      }
+      requestAnimationFrame(magmaLoop);
+    }
+
+    window.onload = () => {
+      updateStats();
+      renderEpochNodes();
+    };
+  </script>
+</body>
+</html>
