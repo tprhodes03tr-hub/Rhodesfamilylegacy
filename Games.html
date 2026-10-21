@@ -360,7 +360,7 @@
     const voltSprite = new Image(); voltSprite.src = 'apex-volt.png'; let voltLoaded = false; voltSprite.onload = () => { voltLoaded = true; };
     const prismSprite = new Image(); prismSprite.src = 'prism-ghost-v2.png'; let prismLoaded = false; prismSprite.onload = () => { prismLoaded = true; };
     const marcusSprite = new Image(); marcusSprite.src = 'marcus.png'; let marcusLoaded = false; marcusSprite.onload = () => { marcusLoaded = true; };
-    const wakanSprite = new Image(); wakanSprite.src = 'guacan-sheet.png'; let wakanLoaded = false; wakanSprite.onload = () => { wakanLoaded = true; };
+    const wakanSprite = new Image(); wakanSprite.src = 'guacan-sheet.png'; let wakanLoaded = false; wakanLoaded = () => { wakanLoaded = true; };
     const magmaSprite = new Image(); magmaSprite.src = 'magma-weaver.png'; let magmaLoaded = false; magmaSprite.onload = () => { magmaLoaded = true; };
 
     let audioCtx = null;
@@ -700,29 +700,91 @@
       else if (prismState.score >= 15 && prismState.chapter === 2) { prismState.chapter = 3; prismState.score = 0; prismState.tickerText = "CHAPTER 3: QUANTUM DIAMOND VAULT CORE SECURED"; }
     }
 
-    // --- 3. WAKAN ENGINE STUB ---
-    let wakanCanvas, wakanCtx;
+    // --- 3. WAKAN ENGINE ---
+    let wakanCanvas, wakanCtx, wakanRunning = false, wakanPaused = true;
+    let wakanState = { x: 100, y: 340, vy: 0, isJumping: false, stability: 100, pearls: 0, attackers: [], tsunamis: [] };
+
     function initWakanEngine() {
       wakanCanvas = document.getElementById('wakanCanvas'); if (!wakanCanvas) return;
       wakanCtx = wakanCanvas.getContext('2d');
-      wakanCtx.fillStyle = '#020617'; wakanCtx.fillRect(0, 0, wakanCanvas.width, wakanCanvas.height);
-      if (wakanLoaded && wakanSprite.naturalWidth !== 0) wakanCtx.drawImage(wakanSprite, 250, 280, 64, 80);
+      wakanState = { x: 100, y: 340, vy: 0, isJumping: false, stability: 100, pearls: 0, attackers: [], tsunamis: [] };
+      wakanPaused = false; wakanRunning = true; wakanLoop();
     }
-    function jumpWakan() { playSound('laser'); }
-    function unleashTsunamiWave() { playSound('crash'); }
-    function moveWakanPlatform(dir) { playSound('laser'); }
+    function jumpWakan() { if (!wakanState.isJumping) { playSound('laser'); wakanState.vy = -12; wakanState.isJumping = true; } }
+    function unleashTsunamiWave() { playSound('crash'); wakanState.tsunamis.push({ x: wakanState.x, w: 320, speed: 6.5 }); }
+    function moveWakanPlatform(dir) { if (dir === 'left') wakanState.x = Math.max(50, wakanState.x - 45); if (dir === 'right') wakanState.x = Math.min(wakanCanvas.width - 50, wakanState.x + 45); }
 
-    // --- 4. MAGMA-WEAVER ENGINE STUB ---
-    let magmaCanvas, magmaCtx;
+    function wakanLoop() {
+      if (wakanCanvas && wakanCtx && wakanCanvas.offsetParent !== null) {
+        wakanState.y += wakanState.vy; wakanState.vy += 0.8;
+        if (wakanState.y >= 340) { wakanState.y = 340; wakanState.vy = 0; wakanState.isJumping = false; }
+        if (Math.random() < 0.035 && wakanState.attackers.length < 4) wakanState.attackers.push({ x: wakanCanvas.width + 40, y: 340, speed: 2.2 });
+
+        wakanCtx.fillStyle = '#020617'; wakanCtx.fillRect(0, 0, wakanCanvas.width, wakanCanvas.height);
+        wakanCtx.fillStyle = '#0369a1'; wakanCtx.beginPath(); wakanCtx.moveTo(0, 380); wakanCtx.lineTo(0, 200); wakanCtx.lineTo(150, 140); wakanCtx.lineTo(300, 220); wakanCtx.lineTo(450, 120); wakanCtx.lineTo(600, 180); wakanCtx.lineTo(600, 380); wakanCtx.fill();
+        wakanCtx.fillStyle = '#082f49'; wakanCtx.fillRect(0, 380, wakanCanvas.width, 70);
+
+        wakanState.tsunamis.forEach((t, idx) => {
+          t.x += t.speed; wakanCtx.fillStyle = 'rgba(56, 189, 248, 0.6)'; wakanCtx.fillRect(t.x, 220, t.w, 160);
+          wakanState.attackers.forEach((att, aIdx) => { if (Math.abs(t.x + t.w/2 - att.x) < 160) { wakanState.pearls++; document.getElementById('wakan-pearls').innerText = wakanState.pearls; wakanState.attackers.splice(aIdx, 1); } });
+          if (t.x > wakanCanvas.width) wakanState.tsunamis.splice(idx, 1);
+        });
+
+        wakanState.attackers.forEach((att, idx) => {
+          att.x -= att.speed; wakanCtx.fillStyle = '#0f172a'; wakanCtx.fillRect(att.x - 16, att.y - 30, 32, 32);
+          if (Math.abs(wakanState.x - att.x) < 30) { wakanState.stability = Math.max(0, wakanState.stability - 15); document.getElementById('wakan-stability').innerText = wakanState.stability + '%'; wakanState.attackers.splice(idx, 1); }
+          if (att.x < -40) wakanState.attackers.splice(idx, 1);
+        });
+
+        wakanCtx.save();
+        if (wakanLoaded && wakanSprite.naturalWidth !== 0) wakanCtx.drawImage(wakanSprite, wakanState.x - 32, wakanState.y - 50, 64, 80);
+        wakanCtx.restore();
+      }
+      if (wakanRunning) requestAnimationFrame(wakanLoop);
+    }
+
+    // --- 4. MAGMA-WEAVER ENGINE ---
+    let magmaCanvas, magmaCtx, magmaRunning = false, magmaPaused = true;
+    let magmaState = { x: 100, y: 340, vy: 0, isJumping: false, shield: 100, gems: 0, roboticDroids: [], fireballs: [] };
+
     function initMagmaEngine() {
       magmaCanvas = document.getElementById('magmaCanvas'); if (!magmaCanvas) return;
       magmaCtx = magmaCanvas.getContext('2d');
-      magmaCtx.fillStyle = '#0a0303'; magmaCtx.fillRect(0, 0, magmaCanvas.width, magmaCanvas.height);
-      if (magmaLoaded && magmaSprite.naturalWidth !== 0) magmaCtx.drawImage(magmaSprite, 250, 280, 64, 80);
+      magmaState = { x: 100, y: 340, vy: 0, isJumping: false, shield: 100, gems: 0, roboticDroids: [], fireballs: [] };
+      magmaPaused = false; magmaRunning = true; magmaLoop();
     }
-    function jumpMagma() { playSound('laser'); }
-    function throwMagmaFireball() { playSound('crash'); }
-    function moveMagmaPlatform(dir) { playSound('laser'); }
+    function jumpMagma() { if (!magmaState.isJumping) { playSound('laser'); magmaState.vy = -12; magmaState.isJumping = true; } }
+    function throwMagmaFireball() { playSound('crash'); magmaState.fireballs.push({ x: magmaState.x + 20, y: magmaState.y - 20, speed: 7 }); }
+    function moveMagmaPlatform(dir) { if (dir === 'left') magmaState.x = Math.max(50, magmaState.x - 45); if (dir === 'right') magmaState.x = Math.min(magmaCanvas.width - 50, magmaState.x + 45); }
+
+    function magmaLoop() {
+      if (magmaCanvas && magmaCtx && magmaCanvas.offsetParent !== null) {
+        magmaState.y += magmaState.vy; magmaState.vy += 0.8;
+        if (magmaState.y >= 340) { magmaState.y = 340; magmaState.vy = 0; magmaState.isJumping = false; }
+        if (Math.random() < 0.035 && magmaState.roboticDroids.length < 4) magmaState.roboticDroids.push({ x: magmaCanvas.width + 40, y: 340, speed: 2.0 });
+
+        magmaCtx.fillStyle = '#0a0303'; magmaCtx.fillRect(0, 0, magmaCanvas.width, magmaCanvas.height);
+        magmaCtx.fillStyle = "rgba(239, 68, 68, 0.25)"; magmaCtx.beginPath(); magmaCtx.moveTo(0, 220); magmaCtx.lineTo(200, 260); magmaCtx.lineTo(400, 200); magmaCtx.lineTo(600, 240); magmaCtx.lineTo(600, 380); magmaCtx.lineTo(0, 380); magmaCtx.fill();
+        magmaCtx.fillStyle = '#7f1d1d'; magmaCtx.fillRect(0, 380, magmaCanvas.width, 70);
+
+        magmaState.fireballs.forEach((f, idx) => {
+          f.x += f.speed; magmaCtx.fillStyle = '#f59e0b'; magmaCtx.beginPath(); magmaCtx.arc(f.x, f.y, 12, 0, Math.PI * 2); magmaCtx.fill();
+          magmaState.roboticDroids.forEach((d, dIdx) => { if (Math.abs(f.x - d.x) < 30) { magmaState.gems++; document.getElementById('magma-gems').innerText = magmaState.gems; magmaState.fireballs.splice(idx, 1); magmaState.roboticDroids.splice(dIdx, 1); } });
+          if (f.x > magmaCanvas.width) magmaState.fireballs.splice(idx, 1);
+        });
+
+        magmaState.roboticDroids.forEach((d, idx) => {
+          d.x -= d.speed; magmaCtx.fillStyle = '#1e1b4b'; magmaCtx.fillRect(d.x - 16, d.y - 30, 32, 32);
+          if (Math.abs(magmaState.x - d.x) < 30) { magmaState.shield = Math.max(0, magmaState.shield - 15); document.getElementById('magma-shield').innerText = magmaState.shield + '%'; magmaState.roboticDroids.splice(idx, 1); }
+          if (d.x < -40) magmaState.roboticDroids.splice(idx, 1);
+        });
+
+        magmaCtx.save();
+        if (magmaLoaded && magmaSprite.naturalWidth !== 0) magmaCtx.drawImage(magmaSprite, magmaState.x - 32, magmaState.y - 50, 64, 80);
+        magmaCtx.restore();
+      }
+      if (magmaRunning) requestAnimationFrame(magmaLoop);
+    }
 
     window.onload = () => { initVoltEngine(); initPrismEngine(); initWakanEngine(); initMagmaEngine(); };
   </script>
