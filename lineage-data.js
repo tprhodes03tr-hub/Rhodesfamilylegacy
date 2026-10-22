@@ -245,7 +245,7 @@
       }
     }
 
-    // Interactive Bidirectional Voice AI Partner Loop with Anti-Overlap Buffer
+    // Interactive Bidirectional Voice AI Partner Loop with Clean Isolated Mic Window
     function startVoiceConversation() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -253,23 +253,22 @@
         return;
       }
 
-      // Stop any prior speech immediately
+      // Kill any ongoing speech synthesis immediately
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
 
       const outputBox = document.getElementById('genomic-output');
-      outputBox.innerText = `> PREPARING MIC... Get ready to speak your question...`;
+      outputBox.innerText = `> 🎙️ PREPARING MIC (Speak your question clearly in a moment)...`;
 
-      // 1.2 second pause buffer so speech synthesis finishes and doesn't bleed into mic input
+      // 1.5 second pure silence window — NO verbal prompt spoken to avoid capturing system audio
       setTimeout(() => {
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
         recognition.interimResults = false;
         recognition.maxAlternatives = 1;
 
-        outputBox.innerText = `> 🎙️ LISTENING NOW... Ask any question about your DNA, heritage, or ancestors...`;
-        speakText("Listening now. Ask me anything.");
+        outputBox.innerText = `> 🎙️ LISTENING NOW... Ask your question about DNA, heritage, or ancestors...`;
 
         recognition.start();
 
@@ -302,7 +301,7 @@
         recognition.onerror = function(event) {
           outputBox.innerText = `> AUDIO ERROR: Could not capture voice input. Please ensure microphone permissions are allowed.`;
         };
-      }, 1200); // 1.2 second safety delay
+      }, 1500); // 1.5 second silence buffer
     }
   </script>
 </body>
