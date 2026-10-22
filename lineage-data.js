@@ -222,7 +222,6 @@
                             `> Archival Record: ${queryResult.historicalNote}` +
                             (cmValue ? `\n> SHARED DATA: ${cmValue} cM | Status: VERIFIED BLOODLINE ANCHOR` : '');
 
-      // Dynamically render portrait if image filename is provided in database
       if (queryResult.image && queryResult.image.trim() !== "") {
         imageContainer.innerHTML = `<img src="${queryResult.image}" alt="${queryResult.name} Archival Portrait">`;
       } else {
@@ -272,7 +271,7 @@
       }
     }
 
-    // Interactive Bidirectional Voice AI Partner Loop with Clean Isolated Mic Window
+    // Interactive Bidirectional Voice AI Partner Loop with Strict Echo Filter
     function startVoiceConversation() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -285,20 +284,25 @@
       }
 
       const outputBox = document.getElementById('genomic-output');
-      outputBox.innerText = `> 🎙️ PREPARING MIC (Speak your question clearly in a moment)...`;
+      outputBox.innerText = `> 🎙️ MIC STANDBY... Silence initiated...`;
 
+      // 1.8 second extended pure silence buffer so phone audio completely clears out
       setTimeout(() => {
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
         recognition.interimResults = false;
         recognition.maxAlternatives = 1;
 
-        outputBox.innerText = `> 🎙️ LISTENING NOW... Ask your question about DNA, heritage, or ancestors...`;
+        outputBox.innerText = `> 🎙️ LISTENING NOW (Speak clearly)...`;
 
         recognition.start();
 
         recognition.onresult = function(event) {
-          const spokenQuery = event.results[0][0].transcript.toLowerCase();
+          let spokenQuery = event.results[0][0].transcript.toLowerCase();
+
+          // STRICT ECHO FILTER: Automatically strip out any accidental system speech bleed
+          spokenQuery = spokenQuery.replace(/listening/g, "").replace(/ask me anything/g, "").trim();
+
           outputBox.innerText = `> YOU ASKED: "${spokenQuery}"\n`;
 
           const refinedSearchTerm = parseQueryIntent(spokenQuery);
@@ -322,7 +326,7 @@
         recognition.onerror = function(event) {
           outputBox.innerText = `> AUDIO ERROR: Could not capture voice input. Please ensure microphone permissions are allowed.`;
         };
-      }, 1500);
+      }, 1800); // 1.8 second safety delay
     }
   </script>
 </body>
