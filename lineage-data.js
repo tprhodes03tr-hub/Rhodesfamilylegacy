@@ -1,172 +1,157 @@
-// RHODES FAMILY LEGACY - ULTIMATE DYNAMIC LINEAGE, HAPLOGROUP & GLOBAL ANCESTRY DATABASE
-window.RHODES_LINEAGE_DATABASE = {
-  ancestors: {
-    "moroccan": {
-      name: "Moorish & North African Sovereign Heritage",
-      stream: "Trans-Mediterranean & Iberian Convergence Pillar",
-      estimatedEra: "Moorish Epoch through Colonial Maritime Networks",
-      temporalShift: "North African & Atlantic Crossroads Era",
-      historicalContext: "U.S. Presidents: George Washington onward. Reflects ancestral and cultural streams connecting North Africa, the Iberian Peninsula, and maritime trading networks that bridged the Old World and the Americas.",
-      xChromosomeLink: "Autosomal and haplogroup alignments tracing multi-continental convergence.",
-      historicalNote: "Documents the enduring historical presence and global heritage connecting North African lineages to family ancestral roots."
-    },
-    "dismal": {
-      name: "Great Dismal Swamp Maroon Resistance Line",
-      stream: "Maroon Freedom & Wilderness Sovereignty Pillar",
-      estimatedEra: "Circa 1700s – 1860s (Colonial & Antebellum Freedom Era)",
-      temporalShift: "The Sovereign Wilderness Resistance Epoch",
-      historicalContext: "U.S. Presidents: Colonial era through Abraham Lincoln. The Great Dismal Swamp along the Virginia-North Carolina border served as a legendary sanctuary for Native Americans, free persons of color, and self-emancipated Maroons who carved out autonomous communities, defied the plantation economy, and built resilient networks in impassable wetlands.",
-      xChromosomeLink: "Autosomal segment clusters reflecting multi-generational endurance and frontier survival.",
-      historicalNote: "Honors the fierce independence, swamp-craft, and unyielding freedom struggle of ancestors who maintained autonomy outside the bounds of chattel slavery."
-    },
-    "coincoin": {
-      name: "Marie Thérèse Coin-Coin & Cane River Lineage",
-      stream: "Cane River / Isle Brevelle Matriarchal Pillar",
-      estimatedEra: "Circa 1742 – 1830s (Colonial Louisiana & French/Spanish Era)",
-      temporalShift: "Cane River Colonial & Land Stewardship Epoch",
-      historicalContext: "U.S. Presidents: George Washington through Andrew Jackson. Set in colonial Louisiana along the Cane River (Isle Brevelle). Marie Thérèse Coin-Coin was a remarkable businesswoman, matriarch, and land owner who secured freedom for her family, establishing a legendary dynasty of free people of color who owned land, operated complex farming estates, and preserved multi-cultural heritage.",
-      xChromosomeLink: "High-affinity X-chromosome and autosomal maternal transmission lines.",
-      historicalNote: "Ties directly to the historic Cane River communities, entrepreneurial resilience, and multi-generational land ownership."
-    },
-    "seminole": {
-      name: "Black Seminole & Florida Sovereign Resistance",
-      stream: "Southeastern Maroon & Tribal Alliance Pillar",
-      estimatedEra: "Circa 1750s – 1850s (Colonial Florida & Seminole Wars Era)",
-      temporalShift: "Southeastern Frontier & Everglades Sovereign Epoch",
-      historicalContext: "U.S. Presidents: Thomas George Washington through Millard Fillmore. Black Seminoles and allied tribal nations forged an unyielding alliance in the Florida wilderness, fighting successful military campaigns against U.S. forces during the Seminole Wars before migrating across the frontier.",
-      xChromosomeLink: "Autosomal and X-chromosome markers tracing multi-generational southeastern heritage.",
-      historicalNote: "Captures the legendary military defense, cultural autonomy, and survival strategies of freedom fighters in the American Southeast."
-    },
-    "yamasee": {
-      name: "Yamasee & Indigenous Southeastern Confederacy",
-      stream: "Southeastern Indigenous Sovereign Pillar",
-      estimatedEra: "Circa 1600s – 1700s (Colonial Trade & Frontier Era)",
-      temporalShift: "Colonial Southeast & Indigenous Confederacy Epoch",
-      historicalContext: "U.S. Presidents: Pre-presidential colonial era. The Yamasee nation and allied indigenous confederacies maintained extensive diplomatic, trading, and territorial networks across the Carolinas, Georgia, and Florida borderlands.",
-      xChromosomeLink: "Deep autosomal and maternal transmission baseline markers.",
-      historicalNote: "Honors the foundational indigenous heritage woven into the early ancestral matrix of the American South."
-    },
-    "greenwood": {
-      name: "Greenwood & Black Wall Street Entrepreneurial Line",
-      stream: "Tulsa Greenwood & Economic Resilience Pillar",
-      estimatedEra: "Circa 1900 – 1921+ (Post-Statehood & Jim Crow Era)",
-      temporalShift: "The Black Wall Street & Urban Renaissance Epoch",
-      historicalContext: "U.S. Presidents: Theodore Roosevelt through Warren G. Harding. The Greenwood district of Tulsa, Oklahoma, became the wealthiest Black community in America—known as 'Black Wall Street'—featuring thriving black-owned banks, hotels, theaters, and professional offices before the devastating 1921 massacre and rebuilding efforts.",
-      xChromosomeLink: "Autosomal inheritance patterns reflecting early 20th-century southern and southwestern migration corridors.",
-      historicalNote: "Symbolizes supreme economic self-reliance, community architecture, and intergenerational survival in the face of systemic adversity."
-    },
-    "alamo": {
-      name: "Texas Frontier & Borderlands Historical Stream",
-      stream: "Texas Revolution & Spanish-Mexican Borderlands Pillar",
-      estimatedEra: "Circa 1820s – 1840s (Mexican Texas & Republic Era)",
-      temporalShift: "Southwestern Borderlands & Territorial Sovereignty Epoch",
-      historicalContext: "U.S. Presidents: James Monroe through James K. Polk. The Texas frontier was a complex crucible of Tejano, Native American, African, and Anglo-American settlers navigating shifting flags under Spain, Mexico, and the Republic of Texas.",
-      xChromosomeLink: "Autosomal convergence markers across southwestern migration corridors.",
-      historicalNote: "Contextualizes the multi-cultural pioneers and land grants that shaped the American Southwest."
-    },
-    "jl283": {
-      name: "Y-DNA Haplogroup J-L283 (Paternal Lineage)",
-      stream: "Levantine, Bronze Age & Hatten Patriarchal Pillar",
-      estimatedEra: "Circa 2000 BCE – Present (4,000+ Year Paternal Bottleneck)",
-      temporalShift: "Ancient Levant, Etruscan & Global Diaspora Epoch",
-      historicalContext: "Tracing deep paternal markers from the ancient Middle East and Mediterranean (associated with ancient Levantine and Kohanim priestly lineages) through European migration corridors, ultimately anchoring in the American South and Industrial Detroit via Benjamin Hatten and the Hatten-Fleming patriarchal line.",
-      xChromosomeLink: "Paternal Y-DNA direct inheritance path (J-L283 / J2b-L283).",
-      historicalNote: "Represents the unbroken paternal genetic architecture connecting ancient Mediterranean civilizations to your family's documented military service and craftsmanship."
-    },
-    "nigerian": {
-      name: "West African Heritage (Nigerian & Mali Stream)",
-      stream: "Transatlantic Ancestral Convergence Pillar",
-      estimatedEra: "Pre-Colonial West African Empires through Antebellum America",
-      temporalShift: "Sengambian, Yoruba, Igbo & Mali Imperial Epochs",
-      historicalContext: "U.S. Presidents: Pre-colonial through 19th Century. Reflects deep ancestral roots tied to West African civilizations (such as the Mali Empire, Yoruba, and Igbo domains). During the transatlantic era, these lineages became foundational to the cultural, agricultural, and spiritual survival of families across the American South, Mississippi Delta, and Caribbean networks.",
-      xChromosomeLink: "Autosomal segment distribution across core chromosomes linking multi-continental heritage.",
-      historicalNote: "Honors the rich cultural, linguistic, and genetic contributions of West African ancestors woven directly into the foundational American family fabric."
-    },
-    "johnson": {
-      name: "Patience Johnson & Family Line",
-      stream: "Wright & Johnson Foundation (Yalobusha Ledger)",
-      estimatedEra: "Circa 1820 – 1880 (4th - 5th Great-Grandparent Horizon)",
-      temporalShift: "Era of Reconstruction & Antebellum Land Stewardship",
-      historicalContext: "U.S. Presidents: James Monroe through Rutherford B. Hayes. America was navigating westward expansion, the turbulent aftermath of the Civil War, Reconstruction policies, and localized public health crises like recurring yellow fever outbreaks across the Mississippi River valley.",
-      xChromosomeLink: "Strong X-chromosome triangulated match cluster linking maternal inheritance and ancestral convergence.",
-      historicalNote: "Foundational matriarchal lineage documenting multi-generational resilience, land stewardship, and deep roots across Mississippi and the American South."
-    },
-    "wright": {
-      name: "Aaron Bruce Wright Sr.",
-      stream: "Wright Ledger & Yalobusha Foundation",
-      estimatedEra: "Circa 1850 – 1910 (Great-Grandparent / 3rd Great-Grandparent Horizon)",
-      temporalShift: "Late 19th Century Frontier & Tradesman Epoch",
-      historicalContext: "U.S. Presidents: Millard Fillmore through William Howard Taft. The nation was expanding via transcontinental railroads, experiencing the industrial revolution, weathering economic panics, and dealing with turn-of-the-century public health sanitation movements and localized influenza outbreaks.",
-      xChromosomeLink: "Autosomal segment alignment across Chromosome 1 and 3 overlap zones.",
-      historicalNote: "Documented patriarch, trapper, fisherman, and shoemaker whose legacy anchors the family's deep archival paper trail."
-    },
-    "colbert": {
-      name: "The Colbert & Chickasaw Sovereign Stream",
-      stream: "Colbert / Chickasaw Nation Pillar",
-      estimatedEra: "Circa 1780 – 1850 (Deep Historical Sovereign Horizon)",
-      temporalShift: "Natchez Trace & Colonial Diplomatic Era",
-      historicalContext: "U.S. Presidents: George Washington through Zachary Taylor. America was defining its borders, establishing the Natchez Trace trade routes, and enforcing federal Indian removal policies alongside frontier smallpox vaccination campaigns.",
-      xChromosomeLink: "High-affinity X-chromosome and autosomal segment matches tracing native and colonial diplomatic roots.",
-      historicalNote: "Ties directly to Chief James Logan Colbert, Natchez Trace historical figures, and sovereign land networks spanning over 300 years."
-    },
-    "mitchell": {
-      name: "Tommy Philip Mitchell & Thomas Mitchell",
-      stream: "Delta Pulpit & Spencer Compact",
-      estimatedEra: "Circa 1870 – 1940 (Grandparent / Great-Grandparent Horizon)",
-      temporalShift: "Turn-of-the-Century Delta Education & Community Epoch",
-      historicalContext: "U.S. Presidents: Ulysses S. Grant through Franklin D. Roosevelt. Spanned the Jim Crow era, the Great Migration northward toward industrial hubs like Detroit, the 1918 influenza pandemic, and the economic hardships of the Great Depression.",
-      xChromosomeLink: "Verified maternal grandfather and great-grandfather network.",
-      historicalNote: "Educators, musicians, and community store owners preserving oral history and generational fortitude across Mississippi and Detroit."
-    },
-    "hatten": {
-      name: "Benjamin Hatten & Luetta Thomas",
-      stream: "Hatten Patriarchal Forge & Flemings",
-      estimatedEra: "Circa 1900 – 1950 (Mid-20th Century / WWII Horizon)",
-      temporalShift: "Industrial Detroit & Global Service Epoch",
-      historicalContext: "U.S. Presidents: William McKinley through Harry S. Truman. Marked by the mobilization of World War II, military service in the Pacific and Japan, the booming Detroit auto and manufacturing industry, and postwar community building.",
-      xChromosomeLink: "Y-DNA J-L283 lineage markers and paternal baseline convergence.",
-      historicalNote: "US Army WWII veterans in Japan, blacksmithing heritage, and deep patriarchal roots spanning Arkansas lumber networks."
-    },
-    "fox": {
-      name: "Laura Flemings & Fox Branch",
-      stream: "Hatten Patriarchal Forge & Flemings",
-      estimatedEra: "Circa 1900 – 1960 (Mid-Century Migration Horizon)",
-      temporalShift: "Great Migration & Family Continuity Era",
-      historicalContext: "U.S. Presidents: Theodore Roosevelt through Dwight D. Eisenhower. The transformation of urban America, the civil rights movement taking shape, and families establishing permanent roots across Michigan.",
-      xChromosomeLink: "Paternal grand-parental line convergence.",
-      historicalNote: "Core family line connected to ancestral migration corridors and historical documentation."
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rhodes Family Legacy - Universal Genomic Command Node</title>
+  <style>
+    body {
+      background-color: #0b0c10;
+      color: #c5c6c7;
+      font-family: 'Courier New', Courier, monospace;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
     }
-  },
+    .container {
+      width: 100%;
+      max-width: 600px;
+      border: 2px solid #ffb703;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 0 20px rgba(255, 183, 3, 0.2);
+      background-color: #1f2833;
+    }
+    h1 {
+      font-size: 1.1rem;
+      color: #ffb703;
+      text-align: center;
+      letter-spacing: 2px;
+      margin-bottom: 5px;
+    }
+    h2 {
+      font-size: 0.9rem;
+      color: #66fcf1;
+      text-align: center;
+      letter-spacing: 1px;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #66fcf1;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      background-color: #0b0c10;
+      border: 1px solid #45a29e;
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #ffb703;
+      color: #0b0c10;
+      font-weight: bold;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Courier New', Courier, monospace;
+      letter-spacing: 1px;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #fb8500;
+      color: #fff;
+    }
+    .output-box {
+      margin-top: 20px;
+      background-color: #0b0c10;
+      border: 1px solid #66fcf1;
+      padding: 15px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      color: #66fcf1;
+      min-height: 120px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>SEVEN RIVERS GENOMIC COMMAND NODE</h1>
+    <h2>UNIVERSAL BLOOD-LINEAGE & DNA SCANNER</h2>
+
+    <div class="input-group">
+      <label for="matchName">ENTER ANCESTOR, SURNAME OR HAPLOGROUP (e.g., Fox, Johnson, jl283, moroccan, dismal, coincoin, seminole, greenwood)</label>
+      <input type="text" id="matchName" placeholder="e.g. Fox">
+    </div>
+
+    <div class="input-group">
+      <label for="matchCm">SHARED CENTIMORGANS (cM)</label>
+      <input type="text" id="matchCm" placeholder="e.g. 21">
+    </div>
+
+    <div class="input-group">
+      <label for="matchChr">CHROMOSOME ZONES</label>
+      <input type="text" id="matchChr" placeholder="e.g. 1, 3, X">
+    </div>
+
+    <button onclick="verifyUniversalCousin()">RUN GENOMIC AUTHENTICATION</button>
+
+    <div class="output-box" id="genomic-output">
+      > SYSTEM READY. Awaiting lineage query input...
+    </div>
+  </div>
+
+  <!-- Load Dynamic Lineage Database Script -->
+  <script src="lineage-data.js"></script>
+  <script>
+    function verifyUniversalCousin() {
+      const nameInput = document.getElementById('matchName').value;
+      const cm = parseFloat(document.getElementById('matchCm').value) || 0;
+      const chrInput = document.getElementById('matchChr').value;
+
+      if (!window.RHODES_LINEAGE_DATABASE) {
+        document.getElementById('genomic-output').innerText = "> ERROR: lineage-data.js database not loaded.";
+        return;
+      }
+
+      // Query the comprehensive lineage database
+      const result = window.RHODES_LINEAGE_DATABASE.queryDatabase(nameInput, chrInput);
+      const outputBox = document.getElementById('genomic-output');
+
+      // Render full historical depth, temporal shifts, and archival records on screen
+      outputBox.innerText = `> ARCHIVAL QUERY SUCCESS: ${result.name}\n` +
+                            `> Lineage Stream: ${result.stream}\n` +
+                            `> Estimated Epoch: ${result.estimatedEra}\n` +
+                            `> Temporal Shift: ${result.temporalShift}\n` +
+                            `> HISTORICAL BACKDROP: ${result.historicalContext}\n` +
+                            `> Genetic Marker / X-Chr Link: ${result.xChromosomeLink}\n` +
+                            `> Archival Record: ${result.historicalNote}\n` +
+                            `> SHARED DATA: ${cm} cM | Status: VERIFIED BLOODLINE ANCHOR`;
   
-  queryDatabase: function(searchTerm, chromosomeInput) {
-    const term = (searchTerm || "").toLowerCase().trim();
-    
-    for (let key in this.ancestors) {
-      if (term.includes(key) || term.includes(this.ancestors[key].name.toLowerCase())) {
-        return this.ancestors[key];
+      // Text-to-Speech audio feedback integration
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        let utter = new SpeechSynthesisUtterance(`Epoch verified for ${result.name}. Historical backdrop loaded.`);
+        window.speechSynthesis.speak(utter);
       }
     }
-    
-    if (chromosomeInput && (chromosomeInput.includes("1") || chromosomeInput.includes("3") || chromosomeInput.includes("x"))) {
-      return {
-        name: "Core Autosomal & X-Chromosome Triangulation Zone",
-        stream: "Seven Rivers Convergence Matrix",
-        estimatedEra: "Multi-Generational Convergence (300+ Year Span)",
-        temporalShift: "Deep Ancestral Overlap Matrix",
-        historicalContext: "Spans multiple epochs of American history from colonial trade routes to 20th-century industrial migration corridors.",
-        xChromosomeLink: "Active match across Chromosome 1/3 overlap and X-chromosome maternal transmission paths.",
-        historicalNote: "Linked to the Colbert, Johnson, and Wright foundational lines spanning across the Americas."
-      };
-    }
-    
-    return {
-      name: "Seven Rivers Sovereign Archive",
-      stream: "Universal Rhodes Family Legacy Node",
-      estimatedEra: "Historical Baseline (300+ Years in the Americas & Global Roots)",
-      temporalShift: "Universal Chronology Index",
-      historicalContext: "A continuous tapestry spanning from ancient Levantine/Mediterranean haplogroups, Moorish heritage, Cane River, Great Dismal Swamp, Black Seminoles, Yamasee, Greenwood, the Alamo, and West African empires to centuries of American history.",
-      xChromosomeLink: "Documented across multi-continental ancestral convergence and genetic markers.",
-      historicalNote: "Search by specific terms (e.g., moroccan, dismal, coincoin, seminole, yamasee, greenwood, alamo, jl283, nigerian, mali, johnson, wright, colbert, mitchell, hatten, fox) to pull precise temporal epochs, lineages, and archival records."
-    };
-  }
-};
+  </script>
+</body>
+</html>
