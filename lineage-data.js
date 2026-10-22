@@ -108,6 +108,17 @@
       color: #66fcf1;
       min-height: 120px;
     }
+    .image-container {
+      margin-top: 15px;
+      text-align: center;
+    }
+    .image-container img {
+      max-width: 100%;
+      height: auto;
+      border: 2px solid #66fcf1;
+      border-radius: 6px;
+      box-shadow: 0 0 15px rgba(102, 252, 241, 0.3);
+    }
   </style>
 </head>
 <body>
@@ -117,8 +128,8 @@
     <h2>UNIVERSAL BLOOD-LINEAGE & DNA SCANNER</h2>
 
     <div class="input-group">
-      <label for="matchName">ENTER ANCESTOR, SURNAME OR HAPLOGROUP (e.g., Fox, Johnson, jl283, moroccan, dismal, coincoin, seminole, greenwood)</label>
-      <input type="text" id="matchName" placeholder="e.g. Fox">
+      <label for="matchName">ENTER ANCESTOR, SURNAME OR HAPLOGROUP (e.g., Elroy, Luetta, Fannie, Thomas, Wright, Fox, Colbert)</label>
+      <input type="text" id="matchName" placeholder="e.g. Luetta">
     </div>
 
     <div class="input-group">
@@ -141,6 +152,8 @@
     <div class="output-box" id="genomic-output">
       > SYSTEM READY. Awaiting lineage query input...
     </div>
+    
+    <div class="image-container" id="ancestor-image-container"></div>
   </div>
 
   <!-- Load Dynamic Lineage Database Script -->
@@ -152,45 +165,69 @@
     function parseQueryIntent(rawQuery) {
       const q = (rawQuery || "").toLowerCase();
       
-      // Check for Indigenous / Native American / Chickasaw queries
+      if (q.includes("elroy") || q.includes("fannie may") || q.includes("parents") || q.includes("father") || q.includes("mother")) {
+        return "parents";
+      }
+      if (q.includes("luetta") || q.includes("paternal grandmother")) {
+        return "luetta-thomas";
+      }
+      if (q.includes("fannie wright") || q.includes("maternal grandmother")) {
+        return "fannie-may-wright";
+      }
       if (q.includes("native") || q.includes("indian") || q.includes("chickasaw") || q.includes("indigenous") || q.includes("colbert")) {
         return "colbert";
       }
-      // Check for Cane River / Louisiana / Coincoin
-      if (q.includes("cane river") || q.includes("coincoin") || q.includes("louisiana") || q.includes("brevelle") || q.includes("duprÃ©") || q.includes("dupre")) {
+      if (q.includes("cane river") || q.includes("coincoin") || q.includes("louisiana") || q.includes("brevelle") || q.includes("dupre")) {
         return "coincoin";
       }
-      // Check for Wright / Johnson / Paternal-Maternal foundation
-      if (q.includes("wright") || q.includes("johnson") || q.includes("patience") || q.includes("yalobusha") || q.includes("maternal")) {
+      if (q.includes("wright") || q.includes("rebecca") || q.includes("aaron") || q.includes("yalobusha")) {
         return "wright";
       }
-      // Check for Fox / Hatten / Fleming / J-L283
-      if (q.includes("fox") || q.includes("hatten") || q.includes("fleming") || q.includes("jl283") || q.includes("j-l283") || q.includes("paternal")) {
+      if (q.includes("thomas") || q.includes("george") || q.includes("minnie") || q.includes("hatten")) {
+        return "thomas";
+      }
+      if (q.includes("fox") || q.includes("fleming") || q.includes("jl283") || q.includes("j-l283") || q.includes("paternal")) {
         return "fox";
       }
-      // Check for Black Seminole / Maroons / Dismal Swamp
       if (q.includes("seminole") || q.includes("dismal") || q.includes("swamp") || q.includes("maroon")) {
         return "dismal";
       }
-      // Check for Moroccan / Moorish connections
       if (q.includes("moroccan") || q.includes("moorish")) {
         return "moroccan";
       }
-      // Check for Greenwood / Tulsa / Historical towns
       if (q.includes("greenwood") || q.includes("tulsa")) {
         return "greenwood";
       }
-      // Check for Mitchell / Delta Pulpit / Spencer
       if (q.includes("mitchell") || q.includes("delta") || q.includes("pulpit") || q.includes("spencer")) {
         return "mitchell";
       }
-      // Catch-all general DNA / Chromosome inquiries -> route to core master codex anchor
-      if (q.includes("dna") || q.includes("chromosome") || q.includes("heritage") || q.includes("bloodline") || q.includes("lineage") || q.includes("cfs") || q.includes("cm")) {
-        return "fox"; // defaults to primary master codex branch
+      if (q.includes("dna") || q.includes("chromosome") || q.includes("heritage") || q.includes("bloodline") || q.includes("lineage")) {
+        return "parents"; 
       }
 
-      // Default fallback: return raw query string
       return rawQuery;
+    }
+
+    function displayAncestorResult(queryResult, cmValue) {
+      lastQueryResult = queryResult;
+      const outputBox = document.getElementById('genomic-output');
+      const imageContainer = document.getElementById('ancestor-image-container');
+
+      outputBox.innerText = `> ARCHIVAL QUERY SUCCESS: ${queryResult.name}\n` +
+                            `> Lineage Stream: ${queryResult.stream}\n` +
+                            `> Estimated Epoch: ${queryResult.estimatedEra}\n` +
+                            `> Temporal Shift: ${queryResult.temporalShift}\n` +
+                            `> HISTORICAL BACKDROP: ${queryResult.historicalContext}\n` +
+                            `> Genetic Marker / X-Chr Link: ${queryResult.xChromosomeLink}\n` +
+                            `> Archival Record: ${queryResult.historicalNote}` +
+                            (cmValue ? `\n> SHARED DATA: ${cmValue} cM | Status: VERIFIED BLOODLINE ANCHOR` : '');
+
+      // Dynamically render portrait if image filename is provided in database
+      if (queryResult.image && queryResult.image.trim() !== "") {
+        imageContainer.innerHTML = `<img src="${queryResult.image}" alt="${queryResult.name} Archival Portrait">`;
+      } else {
+        imageContainer.innerHTML = '';
+      }
     }
 
     function verifyUniversalCousin() {
@@ -204,20 +241,10 @@
       }
 
       const refinedQuery = parseQueryIntent(nameInput);
+      const queryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(refinedQuery, chrInput);
 
-      lastQueryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(refinedQuery, chrInput);
-      const outputBox = document.getElementById('genomic-output');
-
-      outputBox.innerText = `> ARCHIVAL QUERY SUCCESS: ${lastQueryResult.name}\n` +
-                            `> Lineage Stream: ${lastQueryResult.stream}\n` +
-                            `> Estimated Epoch: ${lastQueryResult.estimatedEra}\n` +
-                            `> Temporal Shift: ${lastQueryResult.temporalShift}\n` +
-                            `> HISTORICAL BACKDROP: ${lastQueryResult.historicalContext}\n` +
-                            `> Genetic Marker / X-Chr Link: ${lastQueryResult.xChromosomeLink}\n` +
-                            `> Archival Record: ${lastQueryResult.historicalNote}\n` +
-                            `> SHARED DATA: ${cm} cM | Status: VERIFIED BLOODLINE ANCHOR`;
-  
-      speakText(`Epoch verified for ${lastQueryResult.name}. Historical backdrop loaded.`);
+      displayAncestorResult(queryResult, cm);
+      speakText(`Epoch verified for ${queryResult.name}. Historical backdrop loaded.`);
     }
 
     function speakText(text) {
@@ -253,7 +280,6 @@
         return;
       }
 
-      // Kill any ongoing speech synthesis immediately
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
@@ -261,7 +287,6 @@
       const outputBox = document.getElementById('genomic-output');
       outputBox.innerText = `> 🎙️ PREPARING MIC (Speak your question clearly in a moment)...`;
 
-      // 1.5 second pure silence window — NO verbal prompt spoken to avoid capturing system audio
       setTimeout(() => {
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
@@ -283,17 +308,13 @@
           }
 
           if (queryResult) {
-            lastQueryResult = queryResult;
-            outputBox.innerText += `> ARCHIVAL MATCH: ${queryResult.name}\n` +
-                                  `> Lineage Stream: ${queryResult.stream}\n` +
-                                  `> HISTORICAL BACKDROP: ${queryResult.historicalContext}\n` +
-                                  `> Archival Record: ${queryResult.historicalNote}`;
-
+            displayAncestorResult(queryResult, null);
             const responseText = `Found match for ${queryResult.name}. ${queryResult.historicalContext} ${queryResult.historicalNote}`;
             speakText(responseText);
           } else {
             const fallbackText = `I processed your question regarding ${spokenQuery}. The Seven Rivers sovereign archive stands ready to verify this branch.`;
             outputBox.innerText += `> AI PARTNER RESPONSE: ${fallbackText}`;
+            document.getElementById('ancestor-image-container').innerHTML = '';
             speakText(fallbackText);
           }
         };
@@ -301,7 +322,7 @@
         recognition.onerror = function(event) {
           outputBox.innerText = `> AUDIO ERROR: Could not capture voice input. Please ensure microphone permissions are allowed.`;
         };
-      }, 1500); // 1.5 second silence buffer
+      }, 1500);
     }
   </script>
 </body>
