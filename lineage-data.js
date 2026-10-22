@@ -76,6 +76,13 @@
       background-color: #fb8500;
       color: #fff;
     }
+    .btn-secondary {
+      background-color: #45a29e;
+      color: #0b0c10;
+    }
+    .btn-secondary:hover {
+      background-color: #66fcf1;
+    }
     .output-box {
       margin-top: 20px;
       background-color: #0b0c10;
@@ -112,6 +119,7 @@
     </div>
 
     <button onclick="verifyUniversalCousin()">RUN GENOMIC AUTHENTICATION</button>
+    <button class="btn-secondary" onclick="speakFullHistory()">🔊 NARRATE HERITAGE AUDIO LOG</button>
 
     <div class="output-box" id="genomic-output">
       > SYSTEM READY. Awaiting lineage query input...
@@ -121,6 +129,8 @@
   <!-- Load Dynamic Lineage Database Script -->
   <script src="lineage-data.js"></script>
   <script>
+    let lastQueryResult = null;
+
     function verifyUniversalCousin() {
       const nameInput = document.getElementById('matchName').value;
       const cm = parseFloat(document.getElementById('matchCm').value) || 0;
@@ -132,24 +142,41 @@
       }
 
       // Query the comprehensive lineage database
-      const result = window.RHODES_LINEAGE_DATABASE.queryDatabase(nameInput, chrInput);
+      lastQueryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(nameInput, chrInput);
       const outputBox = document.getElementById('genomic-output');
 
       // Render full historical depth, temporal shifts, and archival records on screen
-      outputBox.innerText = `> ARCHIVAL QUERY SUCCESS: ${result.name}\n` +
-                            `> Lineage Stream: ${result.stream}\n` +
-                            `> Estimated Epoch: ${result.estimatedEra}\n` +
-                            `> Temporal Shift: ${result.temporalShift}\n` +
-                            `> HISTORICAL BACKDROP: ${result.historicalContext}\n` +
-                            `> Genetic Marker / X-Chr Link: ${result.xChromosomeLink}\n` +
-                            `> Archival Record: ${result.historicalNote}\n` +
+      outputBox.innerText = `> ARCHIVAL QUERY SUCCESS: ${lastQueryResult.name}\n` +
+                            `> Lineage Stream: ${lastQueryResult.stream}\n` +
+                            `> Estimated Epoch: ${lastQueryResult.estimatedEra}\n` +
+                            `> Temporal Shift: ${lastQueryResult.temporalShift}\n` +
+                            `> HISTORICAL BACKDROP: ${lastQueryResult.historicalContext}\n` +
+                            `> Genetic Marker / X-Chr Link: ${lastQueryResult.xChromosomeLink}\n` +
+                            `> Archival Record: ${lastQueryResult.historicalNote}\n` +
                             `> SHARED DATA: ${cm} cM | Status: VERIFIED BLOODLINE ANCHOR`;
   
       // Text-to-Speech audio feedback integration
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
-        let utter = new SpeechSynthesisUtterance(`Epoch verified for ${result.name}. Historical backdrop loaded.`);
+        let utter = new SpeechSynthesisUtterance(`Epoch verified for ${lastQueryResult.name}. Historical backdrop loaded.`);
         window.speechSynthesis.speak(utter);
+      }
+    }
+
+    function speakFullHistory() {
+      if (!lastQueryResult) {
+        alert("Please run a genomic authentication query first to load an active lineage branch.");
+        return;
+      }
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const narrationText = `Archival intelligence report for ${lastQueryResult.name}. Lineage stream: ${lastQueryResult.stream}. Estimated epoch: ${lastQueryResult.estimatedEra}. Historical backdrop: ${lastQueryResult.historicalContext} Archival record: ${lastQueryResult.historicalNote}`;
+        let utter = new SpeechSynthesisUtterance(narrationText);
+        utter.rate = 0.95;
+        window.speechSynthesis.speak(utter);
+      } else {
+        alert("Text-to-speech is not supported on this browser.");
       }
     }
   </script>
