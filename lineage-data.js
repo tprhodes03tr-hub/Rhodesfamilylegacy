@@ -148,6 +148,47 @@
   <script>
     let lastQueryResult = null;
 
+    // Advanced Natural Language & Keyword Intent Extractor
+    function parseQueryIntent(rawQuery) {
+      const q = (rawQuery || "").toLowerCase();
+      
+      // Check for Indigenous / Native American / Chickasaw queries
+      if (q.includes("native") || q.includes("indian") || q.includes("chickasaw") || q.includes("indigenous") || q.includes("colbert")) {
+        return "colbert";
+      }
+      // Check for Cane River / Louisiana / Coincoin
+      if (q.includes("cane river") || q.includes("coincoin") || q.includes("louisiana") || q.includes("brevelle")) {
+        return "coincoin";
+      }
+      // Check for Wright / Johnson / Paternal-Maternal foundation
+      if (q.includes("wright") || q.includes("johnson") || q.includes("patience") || q.includes("yalobusha")) {
+        return "wright";
+      }
+      // Check for Fox / Hatten / Fleming / J-L283
+      if (q.includes("fox") || q.includes("hatten") || q.includes("fleming") || q.includes("jl283") || q.includes("j-l283")) {
+        return "fox";
+      }
+      // Check for Black Seminole / Maroons / Dismal Swamp
+      if (q.includes("seminole") || q.includes("dismal") || q.includes("swamp") || q.includes("maroon")) {
+        return "dismal";
+      }
+      // Check for Moroccan / Moorish connections
+      if (q.includes("moroccan") || q.includes("moorish")) {
+        return "moroccan";
+      }
+      // Check for Greenwood / Tulsa / Historical towns
+      if (q.includes("greenwood") || q.includes("tulsa")) {
+        return "greenwood";
+      }
+      // Check for Mitchell / Delta Pulpit / Spencer
+      if (q.includes("mitchell") || q.includes("delta") || q.includes("pulpit") || q.includes("spencer")) {
+        return "mitchell";
+      }
+
+      // Default fallback: return the raw query string for standard matching if no special intent is caught
+      return rawQuery;
+    }
+
     function verifyUniversalCousin() {
       const nameInput = document.getElementById('matchName').value;
       const cm = parseFloat(document.getElementById('matchCm').value) || 0;
@@ -158,8 +199,10 @@
         return;
       }
 
-      // Query the comprehensive lineage database
-      lastQueryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(nameInput, chrInput);
+      const refinedQuery = parseQueryIntent(nameInput);
+
+      // Query the comprehensive lineage database using parsed intent
+      lastQueryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(refinedQuery, chrInput);
       const outputBox = document.getElementById('genomic-output');
 
       // Render full historical depth, temporal shifts, and archival records on screen
@@ -201,7 +244,7 @@
       }
     }
 
-    // Interactive Bidirectional Voice AI Partner Loop
+    // Interactive Bidirectional Voice AI Partner Loop with Intent Parser
     function startVoiceConversation() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -215,7 +258,7 @@
       recognition.maxAlternatives = 1;
 
       const outputBox = document.getElementById('genomic-output');
-      outputBox.innerText = `> LISTENING... Speak your question to your AI Lineage Partner (e.g., "Tell me about Cane River" or "J-L283")...`;
+      outputBox.innerText = `> LISTENING... Speak your question to your AI Lineage Partner (e.g., "Do I have Native American heritage?" or "Tell me about Cane River")...`;
       speakText("Listening. Ask me anything about your heritage.");
 
       recognition.start();
@@ -224,10 +267,13 @@
         const spokenQuery = event.results[0][0].transcript.toLowerCase();
         outputBox.innerText = `> YOU ASKED: "${spokenQuery}"\n`;
 
-        // Query the database based on spoken words
+        // Pass spoken sentence through intent extractor
+        const refinedSearchTerm = parseQueryIntent(spokenQuery);
+
+        // Query the database based on extracted intent
         let queryResult = null;
         if (window.RHODES_LINEAGE_DATABASE) {
-          queryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(spokenQuery, "");
+          queryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(refinedSearchTerm, "");
         }
 
         if (queryResult) {
