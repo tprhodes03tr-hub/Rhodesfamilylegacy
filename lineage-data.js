@@ -59,6 +59,11 @@
       border-radius: 4px;
       box-sizing: border-box;
     }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
     button {
       width: 100%;
       padding: 12px;
@@ -82,6 +87,14 @@
     }
     .btn-secondary:hover {
       background-color: #66fcf1;
+    }
+    .btn-ai {
+      background-color: #66fcf1;
+      color: #0b0c10;
+    }
+    .btn-ai:hover {
+      background-color: #45a29e;
+      color: #fff;
     }
     .output-box {
       margin-top: 20px;
@@ -119,7 +132,11 @@
     </div>
 
     <button onclick="verifyUniversalCousin()">RUN GENOMIC AUTHENTICATION</button>
-    <button class="btn-secondary" onclick="speakFullHistory()">🔊 NARRATE HERITAGE AUDIO LOG</button>
+    
+    <div class="btn-row">
+      <button class="btn-secondary" style="margin-top:0;" onclick="speakFullHistory()">🔊 NARRATE LOG</button>
+      <button class="btn-ai" style="margin-top:0;" onclick="startVoiceConversation()">🎙️ ASK AI PARTNER</button>
+    </div>
 
     <div class="output-box" id="genomic-output">
       > SYSTEM READY. Awaiting lineage query input...
@@ -156,9 +173,13 @@
                             `> SHARED DATA: ${cm} cM | Status: VERIFIED BLOODLINE ANCHOR`;
   
       // Text-to-Speech audio feedback integration
+      speakText(`Epoch verified for ${lastQueryResult.name}. Historical backdrop loaded.`);
+    }
+
+    function speakText(text) {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
-        let utter = new SpeechSynthesisUtterance(`Epoch verified for ${lastQueryResult.name}. Historical backdrop loaded.`);
+        let utter = new SpeechSynthesisUtterance(text);
         window.speechSynthesis.speak(utter);
       }
     }
@@ -169,15 +190,66 @@
         return;
       }
 
+      const narrationText = `Archival intelligence report for ${lastQueryResult.name}. Lineage stream: ${lastQueryResult.stream}. Estimated epoch: ${lastQueryResult.estimatedEra}. Historical backdrop: ${lastQueryResult.historicalContext} Archival record: ${lastQueryResult.historicalNote}`;
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
-        const narrationText = `Archival intelligence report for ${lastQueryResult.name}. Lineage stream: ${lastQueryResult.stream}. Estimated epoch: ${lastQueryResult.estimatedEra}. Historical backdrop: ${lastQueryResult.historicalContext} Archival record: ${lastQueryResult.historicalNote}`;
         let utter = new SpeechSynthesisUtterance(narrationText);
         utter.rate = 0.95;
         window.speechSynthesis.speak(utter);
       } else {
         alert("Text-to-speech is not supported on this browser.");
       }
+    }
+
+    // Interactive Bidirectional Voice AI Partner Loop
+    function startVoiceConversation() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Speech recognition is not supported on this browser. Please use Chrome or Safari.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      const outputBox = document.getElementById('genomic-output');
+      outputBox.innerText = `> LISTENING... Speak your question to your AI Lineage Partner (e.g., "Tell me about Cane River" or "J-L283")...`;
+      speakText("Listening. Ask me anything about your heritage.");
+
+      recognition.start();
+
+      recognition.onresult = function(event) {
+        const spokenQuery = event.results[0][0].transcript.toLowerCase();
+        outputBox.innerText = `> YOU ASKED: "${spokenQuery}"\n`;
+
+        // Query the database based on spoken words
+        let queryResult = null;
+        if (window.RHODES_LINEAGE_DATABASE) {
+          // Try to match the spoken query against database keys
+          queryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(spokenQuery, "");
+        }
+
+        if (queryResult) {
+          lastQueryResult = queryResult;
+          outputBox.innerText += `> ARCHIVAL MATCH: ${queryResult.name}\n` +
+                                `> Lineage Stream: ${queryResult.stream}\n` +
+                                `> HISTORICAL BACKDROP: ${queryResult.historicalContext}\n` +
+                                `> Archival Record: ${queryResult.historicalNote}`;
+
+          const responseText = `Found match for ${queryResult.name}. ${queryResult.historicalContext} ${queryResult.historicalNote}`;
+          speakText(responseText);
+        } else {
+          const fallbackText = `I processed your question regarding ${spokenQuery}. The Seven Rivers sovereign archive stands ready to verify this branch.`;
+          outputBox.innerText += `> AI PARTNER RESPONSE: ${fallbackText}`;
+          speakText(fallbackText);
+        }
+      };
+
+      recognition.onerror = function(event) {
+        outputBox.innerText = `> AUDIO ERROR: Could not capture voice input. Please ensure microphone permissions are allowed.`;
+      };
     }
   </script>
 </body>
