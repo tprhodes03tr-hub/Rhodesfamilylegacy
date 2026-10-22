@@ -271,7 +271,7 @@
       }
     }
 
-    // Interactive Bidirectional Voice AI Partner Loop with Strict Echo Filter
+    // Interactive Bidirectional Voice AI Partner Loop with Enhanced Echo Filter
     function startVoiceConversation() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -286,7 +286,6 @@
       const outputBox = document.getElementById('genomic-output');
       outputBox.innerText = `> 🎙️ MIC STANDBY... Silence initiated...`;
 
-      // 1.8 second extended pure silence buffer so phone audio completely clears out
       setTimeout(() => {
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
@@ -300,8 +299,12 @@
         recognition.onresult = function(event) {
           let spokenQuery = event.results[0][0].transcript.toLowerCase();
 
-          // STRICT ECHO FILTER: Automatically strip out any accidental system speech bleed
-          spokenQuery = spokenQuery.replace(/listening/g, "").replace(/ask me anything/g, "").trim();
+          // ENHANCED ECHO FILTER: Strips out system speech bleed and introductory phrases
+          spokenQuery = spokenQuery
+            .replace(/listening/g, "")
+            .replace(/ask me anything/g, "")
+            .replace(/about your heritage/g, "")
+            .trim();
 
           outputBox.innerText = `> YOU ASKED: "${spokenQuery}"\n`;
 
@@ -326,7 +329,7 @@
         recognition.onerror = function(event) {
           outputBox.innerText = `> AUDIO ERROR: Could not capture voice input. Please ensure microphone permissions are allowed.`;
         };
-      }, 1800); // 1.8 second safety delay
+      }, 1800);
     }
   </script>
 </body>
