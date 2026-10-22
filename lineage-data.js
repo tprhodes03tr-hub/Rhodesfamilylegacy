@@ -1,6 +1,69 @@
-// RHODES FAMILY LEGACY - DYNAMIC LINEAGE, HAPLOGROUP & GLOBAL ANCESTRY DATABASE
+// RHODES FAMILY LEGACY - ULTIMATE DYNAMIC LINEAGE, HAPLOGROUP & GLOBAL ANCESTRY DATABASE
 window.RHODES_LINEAGE_DATABASE = {
   ancestors: {
+    "moroccan": {
+      name: "Moorish & North African Sovereign Heritage",
+      stream: "Trans-Mediterranean & Iberian Convergence Pillar",
+      estimatedEra: "Moorish Epoch through Colonial Maritime Networks",
+      temporalShift: "North African & Atlantic Crossroads Era",
+      historicalContext: "U.S. Presidents: George Washington onward. Reflects ancestral and cultural streams connecting North Africa, the Iberian Peninsula, and maritime trading networks that bridged the Old World and the Americas.",
+      xChromosomeLink: "Autosomal and haplogroup alignments tracing multi-continental convergence.",
+      historicalNote: "Documents the enduring historical presence and global heritage connecting North African lineages to family ancestral roots."
+    },
+    "dismal": {
+      name: "Great Dismal Swamp Maroon Resistance Line",
+      stream: "Maroon Freedom & Wilderness Sovereignty Pillar",
+      estimatedEra: "Circa 1700s – 1860s (Colonial & Antebellum Freedom Era)",
+      temporalShift: "The Sovereign Wilderness Resistance Epoch",
+      historicalContext: "U.S. Presidents: Colonial era through Abraham Lincoln. The Great Dismal Swamp along the Virginia-North Carolina border served as a legendary sanctuary for Native Americans, free persons of color, and self-emancipated Maroons who carved out autonomous communities, defied the plantation economy, and built resilient networks in impassable wetlands.",
+      xChromosomeLink: "Autosomal segment clusters reflecting multi-generational endurance and frontier survival.",
+      historicalNote: "Honors the fierce independence, swamp-craft, and unyielding freedom struggle of ancestors who maintained autonomy outside the bounds of chattel slavery."
+    },
+    "coincoin": {
+      name: "Marie Thérèse Coin-Coin & Cane River Lineage",
+      stream: "Cane River / Isle Brevelle Matriarchal Pillar",
+      estimatedEra: "Circa 1742 – 1830s (Colonial Louisiana & French/Spanish Era)",
+      temporalShift: "Cane River Colonial & Land Stewardship Epoch",
+      historicalContext: "U.S. Presidents: George Washington through Andrew Jackson. Set in colonial Louisiana along the Cane River (Isle Brevelle). Marie Thérèse Coin-Coin was a remarkable businesswoman, matriarch, and land owner who secured freedom for her family, establishing a legendary dynasty of free people of color who owned land, operated complex farming estates, and preserved multi-cultural heritage.",
+      xChromosomeLink: "High-affinity X-chromosome and autosomal maternal transmission lines.",
+      historicalNote: "Ties directly to the historic Cane River communities, entrepreneurial resilience, and multi-generational land ownership."
+    },
+    "seminole": {
+      name: "Black Seminole & Florida Sovereign Resistance",
+      stream: "Southeastern Maroon & Tribal Alliance Pillar",
+      estimatedEra: "Circa 1750s – 1850s (Colonial Florida & Seminole Wars Era)",
+      temporalShift: "Southeastern Frontier & Everglades Sovereign Epoch",
+      historicalContext: "U.S. Presidents: Thomas George Washington through Millard Fillmore. Black Seminoles and allied tribal nations forged an unyielding alliance in the Florida wilderness, fighting successful military campaigns against U.S. forces during the Seminole Wars before migrating across the frontier.",
+      xChromosomeLink: "Autosomal and X-chromosome markers tracing multi-generational southeastern heritage.",
+      historicalNote: "Captures the legendary military defense, cultural autonomy, and survival strategies of freedom fighters in the American Southeast."
+    },
+    "yamasee": {
+      name: "Yamasee & Indigenous Southeastern Confederacy",
+      stream: "Southeastern Indigenous Sovereign Pillar",
+      estimatedEra: "Circa 1600s – 1700s (Colonial Trade & Frontier Era)",
+      temporalShift: "Colonial Southeast & Indigenous Confederacy Epoch",
+      historicalContext: "U.S. Presidents: Pre-presidential colonial era. The Yamasee nation and allied indigenous confederacies maintained extensive diplomatic, trading, and territorial networks across the Carolinas, Georgia, and Florida borderlands.",
+      xChromosomeLink: "Deep autosomal and maternal transmission baseline markers.",
+      historicalNote: "Honors the foundational indigenous heritage woven into the early ancestral matrix of the American South."
+    },
+    "greenwood": {
+      name: "Greenwood & Black Wall Street Entrepreneurial Line",
+      stream: "Tulsa Greenwood & Economic Resilience Pillar",
+      estimatedEra: "Circa 1900 – 1921+ (Post-Statehood & Jim Crow Era)",
+      temporalShift: "The Black Wall Street & Urban Renaissance Epoch",
+      historicalContext: "U.S. Presidents: Theodore Roosevelt through Warren G. Harding. The Greenwood district of Tulsa, Oklahoma, became the wealthiest Black community in America—known as 'Black Wall Street'—featuring thriving black-owned banks, hotels, theaters, and professional offices before the devastating 1921 massacre and rebuilding efforts.",
+      xChromosomeLink: "Autosomal inheritance patterns reflecting early 20th-century southern and southwestern migration corridors.",
+      historicalNote: "Symbolizes supreme economic self-reliance, community architecture, and intergenerational survival in the face of systemic adversity."
+    },
+    "alamo": {
+      name: "Texas Frontier & Borderlands Historical Stream",
+      stream: "Texas Revolution & Spanish-Mexican Borderlands Pillar",
+      estimatedEra: "Circa 1820s – 1840s (Mexican Texas & Republic Era)",
+      temporalShift: "Southwestern Borderlands & Territorial Sovereignty Epoch",
+      historicalContext: "U.S. Presidents: James Monroe through James K. Polk. The Texas frontier was a complex crucible of Tejano, Native American, African, and Anglo-American settlers navigating shifting flags under Spain, Mexico, and the Republic of Texas.",
+      xChromosomeLink: "Autosomal convergence markers across southwestern migration corridors.",
+      historicalNote: "Contextualizes the multi-cultural pioneers and land grants that shaped the American Southwest."
+    },
     "jl283": {
       name: "Y-DNA Haplogroup J-L283 (Paternal Lineage)",
       stream: "Levantine, Bronze Age & Hatten Patriarchal Pillar",
@@ -15,7 +78,7 @@ window.RHODES_LINEAGE_DATABASE = {
       stream: "Transatlantic Ancestral Convergence Pillar",
       estimatedEra: "Pre-Colonial West African Empires through Antebellum America",
       temporalShift: "Sengambian, Yoruba, Igbo & Mali Imperial Epochs",
-      historicalContext: "Reflects deep ancestral roots tied to West African civilizations (such as the Mali Empire, Yoruba, and Igbo domains). During the transatlantic era, these lineages became foundational to the cultural, agricultural, and spiritual survival of families across the American South, Mississippi Delta, and Caribbean networks.",
+      historicalContext: "U.S. Presidents: Pre-colonial through 19th Century. Reflects deep ancestral roots tied to West African civilizations (such as the Mali Empire, Yoruba, and Igbo domains). During the transatlantic era, these lineages became foundational to the cultural, agricultural, and spiritual survival of families across the American South, Mississippi Delta, and Caribbean networks.",
       xChromosomeLink: "Autosomal segment distribution across core chromosomes linking multi-continental heritage.",
       historicalNote: "Honors the rich cultural, linguistic, and genetic contributions of West African ancestors woven directly into the foundational American family fabric."
     },
@@ -101,9 +164,9 @@ window.RHODES_LINEAGE_DATABASE = {
       stream: "Universal Rhodes Family Legacy Node",
       estimatedEra: "Historical Baseline (300+ Years in the Americas & Global Roots)",
       temporalShift: "Universal Chronology Index",
-      historicalContext: "A continuous tapestry spanning from ancient Levantine/Mediterranean haplogroups and West African empires to centuries of American history.",
+      historicalContext: "A continuous tapestry spanning from ancient Levantine/Mediterranean haplogroups, Moorish heritage, Cane River, Great Dismal Swamp, Black Seminoles, Yamasee, Greenwood, the Alamo, and West African empires to centuries of American history.",
       xChromosomeLink: "Documented across multi-continental ancestral convergence and genetic markers.",
-      historicalNote: "Search by specific terms (e.g., jl283, nigerian, mali, johnson, wright, colbert, mitchell, hatten, fox) to pull precise temporal epochs, haplogroups, and archival records."
+      historicalNote: "Search by specific terms (e.g., moroccan, dismal, coincoin, seminole, yamasee, greenwood, alamo, jl283, nigerian, mali, johnson, wright, colbert, mitchell, hatten, fox) to pull precise temporal epochs, lineages, and archival records."
     };
   }
 };
