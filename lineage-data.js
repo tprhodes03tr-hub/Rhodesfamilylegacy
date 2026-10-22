@@ -227,7 +227,6 @@
         // Query the database based on spoken words
         let queryResult = null;
         if (window.RHODES_LINEAGE_DATABASE) {
-          // Try to match the spoken query against database keys
           queryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(spokenQuery, "");
         }
 
