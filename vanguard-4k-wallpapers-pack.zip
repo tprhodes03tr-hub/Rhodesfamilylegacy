@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Ancestral Vanguard • Interactive Live Wallpaper Suite</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body, html {
+      width: 100%;
+      height: 100%;
+      background: #04060b;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .wallpaper-screen {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, #0f172a 0%, #04060b 100%);
+      cursor: pointer;
+      border: 4px solid transparent;
+      transition: border-color 0.2s ease;
+    }
+
+    /* Unique Character Shimmer Color Profiles */
+    @keyframes marcusFlash {
+      0% { border-color: transparent; box-shadow: inset 0 0 0 rgba(102, 252, 241, 0); }
+      50% { border-color: #66fcf1; box-shadow: inset 0 0 60px rgba(102, 252, 241, 0.7); }
+      100% { border-color: transparent; box-shadow: inset 0 0 0 rgba(102, 252, 241, 0); }
+    }
+    @keyframes prismFlash {
+      0% { border-color: transparent; box-shadow: inset 0 0 0 rgba(192, 132, 252, 0); }
+      50% { border-color: #c084fc; box-shadow: inset 0 0 60px rgba(192, 132, 252, 0.7); }
+      100% { border-color: transparent; box-shadow: inset 0 0 0 rgba(192, 132, 252, 0); }
+    }
+    @keyframes magmaFlash {
+      0% { border-color: transparent; box-shadow: inset 0 0 0 rgba(245, 158, 11, 0); }
+      50% { border-color: #f59e0b; box-shadow: inset 0 0 60px rgba(245, 158, 11, 0.7); }
+      100% { border-color: transparent; box-shadow: inset 0 0 0 rgba(245, 158, 11, 0); }
+    }
+    @keyframes wakanFlash {
+      0% { border-color: transparent; box-shadow: inset 0 0 0 rgba(56, 189, 248, 0); }
+      50% { border-color: #38bdf8; box-shadow: inset 0 0 60px rgba(56, 189, 248, 0.7); }
+      100% { border-color: transparent; box-shadow: inset 0 0 0 rgba(56, 189, 248, 0); }
+    }
+
+    .shimmer-marcus { animation: marcusFlash 0.5s ease-in-out; }
+    .shimmer-prism { animation: prismFlash 0.5s ease-in-out; }
+    .shimmer-magma { animation: magmaFlash 0.5s ease-in-out; }
+    .shimmer-wakan { animation: wakanFlash 0.5s ease-in-out; }
+
+    .hero-display {
+      max-width: 85%;
+      max-height: 60vh;
+      object-fit: contain;
+      filter: drop-shadow(0 0 25px rgba(56, 189, 248, 0.4));
+      pointer-events: none;
+    }
+
+    /* Character Selection Bar */
+    .character-selector {
+      position: absolute;
+      bottom: 70px;
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }
+    .char-btn {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #66fcf1;
+      color: #66fcf1;
+      padding: 6px 12px;
+      font-size: 10px;
+      font-weight: bold;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      font-family: monospace;
+    }
+    .char-btn:hover {
+      background: #66fcf1;
+      color: #04060b;
+    }
+
+    .hud-overlay {
+      position: absolute;
+      bottom: 25px;
+      text-align: center;
+      color: #66fcf1;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.8;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wallpaper-screen" id="wallpaperScreen" onclick="handleWallpaperTap()">
+    <img id="heroArt" src="vanguard-wallpapers-promo.png" alt="Vanguard Hero" class="hero-display">
+    
+    <!-- Character Selectors for Mobile Wallpaper Customization -->
+    <div class="character-selector">
+      <button class="char-btn" onclick="setHero(event, 'Marcus Prime', 'Detroit 313 Grid. Live holographic loop active.', 'shimmer-marcus')">Marcus</button>
+      <button class="char-btn" onclick="setHero(event, 'Prism-Ghost', 'Vault Infiltration Protocol. Master-thief shimmer online.', 'shimmer-prism')">Prism</button>
+      <button class="char-btn" onclick="setHero(event, 'Magma-Weaver', 'Thermal Wave Active.', 'shimmer-magma')">Magma</button>
+      <button class="char-btn" onclick="setHero(event, 'Wakan', 'Ocean Tide Signal Online.', 'shimmer-wakan')">Wakan</button>
+    </div>
+
+    <div class="hud-overlay">
+      <div id="hudTitle">[ACTIVE: MARCUS PRIME • DETROIT 313]</div>
+      <div style="font-size: 8px; color: #94a3b8; margin-top: 4px;">Tap for voice & shimmer • Double-tap to open Vanguard Universe portal</div>
+    </div>
+  </div>
+
+  <script>
+    let activeHero = "Marcus Prime";
+    let activeQuote = "Detroit 313 Grid. Live holographic loop active.";
+    let activeShimmerClass = "shimmer-marcus";
+    let lastTapTime = 0;
+
+    function setHero(event, name, quote, shimmerClass) {
+      event.stopPropagation();
+      activeHero = name;
+      activeQuote = quote;
+      activeShimmerClass = shimmerClass;
+      document.getElementById('hudTitle').innerText = `[ACTIVE: ${name.toUpperCase()}]`;
+      speakHeroVoice(name, quote);
+    }
+
+    function handleWallpaperTap() {
+      const currentTime = new Date().getTime();
+      const tapInterval = currentTime - lastTapTime;
+
+      // Double-Tap Portal Warp to Vanguard Universe
+      if (tapInterval < 400 && tapInterval > 0) {
+        triggerPortalWarp();
+        lastTapTime = 0;
+        return;
+      }
+      lastTapTime = currentTime;
+
+      // Single Tap: Character Voice, Vibration, and Unique Color Shimmer
+      if ('vibrate' in navigator) navigator.vibrate([80, 50, 120]);
+      speakHeroVoice(activeHero, activeQuote);
+
+      const screen = document.getElementById('wallpaperScreen');
+      if (screen) {
+        screen.className = "wallpaper-screen " + activeShimmerClass;
+        setTimeout(() => {
+          screen.className = "wallpaper-screen";
+        }, 500);
+      }
+    }
+
+    function speakHeroVoice(name, quote) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      let utterance = new SpeechSynthesisUtterance(`${name}. ${quote}`);
+      utterance.rate = 1.0;
+      utterance.pitch = 0.85;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function triggerPortalWarp() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        let utterance = new SpeechSynthesisUtterance("Engaging portal to the Vanguard Universe.");
+        utterance.rate = 1.0;
+        utterance.pitch = 0.9;
+        window.speechSynthesis.speak(utterance);
+      }
+      setTimeout(() => {
+        window.location.href = "https://tprhodes03tr-hub.github.io/Rhodesfamilylegacy/vanguard-universe.html";
+      }, 800);
+    }
+  </script>
+</body>
+</html>
