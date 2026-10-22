@@ -148,7 +148,7 @@
   <script>
     let lastQueryResult = null;
 
-    // Advanced Natural Language & Keyword Intent Extractor
+    // Universal Natural Language & DNA Question Intent Extractor
     function parseQueryIntent(rawQuery) {
       const q = (rawQuery || "").toLowerCase();
       
@@ -157,15 +157,15 @@
         return "colbert";
       }
       // Check for Cane River / Louisiana / Coincoin
-      if (q.includes("cane river") || q.includes("coincoin") || q.includes("louisiana") || q.includes("brevelle")) {
+      if (q.includes("cane river") || q.includes("coincoin") || q.includes("louisiana") || q.includes("brevelle") || q.includes("duprÃ©") || q.includes("dupre")) {
         return "coincoin";
       }
       // Check for Wright / Johnson / Paternal-Maternal foundation
-      if (q.includes("wright") || q.includes("johnson") || q.includes("patience") || q.includes("yalobusha")) {
+      if (q.includes("wright") || q.includes("johnson") || q.includes("patience") || q.includes("yalobusha") || q.includes("maternal")) {
         return "wright";
       }
       // Check for Fox / Hatten / Fleming / J-L283
-      if (q.includes("fox") || q.includes("hatten") || q.includes("fleming") || q.includes("jl283") || q.includes("j-l283")) {
+      if (q.includes("fox") || q.includes("hatten") || q.includes("fleming") || q.includes("jl283") || q.includes("j-l283") || q.includes("paternal")) {
         return "fox";
       }
       // Check for Black Seminole / Maroons / Dismal Swamp
@@ -184,8 +184,12 @@
       if (q.includes("mitchell") || q.includes("delta") || q.includes("pulpit") || q.includes("spencer")) {
         return "mitchell";
       }
+      // Catch-all general DNA / Chromosome inquiries -> route to core master codex anchor
+      if (q.includes("dna") || q.includes("chromosome") || q.includes("heritage") || q.includes("bloodline") || q.includes("lineage") || q.includes("cfs") || q.includes("cm")) {
+        return "fox"; // defaults to primary master codex branch
+      }
 
-      // Default fallback: return the raw query string for standard matching if no special intent is caught
+      // Default fallback: return raw query string
       return rawQuery;
     }
 
@@ -201,11 +205,9 @@
 
       const refinedQuery = parseQueryIntent(nameInput);
 
-      // Query the comprehensive lineage database using parsed intent
       lastQueryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(refinedQuery, chrInput);
       const outputBox = document.getElementById('genomic-output');
 
-      // Render full historical depth, temporal shifts, and archival records on screen
       outputBox.innerText = `> ARCHIVAL QUERY SUCCESS: ${lastQueryResult.name}\n` +
                             `> Lineage Stream: ${lastQueryResult.stream}\n` +
                             `> Estimated Epoch: ${lastQueryResult.estimatedEra}\n` +
@@ -215,7 +217,6 @@
                             `> Archival Record: ${lastQueryResult.historicalNote}\n` +
                             `> SHARED DATA: ${cm} cM | Status: VERIFIED BLOODLINE ANCHOR`;
   
-      // Text-to-Speech audio feedback integration
       speakText(`Epoch verified for ${lastQueryResult.name}. Historical backdrop loaded.`);
     }
 
@@ -244,7 +245,7 @@
       }
     }
 
-    // Interactive Bidirectional Voice AI Partner Loop with Intent Parser
+    // Interactive Bidirectional Voice AI Partner Loop with Anti-Overlap Buffer
     function startVoiceConversation() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -252,49 +253,56 @@
         return;
       }
 
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
+      // Stop any prior speech immediately
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
 
       const outputBox = document.getElementById('genomic-output');
-      outputBox.innerText = `> LISTENING... Speak your question to your AI Lineage Partner (e.g., "Do I have Native American heritage?" or "Tell me about Cane River")...`;
-      speakText("Listening. Ask me anything about your heritage.");
+      outputBox.innerText = `> PREPARING MIC... Get ready to speak your question...`;
 
-      recognition.start();
+      // 1.2 second pause buffer so speech synthesis finishes and doesn't bleed into mic input
+      setTimeout(() => {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
 
-      recognition.onresult = function(event) {
-        const spokenQuery = event.results[0][0].transcript.toLowerCase();
-        outputBox.innerText = `> YOU ASKED: "${spokenQuery}"\n`;
+        outputBox.innerText = `> 🎙️ LISTENING NOW... Ask any question about your DNA, heritage, or ancestors...`;
+        speakText("Listening now. Ask me anything.");
 
-        // Pass spoken sentence through intent extractor
-        const refinedSearchTerm = parseQueryIntent(spokenQuery);
+        recognition.start();
 
-        // Query the database based on extracted intent
-        let queryResult = null;
-        if (window.RHODES_LINEAGE_DATABASE) {
-          queryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(refinedSearchTerm, "");
-        }
+        recognition.onresult = function(event) {
+          const spokenQuery = event.results[0][0].transcript.toLowerCase();
+          outputBox.innerText = `> YOU ASKED: "${spokenQuery}"\n`;
 
-        if (queryResult) {
-          lastQueryResult = queryResult;
-          outputBox.innerText += `> ARCHIVAL MATCH: ${queryResult.name}\n` +
-                                `> Lineage Stream: ${queryResult.stream}\n` +
-                                `> HISTORICAL BACKDROP: ${queryResult.historicalContext}\n` +
-                                `> Archival Record: ${queryResult.historicalNote}`;
+          const refinedSearchTerm = parseQueryIntent(spokenQuery);
+          let queryResult = null;
+          if (window.RHODES_LINEAGE_DATABASE) {
+            queryResult = window.RHODES_LINEAGE_DATABASE.queryDatabase(refinedSearchTerm, "");
+          }
 
-          const responseText = `Found match for ${queryResult.name}. ${queryResult.historicalContext} ${queryResult.historicalNote}`;
-          speakText(responseText);
-        } else {
-          const fallbackText = `I processed your question regarding ${spokenQuery}. The Seven Rivers sovereign archive stands ready to verify this branch.`;
-          outputBox.innerText += `> AI PARTNER RESPONSE: ${fallbackText}`;
-          speakText(fallbackText);
-        }
-      };
+          if (queryResult) {
+            lastQueryResult = queryResult;
+            outputBox.innerText += `> ARCHIVAL MATCH: ${queryResult.name}\n` +
+                                  `> Lineage Stream: ${queryResult.stream}\n` +
+                                  `> HISTORICAL BACKDROP: ${queryResult.historicalContext}\n` +
+                                  `> Archival Record: ${queryResult.historicalNote}`;
 
-      recognition.onerror = function(event) {
-        outputBox.innerText = `> AUDIO ERROR: Could not capture voice input. Please ensure microphone permissions are allowed.`;
-      };
+            const responseText = `Found match for ${queryResult.name}. ${queryResult.historicalContext} ${queryResult.historicalNote}`;
+            speakText(responseText);
+          } else {
+            const fallbackText = `I processed your question regarding ${spokenQuery}. The Seven Rivers sovereign archive stands ready to verify this branch.`;
+            outputBox.innerText += `> AI PARTNER RESPONSE: ${fallbackText}`;
+            speakText(fallbackText);
+          }
+        };
+
+        recognition.onerror = function(event) {
+          outputBox.innerText = `> AUDIO ERROR: Could not capture voice input. Please ensure microphone permissions are allowed.`;
+        };
+      }, 1200); // 1.2 second safety delay
     }
   </script>
 </body>
