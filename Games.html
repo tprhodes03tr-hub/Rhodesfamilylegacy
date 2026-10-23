@@ -492,7 +492,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 3: MARROW MATRIX AR (FIXED DUAL 3D CANVAS & SPRITE ENGINE) -->
+  <!-- PORTAL 3: MARROW MATRIX AR -->
   <div class="sandbox-container hidden" id="portal-matrix">
     <div class="sandbox-header">Marrow Matrix • 3D/AR Campaign Edition</div>
     <h1>Ancestral Resonance Hub</h1>
@@ -683,16 +683,19 @@
       const result = universalEngine.authenticateMatch(name, cm, [1]);
       document.getElementById('genomic-output').innerText = 
         `> MATCH: ${result.name} | cM: ${result.cm} | STATUS: ${result.status}`;
+      speakText(`Blood relation verified for ${name}.`);
     }
 
     function scanChromosomeAnchors() {
       playSound('stealth');
       document.getElementById('genomic-output').innerText = "> Chr 1 & Chr 3 segments verified across Fox and Wright family nodes.";
+      speakText("Chromosome anchor scan complete.");
     }
 
     function displaySevenRiversSummary() {
       playSound('stealth');
       document.getElementById('genomic-output').innerText = "> Seven Rivers Delta Blueprint Active.";
+      speakText("Seven Rivers blueprint loaded.");
     }
 
     // --- FULL SPRITE AND ASSET PRELOADER ---
@@ -702,7 +705,7 @@
     const magmaSprite = new Image(); magmaSprite.src = 'magma-weaver.png';
     const marcusSprite = new Image(); marcusSprite.src = 'marcus.png';
 
-    // --- AUDIO SYSTEM WITH TOUCH GESTURE UNLOCK ---
+    // --- AUDIO & SPEECH SYNTHESIS UNLOCK ---
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) {
@@ -755,6 +758,15 @@
       } catch (e) {}
     }
 
+    function speakText(text) {
+      if (!voiceEnabled || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      let utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 0.9;
+      window.speechSynthesis.speak(utterance);
+    }
+
     // --- PORTAL SWITCHER WITH TOUCH & CLICK SUPPORT ---
     function switchPortal(target) {
       initAudio();
@@ -802,6 +814,7 @@
       });
       updateStats();
       initVoltEngine();
+      speakText("Welcome to Rhodes Family Legacy gaming and ancestral hub.");
     });
 
     // --- ISAAC'S SANDBOX ---
@@ -823,6 +836,7 @@
       voiceBtn.onclick = () => {
         voiceEnabled = !voiceEnabled;
         voiceBtn.innerText = voiceEnabled ? "Voice: ON" : "Voice: OFF";
+        speakText(voiceEnabled ? "Voice narration enabled." : "Voice narration disabled.");
       };
     }
 
@@ -832,11 +846,13 @@
         gameStats.energy -= 10;
         gameStats.xp += 50;
         showScene('scene-2', 'CHAPTER 2: CORRIDOR');
+        speakText("Entering inner corridor. Watch for defense drones.");
       } else {
         gameStats.shield -= 15;
         gameStats.xp += 75;
         showScene('scene-3', 'CHAPTER 3: CIPHER');
         startTimer();
+        speakText("Ancestral verification cipher initiated.");
       }
       updateStats();
     }
@@ -866,12 +882,17 @@
     function checkCipher() {
       const input = document.getElementById('cipher-input');
       if (!input) return;
-      if (input.value.trim().toLowerCase() === 'rhodes' || input.value.trim().toLowerCase() === 'vanguard') {
+      const val = input.value.trim().toLowerCase();
+      if (val === 'rhodes' || val === 'vanguard' || val === 'ancestral vanguard' || val === 'marrow') {
         gameStats.xp += 150;
         updateStats();
+        playSound('orb');
+        speakText("Cipher accepted. Vault unlocked.");
         showScene('scene-4', 'VAULT UNLOCKED');
       } else {
         playSound('crash');
+        speakText("Incorrect cipher sequence.");
+        document.getElementById('cipher-feedback').innerText = "⚠️ Incorrect Cipher Sequence!";
       }
     }
 
@@ -879,6 +900,7 @@
       gameStats = { energy: 100, shield: 90, xp: 0 };
       updateStats();
       showScene('scene-1', 'CHAPTER 1: PERIMETER BREACH');
+      speakText("Sandbox adventure reset.");
     }
 
     // --- MARROW MATRIX AR / 3D CANVAS ENGINE ---
@@ -912,6 +934,7 @@
         div.onclick = () => {
           selectedAvatar = node.id;
           document.getElementById('holographic-text').innerText = node.ledger;
+          speakText(node.label);
           renderEpochNodes();
         };
         grid.appendChild(div);
@@ -970,6 +993,7 @@
       playSound('orb');
       const f = document.getElementById('matrix-feedback');
       if (f) f.innerText = `✨ Resonance frequency achieved for ${selectedAvatar} (+500 XP)!`;
+      speakText(`Resonance frequency locked for ${selectedAvatar}.`);
     }
 
     // --- SCANNER LOGIC ---
@@ -994,14 +1018,16 @@
       if (box) box.classList.remove('hidden');
       document.getElementById('match-title').innerText = "👑 Tommy Philip Rhodes";
       document.getElementById('match-desc').innerText = "Master biometric signature verified across Rhodes & Mitchell lines.";
+      speakText("Archival optical match verified for Tommy Philip Rhodes.");
     }
 
-    // --- FULL GAME ENGINES WITH SPRITES AND FALLBACKS ---
+    // --- FULL GAME ENGINES WITH DYNAMIC GLOWING BACKGROUNDS ---
     function initVoltEngine() {
       const canvas = document.getElementById('voltCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let x = 300, targetX = 300, sparks = 0;
+      let x = 300, targetX = 300, sparks = 0, sparkItems = [], pulse = 0;
+      
       window.moveVolt = (dir) => {
         playSound('steer');
         if (dir === 'left') targetX = Math.max(50, targetX - 80);
@@ -1011,13 +1037,47 @@
         playSound('turbo');
         sparks += 5;
         document.getElementById('volt-sparks').innerText = sparks;
+        sparkItems = [];
       };
+
       function loop() {
         if (canvas.offsetParent !== null) {
           x += (targetX - x) * 0.2;
+          pulse += 0.05;
+
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
+
+          ctx.strokeStyle = 'rgba(96, 165, 250, 0.15)';
+          ctx.lineWidth = 1;
+          for (let i = 0; i < canvas.width; i += 50) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+          }
+
+          if (Math.random() < 0.04 && sparkItems.length < 4) {
+            sparkItems.push({ x: Math.random() * (canvas.width - 100) + 50, y: -20, speed: Math.random() * 2 + 2 });
+          }
+
+          sparkItems.forEach((s, idx) => {
+            s.y += s.speed;
+            ctx.fillStyle = '#f59e0b';
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = 12;
+            ctx.beginPath(); ctx.arc(s.x, s.y, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+
+            if (Math.abs(x - s.x) < 30 && Math.abs(350 - s.y) < 30) {
+              playSound('orb');
+              sparks++;
+              document.getElementById('volt-sparks').innerText = sparks;
+              sparkItems.splice(idx, 1);
+            }
+            if (s.y > canvas.height) sparkItems.splice(idx, 1);
+          });
+
+          ctx.fillStyle = `rgba(96, 165, 250, ${0.2 + Math.sin(pulse) * 0.1})`;
+          ctx.beginPath(); ctx.arc(x, 350, 45, 0, Math.PI * 2); ctx.fill();
+
           if (voltSprite.complete && voltSprite.naturalWidth !== 0) {
             ctx.drawImage(voltSprite, x - 32, 310, 64, 80);
           } else {
@@ -1034,7 +1094,8 @@
       const canvas = document.getElementById('prismCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let x = 300, targetX = 300, score = 0;
+      let x = 300, targetX = 300, score = 0, orbs = [], pulse = 0;
+
       window.movePrism = (dir) => {
         playSound('steer');
         if (dir === 'left') targetX = Math.max(50, targetX - 80);
@@ -1042,14 +1103,47 @@
       };
       window.triggerDecoy = () => {
         playSound('turbo');
-        score++;
+        score += 3;
         document.getElementById('prism-score').innerText = score;
+        orbs = [];
       };
+
       function loop() {
         if (canvas.offsetParent !== null) {
           x += (targetX - x) * 0.2;
+          pulse += 0.05;
+
           ctx.fillStyle = '#030208';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.strokeStyle = 'rgba(192, 132, 252, 0.15)';
+          ctx.lineWidth = 1;
+          for (let i = 0; i < canvas.height; i += 40) {
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+          }
+
+          if (Math.random() < 0.04 && orbs.length < 4) {
+            orbs.push({ x: Math.random() * (canvas.width - 100) + 50, y: Math.random() * 200 + 50, speed: 1.5 });
+          }
+
+          orbs.forEach((o, idx) => {
+            o.y += o.speed;
+            ctx.fillStyle = '#f59e0b';
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = 15;
+            ctx.beginPath(); ctx.arc(o.x, o.y, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+
+            if (Math.abs(x - o.x) < 30 && Math.abs(100 - o.y) < 30) {
+              playSound('orb');
+              score++;
+              document.getElementById('prism-score').innerText = score;
+              orbs.splice(idx, 1);
+            }
+          });
+
+          ctx.fillStyle = `rgba(192, 132, 252, ${0.25 + Math.sin(pulse) * 0.1})`;
+          ctx.beginPath(); ctx.arc(x, 100, 40, 0, Math.PI * 2); ctx.fill();
 
           if (prismSprite.complete && prismSprite.naturalWidth !== 0) {
             ctx.drawImage(prismSprite, x - 32, 60, 64, 80);
@@ -1067,7 +1161,8 @@
       const canvas = document.getElementById('wakanCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let freq = 528, count = 0;
+      let freq = 528, count = 0, wave = 0, crystals = [];
+
       window.adjustWakanFrequency = (delta) => {
         playSound('steer');
         freq = Math.max(300, Math.min(800, freq + delta));
@@ -1078,10 +1173,44 @@
         count++;
         document.getElementById('wakan-crystals').innerText = count;
       };
+
       function loop() {
         if (canvas.offsetParent !== null) {
+          wave += 0.05;
+
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+          ctx.beginPath();
+          ctx.moveTo(0, 250);
+          for (let i = 0; i <= canvas.width; i += 20) {
+            ctx.lineTo(i, 250 + Math.sin(i * 0.03 + wave) * 25);
+          }
+          ctx.lineTo(canvas.width, canvas.height);
+          ctx.lineTo(0, canvas.height);
+          ctx.fill();
+
+          if (Math.random() < 0.03 && crystals.length < 4) {
+            crystals.push({ x: Math.random() * (canvas.width - 100) + 50, y: -20, speed: 2 });
+          }
+
+          crystals.forEach((c, idx) => {
+            c.y += c.speed;
+            ctx.fillStyle = '#38bdf8';
+            ctx.shadowColor = '#38bdf8';
+            ctx.shadowBlur = 15;
+            ctx.beginPath(); ctx.arc(c.x, c.y, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+
+            if (Math.abs(canvas.width / 2 - c.x) < 40 && Math.abs(320 - c.y) < 40) {
+              playSound('orb');
+              count++;
+              document.getElementById('wakan-crystals').innerText = count;
+              crystals.splice(idx, 1);
+            }
+            if (c.y > canvas.height) crystals.splice(idx, 1);
+          });
 
           if (wakanSprite.complete && wakanSprite.naturalWidth !== 0) {
             ctx.drawImage(wakanSprite, canvas.width / 2 - 32, 280, 64, 80);
@@ -1091,8 +1220,8 @@
           }
 
           ctx.fillStyle = '#38bdf8';
-          ctx.font = 'bold 14px Courier New';
-          ctx.fillText(`Guamo Emitter Active: ${freq} Hz`, canvas.width / 2 - 110, 390);
+          ctx.font = 'bold 13px Courier New';
+          ctx.fillText(`Guamo Emitter Active: ${freq} Hz`, canvas.width / 2 - 110, 410);
         }
         requestAnimationFrame(loop);
       }
@@ -1103,7 +1232,8 @@
       const canvas = document.getElementById('magmaCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let x = 300, targetX = 300, relics = 0;
+      let x = 300, targetX = 300, relics = 0, lava = [], pulse = 0;
+
       window.moveMagma = (dir) => {
         playSound('steer');
         if (dir === 'left') targetX = Math.max(50, targetX - 80);
@@ -1113,12 +1243,50 @@
         playSound('turbo');
         relics++;
         document.getElementById('magma-relics').innerText = relics;
+        lava = [];
       };
+
       function loop() {
         if (canvas.offsetParent !== null) {
           x += (targetX - x) * 0.2;
+          pulse += 0.05;
+
           ctx.fillStyle = '#0a0303';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.fillStyle = 'rgba(248, 113, 113, 0.15)';
+          ctx.beginPath();
+          ctx.moveTo(0, 300);
+          for (let i = 0; i <= canvas.width; i += 20) {
+            ctx.lineTo(i, 300 + Math.sin(i * 0.04 + pulse) * 20);
+          }
+          ctx.lineTo(canvas.width, canvas.height);
+          ctx.lineTo(0, canvas.height);
+          ctx.fill();
+
+          if (Math.random() < 0.03 && lava.length < 4) {
+            lava.push({ x: Math.random() * (canvas.width - 100) + 50, y: -20, speed: 2 });
+          }
+
+          lava.forEach((l, idx) => {
+            l.y += l.speed;
+            ctx.fillStyle = '#f59e0b';
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = 18;
+            ctx.beginPath(); ctx.arc(l.x, l.y, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+
+            if (Math.abs(x - l.x) < 30 && Math.abs(350 - l.y) < 30) {
+              playSound('orb');
+              relics++;
+              document.getElementById('magma-relics').innerText = relics;
+              lava.splice(idx, 1);
+            }
+            if (l.y > canvas.height) lava.splice(idx, 1);
+          });
+
+          ctx.fillStyle = `rgba(248, 113, 113, ${0.2 + Math.sin(pulse) * 0.1})`;
+          ctx.beginPath(); ctx.arc(x, 350, 45, 0, Math.PI * 2); ctx.fill();
 
           if (magmaSprite.complete && magmaSprite.naturalWidth !== 0) {
             ctx.drawImage(magmaSprite, x - 32, 310, 64, 80);
