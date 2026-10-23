@@ -135,11 +135,11 @@
     <div class="stats-bar">
       <span>🌿 Sweetgrass: <strong id="stat-grass" style="color: #34d399;">0</strong> / 3</span>
       <span>🪵 Wood Logs: <strong id="stat-wood" style="color: #f59e0b;">0</strong> / 3</span>
-      <span>✨ Chapter: <strong id="stat-chap" style="color: #fef08a;">1</strong> / 3</span>
+      <span>🔤 Alphabet Span: <strong id="stat-alpha" style="color: #fef08a;">None</strong></span>
     </div>
 
     <div class="story-box" id="story-dialogue">
-      "The Yazoo River is rising! Walk Little Fannie May past the glowing Golden Tree Helix to automatically collect 3 Sweetgrass Bundles along the levee bank."
+      "The Yazoo River is rising! Walk Little Fannie May to count and collect 3 Sweetgrass Bundles along the levee bank."
     </div>
 
     <div class="canvas-box">
@@ -148,7 +148,7 @@
 
     <div class="controls-grid">
       <button class="control-btn" onmousedown="startMove(-1)" onmouseup="stopMove()" ontouchstart="startMove(-1)" ontouchend="stopMove()">◀ WALK LEFT</button>
-      <button class="control-btn" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); border-color: #34d399; color: #fff; box-shadow: 0 4px 15px rgba(52, 211, 153, 0.3);" onclick="performAction()">✨ INTERACT / GATHER</button>
+      <button class="control-btn" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); border-color: #34d399; color: #fff; box-shadow: 0 4px 15px rgba(52, 211, 153, 0.3);" onclick="performAction()">✨ INTERACT / SORT</button>
       <button class="control-btn" onmousedown="startMove(1)" onmouseup="stopMove()" ontouchstart="startMove(1)" ontouchend="stopMove()">WALK RIGHT ▶</button>
     </div>
 
@@ -200,6 +200,13 @@
           gain.gain.setValueAtTime(0.25, now);
           gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
           osc.start(now); osc.stop(now + 0.25);
+        } else if (type === 'fail') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.setValueAtTime(140, now + 0.15);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+          osc.start(now); osc.stop(now + 0.3);
         } else if (type === 'success') {
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(523.25, now);
@@ -219,15 +226,21 @@
       window.speechSynthesis.speak(utterance);
     }
 
-    let gameState = { chapter: 1, grass: 0, wood: 0, fannieX: 120, fannieDir: 0, brotherX: 480 };
+    let gameState = { chapter: 1, grass: 0, wood: 0, alphaIndex: 0, fannieX: 120, fannieDir: 0, brotherX: 480 };
+    const alphabetSequence = ['A', 'B', 'C', 'D'];
 
     let items = [
-      { x: 190, y: 140, type: 'grass', collected: false },
-      { x: 340, y: 140, type: 'grass', collected: false },
-      { x: 420, y: 140, type: 'grass', collected: false },
-      { x: 170, y: 140, type: 'wood', collected: false },
-      { x: 310, y: 140, type: 'wood', collected: false },
-      { x: 450, y: 140, type: 'wood', collected: false }
+      { x: 190, y: 140, type: 'grass', label: '', collected: false },
+      { x: 340, y: 140, type: 'grass', label: '', collected: false },
+      { x: 420, y: 140, type: 'grass', label: '', collected: false },
+      { x: 170, y: 140, type: 'wood', label: '', collected: false },
+      { x: 310, y: 140, type: 'wood', label: '', collected: false },
+      { x: 450, y: 140, type: 'wood', label: '', collected: false },
+      // Alphabetical Bridge Timers (A, B, C, D)
+      { x: 150, y: 140, type: 'alpha', label: 'A', collected: false },
+      { x: 250, y: 140, type: 'alpha', label: 'B', collected: false },
+      { x: 350, y: 140, type: 'alpha', label: 'C', collected: false },
+      { x: 450, y: 140, type: 'alpha', label: 'D', collected: false }
     ];
 
     function startMove(dir) { initAudio(); gameState.fannieDir = dir; }
@@ -243,42 +256,48 @@
         if (!item.collected && Math.abs(gameState.fannieX - item.x) < 45) {
           if (gameState.chapter === 1 && item.type === 'grass') {
             item.collected = true; gameState.grass++;
-            playSound('collect'); speak("Sweetgrass bundle secured.");
+            playSound('collect'); speak("Sweetgrass bundle " + gameState.grass);
             if (gameState.grass >= 3) {
               gameState.chapter = 2; playSound('success');
               document.getElementById('chapter-title').innerText = "Chapter 2: Timber & Brothers";
-              document.getElementById('story-dialogue').innerText = "Chapter 2 Unlocked! Walk Fannie May over to collect 3 Wood Logs with her brother.";
-              speak("Chapter 2 unlocked. Gather wood logs.");
+              document.getElementById('story-dialogue').innerText = "Brother says: 'I got A and B, Fannie! You grab C and D!' Count and collect 3 Wood Logs.";
+              speak("Chapter 2 unlocked. Gather wood logs with your brother.");
             }
           } else if (gameState.chapter === 2 && item.type === 'wood') {
             item.collected = true; gameState.wood++;
-            playSound('collect'); speak("Wood log secured.");
+            playSound('collect'); speak("Wood log " + gameState.wood);
             if (gameState.wood >= 3) {
               gameState.chapter = 3; playSound('success');
-              document.getElementById('chapter-title').innerText = "Chapter 3: The Levee Defense";
-              document.getElementById('story-dialogue').innerText = "Chapter 3 Unlocked! Walk Fannie May to the Golden Tree Helix to lock the final levee ties!";
-              speak("Chapter 3 unlocked. Walk to the Golden Tree Helix.");
+              document.getElementById('chapter-title').innerText = "Chapter 3: Alphabetical Bridge Building";
+              document.getElementById('story-dialogue').innerText = "Chapter 3 Unlocked! Follow alphabetical order! Tap A first, then B, C, and D to build the bridge correctly!";
+              speak("Chapter 3 unlocked. Place the bridge parts in alphabetical order: A, B, C, D.");
+            }
+          } else if (gameState.chapter === 3 && item.type === 'alpha') {
+            let requiredLetter = alphabetSequence[gameState.alphaIndex];
+            if (item.label === requiredLetter) {
+              item.collected = true; gameState.alphaIndex++;
+              playSound('collect');
+              speak("Letter " + item.label + " placed correctly!");
+              if (gameState.alphaIndex >= alphabetSequence.length) {
+                gameState.chapter = 4; playSound('success');
+                document.getElementById('chapter-title').innerText = "Victory: River Bank Secured!";
+                document.getElementById('story-dialogue').innerText = "🌟 AMAZING TEAMWORK! The alphabetical bridge is built, the sun is shining, and the homestead is safe! 'What is packed in the bone never fades from the marrow!'";
+                speak("Victory! The alphabetical bridge rescue is complete.");
+              }
+            } else {
+              playSound('fail');
+              speak("Not in order! Remember: we must go in alphabetical order. Try starting with letter " + requiredLetter);
             }
           }
         }
       });
-
-      // Chapter 3 Completion check when walking to the tree center (~300px)
-      if (gameState.chapter === 3 && Math.abs(gameState.fannieX - 300) < 40) {
-        gameState.chapter = 4;
-        playSound('success');
-        document.getElementById('chapter-title').innerText = "Victory: River Bank Secured!";
-        document.getElementById('story-dialogue').innerText = "🌟 AMAZING TEAMWORK! The levee bridge is built and the homestead is safe. 'What is packed in the bone never fades from the marrow!'";
-        speak("Victory! The river bank rescue is a complete success.");
-      }
-
       updateDisplay();
     }
 
     function updateDisplay() {
       document.getElementById('stat-grass').innerText = gameState.grass;
       document.getElementById('stat-wood').innerText = gameState.wood;
-      document.getElementById('stat-chap').innerText = Math.min(gameState.chapter, 3);
+      document.getElementById('stat-alpha').innerText = gameState.alphaIndex > 0 ? alphabetSequence.slice(0, gameState.alphaIndex).join(', ') : 'None';
     }
 
     const canvas = document.getElementById('gameCanvas');
@@ -365,18 +384,28 @@
       }
 
       let skyGrad = ctx.createLinearGradient(0, 0, 0, 160);
-      skyGrad.addColorStop(0, '#020617');
-      skyGrad.addColorStop(0.5, '#0f172a');
-      skyGrad.addColorStop(1, '#312e81');
+      if (gameState.chapter >= 4) {
+        skyGrad.addColorStop(0, '#38bdf8');
+        skyGrad.addColorStop(1, '#bae6fd');
+      } else {
+        skyGrad.addColorStop(0, '#020617');
+        skyGrad.addColorStop(0.5, '#0f172a');
+        skyGrad.addColorStop(1, '#312e81');
+      }
       ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = '#fef08a';
-      stars.forEach(s => {
-        ctx.globalAlpha = s.alpha;
-        ctx.shadowColor = '#fef08a'; ctx.shadowBlur = 8;
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
-      });
-      ctx.shadowBlur = 0; ctx.globalAlpha = 1.0;
+      if (gameState.chapter < 4) {
+        ctx.fillStyle = '#fef08a';
+        stars.forEach(s => {
+          ctx.globalAlpha = s.alpha;
+          ctx.shadowColor = '#fef08a'; ctx.shadowBlur = 8;
+          ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1.0;
+      } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.beginPath(); ctx.arc(120, 45, 20, 0, Math.PI*2); ctx.arc(140, 40, 25, 0, Math.PI*2); ctx.arc(160, 45, 18, 0, Math.PI*2); ctx.fill();
+      }
 
       ctx.save();
       ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 35;
@@ -386,9 +415,15 @@
       ctx.restore();
 
       let bankGrad = ctx.createLinearGradient(0, 150, 0, 270);
-      bankGrad.addColorStop(0, '#475569');
-      bankGrad.addColorStop(0.15, '#334155');
-      bankGrad.addColorStop(1, '#1e293b');
+      if (gameState.chapter >= 4) {
+        bankGrad.addColorStop(0, '#22c55e');
+        bankGrad.addColorStop(0.15, '#16a34a');
+        bankGrad.addColorStop(1, '#15803d');
+      } else {
+        bankGrad.addColorStop(0, '#475569');
+        bankGrad.addColorStop(0.15, '#334155');
+        bankGrad.addColorStop(1, '#1e293b');
+      }
       ctx.fillStyle = bankGrad;
       ctx.beginPath(); ctx.moveTo(0, 150); ctx.lineTo(canvas.width, 150); ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height); ctx.fill();
 
@@ -398,7 +433,6 @@
         ctx.fillStyle = '#059669'; ctx.fillRect(i + 2, 144, 2, 4); ctx.fillStyle = '#10b981';
       }
 
-      // Render items depending on active chapter
       items.forEach(item => {
         if (!item.collected) {
           ctx.save();
@@ -408,10 +442,24 @@
           } else if (item.type === 'wood' && gameState.chapter === 2) {
             ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 12;
             ctx.fillStyle = '#d97706'; ctx.fillRect(item.x - 10, item.y + 4, 20, 10);
+          } else if (item.type === 'alpha' && gameState.chapter === 3) {
+            ctx.shadowColor = '#fef08a'; ctx.shadowBlur = 15;
+            ctx.fillStyle = '#b45309'; ctx.fillRect(item.x - 14, item.y, 28, 16);
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px Courier New'; ctx.fillText(item.label, item.x - 4, item.y + 12);
           }
           ctx.restore();
         }
       });
+
+      // Render built bridge parts
+      if (gameState.alphaIndex > 0) {
+        ctx.fillStyle = '#78350f';
+        for(let b=0; b<gameState.alphaIndex; b++) {
+          ctx.fillRect(150 + b * 100, 142, 70, 12);
+          ctx.fillStyle = '#ffffff'; ctx.font = 'bold 10px Courier New'; ctx.fillText(alphabetSequence[b], 180 + b * 100, 151);
+          ctx.fillStyle = '#78350f';
+        }
+      }
 
       let waterGrad = ctx.createLinearGradient(0, 195, 0, 270);
       waterGrad.addColorStop(0, 'rgba(2, 132, 199, 0.6)');
