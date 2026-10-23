@@ -151,8 +151,17 @@
             document.getElementById('resNote').innerText = data.historicalNote || data.primarySourceRef;
 
             const portrait = document.getElementById('resPortrait');
-            if (data.image && data.image.trim() !== "") {
-                portrait.src = data.image;
+            
+            // Robust Image Resolution Mapping matching repository filenames
+            let resolvedImage = data.image;
+            if (data.id === "thomas") {
+                resolvedImage = "Thomas.jpg";
+            } else if (data.id === "wright") {
+                resolvedImage = "aaron-rebecca-wright.jpg";
+            }
+
+            if (resolvedImage && resolvedImage.trim() !== "") {
+                portrait.src = resolvedImage;
                 portrait.style.display = "block";
             } else {
                 portrait.style.display = "none";
