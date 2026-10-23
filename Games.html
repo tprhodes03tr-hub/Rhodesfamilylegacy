@@ -235,7 +235,7 @@
 
     .ar-viewport {
       width: 100%;
-      height: 200px;
+      height: 240px;
       background: #020617;
       border: 1px solid #45a29e;
       border-radius: 6px;
@@ -492,7 +492,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 3: MARROW MATRIX AR -->
+  <!-- PORTAL 3: MARROW MATRIX AR (FIXED DUAL 3D CANVAS & SPRITE ENGINE) -->
   <div class="sandbox-container hidden" id="portal-matrix">
     <div class="sandbox-header">Marrow Matrix • 3D/AR Campaign Edition</div>
     <h1>Ancestral Resonance Hub</h1>
@@ -503,21 +503,11 @@
     </div>
 
     <div class="ar-viewport">
-      <a-scene embedded background="color: #020617" style="width: 100%; height: 100%;">
-        <assets>
-          <img id="marcus-img" src="marcus.png" crossorigin="anonymous">
-          <img id="guacan-img" src="guacan-sheet.png" crossorigin="anonymous">
-        </assets>
-        <a-entity position="0 0 -3">
-          <a-box id="ar-core-shape" position="0 0.5 0" rotation="0 45 0" color="#66fcf1" animation="property: rotation; to: 360 405 0; loop: true; dur: 8000"></a-box>
-          <a-plane id="character-display-plane" position="0 0.5 0" width="1.5" height="1.5" material="src: #marcus-img; transparent: true" visible="false" animation="property: rotation; to: 0 360 0; loop: true; dur: 12000"></a-plane>
-        </a-entity>
-        <a-entity camera position="0 1.6 0"></a-entity>
-      </a-scene>
+      <canvas id="matrixCanvas" width="600" height="240" style="width: 100%; height: 100%; display: block; background: #020617;"></canvas>
     </div>
 
     <div class="holographic-ledger" id="holographic-text">
-      📂 SCANNER READY: Select nodes to project character avatars.
+      📂 MATRIX ONLINE: Select nodes below to project Guacan, Marcus Prime, or historical avatars into the grid.
     </div>
 
     <div class="node-grid" id="matrix-node-grid"></div>
@@ -705,7 +695,14 @@
       document.getElementById('genomic-output').innerText = "> Seven Rivers Delta Blueprint Active.";
     }
 
-    // --- AUDIO SYSTEM ---
+    // --- FULL SPRITE AND ASSET PRELOADER ---
+    const voltSprite = new Image(); voltSprite.src = 'apex-volt.png';
+    const prismSprite = new Image(); prismSprite.src = 'prism-ghost-v2.png';
+    const wakanSprite = new Image(); wakanSprite.src = 'guacan-sheet.png';
+    const magmaSprite = new Image(); magmaSprite.src = 'magma-weaver.png';
+    const marcusSprite = new Image(); marcusSprite.src = 'marcus.png';
+
+    // --- AUDIO SYSTEM WITH TOUCH GESTURE UNLOCK ---
     let audioCtx = null;
     function initAudio() {
       if (!audioCtx) {
@@ -782,15 +779,13 @@
 
       window.speechSynthesis.cancel();
 
-      // Initialize specific game loops when opened
       if (target === 'volt') initVoltEngine();
       if (target === 'prism') initPrismEngine();
       if (target === 'wakan') initWakanEngine();
       if (target === 'magma') initMagmaEngine();
-      if (target === 'matrix') renderEpochNodes();
+      if (target === 'matrix') initMatrixEngine();
     }
 
-    // Attach event listeners to all switch buttons for instant mobile response
     document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.switch-btn').forEach(btn => {
         const target = btn.getAttribute('data-target');
@@ -806,6 +801,7 @@
         }
       });
       updateStats();
+      initVoltEngine();
     });
 
     // --- ISAAC'S SANDBOX ---
@@ -820,13 +816,6 @@
       if (e) e.innerText = gameStats.energy + '%';
       if (s) s.innerText = gameStats.shield + '%';
       if (x) x.innerText = gameStats.xp;
-    }
-
-    function speakText(text) {
-      if (!voiceEnabled || !('speechSynthesis' in window)) return;
-      window.speechSynthesis.cancel();
-      let utterance = new SpeechSynthesisUtterance(text);
-      window.speechSynthesis.speak(utterance);
     }
 
     const voiceBtn = document.getElementById('voice-toggle-btn');
@@ -892,9 +881,11 @@
       showScene('scene-1', 'CHAPTER 1: PERIMETER BREACH');
     }
 
-    // --- MATRIX AR LOGIC ---
+    // --- MARROW MATRIX AR / 3D CANVAS ENGINE ---
     let currentEpoch = 'vanguard';
-    let selectedNodes = [];
+    let selectedAvatar = 'Guacan';
+    let matrixRunning = false;
+
     const epochData = {
       vanguard: [
         { id: 'Guacan', label: "🌊 Guacan (Storm-Tide Sentinel)", ledger: "Guacan Dossier: Caribbean Marronage anchor." },
@@ -916,20 +907,69 @@
       grid.innerHTML = '';
       epochData[currentEpoch].forEach(node => {
         const div = document.createElement('div');
-        div.className = 'node-card';
+        div.className = 'node-card' + (selectedAvatar === node.id ? ' selected' : '');
         div.innerText = node.label;
         div.onclick = () => {
-          div.classList.toggle('selected');
+          selectedAvatar = node.id;
           document.getElementById('holographic-text').innerText = node.ledger;
+          renderEpochNodes();
         };
         grid.appendChild(div);
       });
     }
 
+    function initMatrixEngine() {
+      renderEpochNodes();
+      const canvas = document.getElementById('matrixCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let angle = 0;
+
+      function loop() {
+        if (canvas.offsetParent !== null) {
+          angle += 0.03;
+          ctx.fillStyle = '#020617';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.strokeStyle = 'rgba(102, 252, 241, 0.2)';
+          ctx.lineWidth = 1;
+          for (let i = 0; i < canvas.width; i += 40) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+          }
+
+          ctx.save();
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          
+          if (selectedAvatar === 'Marcus' && marcusSprite.complete && marcusSprite.naturalWidth !== 0) {
+            ctx.drawImage(marcusSprite, -40, -60, 80, 100);
+          } else if (selectedAvatar === 'Guacan' && wakanSprite.complete && wakanSprite.naturalWidth !== 0) {
+            ctx.drawImage(wakanSprite, -40, -60, 80, 100);
+          } else {
+            ctx.rotate(angle);
+            ctx.strokeStyle = '#66fcf1';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-45, -45, 90, 90);
+            ctx.fillStyle = 'rgba(102, 252, 241, 0.3)';
+            ctx.fillRect(-45, -45, 90, 90);
+          }
+          ctx.restore();
+
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = 'bold 12px Courier New';
+          ctx.fillText(`PROJECTION NODE: ${selectedAvatar.toUpperCase()}`, 20, 30);
+        }
+        requestAnimationFrame(loop);
+      }
+      if (!matrixRunning) {
+        matrixRunning = true;
+        loop();
+      }
+    }
+
     function resonancePulse() {
       playSound('orb');
       const f = document.getElementById('matrix-feedback');
-      if (f) f.innerText = "✨ Resonance frequency achieved (+500 XP)!";
+      if (f) f.innerText = `✨ Resonance frequency achieved for ${selectedAvatar} (+500 XP)!`;
     }
 
     // --- SCANNER LOGIC ---
@@ -956,7 +996,7 @@
       document.getElementById('match-desc').innerText = "Master biometric signature verified across Rhodes & Mitchell lines.";
     }
 
-    // --- CANVAS GAMES LOOPS ---
+    // --- FULL GAME ENGINES WITH SPRITES AND FALLBACKS ---
     function initVoltEngine() {
       const canvas = document.getElementById('voltCanvas');
       if (!canvas) return;
@@ -967,13 +1007,23 @@
         if (dir === 'left') targetX = Math.max(50, targetX - 80);
         if (dir === 'right') targetX = Math.min(canvas.width - 50, targetX + 80);
       };
+      window.triggerVoltOverload = () => {
+        playSound('turbo');
+        sparks += 5;
+        document.getElementById('volt-sparks').innerText = sparks;
+      };
       function loop() {
         if (canvas.offsetParent !== null) {
           x += (targetX - x) * 0.2;
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = '#60a5fa';
-          ctx.beginPath(); ctx.arc(x, 350, 24, 0, Math.PI * 2); ctx.fill();
+          
+          if (voltSprite.complete && voltSprite.naturalWidth !== 0) {
+            ctx.drawImage(voltSprite, x - 32, 310, 64, 80);
+          } else {
+            ctx.fillStyle = '#60a5fa';
+            ctx.beginPath(); ctx.arc(x, 350, 24, 0, Math.PI * 2); ctx.fill();
+          }
         }
         requestAnimationFrame(loop);
       }
@@ -990,13 +1040,23 @@
         if (dir === 'left') targetX = Math.max(50, targetX - 80);
         if (dir === 'right') targetX = Math.min(canvas.width - 50, targetX + 80);
       };
+      window.triggerDecoy = () => {
+        playSound('turbo');
+        score++;
+        document.getElementById('prism-score').innerText = score;
+      };
       function loop() {
         if (canvas.offsetParent !== null) {
           x += (targetX - x) * 0.2;
           ctx.fillStyle = '#030208';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = '#c084fc';
-          ctx.beginPath(); ctx.arc(x, 100, 22, 0, Math.PI * 2); ctx.fill();
+
+          if (prismSprite.complete && prismSprite.naturalWidth !== 0) {
+            ctx.drawImage(prismSprite, x - 32, 60, 64, 80);
+          } else {
+            ctx.fillStyle = '#c084fc';
+            ctx.beginPath(); ctx.arc(x, 100, 22, 0, Math.PI * 2); ctx.fill();
+          }
         }
         requestAnimationFrame(loop);
       }
@@ -1022,9 +1082,17 @@
         if (canvas.offsetParent !== null) {
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          if (wakanSprite.complete && wakanSprite.naturalWidth !== 0) {
+            ctx.drawImage(wakanSprite, canvas.width / 2 - 32, 280, 64, 80);
+          } else {
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath(); ctx.arc(canvas.width / 2, 320, 26, 0, Math.PI * 2); ctx.fill();
+          }
+
           ctx.fillStyle = '#38bdf8';
-          ctx.font = 'bold 16px Courier New';
-          ctx.fillText(`Guamo Emitter Active: ${freq} Hz`, 150, 225);
+          ctx.font = 'bold 14px Courier New';
+          ctx.fillText(`Guamo Emitter Active: ${freq} Hz`, canvas.width / 2 - 110, 390);
         }
         requestAnimationFrame(loop);
       }
@@ -1035,19 +1103,29 @@
       const canvas = document.getElementById('magmaCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let x = 300, targetX = 300;
+      let x = 300, targetX = 300, relics = 0;
       window.moveMagma = (dir) => {
         playSound('steer');
         if (dir === 'left') targetX = Math.max(50, targetX - 80);
         if (dir === 'right') targetX = Math.min(canvas.width - 50, targetX + 80);
+      };
+      window.triggerThermalBridge = () => {
+        playSound('turbo');
+        relics++;
+        document.getElementById('magma-relics').innerText = relics;
       };
       function loop() {
         if (canvas.offsetParent !== null) {
           x += (targetX - x) * 0.2;
           ctx.fillStyle = '#0a0303';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = '#f87171';
-          ctx.beginPath(); ctx.arc(x, 350, 24, 0, Math.PI * 2); ctx.fill();
+
+          if (magmaSprite.complete && magmaSprite.naturalWidth !== 0) {
+            ctx.drawImage(magmaSprite, x - 32, 310, 64, 80);
+          } else {
+            ctx.fillStyle = '#f87171';
+            ctx.beginPath(); ctx.arc(x, 350, 24, 0, Math.PI * 2); ctx.fill();
+          }
         }
         requestAnimationFrame(loop);
       }
