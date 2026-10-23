@@ -133,13 +133,13 @@
     <h1>The Sisters of the Golden Clock</h1>
 
     <div class="stats-bar">
-      <span>⚙️ Golden Gears: <strong id="stat-gears" style="color: #f59e0b;">0</strong> / 3</span>
+      <span>⚙️ Clock Gears: <strong id="stat-gears" style="color: #f59e0b;">0</strong> / 3</span>
       <span>⏳ Temporal Era: <strong id="stat-era" style="color: #38bdf8;">1880</strong></span>
       <span>✨ Chapter: <strong id="stat-chap" style="color: #fef08a;">1</strong> / 3</span>
     </div>
 
     <div class="story-box" id="story-dialogue">
-      "The Three Sisters are gathered! Walk Luetta, Rose, and Tweet Marie to collect 3 Golden Gears near the Double Helix Tree to unlock Chapter 2."
+      "The Three Sisters must gather 3 Clock Gears. Once collected, tap 'ASSEMBLE & TIME-WARP' to repair the clock and jump to the next era!"
     </div>
 
     <div class="canvas-box">
@@ -148,7 +148,7 @@
 
     <div class="controls-grid">
       <button class="control-btn" onmousedown="startMove(-1)" onmouseup="stopMove()" ontouchstart="startMove(-1)" ontouchend="stopMove()">◀ WALK LEFT</button>
-      <button class="control-btn" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%); border-color: #fef08a; color: #fff; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);" onclick="performAction()">✨ COLLECT GEAR</button>
+      <button class="control-btn" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%); border-color: #fef08a; color: #fff; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);" onclick="performAction()">⚙️ GATHER / ASSEMBLE</button>
       <button class="control-btn" onmousedown="startMove(1)" onmouseup="stopMove()" ontouchstart="startMove(1)" ontouchend="stopMove()">WALK RIGHT ▶</button>
     </div>
 
@@ -201,14 +201,13 @@
           gain.gain.setValueAtTime(0.2, now);
           gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
           osc.start(now); osc.stop(now + 0.3);
-        } else if (type === 'success') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(523.25, now);
-          osc.frequency.setValueAtTime(659.25, now + 0.15);
-          osc.frequency.setValueAtTime(783.99, now + 0.3);
-          gain.gain.setValueAtTime(0.25, now);
-          gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
-          osc.start(now); osc.stop(now + 0.5);
+        } else if (type === 'warp') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.6);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.8);
+          osc.start(now); osc.stop(now + 0.8);
         }
       } catch(e) {}
     }
@@ -221,12 +220,12 @@
       window.speechSynthesis.speak(utterance);
     }
 
-    let gameState = { chapter: 1, gears: 0, era: 1880, fannieX: 120, fannieDir: 0 };
+    let gameState = { chapter: 1, gears: 0, assembled: false, era: 1880, fannieX: 120, fannieDir: 0 };
 
     let items = [
-      { x: 190, y: 140, type: 'gear', eraVal: 1880, collected: false },
-      { x: 340, y: 140, type: 'gear', eraVal: 1926, collected: false },
-      { x: 450, y: 140, type: 'gear', eraVal: 1952, collected: false }
+      { x: 180, y: 140, type: 'gear', collected: false },
+      { x: 340, y: 140, type: 'gear', collected: false },
+      { x: 450, y: 140, type: 'gear', collected: false }
     ];
 
     function startMove(dir) { initAudio(); gameState.fannieDir = dir; }
@@ -234,30 +233,51 @@
 
     function performAction() {
       initAudio();
-      checkCollection();
-    }
+      let collectedCount = items.filter(i => i.collected).length;
 
-    function checkCollection() {
-      items.forEach(item => {
-        if (!item.collected && Math.abs(gameState.fannieX - item.x) < 45) {
-          item.collected = true; gameState.gears++;
-          gameState.era = item.eraVal;
-          playSound('gear');
-          speak("Gear secured. Time slipped to " + gameState.era);
-
-          if (gameState.gears === 2) {
-            gameState.chapter = 2; playSound('success');
-            document.getElementById('chapter-title').innerText = "Chapter 2: The 1926 Yazoo Levee";
-            document.getElementById('story-dialogue').innerText = "Chapter 2 Unlocked! The three sisters enter the Yazoo River epoch. Collect the final gear to restore the timeline!";
-            speak("Chapter 2 unlocked. Yazoo River epoch active.");
-          } else if (gameState.gears >= 3) {
-            gameState.chapter = 3; playSound('success');
-            document.getElementById('chapter-title').innerText = "Victory: The Golden Timeline Restored!";
-            document.getElementById('story-dialogue').innerText = "🌟 MAGICAL TIME-SLIP COMPLETE! All three sisters have harmonized the timeline across 1880, 1926, and 1952. 'What is packed in the bone never fades from the marrow!'";
-            speak("Victory! The golden clock and all three sisters have restored the legacy.");
+      if (collectedCount < 3) {
+        // Collect gear if near one
+        items.forEach(item => {
+          if (!item.collected && Math.abs(gameState.fannieX - item.x) < 45) {
+            item.collected = true; gameState.gears++;
+            playSound('gear');
+            speak("Clock gear " + gameState.gears + " collected!");
+            if (gameState.gears === 3) {
+              document.getElementById('story-dialogue').innerText = "All 3 gears gathered! Tap 'GATHER / ASSEMBLE' again to assemble the clock and trigger the Time-Warp!";
+              speak("All gears gathered. Tap assemble to time warp.");
+            }
           }
+        });
+      } else if (!gameState.assembled) {
+        // Assemble & Time Warp
+        gameState.assembled = true;
+        playSound('warp');
+
+        if (gameState.chapter === 1) {
+          gameState.chapter = 2;
+          gameState.era = 1926;
+          gameState.gears = 0;
+          gameState.assembled = false;
+          items.forEach(i => i.collected = false); // Respawn gears for chapter 2
+          document.getElementById('chapter-title').innerText = "Chapter 2: The 1926 Yazoo Levee";
+          document.getElementById('story-dialogue').innerText = "⚡ TIME-WARP SUCCESS! The sisters have warped to the 1926 Yazoo Levee. Gather 3 new temporal gears!";
+          speak("Time warp complete. Welcome to 1926.");
+        } else if (gameState.chapter === 2) {
+          gameState.chapter = 3;
+          gameState.era = 1952;
+          gameState.gears = 0;
+          gameState.assembled = false;
+          items.forEach(i => i.collected = false); // Respawn gears for chapter 3
+          document.getElementById('chapter-title').innerText = "Chapter 3: The 1952 Michigan Archives";
+          document.getElementById('story-dialogue').innerText = "⚡ FINAL TIME-WARP! The sisters have warped to the Michigan archives. Assemble the final clock!";
+          speak("Final time warp. Welcome to 1952.");
+        } else {
+          gameState.chapter = 4;
+          document.getElementById('chapter-title').innerText = "Victory: The Golden Timeline Restored!";
+          document.getElementById('story-dialogue').innerText = "🌟 TIMELINE FULLY RESTORED! The Three Sisters have harmonized history across the ages. 'What is packed in the bone never fades from the marrow!'";
+          speak("Victory! The golden clock and all three sisters have fully restored the legacy.");
         }
-      });
+      }
       updateDisplay();
     }
 
@@ -278,59 +298,40 @@
       particles.push({ x: Math.random() * 600, y: Math.random() * 130, size: 2 + Math.random() * 2, speed: 0.4 + Math.random() * 0.5 });
     }
 
-    // Render Three Sisters (Luetta, Rose, and Tweet Marie) cleanly as one group
     function drawThreeSisters(x, y, dir) {
       ctx.save();
       ctx.translate(x, y);
       let bounce = dir !== 0 ? Math.sin(Date.now() * 0.015) * 3.5 : 0;
       ctx.translate(0, bounce);
 
-      // --- Sister 2: Rose (Left Sister) ---
+      // Rose (Left)
       ctx.save();
       ctx.translate(-24, 4);
       let dressGrad2 = ctx.createLinearGradient(-9, 0, 9, 38);
       dressGrad2.addColorStop(0, '#f472b6'); dressGrad2.addColorStop(1, '#db2777');
-      ctx.fillStyle = dressGrad2;
-      ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(7, 0); ctx.lineTo(11, 38); ctx.lineTo(-11, 38); ctx.closePath(); ctx.fill();
-
-      let headGrad2 = ctx.createRadialGradient(-2, -15, 2, 0, -12, 9);
-      headGrad2.addColorStop(0, '#d97706'); headGrad2.addColorStop(1, '#92400e');
-      ctx.fillStyle = headGrad2; ctx.beginPath(); ctx.arc(0, -12, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = dressGrad2; ctx.fillRect(-7, 0, 14, 38);
+      ctx.fillStyle = '#d97706'; ctx.beginPath(); ctx.arc(0, -12, 9, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.arc(0, -18, 10, Math.PI, 0, false); ctx.fill();
       ctx.restore();
 
-      // --- Sister 1: Luetta (Center with Golden Clock) ---
+      // Luetta (Center)
       ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
       ctx.beginPath(); ctx.ellipse(0, 44, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
-
       let dressGrad1 = ctx.createLinearGradient(-10, 0, 10, 42);
       dressGrad1.addColorStop(0, '#34d399'); dressGrad1.addColorStop(1, '#059669');
-      ctx.fillStyle = dressGrad1;
-      ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(8, 0); ctx.lineTo(13, 42); ctx.lineTo(-13, 42); ctx.closePath(); ctx.fill();
-
-      let headGrad1 = ctx.createRadialGradient(-2, -15, 2, 0, -12, 10);
-      headGrad1.addColorStop(0, '#d97706'); headGrad1.addColorStop(1, '#92400e');
-      ctx.fillStyle = headGrad1;
-      ctx.beginPath(); ctx.arc(0, -12, 10, 0, Math.PI * 2); ctx.fill();
-
+      ctx.fillStyle = dressGrad1; ctx.fillRect(-8, 0, 16, 42);
+      ctx.fillStyle = '#d97706'; ctx.beginPath(); ctx.arc(0, -12, 10, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffffff'; ctx.fillRect(-4, -15, 2.5, 2.5); ctx.fillRect(2, -15, 2.5, 2.5);
       ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.arc(0, -18, 11, Math.PI, 0, false); ctx.fill();
-
-      // Golden Clock held by Luetta
       ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(0, 16, 7, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(0, 16, 5, 0, Math.PI*2); ctx.fill();
 
-      // --- Sister 3: Tweet Marie (Right Sister) ---
+      // Tweet Marie (Right)
       ctx.save();
       ctx.translate(24, 4);
       let dressGrad3 = ctx.createLinearGradient(-9, 0, 9, 38);
       dressGrad3.addColorStop(0, '#fde047'); dressGrad3.addColorStop(1, '#ca8a04');
-      ctx.fillStyle = dressGrad3;
-      ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(7, 0); ctx.lineTo(11, 38); ctx.lineTo(-11, 38); ctx.closePath(); ctx.fill();
-
-      let headGrad3 = ctx.createRadialGradient(-2, -15, 2, 0, -12, 9);
-      headGrad3.addColorStop(0, '#b45309'); headGrad3.addColorStop(1, '#78350f');
-      ctx.fillStyle = headGrad3; ctx.beginPath(); ctx.arc(0, -12, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = dressGrad3; ctx.fillRect(-7, 0, 14, 38);
+      ctx.fillStyle = '#b45309'; ctx.beginPath(); ctx.arc(0, -12, 9, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.arc(0, -18, 10, Math.PI, 0, false); ctx.fill();
       ctx.restore();
 
@@ -342,7 +343,6 @@
         gameState.fannieX += gameState.fannieDir * 3.5;
         if (gameState.fannieX < 50) gameState.fannieX = 50;
         if (gameState.fannieX > 530) gameState.fannieX = 530;
-        checkCollection();
       }
 
       // Temporal Sky shifts per chapter
@@ -350,7 +350,10 @@
       if (gameState.chapter === 2) {
         skyGrad.addColorStop(0, '#0369a1');
         skyGrad.addColorStop(1, '#38bdf8');
-      } else if (gameState.chapter >= 3) {
+      } else if (gameState.chapter === 3) {
+        skyGrad.addColorStop(0, '#7c2d12');
+        skyGrad.addColorStop(1, '#ea580c');
+      } else if (gameState.chapter >= 4) {
         skyGrad.addColorStop(0, '#f59e0b');
         skyGrad.addColorStop(1, '#fef08a');
       } else {
@@ -379,8 +382,8 @@
 
       // Floor Platform
       let floorGrad = ctx.createLinearGradient(0, 150, 0, 270);
-      floorGrad.addColorStop(0, gameState.chapter >= 3 ? '#22c55e' : '#334155');
-      floorGrad.addColorStop(1, gameState.chapter >= 3 ? '#15803d' : '#0f172a');
+      floorGrad.addColorStop(0, gameState.chapter >= 4 ? '#22c55e' : '#334155');
+      floorGrad.addColorStop(1, gameState.chapter >= 4 ? '#15803d' : '#0f172a');
       ctx.fillStyle = floorGrad;
       ctx.beginPath(); ctx.moveTo(0, 150); ctx.lineTo(canvas.width, 150); ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height); ctx.fill();
 
