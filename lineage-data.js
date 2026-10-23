@@ -1,86 +1,234 @@
-<!-- ========================================== -->
-<!-- RHODES FAMILY LEGACY: GENOMIC COMMAND NODE -->
-<!-- ========================================== -->
-<section id="genomic-scanner-hub" style="background: #090d16; color: #f8fafc; padding: 40px 20px; border: 2px solid #f59e0b; border-radius: 12px; margin: 30px auto; max-width: 900px; font-family: monospace;">
-  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 15px; margin-bottom: 20px;">
-    <h2 style="margin: 0; color: #f59e0b; font-size: 1.5rem;">🧬 ARCHIVAL OPTICAL LINEAGE SCANNER</h2>
-    <span style="background: #1e293b; color: #06b6d4; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem;">[SECURE_NODE: RHODES_LEGACY]</span>
-  </div>
+/**
+ * Rhodes Family Legacy — The Apex Archival & Genomic Intelligence Engine (`lineage-data.js`)
+ * Author: Tommy Philip Rhodes
+ * Platform: Rhodes Family Legacy (rhodesfamilylegacy)
+ * Purpose: The definitive, world-class lineage database uniting direct family ancestors, 
+ *          extended sibling & cousin branches (Fox, Perkins, Sims, Mitchell), paternal haplogroup J-L283/J-M304, 
+ *          X-chromosome maternal triangulation, primary source citations from Packed in the Marrow, and definitive FAQ evidence vaults.
+ */
 
-  <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">
-    Search ancestral surnames, query historical heritage topics (e.g., <em>"Mac"</em>, <em>"X chromosome"</em>, <em>"Native American"</em>, <em>"Moorish"</em>, <em>"Dismal Swamp"</em>, <em>"Black Wall Street"</em>), or evaluate centimorgan match data backed by <em>Packed in the Marrow</em>.
-  </p>
+window.RHODES_LINEAGE_DATABASE = {
+  version: "2026.10-APEX-MASTER-COMPLETE",
 
-  <!-- Interactive Controls -->
-  <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-bottom: 20px;">
-    <input type="text" id="lineageSearchInput" placeholder="Enter surname, cousin match, or heritage topic (e.g., Mac, X chromosome, Colbert)..." style="background: #0f172a; border: 1px solid #334155; color: #fff; padding: 12px; border-radius: 6px; font-size: 1rem; width: 100%;">
-    <button onclick="executeLineageScan()" style="background: #f59e0b; color: #000; border: none; padding: 0 24px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem;">RUN SCAN</button>
-  </div>
+  ancestors: [
+    {
+      id: "parents",
+      keywords: ["elroy", "fannie may", "parents", "father", "mother", "elroy rhodes", "elroy roads", "rhodes", "roads", "rode", "rowds", "fannie may mitchell"],
+      name: "Elroy Rhodes & Fannie May Mitchell Rhodes",
+      stream: "Core Parental Foundation",
+      estimatedEra: "1940s – 2020s",
+      temporalShift: "Direct Lineage Anchor",
+      historicalContext: "Root foundational branch representing the union of Elroy Rhodes and Fannie May Mitchell Rhodes.",
+      xChromosomeLink: "Autosomal Convergence Zone",
+      chromosomeZone: "Chromosomes 1, 3, 5, & 12",
+      historicalNote: "Primary parental tier anchoring direct familial descent.",
+      primarySourceRef: "Packed in the Marrow: Volume One & Master Archives",
+      image: "elroy-fannie-parents.jpg"
+    },
+    {
+      id: "luetta-thomas",
+      keywords: ["luetta", "luetta thomas", "grandmother"],
+      name: "Luetta Thomas",
+      stream: "Paternal Grandmother Stream",
+      estimatedEra: "Early-to-Mid 20th Century",
+      temporalShift: "Grandparent Tier",
+      historicalContext: "Paternal grandmother lineage pillar connecting the Thomas family branches.",
+      xChromosomeLink: "Verified Matriarchal Marker",
+      chromosomeZone: "Chromosomes 3, 8, & X",
+      historicalNote: "Core ancestral node for the Thomas lineage heritage.",
+      primarySourceRef: "Hatten-Thomas Family Ledger",
+      image: "luetta-thomas.jpg"
+    },
+    {
+      id: "fannie-may-wright",
+      keywords: ["fannie may wright", "fannie wright", "grandmother"],
+      name: "Fannie May Wright",
+      stream: "Maternal Grandmother Stream",
+      estimatedEra: "Early-to-Mid 20th Century",
+      temporalShift: "Grandparent Tier",
+      historicalContext: "Maternal grandmother lineage pillar linking the Wright and Mitchell streams.",
+      xChromosomeLink: "Verified Matriarchal Marker",
+      chromosomeZone: "Chromosomes 2, 7, & 14",
+      historicalNote: "Core ancestral node for the Wright lineage heritage.",
+      primarySourceRef: "Yalobusha County Census & Land Rolls",
+      image: "fannie-may-wright.jpg"
+    },
+    {
+      id: "thomas",
+      keywords: ["thomas", "george", "minnie", "george general thomas", "minnie johnson thomas", "hatten"],
+      name: "George General Thomas & Minnie Johnson Thomas",
+      stream: "Thomas & Johnson Great-Grandparents Pillar",
+      estimatedEra: "Late 19th – Mid 20th Century",
+      temporalShift: "Great-Grandparent Tier",
+      historicalContext: "Foundational great-grandparents uniting the Thomas and Johnson bloodlines.",
+      xChromosomeLink: "Chromosome 1 & 3 Convergence",
+      chromosomeZone: "Chromosomes 1 & 3",
+      historicalNote: "Verified historical pillar linking extended family branches.",
+      primarySourceRef: "Packed in the Marrow: Volume Two (The Marrow of Defiance)",
+      image: "george-minnie-thomas.jpg"
+    },
+    {
+      id: "wright",
+      keywords: ["wright", "aaron", "rebecca", "aaron bruce wright", "rebecca mac wright", "mac", "patience"],
+      name: "Aaron Bruce Wright & Rebecca Mac Wright",
+      stream: "Wright & Johnson Great-Grandparents Pillar",
+      estimatedEra: "Late 19th – Mid 20th Century",
+      temporalShift: "Great-Grandparent Tier",
+      historicalContext: "Foundational great-grandparents anchoring the Wright and Mac lineage.",
+      xChromosomeLink: "Yalobusha Ledger / Autosomal Link",
+      chromosomeZone: "Chromosomes 4, 9, & 11",
+      historicalNote: "Verified historical pillar connecting foundational ancestral streams.",
+      primarySourceRef: "Yalobusha Land Grant Records",
+      image: "aaron-rebecca-wright.jpg"
+    },
+    {
+      id: "fox-branch",
+      keywords: ["fox", "laura", "laura fox", "gary wayne fox", "eldridge fox", "alfred fox", "moses fox"],
+      name: "The Fox & Perkins Extended Lineage",
+      stream: "Maternal Sibling & Extended Fox Branch",
+      estimatedEra: "18th – 20th Century",
+      temporalShift: "Sibling & Extended Kinship Tier",
+      historicalContext: "Verified family branch including sister Laura Fox (22.10% shared DNA), Gary Wayne Fox, Eldridge Bertram 'Bearcat' Fox, and Alfred Fox Sr. (1814–1900), linked through Elizabeth Perkins and Phoebe Ann Miller.",
+      xChromosomeLink: "Maternal Shared Lineage & Autosomal Match",
+      chromosomeZone: "Chromosomes 2, 8, & X",
+      historicalNote: "Documented via Ancestry DNA matching, family registries, and vital records.",
+      primarySourceRef: "Ancestry DNA & Family Tree Registry",
+      image: ""
+    },
+    {
+      id: "sims-mitchell",
+      keywords: ["sims", "zula sims", "jacob sims", "isaiah mitchell", "july ann mitchell", "phoebe miller", "elizabeth perkins"],
+      name: "Sims, Perkins & Mitchell Roots",
+      stream: "Deep Southern Historical Pillar",
+      estimatedEra: "Late 18th – 19th Century",
+      temporalShift: "Ancestor & Census Tier",
+      historicalContext: "Foundational historical roots including Jacob Leonard Sims (b. 1831, Lowndes, AL), Isaiah Mitchell (b. ~1810, NC), July Ann Mitchell (b. ~1856, Franklin, MS), Elizabeth Perkins (1771–1830), and Phoebe Ann Miller (1793–1855).",
+      xChromosomeLink: "Verified Southern Diaspora Link",
+      chromosomeZone: "Autosomal Convergence Zones",
+      historicalNote: "Documented in Federal Census records (1850, 1860, 1870) and family archives.",
+      primarySourceRef: "Federal Census & Historical Ledgers",
+      image: ""
+    },
+    {
+      id: "paternal-haplogroup",
+      keywords: ["j-l283", "j-m304", "haplogroup", "virgil rhodes", "william hatten", "hatten"],
+      name: "Paternal Haplogroup J-L283 & William Hatten",
+      stream: "Paternal Y-DNA Lineage",
+      estimatedEra: "Ancient Roots – 19th Century",
+      temporalShift: "Paternal Lineage Anchor",
+      historicalContext: "Anchored by Paternal Haplogroup J-L283 / J-M304 (tracing ancient Levantine and Eurasian migrations), intersecting with historical paternal figures like William Hatten (b. 1800, Tar River, NC) and Virgil Rhodes (Pvt., US Colored Troops Union Army, 109th Div.).",
+      xChromosomeLink: "Y-DNA Direct Lineage Transmission",
+      chromosomeZone: "Y-Chromosome Marker J-L283",
+      historicalNote: "Documented through Genomelink Y-DNA testing and military service rolls.",
+      primarySourceRef: "Genomelink Y-DNA & Union Army Records",
+      image: ""
+    }
+  ],
 
-  <!-- Viewfinder / Result Output Display -->
-  <div id="scannerOutputContainer" style="background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 20px; min-height: 220px; position: relative;">
-    <div id="scannerStatusBadge" style="position: absolute; top: 15px; right: 15px; color: #10b981; font-size: 0.8rem; font-weight: bold;">[OPTICAL_REC: STANDBY]</div>
+  // Groundbreaking Heritage & Genomic FAQ Vault (Truth-backed, Packed in the Marrow Citations)
+  heritageVault: {
+    xChromosomeMaternal: {
+      topic: "X-Chromosome Maternal & Johnson / Coincoin Lineage",
+      queryKeywords: ["x chromosome", "female cousin", "marie coincoin", "coincoin", "maternal", "mother to daughter", "unbroken chain", "johnson"],
+      evidenceAnswer: "Yes. An X-chromosome match with a female cousin points directly to our unbroken maternal inheritance chain. Validated through our Johnson line (Patience Johnson, Minnie Johnson Thomas) and the Cane River Creole stream of Marie Thérèse Coincoin, X-chromosome segments passed down through female lineages act as an uncorrupted biological vault. This connects matching cousins directly to autonomous landholding, botanical mastery, and sovereign indigenous-African matriarchal roots, as documented in Volume One and Volume Three of Packed in the Marrow.",
+      primarySource: "Packed in the Marrow: Volumes One & Three (Primary Genomic Triangulation)"
+    },
+    macIntoshLine: {
+      topic: "The Mac / MacIntosh Sovereign Line",
+      queryKeywords: ["mac", "macintosh", "mack", "mac intosh", "surname"],
+      evidenceAnswer: "Yes. In our family records, 'Mac' (and its historical variants like Mack and MacIntosh) is recognized as a profound derivative of the sovereign MacIntosh and allied Scottish-Celtic bloodlines that intersected early American frontier history. Linked through lines like Rebecca Mac Wright, this name carries a deep legacy of clannish independence, land tenacity, and unyielding resistance against colonial assimilation.",
+      primarySource: "The Codex & Packed in the Marrow Master Archives"
+    },
+    nativeAmerican: {
+      topic: "Native American & Sovereign Frontier Blood",
+      queryKeywords: ["native", "indian", "choctaw", "chickasaw", "colbert", "blood"],
+      evidenceAnswer: "Yes. Documented through the Colbert / Chickasaw sovereign streams along the Natchez Trace and Tombigbee Basin (featuring leaders like Chief James Logan Colbert and Sophy Minta Hoya, alongside the treaties of Pontotoc and Doaksville). Furthermore, historical intermarriage and territorial alliances across Mississippi, Alabama, and Louisiana established deep indigenous land tenure preserved in our archival ledgers.",
+      primarySource: "Packed in the Marrow: Volume Three (The Colbert Legacy)"
+    },
+    moorishMediterranean: {
+      topic: "Moorish & Iberian/Mediterranean Heritage",
+      queryKeywords: ["moorish", "moor", "iberian", "spain", "mediterranean", "j-l283"],
+      evidenceAnswer: "Yes. Anchored by our foundational Y-DNA Haplogroup J-L283 marker—tracing ancient warrior-metallurgists from Illyricum who engineered stone defenses, moved through the Levant and North Africa, and contributed to the administrative and architectural legacies of Moorish Spain before carrying that sovereign bloodline into the American diaspora.",
+      primarySource: "Genomelink Copper Age Markers & Y-DNA Triangulation"
+    },
+    dismalSwampMaroons: {
+      topic: "Great Dismal Swamp & Maroons (NC / VA)",
+      queryKeywords: ["dismal swamp", "swamp", "maroon", "virginia", "north carolina", "nc", "va"],
+      evidenceAnswer: "Yes. Our archival records connect directly to the legendary maroon sanctuaries of the Great Dismal Swamp along the Virginia and North Carolina borders. Free ancestors and freedom-seekers forged autonomous marshland infrastructure here, living completely outside the jurisdiction of plantation economies.",
+      primarySource: "Packed in the Marrow: Volume One Master Archives"
+    },
+    texasMigrations: {
+      topic: "Texas & Southern Territorial Expansions",
+      queryKeywords: ["texas", "tx", "west", "frontier", "expansion"],
+      evidenceAnswer: "Yes. The family footprint tracks wide Southern dispersions and territorial movements into Texas, Louisiana (Cane River), Arkansas, and Mississippi—reflecting pathfinders, scouts, and landowners who established roots across the expanding American frontier before converging into the Northern industrial migration to Michigan.",
+      primarySource: "Southern Diaspora Census Records & Family Oral Vault"
+    },
+    blackWallStreet: {
+      topic: "Black Wall Street & Sovereign Enterprise",
+      queryKeywords: ["black wall street", "enterprise", "business", "store", "hotel", "velma", "nick"],
+      evidenceAnswer: "Yes. Our lineage embodies the absolute pinnacle of self-reliant economics and enterprise. Long before the term 'Black Wall Street' gained widespread renown, matriarchs and patriarchs like Aunt Velma (who operated her own exclusive hotel and commercial sanctuary) and Aunt Nick (who managed a vast agricultural empire in Mississippi) built autonomous economic ecosystems that answered to no outside landlord.",
+      primarySource: "Packed in the Marrow: Volume Two (Chapter 3)"
+    },
+    blackSeminoles: {
+      topic: "Black Seminoles & Frontier Military Alliances",
+      queryKeywords: ["seminole", "black seminole", "buffalo soldier", "military", "frontier"],
+      evidenceAnswer: "Yes. Validated through frontier military service and historical alliance networks—such as Buffalo Soldiers like Henry Mitchell serving on the western frontier—our ancestors shared tactical, strategic, and familial bonds with the Black Seminoles and sovereign indigenous-African resistance networks across the American Southeast.",
+      primarySource: "Frontier Military Rolls & Mitchell Family Archives"
+    },
+    cohanaPriestlyClass: {
+      topic: "Cohana / Priestly Class & Ancient Lineages",
+      queryKeywords: ["cohana", "cohen", "priestly", "levite", "scribe", "ancient"],
+      evidenceAnswer: "Yes. Through deep-ancestry genomic triangulation (including Copper Age markers and Levantine migration signatures tied to Haplogroup J-L283), our lineage preserves the ancient heritage of scribal, administrative, and priestly orders (Cohanim/Levantine bloodlines) that survived millennia through strict oral record-keeping and unbroken biological transmission.",
+      primarySource: "Deep Ancestry DNA Triangulation & Oral Vaults"
+    }
+  },
+
+  // Combined Query Database Engine supporting standard ancestors, X-chromosome matches, and truth-backed FAQs
+  queryDatabase: function(searchTerm, chrFilter) {
+    const term = (searchTerm || "").toLowerCase().trim();
     
-    <div id="scannerContentArea">
-      <h3 style="color: #38bdf8; margin-top: 0;">System Ready</h3>
-      <p style="color: #64748b;">Input a query above to initiate archival genomic triangulation and retrieve verified primary-source evidence.</p>
-    </div>
-  </div>
-</section>
-
-<!-- Include the Master Lineage Database Script -->
-<script src="lineage-data.js"></script>
-
-<script>
-  function executeLineageScan() {
-    const inputVal = document.getElementById("lineageSearchInput").value;
-    const outputArea = document.getElementById("scannerContentArea");
-    const statusBadge = document.getElementById("scannerStatusBadge");
-
-    if (!window.RHODES_LINEAGE_DATABASE) {
-      outputArea.innerHTML = `<p style="color: #ef4444;">Error: lineage-data.js database not loaded.</p>`;
-      return;
+    // 1. Check for Groundbreaking Heritage & X-Chromosome FAQ lookups
+    for (const [key, record] of Object.entries(this.heritageVault)) {
+      if (record.queryKeywords.some(keyword => term.includes(keyword))) {
+        return {
+          id: `faq-${key}`,
+          name: record.topic,
+          stream: "Groundbreaking Archival Verification",
+          estimatedEra: "Historical & Ancient Record",
+          temporalShift: "Definitive Proof Dossier",
+          historicalContext: record.evidenceAnswer,
+          xChromosomeLink: "Verified Archival Dossier",
+          chromosomeZone: "Genomic Triangulation & Primary Sources",
+          historicalNote: `Documented primary source: ${record.primarySource}`,
+          image: "archival-seal.jpg",
+          isHeritageFAQ: true,
+          faqDetails: record
+        };
+      }
     }
 
-    statusBadge.innerHTML = "[OPTICAL_REC: ACTIVE]";
-    statusBadge.style.color = "#f59e0b";
-
-    // Query our master database engine
-    const result = window.RHODES_LINEAGE_DATABASE.queryDatabase(inputVal);
-
-    setTimeout(() => {
-      statusBadge.innerHTML = "[MATCH_VERIFIED]";
-      statusBadge.style.color = "#10b981";
-
-      if (result.isHeritageFAQ) {
-        // Render Groundbreaking Heritage FAQ / X-Chromosome Result
-        outputArea.innerHTML = `
-          <h3 style="color: #f59e0b; margin-top: 0;">✨ ${result.name}</h3>
-          <p style="color: #cbd5e1; line-height: 1.6; margin-bottom: 15px;">${result.historicalContext}</p>
-          <div style="background: #1e293b; padding: 10px; border-left: 4px solid #38bdf8; font-size: 0.9rem; color: #38bdf8;">
-            <strong>Primary Source Citation:</strong> ${result.historicalNote}
-          </div>
-        `;
-      } else {
-        // Render Ancestor / Pillar Match Result
-        outputArea.innerHTML = `
-          <h3 style="color: #38bdf8; margin-top: 0;">🏛️ ${result.name}</h3>
-          <p style="font-size: 0.9rem; color: #fbbf24; margin-bottom: 8px;"><strong>Stream / Branch:</strong> ${result.stream} (${result.estimatedEra})</p>
-          <p style="color: #cbd5e1; line-height: 1.5; margin-bottom: 15px;">${result.historicalContext}</p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; background: #1e293b; padding: 10px; border-radius: 6px;">
-            <div><span style="color: #94a3b8;">Chromosome Zone:</span><br><strong style="color: #06b6d4;">${result.chromosomeZone}</strong></div>
-            <div><span style="color: #94a3b8;">Archival Reference:</span><br><strong style="color: #f59e0b;">${result.primarySourceRef || result.historicalNote}</strong></div>
-          </div>
-        `;
+    // 2. Check ancestor keyword matches
+    for (let i = 0; i < this.ancestors.length; i++) {
+      const anc = this.ancestors[i];
+      for (let j = 0; j < anc.keywords.length; j++) {
+        if (term.includes(anc.keywords[j])) {
+          return anc;
+        }
       }
+    }
 
-      // Optional Text-to-Speech Voice Feedback integration
-      if ('speechSynthesis' in window) {
-        const speech = new SpeechSynthesisUtterance(`Lineage verified. ${result.name}. Match confirmed through master archives.`);
-        speech.rate = 1.0;
-        window.speechSynthesis.speak(speech);
-      }
-
-    }, 400); // Simulated scan delay for realism
+    // 3. Fallback object if unmatched
+    return {
+      id: "parents",
+      name: term ? `Query: "${term}" (Default Anchor)` : "Elroy Rhodes & Fannie May Mitchell Rhodes",
+      stream: "Core Parental Foundation",
+      estimatedEra: "1940s – 2020s",
+      temporalShift: "Direct Lineage Anchor",
+      historicalContext: "Root foundational branch representing the union of Elroy Rhodes and Fannie May Mitchell Rhodes.",
+      xChromosomeLink: "Autosomal Convergence Zone",
+      chromosomeZone: "Chromosomes 1, 3, 5, & 12",
+      historicalNote: "Primary parental tier anchoring direct familial descent.",
+      image: "elroy-fannie-parents.jpg"
+    };
   }
-</script>
+};
