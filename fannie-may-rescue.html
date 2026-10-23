@@ -82,7 +82,13 @@
       position: relative;
       overflow: hidden;
     }
-    .choice-grid {
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .action-grid {
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -102,6 +108,21 @@
       transition: all 0.2s ease;
     }
     .game-btn:hover, .game-btn:active {
+      background-color: #38bdf8;
+      color: #0f172a;
+    }
+    .control-btn {
+      background-color: #1e293b;
+      border: 2px solid #38bdf8;
+      color: #38bdf8;
+      padding: 14px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .control-btn:active {
       background-color: #38bdf8;
       color: #0f172a;
     }
@@ -133,14 +154,21 @@
     </div>
 
     <div class="story-box" id="story-dialogue">
-      "The Yazoo River is rising with the spring thaw, and our homestead bridge needs reinforcement before the rain! Help Little Fannie May and her brothers gather natural bundles to secure the bank."
+      "The Yazoo River is rising! Use the walk buttons to guide Little Fannie May past the glowing Golden Tree Helix, then tap gather when near marsh plants to secure the bank."
     </div>
 
     <div class="canvas-box">
       <canvas id="gameCanvas" width="600" height="260" style="width: 100%; height: 100%; display: block;"></canvas>
     </div>
 
-    <div id="action-area" class="choice-grid">
+    <!-- ON-SCREEN MOVEMENT CONTROLS -->
+    <div class="controls-grid">
+      <button class="control-btn" onmousedown="startMove(-1)" onmouseup="stopMove()" ontouchstart="startMove(-1)" ontouchend="stopMove()">◀ WALK LEFT</button>
+      <button class="control-btn" style="background: #047857; border-color: #34d399; color: #fff;" onclick="performGatherAction()">✨ GATHER / SECURE</button>
+      <button class="control-btn" onmousedown="startMove(1)" onmouseup="stopMove()" ontouchstart="startMove(1)" ontouchend="stopMove()">WALK RIGHT ▶</button>
+    </div>
+
+    <div id="action-area" class="action-grid">
       <button class="game-btn" onclick="makeChoice('grass')">🌿 Gather Sweetgrass Along the Levee Bank</button>
       <button class="game-btn" onclick="makeChoice('pegs')">🪵 Carve Oak Treenails with the Brothers</button>
     </div>
@@ -153,10 +181,43 @@
   <script>
     let audioCtx = null;
     let voiceEnabled = true;
+    let windNode = null;
 
     function initAudio() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        startWindAudio();
+      }
       if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    // Ambient gentle wind & rustling sound generator
+    function startWindAudio() {
+      try {
+        let bufferSize = audioCtx.sampleRate * 2;
+        let noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        let output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+
+        let whiteNoise = audioCtx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+        whiteNoise.loop = true;
+
+        let filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 280;
+        filter.Q.value = 3.0;
+
+        let gain = audioCtx.createGain();
+        gain.gain.value = 0.04; // Gentle ambient volume
+
+        whiteNoise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        whiteNoise.start(0);
+      } catch(e) {}
     }
 
     function playSound(type) {
@@ -195,7 +256,24 @@
       window.speechSynthesis.speak(utterance);
     }
 
-    let gameState = { grass: 0, pegs: 0, xp: 0 };
+    let gameState = { grass: 0, pegs: 0, xp: 0, fannieX: 180, fannieDir: 0 };
+
+    function startMove(dir) {
+      initAudio();
+      gameState.fannieDir = dir;
+    }
+
+    function stopMove() {
+      gameState.fannieDir = 0;
+    }
+
+    function performGatherAction() {
+      if (gameState.fannieX < 320) {
+        makeChoice('grass');
+      } else {
+        makeChoice('pegs');
+      }
+    }
 
     function updateDisplay() {
       document.getElementById('stat-grass').innerText = gameState.grass;
@@ -212,12 +290,12 @@
       if (action === 'grass') {
         gameState.grass++;
         gameState.xp += 50;
-        dialogue.innerText = `Fannie May wades through the tall marsh grass, binding sweetgrass bundles tightly with indigo thread to hold the soil together. (${gameState.grass}/3 collected)`;
+        dialogue.innerText = `Fannie May wades past the Golden Tree Helix, binding sweetgrass bundles tightly with indigo thread. (${gameState.grass}/3 collected)`;
         speak("Sweetgrass bundle secured.");
       } else if (action === 'pegs') {
         gameState.pegs++;
         gameState.xp += 60;
-        dialogue.innerText = `Working alongside her brothers, Fannie carves durable white-oak treenails to lock the timber joints true and steady. (${gameState.pegs}/3 carved)`;
+        dialogue.innerText = `Working alongside her brothers near the ridge, Fannie carves durable white-oak treenails. (${gameState.pegs}/3 carved)`;
         speak("Oak treenail carved.");
       }
 
@@ -225,7 +303,7 @@
 
       if (gameState.grass >= 3 && gameState.pegs >= 3) {
         playSound('success');
-        dialogue.innerText = "🌟 AMAZING TEAMWORK! The river bank is secured, the levee holds strong, and the family homestead is safe. 'What is packed in the bone never fades from the marrow!'";
+        dialogue.innerText = "🌟 AMAZING TEAMWORK! The river bank is secured and the family homestead is safe. 'What is packed in the bone never fades from the marrow!'";
         speak("Wonderful job! The river bank rescue is complete.");
         document.getElementById('action-area').innerHTML = `
           <button class="game-btn" onclick="location.reload()">🔄 Play Again</button>
@@ -233,61 +311,53 @@
       }
     }
 
-    // --- CHARACTER ANIMATION & RENDERING ---
+    // --- STORYBOOK CANVAS RENDERER WITH GOLDEN TREE HELIX LANDMARK ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     let waveOffset = 0;
+    let helixPulse = 0;
 
-    function drawCharacter(x, y, isFannieMay) {
+    let particles = [];
+    for(let i=0; i<12; i++) {
+      particles.push({ x: Math.random() * 600, y: Math.random() * 130, speed: 0.2 + Math.random() * 0.4, size: 2 + Math.random() * 2 });
+    }
+
+    function drawCharacter(x, y, isFannieMay, dir) {
       ctx.save();
       ctx.translate(x, y);
 
-      // Body / Dress or Shirt
+      let bounce = dir !== 0 ? Math.sin(Date.now() * 0.015) * 3 : 0;
+      ctx.translate(0, bounce);
+
       if (isFannieMay) {
-        // Little Fannie May in pink pinafore
+        // Little Fannie May in pink dress
         ctx.fillStyle = '#f472b6';
         ctx.beginPath();
-        ctx.moveTo(-12, 10);
-        ctx.lineTo(12, 10);
-        ctx.lineTo(16, 40);
-        ctx.lineTo(-16, 40);
-        ctx.closePath();
+        ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.lineTo(16, 42); ctx.lineTo(-16, 42); ctx.closePath();
         ctx.fill();
 
-        // Collar / Pinafore straps
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(-8, 10, 16, 6);
+        ctx.fillRect(-6, 0, 12, 6);
 
-        // Head
         ctx.fillStyle = '#b45309';
-        ctx.beginPath();
-        ctx.arc(0, -2, 11, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(0, -12, 10, 0, Math.PI * 2); ctx.fill();
 
-        // Braided hair
-        ctx.fillStyle = '#27272a';
-        ctx.fillRect(-14, -4, 4, 16);
-        ctx.fillRect(10, -4, 4, 16);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(-13, -14, 3, 16);
+        ctx.fillRect(9, -14, 3, 16);
       } else {
-        // Brother in khaki uniform shirt & cap
+        // Brother in khaki shirt
         ctx.fillStyle = '#d97706';
-        ctx.fillRect(-12, 10, 24, 30);
+        ctx.fillRect(-11, 0, 22, 28);
+        ctx.fillStyle = '#a16207';
+        ctx.fillRect(-11, 28, 9, 14); ctx.fillRect(2, 28, 9, 14);
 
-        // Head
         ctx.fillStyle = '#92400e';
-        ctx.beginPath();
-        ctx.arc(0, -2, 11, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(0, -12, 10, 0, Math.PI * 2); ctx.fill();
 
-        // Scout cap
-        ctx.fillStyle = '#b45309';
-        ctx.beginPath();
-        ctx.moveTo(-12, -8);
-        ctx.lineTo(12, -8);
-        ctx.lineTo(8, -15);
-        ctx.lineTo(-8, -15);
-        ctx.closePath();
-        ctx.fill();
+        ctx.fillStyle = '#78350f';
+        ctx.beginPath(); ctx.arc(0, -16, 9, Math.PI, 0, false); ctx.fill();
+        ctx.fillRect(-12, -16, 24, 3);
       }
 
       ctx.restore();
@@ -295,33 +365,85 @@
 
     function gameLoop() {
       waveOffset += 0.04;
-      ctx.fillStyle = '#020617';
+      helixPulse += 0.03;
+
+      if (gameState.fannieDir !== 0) {
+        gameState.fannieX += gameState.fannieDir * 3;
+        if (gameState.fannieX < 40) gameState.fannieX = 40;
+        if (gameState.fannieX > 560) gameState.fannieX = 560;
+      }
+
+      // 1. Twilight Sky
+      let skyGrad = ctx.createLinearGradient(0, 0, 0, 150);
+      skyGrad.addColorStop(0, '#0f172a');
+      skyGrad.addColorStop(1, '#312e81');
+      ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw river bank vector graphics
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(0, 170, canvas.width, 90);
+      // 2. Stars & Falling Leaves
+      ctx.fillStyle = '#fef08a';
+      particles.forEach(p => {
+        p.y += p.speed;
+        if (p.y > 150) p.y = 0;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+      });
 
-      // Draw animated river water
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
+      // 3. THE GOLDEN TREE WITH DOUBLE HELIX BACKDROP LANDMARK
+      let treeX = 300;
+      let treeY = 85;
+      // Tree Canopy
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath(); ctx.arc(treeX, treeY, 35, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath(); ctx.arc(treeX, treeY - 5, 26, 0, Math.PI * 2); ctx.fill();
+      // Tree Trunk
+      ctx.fillStyle = '#451a03';
+      ctx.fillRect(treeX - 7, treeY + 15, 14, 55);
+
+      // Glowing Double-Helix Strand winding around the tree
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 12 + Math.sin(helixPulse) * 6;
       ctx.beginPath();
-      ctx.moveTo(0, 190);
-      for (let i = 0; i <= canvas.width; i += 15) {
-        ctx.lineTo(i, 190 + Math.sin(i * 0.04 + waveOffset) * 12);
+      for(let y = treeY - 20; y < treeY + 50; y += 6) {
+        let xOffset = Math.sin(y * 0.15 + helixPulse) * 12;
+        if (y === treeY - 20) ctx.moveTo(treeX + xOffset, y);
+        else ctx.lineTo(treeX + xOffset, y);
       }
-      ctx.lineTo(canvas.width, canvas.height);
-      ctx.lineTo(0, canvas.height);
+      ctx.stroke();
+      ctx.shadowBlur = 0; // Reset shadow
+
+      // 4. Levee Bank Platform
+      ctx.fillStyle = '#334155';
+      ctx.beginPath();
+      ctx.moveTo(0, 150); ctx.lineTo(canvas.width, 150); ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height);
       ctx.fill();
 
-      // Draw Little Fannie May and Brother Avatars on the Bank
-      drawCharacter(110, 140, true);
-      drawCharacter(490, 135, false);
+      ctx.fillStyle = '#059669';
+      for (let i = 0; i < canvas.width; i += 18) {
+        ctx.fillRect(i, 146, 6, 8);
+      }
+
+      // 5. River Water Flowing
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.beginPath();
+      ctx.moveTo(0, 195);
+      for (let i = 0; i <= canvas.width; i += 15) {
+        ctx.lineTo(i, 195 + Math.sin(i * 0.04 + waveOffset) * 10);
+      }
+      ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height);
+      ctx.fill();
+
+      // 6. Render Moving Little Fannie May & Brother on the bank
+      drawCharacter(gameState.fannieX, 120, true, gameState.fannieDir);
+      drawCharacter(500, 115, false, 0);
 
       requestAnimationFrame(gameLoop);
     }
 
     gameLoop();
-    speak("Welcome to Fannie May's River Bank Rescue. Tap the buttons below to help gather materials.");
+    speak("Welcome to Fannie May's River Bank Rescue. Guide Fannie past the Golden Tree Helix.");
   </script>
 </body>
 </html>
