@@ -14,7 +14,7 @@
       -webkit-tap-highlight-color: transparent;
     }
     body {
-      background-color: #060913;
+      background-color: #030712;
       color: #f8fafc;
       font-family: 'Courier New', Courier, monospace;
       display: flex;
@@ -27,12 +27,13 @@
     .scanner-container {
       width: 100%;
       max-width: 700px;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      background: linear-gradient(180deg, #0f172a 0%, #060913 100%);
       border: 3px solid #f59e0b;
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 0 50px rgba(245, 158, 11, 0.4), inset 0 0 25px rgba(245, 158, 11, 0.15);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 0 60px rgba(245, 158, 11, 0.45), inset 0 0 30px rgba(245, 158, 11, 0.15);
       text-align: center;
+      position: relative;
     }
     .scanner-header {
       font-size: 0.75rem;
@@ -40,13 +41,13 @@
       letter-spacing: 2px;
       color: #f59e0b;
       text-transform: uppercase;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       text-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
     }
     h1 {
       color: #fef08a;
-      font-size: 1.25rem;
-      margin-bottom: 16px;
+      font-size: 1.35rem;
+      margin-bottom: 18px;
       text-transform: uppercase;
       text-shadow: 0 0 15px rgba(254, 240, 138, 0.5);
       line-height: 1.4;
@@ -54,72 +55,113 @@
     .mode-buttons {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
+      gap: 14px;
+      margin-bottom: 20px;
     }
     .mode-btn {
       background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
       border: 2px solid #fef08a;
       color: #fff;
-      padding: 12px;
+      padding: 14px;
       font-size: 0.85rem;
       font-weight: bold;
-      border-radius: 8px;
+      border-radius: 12px;
       cursor: pointer;
       font-family: inherit;
-      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
+      transition: all 0.2s ease;
     }
     .mode-btn.secondary {
       background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
       border-color: #38bdf8;
+      box-shadow: 0 4px 20px rgba(56, 189, 248, 0.35);
     }
-    .query-box {
-      background: rgba(15, 23, 42, 0.95);
-      border: 2px dashed #f59e0b;
-      padding: 16px;
+    
+    /* Visualized Genomic Streams Convergence Banner */
+    .streams-banner {
+      width: 100%;
+      height: 110px;
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid rgba(245, 158, 11, 0.3);
       border-radius: 12px;
-      margin-bottom: 16px;
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .streams-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Holographic Plinth Query Box */
+    .query-box {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      padding: 20px;
+      border-radius: 16px;
+      margin-bottom: 20px;
       text-align: left;
-      box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+      box-shadow: inset 0 0 25px rgba(56, 189, 248, 0.1), 0 10px 30px rgba(0, 0, 0, 0.5);
+      position: relative;
     }
     .query-box label {
       display: block;
       font-size: 0.8rem;
-      color: #f59e0b;
-      margin-bottom: 6px;
+      color: #38bdf8;
+      margin-bottom: 8px;
       font-weight: bold;
       text-transform: uppercase;
+      letter-spacing: 1px;
     }
     .input-field {
       width: 100%;
       background: #020617;
       border: 2px solid #38bdf8;
       color: #f8fafc;
-      padding: 12px;
-      border-radius: 8px;
+      padding: 14px;
+      border-radius: 10px;
       font-size: 0.95rem;
       font-family: inherit;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       outline: none;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
     }
     .input-field:focus {
       border-color: #f59e0b;
-      box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.5), inset 0 2px 5px rgba(0,0,0,0.8);
     }
+
+    /* Optical Scanner HUD Overlay Preview */
+    .optical-hud {
+      display: none;
+      background: rgba(2, 6, 23, 0.9);
+      border: 1px solid #38bdf8;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 14px;
+      text-align: center;
+      color: #38bdf8;
+      font-size: 0.8rem;
+    }
+
     .action-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 12px;
       margin-top: 10px;
     }
     .action-btn {
       background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
       border: 2px solid #38bdf8;
       color: #38bdf8;
-      padding: 12px;
+      padding: 14px;
       font-size: 0.85rem;
       font-weight: bold;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
       font-family: inherit;
       transition: all 0.2s ease;
@@ -129,6 +171,7 @@
       border-color: #fef08a;
       color: #fff;
       grid-column: span 2;
+      box-shadow: 0 4px 15px rgba(217, 119, 6, 0.4);
     }
     .action-btn.voice {
       background: linear-gradient(135deg, #0d9488 0%, #115e59 100%);
@@ -143,19 +186,19 @@
     .results-panel {
       background: #020617;
       border: 2px solid #38bdf8;
-      border-radius: 10px;
-      padding: 14px;
+      border-radius: 12px;
+      padding: 16px;
       font-size: 0.85rem;
       line-height: 1.6;
       color: #e2e8f0;
       text-align: left;
-      min-height: 140px;
-      max-height: 260px;
+      min-height: 150px;
+      max-height: 280px;
       overflow-y: auto;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+      box-shadow: inset 0 0 25px rgba(0,0,0,0.9);
     }
     .results-panel p {
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .highlight {
       color: #fef08a;
@@ -163,7 +206,7 @@
     }
     .back-link {
       display: inline-block;
-      margin-top: 18px;
+      margin-top: 20px;
       color: #94a3b8;
       text-decoration: none;
       font-size: 0.85rem;
@@ -187,7 +230,42 @@
       <button class="mode-btn secondary" onclick="setMode('optical')">📷 Optical Face Scanner</button>
     </div>
 
+    <!-- Visualized Ancestral Streams Convergence Banner -->
+    <div class="streams-banner">
+      <svg class="streams-svg" viewBox="0 0 600 100">
+        <defs>
+          <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#f59e0b" />
+            <stop offset="100%" stop-color="#d97706" />
+          </linearGradient>
+          <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#38bdf8" />
+            <stop offset="100%" stop-color="#0284c7" />
+          </linearGradient>
+        </defs>
+        <!-- Connecting streams converging to center node -->
+        <path d="M 30,20 Q 150,20 300,50" stroke="url(#amberGrad)" stroke-width="2.5" fill="none" opacity="0.7"/>
+        <path d="M 30,80 Q 150,80 300,50" stroke="url(#amberGrad)" stroke-width="2.5" fill="none" opacity="0.7"/>
+        <path d="M 570,20 Q 450,20 300,50" stroke="url(#cyanGrad)" stroke-width="2.5" fill="none" opacity="0.7"/>
+        <path d="M 570,80 Q 450,80 300,50" stroke="url(#cyanGrad)" stroke-width="2.5" fill="none" opacity="0.7"/>
+        <!-- Nodes -->
+        <circle cx="30" cy="20" r="4" fill="#f59e0b"/>
+        <circle cx="30" cy="80" r="4" fill="#f59e0b"/>
+        <circle cx="570" cy="20" r="4" fill="#38bdf8"/>
+        <circle cx="570" cy="80" r="4" fill="#38bdf8"/>
+        <!-- Central Great Convergence Core -->
+        <circle cx="300" cy="50" r="14" fill="#fef08a" filter="drop-shadow(0 0 8px #f59e0b)"/>
+        <circle cx="300" cy="50" r="8" fill="#1e293b"/>
+        <text x="300" y="92" fill="#fef08a" font-size="9" text-anchor="middle" font-family="Courier New">SEVEN RIVERS CONVERGENCE NODE</text>
+      </svg>
+    </div>
+
     <div class="query-box">
+      <!-- Optical Face Scanner HUD Preview Overlay -->
+      <div id="opticalHud" class="optical-hud">
+        [OPTICAL BIOMETRIC SCANNER ACTIVE] Aligning facial geometry & biometric markers...
+      </div>
+
       <label id="input-label">Cousin & Surname Authentication</label>
       <input type="text" id="searchInput" class="input-field" value="Wright" placeholder="Enter ancestor, surname, match data, or heritage topics..." />
       <input type="text" id="cmInput" class="input-field" placeholder="Shared cM (e.g., 21)" style="display:none;" />
@@ -306,18 +384,21 @@
       let label = document.getElementById('input-label');
       let cmField = document.getElementById('cmInput');
       let inputField = document.getElementById('searchInput');
+      let hud = document.getElementById('opticalHud');
 
       if (mode === 'surname') {
         label.innerText = "Cousin & Surname Authentication";
         inputField.value = "Wright";
         inputField.placeholder = "Enter ancestor, surname, or match data...";
         cmField.style.display = 'none';
+        hud.style.display = 'none';
       } else {
         label.innerText = "Facial Biometric & Optical Match";
         inputField.value = "Benjamin Hatten";
         inputField.placeholder = "Enter ancestor name or optical ref...";
         cmField.style.display = 'block';
         cmField.value = "Match Confidence: 99.1%";
+        hud.style.display = 'block';
       }
       speakText("Mode updated.");
     }
