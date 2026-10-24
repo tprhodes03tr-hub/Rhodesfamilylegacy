@@ -215,6 +215,13 @@
           gain.gain.setValueAtTime(0.25, now);
           gain.gain.linearRampToValueAtTime(0.01, now + 0.55);
           osc.start(now); osc.stop(now + 0.55);
+        } else if (type === 'evolution') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(261.63, now);
+          osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.8);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 1.0);
+          osc.start(now); osc.stop(now + 1.0);
         }
       } catch(e) {}
     }
@@ -228,7 +235,15 @@
       window.speechSynthesis.speak(utterance);
     }
 
-    let gameState = { chapter: 1, grass: 0, wood: 0, brothersJoined: 1, fannieX: 140, fannieDir: 0 };
+    let gameState = { 
+      chapter: 1, 
+      grass: 0, 
+      wood: 0, 
+      brothersJoined: 1, 
+      fannieX: 140, 
+      fannieDir: 0,
+      evolutionStage: 1 // Stage 1: Preschool Storybook, Stage 2: Cinematic Middle School Avatar
+    };
 
     let items = [
       { x: 230, y: 175, type: 'grass', collected: false },
@@ -273,12 +288,12 @@
             }
           } else if (gameState.chapter === 3 && item.type === 'brother') {
             item.collected = true;
-            playSound('success');
-            speak("All family members united for the rescue!");
+            playSound('evolution');
             gameState.chapter = 4;
-            document.getElementById('chapter-title').innerText = "Victory: River Bank Secured by All 8 Siblings!";
-            document.getElementById('story-dialogue').innerText = "🌟 ULTIMATE FAMILY TEAMWORK! Fannie May and all 7 brothers built the bridge, helped the community, and secured the river bank! 'What is packed in the bone never fades from the marrow!'";
-            speak("Victory! Fannie May and all seven brothers completed the mission.");
+            gameState.evolutionStage = 2; // Trigger Cinematic Middle School Age-Up Graduation!
+            document.getElementById('chapter-title').innerText = "Victory: Cinematic Middle School Era Unlocked!";
+            document.getElementById('story-dialogue').innerText = "🌟 TIME-SLIP EVOLUTION! Fannie May and her brothers have graduated to their cinematic middle-school forms, unlocking the full Vanguard universe saga! 'What is packed in the bone never fades from the marrow!'";
+            speak("Evolution complete! Fannie May and her brothers have graduated to cinematic movie avatars.");
           }
         }
       });
@@ -295,48 +310,83 @@
     const ctx = canvas.getContext('2d');
     let waveOffset = 0;
 
-    function drawStorybookCharacter(x, y, dir, count) {
+    function drawStorybookCharacter(x, y, dir, count, stage) {
       ctx.save();
       ctx.translate(x, y);
       let bounce = dir !== 0 ? Math.sin(Date.now() * 0.02) * 4 : 0;
       ctx.translate(0, bounce);
 
-      // Draw accompanying brothers in watercolor style based on count
-      for (let i = 1; i < count; i++) {
-        let offsetX = (i % 2 === 0 ? 1 : -1) * (i * 16);
-        ctx.fillStyle = '#b45309'; ctx.fillRect(offsetX - 6, 12, 12, 36);
-        ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.arc(offsetX, 0, 10, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#451a03'; ctx.fillRect(offsetX - 8, -12, 16, 5);
+      if (stage === 2) {
+        // STAGE 2: Cinematic Middle School / Movie-Type Adolescent Avatars
+        // Accompanying Brothers (Taller, distinct jackets/apparel)
+        for (let i = 1; i < count; i++) {
+          let offsetX = (i % 2 === 0 ? 1 : -1) * (i * 20);
+          ctx.fillStyle = '#1e3a8a'; ctx.fillRect(offsetX - 7, 5, 14, 52); // Jacket
+          ctx.fillStyle = '#d97706'; ctx.beginPath(); ctx.arc(offsetX, -6, 11, 0, Math.PI*2); ctx.fill(); // Head
+          ctx.fillStyle = '#111827'; ctx.fillRect(offsetX - 9, -18, 18, 6); // Detailed hair
+        }
+
+        // Cinematic Drop Shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath(); ctx.ellipse(0, 62, 20, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Fannie May's Cinematic Outfit (Rich blue/magenta jacket & tailored attire)
+        let coatGrad = ctx.createLinearGradient(-16, 0, 16, 60);
+        coatGrad.addColorStop(0, '#3b82f6'); coatGrad.addColorStop(1, '#1d4ed8');
+        ctx.fillStyle = coatGrad;
+        ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(14, 0); ctx.lineTo(20, 60); ctx.lineTo(-20, 60); ctx.closePath(); ctx.fill();
+
+        // Gold Sash / Emblem
+        ctx.fillStyle = '#fbbf24'; ctx.fillRect(-14, 25, 28, 5);
+
+        // Taller Adolescent Head & Detailed Features
+        let headGrad = ctx.createRadialGradient(-3, -20, 2, 0, -18, 15);
+        headGrad.addColorStop(0, '#d97706'); headGrad.addColorStop(1, '#78350f');
+        ctx.fillStyle = headGrad;
+        ctx.beginPath(); ctx.arc(0, -18, 15, 0, Math.PI * 2); ctx.fill();
+
+        // Eyes & Cinematic Hair Style
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(-7, -23, 4, 4); ctx.fillRect(3, -23, 4, 4);
+        ctx.fillStyle = '#111827';
+        ctx.beginPath();
+        ctx.arc(0, -26, 16, Math.PI, 0, false);
+        ctx.arc(-14, -20, 8, 0, Math.PI * 2);
+        ctx.arc(14, -20, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+      } else {
+        // STAGE 1: Preschool Storybook Watercolor Style
+        for (let i = 1; i < count; i++) {
+          let offsetX = (i % 2 === 0 ? 1 : -1) * (i * 16);
+          ctx.fillStyle = '#b45309'; ctx.fillRect(offsetX - 6, 12, 12, 36);
+          ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.arc(offsetX, 0, 10, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#451a03'; ctx.fillRect(offsetX - 8, -12, 16, 5);
+        }
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.beginPath(); ctx.ellipse(0, 50, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+        let dressGrad = ctx.createLinearGradient(-14, 0, 14, 48);
+        dressGrad.addColorStop(0, '#f472b6'); dressGrad.addColorStop(1, '#db2777');
+        ctx.fillStyle = dressGrad;
+        ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(12, 0); ctx.lineTo(18, 48); ctx.lineTo(-18, 48); ctx.closePath(); ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.moveTo(-6, 2); ctx.lineTo(6, 2); ctx.lineTo(0, 10); ctx.closePath(); ctx.fill();
+
+        let headGrad = ctx.createRadialGradient(-3, -16, 2, 0, -14, 13);
+        headGrad.addColorStop(0, '#d97706'); headGrad.addColorStop(1, '#92400e');
+        ctx.fillStyle = headGrad;
+        ctx.beginPath(); ctx.arc(0, -14, 13, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(-6, -18, 3, 3); ctx.fillRect(3, -18, 3, 3);
+        ctx.fillStyle = '#451a03';
+        ctx.beginPath();
+        ctx.arc(0, -21, 14, Math.PI, 0, false);
+        ctx.arc(-12, -15, 7, 0, Math.PI * 2);
+        ctx.arc(12, -15, 7, 0, Math.PI * 2);
+        ctx.fill();
       }
-
-      // Drop shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-      ctx.beginPath(); ctx.ellipse(0, 50, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
-
-      // Fannie May's Dress (Pink watercolor tone)
-      let dressGrad = ctx.createLinearGradient(-14, 0, 14, 48);
-      dressGrad.addColorStop(0, '#f472b6'); dressGrad.addColorStop(1, '#db2777');
-      ctx.fillStyle = dressGrad;
-      ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(12, 0); ctx.lineTo(18, 48); ctx.lineTo(-18, 48); ctx.closePath(); ctx.fill();
-
-      // Collar
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.moveTo(-6, 2); ctx.lineTo(6, 2); ctx.lineTo(0, 10); ctx.closePath(); ctx.fill();
-
-      // Head & Face
-      let headGrad = ctx.createRadialGradient(-3, -16, 2, 0, -14, 13);
-      headGrad.addColorStop(0, '#d97706'); headGrad.addColorStop(1, '#92400e');
-      ctx.fillStyle = headGrad;
-      ctx.beginPath(); ctx.arc(0, -14, 13, 0, Math.PI * 2); ctx.fill();
-
-      // Eyes & Hair Ribbons
-      ctx.fillStyle = '#1e293b'; ctx.fillRect(-6, -18, 3, 3); ctx.fillRect(3, -18, 3, 3);
-      ctx.fillStyle = '#451a03';
-      ctx.beginPath();
-      ctx.arc(0, -21, 14, Math.PI, 0, false);
-      ctx.arc(-12, -15, 7, 0, Math.PI * 2);
-      ctx.arc(12, -15, 7, 0, Math.PI * 2);
-      ctx.fill();
 
       ctx.restore();
     }
@@ -351,9 +401,12 @@
         checkCollection();
       }
 
-      // Storybook Sky
+      // Storybook Sky (Changes dynamically to cinematic cyan/gold when evolved)
       let skyGrad = ctx.createLinearGradient(0, 0, 0, 180);
-      if (gameState.chapter >= 4) {
+      if (gameState.evolutionStage === 2) {
+        skyGrad.addColorStop(0, '#0284c7');
+        skyGrad.addColorStop(1, '#7dd3fc');
+      } else if (gameState.chapter >= 4) {
         skyGrad.addColorStop(0, '#7dd3fc');
         skyGrad.addColorStop(1, '#e0f2fe');
       } else {
@@ -365,7 +418,7 @@
 
       // Golden Tree Landmark in Background
       ctx.save();
-      ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 25;
+      ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = gameState.evolutionStage === 2 ? 40 : 25;
       ctx.fillStyle = '#d97706';
       ctx.beginPath(); ctx.arc(350, 85, 55, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#78350f'; ctx.fillRect(342, 120, 16, 55); // Trunk
@@ -373,8 +426,8 @@
 
       // River Levee Bank
       let bankGrad = ctx.createLinearGradient(0, 175, 0, 310);
-      bankGrad.addColorStop(0, gameState.chapter >= 4 ? '#4ade80' : '#84cc16');
-      bankGrad.addColorStop(1, gameState.chapter >= 4 ? '#15803d' : '#3f6212');
+      bankGrad.addColorStop(0, gameState.chapter >= 4 ? '#22c55e' : '#84cc16');
+      bankGrad.addColorStop(1, gameState.chapter >= 4 ? '#166534' : '#3f6212');
       ctx.fillStyle = bankGrad;
       ctx.beginPath(); ctx.moveTo(0, 175); ctx.lineTo(canvas.width, 175); ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height); ctx.fill();
 
@@ -409,8 +462,8 @@
       ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height);
       ctx.fill();
 
-      // Draw Characters
-      drawStorybookCharacter(gameState.fannieX, 135, gameState.fannieDir, gameState.brothersJoined);
+      // Draw Characters with Evolution Stage parameter
+      drawStorybookCharacter(gameState.fannieX, gameState.evolutionStage === 2 ? 120 : 135, gameState.fannieDir, gameState.brothersJoined, gameState.evolutionStage);
 
       requestAnimationFrame(gameLoop);
     }
