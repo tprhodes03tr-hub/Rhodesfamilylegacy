@@ -369,9 +369,9 @@
     </div>
   </div>
 
-  <!-- PORTAL 3: DEEP SUB WAR (VANGUARD VS ALBOR SYNDICATE DREADNAUGHT) -->
+  <!-- PORTAL 3: DEEP SUB WAR (VANGUARD U-7 VS ALBOR SYNDICATE WITH REEFS, FISH, OCTOPUS & DESTRUCTIBLE HULLS) -->
   <div class="sandbox-container sub-container hidden" id="portal-sub">
-    <div class="sandbox-header" style="color: #38bdf8;">Abyssal Sector • [VANGUARD U-7: MARROW CLASS] vs [ALBOR SYNDICATE: DREADNAUGHT]</div>
+    <div class="sandbox-header" style="color: #38bdf8;">Abyssal Trench • [VANGUARD U-7: MARROW CLASS] vs [ALBOR SYNDICATE: DREADNAUGHT]</div>
     <h1 style="color: #38bdf8;">Deep Sub War: Syndicate Trench</h1>
 
     <div class="stats-bar" style="border-color: #0369a1; color: #38bdf8;">
@@ -710,7 +710,7 @@
       speakText(`Resonance frequency locked for ${selectedAvatar}.`);
     }
 
-    // --- DEEP SUB WAR: VANGUARD VS ALBOR SYNDICATE WARSHIP ---
+    // --- DEEP SUB WAR: VANGUARD VS ALBOR SYNDICATE (REEEFS, FISH, OCTOPUS, WARNINGS & DESTRUCTION) ---
     function initSubEngine() {
       const canvas = document.getElementById('subCanvas');
       if (!canvas) return;
@@ -719,80 +719,122 @@
       let hull = 100, torpedoes = 5, score = 0;
       let syndicateSubX = 300, syndicateTorpedoes = [];
       let playerBolts = [], homingTorpedoes = [], dataCores = [], waterMines = [];
+      let fishList = [], octopusList = [], reefList = [];
       let screenShakeFrames = 0;
+      let gameActive = true;
+
+      // Initialize coral reefs at the bottom
+      for (let i = 0; i < 5; i++) {
+        reefList.push({ x: i * 150 + 50, height: Math.random() * 40 + 30 });
+      }
+
+      // Initialize background fish
+      for (let i = 0; i < 4; i++) {
+        fishList.push({ x: Math.random() * canvas.width, y: Math.random() * 300 + 50, speed: (Math.random() - 0.5) * 1.2 });
+      }
 
       window.moveSub = (dir) => {
+        if (!gameActive) return;
         playSound('steer');
         if (dir === 'left') targetX = Math.max(60, targetX - 90);
         if (dir === 'right') targetX = Math.min(canvas.width - 60, targetX + 90);
       };
 
       window.fireStraightShot = () => {
+        if (!gameActive) return;
         playSound('stealth');
         playerBolts.push({ x: subX, y: 320 });
       };
 
       window.fireHomingTorpedo = () => {
-        if (torpedoes > 0) {
-          playSound('orb');
-          torpedoes--;
-          document.getElementById('sub-torpedoes').innerText = torpedoes;
-          homingTorpedoes.push({ x: subX, y: 320 });
-        }
+        if (!gameActive || torpedoes <= 0) return;
+        playSound('orb');
+        torpedoes--;
+        document.getElementById('sub-torpedoes').innerText = torpedoes;
+        homingTorpedoes.push({ x: subX, y: 320 });
       };
 
       function takeDamage(amount) {
+        if (!gameActive) return;
         hull -= amount;
-        screenShakeFrames = 15;
+        screenShakeFrames = 18;
         playSound('crash');
-        document.getElementById('sub-hull').innerText = Math.max(0, hull) + '%';
-        if (hull <= 20) {
-          document.getElementById('sub-hull').style.color = '#ef4444';
+        let hullEl = document.getElementById('sub-hull');
+        hullEl.innerText = Math.max(0, hull) + '%';
+        if (hull <= 25) {
+          hullEl.style.color = '#ef4444';
+        }
+        if (hull <= 0) {
+          gameActive = false;
         }
       }
 
       function loop() {
         if (canvas.offsetParent !== null) {
-          subX += (targetX - subX) * 0.2;
-          syndicateSubX += Math.sin(Date.now() * 0.003) * 2;
+          if (gameActive) {
+            subX += (targetX - subX) * 0.2;
+            syndicateSubX += Math.sin(Date.now() * 0.003) * 2;
+
+            if (Math.random() < 0.022 && syndicateTorpedoes.length < 2) {
+              syndicateTorpedoes.push({ x: syndicateSubX, y: 80, speed: 2.2 });
+            }
+            if (Math.random() < 0.025 && waterMines.length < 3) {
+              waterMines.push({ x: Math.random() * (canvas.width - 100) + 50, y: -20, speed: 1.8 });
+            }
+            if (Math.random() < 0.03 && dataCores.length < 3) {
+              dataCores.push({ x: Math.random() * (canvas.width - 100) + 50, y: -20, speed: 2 });
+            }
+            if (Math.random() < 0.015 && octopusList.length < 2) {
+              octopusList.push({ x: Math.random() * (canvas.width - 100) + 50, y: -40, speed: 1.2 });
+            }
+          }
 
           ctx.save();
           if (screenShakeFrames > 0) {
             screenShakeFrames--;
-            let offsetX = (Math.random() - 0.5) * 8;
-            let offsetY = (Math.random() - 0.5) * 8;
-            ctx.translate(offsetX, offsetY);
+            ctx.translate((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
           }
 
-          // Abyssal Background
+          // Abyssal Ocean Background
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Grid / Sonar Lines
-          ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
-          ctx.lineWidth = 1;
-          for (let i = 0; i < canvas.width; i += 60) {
-            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-          }
+          // Render Coral Reefs at Bottom
+          ctx.fillStyle = '#0d9488';
+          reefList.forEach(r => {
+            ctx.beginPath();
+            ctx.moveTo(r.x - 30, canvas.height);
+            ctx.lineTo(r.x, canvas.height - r.height);
+            ctx.lineTo(r.x + 30, canvas.height);
+            ctx.fill();
+          });
 
-          // Syndicate firing tracking torpedoes
-          if (Math.random() < 0.022 && syndicateTorpedoes.length < 2) {
-            syndicateTorpedoes.push({ x: syndicateSubX, y: 80, speed: 2.2 });
-          }
+          // Render Background Fish
+          fishList.forEach(f => {
+            if (gameActive) f.x += f.speed;
+            if (f.x > canvas.width) f.x = 0;
+            if (f.x < 0) f.x = canvas.width;
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath(); ctx.arc(f.x, f.y, 5, 0, Math.PI * 2); ctx.fill();
+          });
 
-          if (Math.random() < 0.025 && waterMines.length < 3) {
-            waterMines.push({ x: Math.random() * (canvas.width - 100) + 50, y: -20, speed: 1.8 });
-          }
-          if (Math.random() < 0.03 && dataCores.length < 3) {
-            dataCores.push({ x: Math.random() * (canvas.width - 100) + 50, y: -20, speed: 2 });
-          }
+          // Render Octopuses
+          octopusList.forEach((o, idx) => {
+            if (gameActive) o.y += o.speed;
+            ctx.fillStyle = '#c084fc';
+            ctx.beginPath(); ctx.arc(o.x, o.y, 16, 0, Math.PI * 2); ctx.fill();
+            if (gameActive && Math.abs(subX - o.x) < 35 && Math.abs(340 - o.y) < 30) {
+              takeDamage(15);
+              octopusList.splice(idx, 1);
+            }
+            if (o.y > canvas.height) octopusList.splice(idx, 1);
+          });
 
-          // Update Direct Pulse Bolts
+          // Update Projectiles & Entities
           playerBolts.forEach((b, bIdx) => {
-            b.y -= 7;
+            if (gameActive) b.y -= 7;
             ctx.fillStyle = '#66fcf1';
             ctx.fillRect(b.x - 2, b.y, 4, 12);
-
             if (Math.abs(b.x - syndicateSubX) < 45 && Math.abs(b.y - 70) < 30) {
               playerBolts.splice(bIdx, 1);
               score += 1;
@@ -801,18 +843,14 @@
             if (b.y < 0) playerBolts.splice(bIdx, 1);
           });
 
-          // Update Homing Torpedoes
           homingTorpedoes.forEach((ht, htIdx) => {
-            ht.y -= 4;
-            if (ht.x < syndicateSubX) ht.x += 1.5;
-            if (ht.x > syndicateSubX) ht.x -= 1.5;
-
+            if (gameActive) {
+              ht.y -= 4;
+              if (ht.x < syndicateSubX) ht.x += 1.5;
+              if (ht.x > syndicateSubX) ht.x -= 1.5;
+            }
             ctx.fillStyle = '#f59e0b';
-            ctx.shadowColor = '#f59e0b';
-            ctx.shadowBlur = 12;
             ctx.beginPath(); ctx.arc(ht.x, ht.y, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-
             if (Math.abs(ht.x - syndicateSubX) < 45 && Math.abs(ht.y - 70) < 35) {
               homingTorpedoes.splice(htIdx, 1);
               score += 4;
@@ -821,18 +859,14 @@
             if (ht.y < 0) homingTorpedoes.splice(htIdx, 1);
           });
 
-          // Update Syndicate Torpedoes (Lock-on tracking player)
           syndicateTorpedoes.forEach((st, stIdx) => {
-            st.y += st.speed;
-            if (st.x < subX) st.x += 1.0;
-            if (st.x > subX) st.x -= 1.0;
-
+            if (gameActive) {
+              st.y += st.speed;
+              if (st.x < subX) st.x += 1.0;
+              if (st.x > subX) st.x -= 1.0;
+            }
             ctx.fillStyle = '#ef4444';
-            ctx.shadowColor = '#ef4444';
-            ctx.shadowBlur = 12;
             ctx.beginPath(); ctx.arc(st.x, st.y, 8, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-
             if (Math.abs(subX - st.x) < 35 && Math.abs(340 - st.y) < 25) {
               takeDamage(20);
               syndicateTorpedoes.splice(stIdx, 1);
@@ -840,12 +874,10 @@
             if (st.y > canvas.height) syndicateTorpedoes.splice(stIdx, 1);
           });
 
-          // Update Water Mines
           waterMines.forEach((m, idx) => {
-            m.y += m.speed;
+            if (gameActive) m.y += m.speed;
             ctx.fillStyle = '#f87171';
             ctx.beginPath(); ctx.arc(m.x, m.y, 14, 0, Math.PI * 2); ctx.fill();
-
             if (Math.abs(subX - m.x) < 35 && Math.abs(340 - m.y) < 30) {
               takeDamage(15);
               waterMines.splice(idx, 1);
@@ -853,15 +885,10 @@
             if (m.y > canvas.height) waterMines.splice(idx, 1);
           });
 
-          // Update Data Cores
           dataCores.forEach((d, idx) => {
-            d.y += d.speed;
+            if (gameActive) d.y += d.speed;
             ctx.fillStyle = '#38bdf8';
-            ctx.shadowColor = '#38bdf8';
-            ctx.shadowBlur = 12;
             ctx.beginPath(); ctx.arc(d.x, d.y, 12, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-
             if (Math.abs(subX - d.x) < 35 && Math.abs(340 - d.y) < 35) {
               playSound('orb');
               score += 2;
@@ -873,10 +900,8 @@
             if (d.y > canvas.height) dataCores.splice(idx, 1);
           });
 
-          // Render Albor Syndicate Dreadnaught (Red angular warship)
+          // Render Albor Syndicate Dreadnaught
           ctx.fillStyle = '#ef4444';
-          ctx.shadowColor = '#ef4444';
-          ctx.shadowBlur = 15;
           ctx.beginPath();
           ctx.moveTo(syndicateSubX - 45, 50);
           ctx.lineTo(syndicateSubX + 45, 50);
@@ -884,19 +909,34 @@
           ctx.lineTo(syndicateSubX - 25, 90);
           ctx.closePath();
           ctx.fill();
-          ctx.shadowBlur = 0;
 
-          // Render Vanguard U-7 Marrow Class Submarine (Cybernetic Blue Hull)
+          // Render Vanguard U-7 Submarine (with damage sparks if hull low)
           ctx.fillStyle = '#38bdf8';
-          ctx.shadowColor = '#38bdf8';
-          ctx.shadowBlur = 20;
           ctx.beginPath();
           ctx.ellipse(subX, 340, 38, 18, 0, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#66fcf1';
           ctx.fillRect(subX - 8, 324, 16, 14);
           ctx.fillRect(subX + 2, 310, 4, 16);
-          ctx.shadowBlur = 0;
+
+          if (hull <= 25 && gameActive) {
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(subX + (Math.random() * 10 - 5), 330, 6, 6);
+          }
+
+          // Game Over / Warning Banner
+          if (!gameActive) {
+            ctx.fillStyle = 'rgba(3, 7, 18, 0.9)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 36px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(`⚠️ HULL BREACH: SINKING`, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.font = 'bold 16px Courier New';
+            ctx.fillStyle = '#66fcf1';
+            ctx.fillText(`Final Data Cores: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+            ctx.textAlign = 'left';
+          }
 
           ctx.restore();
         }
@@ -1027,7 +1067,7 @@
           if (tier === 3) carColor = '#f59e0b';
           drawDetailedCar(ctx, playerX, 350, carColor, true);
 
-          if (gameState === 'countdown') {
+          if (gameState ===`countdown`) {
             ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#66fcf1';
