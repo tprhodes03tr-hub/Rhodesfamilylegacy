@@ -457,7 +457,6 @@
       <a href="#wallpapers" class="nav-pill" style="color: #66fcf1;">4K Wallpapers</a>
       <a href="#carddeck" class="nav-pill" style="color: #66fcf1;">Card Deck</a>
       <a href="#gamehub" class="nav-pill">Arcade Suite</a>
-      <a href="javascript:void(0)" onclick="openPrivateBackRoom()" class="nav-pill" style="color: #38bdf8; text-transform: uppercase; font-weight: 800;">🔒 Back Room</a>
     </div>
 
     <h2 class="section-title" id="literature">Published Chronicles & Storybooks</h2>
@@ -705,6 +704,7 @@
         <a href="vanguard-games.html" class="btn btn-amber" style="padding: 14px; text-align: center; text-decoration: none;">🔍 Word Search & Vanguard Games</a>
       </div>
 
+      <!-- ANALYTICS DASHBOARD -->
       <div style="background: rgba(3, 7, 18, 0.9); border: 2px solid #38bdf8; border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: left; font-family: 'Courier New', Courier, monospace;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <div style="color: #38bdf8; font-size: 0.85rem; font-weight: bold; text-transform: uppercase;">📊 Live Visitor & Module Engagement Analytics</div>
@@ -727,6 +727,26 @@
             <span>Tycoon Matches:</span>
             <strong id="statTycoonPlays" style="color: #f59e0b; font-size: 1.1rem;">0</strong>
           </div>
+        </div>
+      </div>
+
+      <!-- BILINGUAL PRIVATE MESSAGE BOARD MODULE -->
+      <div style="background: rgba(15, 23, 42, 0.95); border: 2px solid rgba(245, 158, 11, 0.6); border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: left; font-family: 'Courier New', Courier, monospace;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="color: #f59e0b; font-size: 0.85rem; font-weight: bold; text-transform: uppercase;">💬 Bilingual Private Family Message Board / Tablero</div>
+          <select id="boardLangSelect" onchange="switchBoardLanguage()" style="background: #030712; color: #f59e0b; border: 1px solid #f59e0b; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+        <div id="boardMessagesLog" style="background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; height: 110px; overflow-y: auto; font-size: 0.78rem; color: #cbd5e1; margin-bottom: 10px;">
+          <p>[System • 2026] <span class="msg-text-en">Welcome to the secure family message log. Leave notes for relatives across regions.</span><span class="msg-text-es" style="display:none;">Bienvenido al registro de mensajes familiares seguros. Deje notas para sus parientes.</span></p>
+          <p>[Tommy Philip Rhodes] <span class="msg-text-en">All systems operational across Detroit, Saginaw, and the Southern streams.</span><span class="msg-text-es" style="display:none;">Todos los sistemas operativos en Detroit, Saginaw y las corrientes del sur.</span></p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="boardAuthorInput" placeholder="Name / Nombre..." style="width: 32%; background: #030712; border: 1px solid #38bdf8; color: #fff; padding: 8px; border-radius: 6px; font-size: 0.75rem; outline: none;">
+          <input type="text" id="boardMessageInput" placeholder="Type family note / Escriba nota..." style="flex: 1; background: #030712; border: 1px solid #38bdf8; color: #fff; padding: 8px; border-radius: 6px; font-size: 0.75rem; outline: none;" onkeydown="if(event.key==='Enter') postFamilyMessage()">
+          <button onclick="postFamilyMessage()" style="background: #0284c7; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; cursor: pointer;">Post / Enviar</button>
         </div>
       </div>
 
@@ -798,6 +818,7 @@
       if (modal) {
         modal.style.display = 'flex';
         updateAnalyticsDisplay();
+        loadSavedMessages();
       }
     }
 
@@ -813,7 +834,7 @@
       
       let uniques = parseInt(localStorage.getItem('rhodes_unique_visitors') || '0');
       if (!sessionStorage.getItem('session_counted')) {
-        sessionStorage.getItem('session_counted', 'true');
+        sessionStorage.setItem('session_counted', 'true');
         uniques += 1;
         localStorage.setItem('rhodes_unique_visitors', uniques);
       }
@@ -832,6 +853,54 @@
         sessionStorage.removeItem('session_counted');
         updateAnalyticsDisplay();
         alert("Analytics reset.");
+      }
+    }
+
+    // Bilingual Message Board Functions
+    function postFamilyMessage() {
+      const authorInput = document.getElementById('boardAuthorInput');
+      const messageInput = document.getElementById('boardMessageInput');
+      const logContainer = document.getElementById('boardMessagesLog');
+
+      const author = authorInput.value.trim() || "Family Member";
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      const p = document.createElement('p');
+      p.innerHTML = `[${author}] <span class="msg-text-en">${text}</span><span class="msg-text-es" style="display:none;">${text} (Traducido)</span>`;
+      logContainer.appendChild(p);
+
+      // Save to localStorage
+      let saved = JSON.parse(localStorage.getItem('rhodes_board_msgs') || '[]');
+      saved.push({ author: author, text: text });
+      localStorage.setItem('rhodes_board_msgs', JSON.stringify(saved));
+
+      messageInput.value = '';
+      logContainer.scrollTop = logContainer.scrollHeight;
+      switchBoardLanguage();
+    }
+
+    function loadSavedMessages() {
+      const logContainer = document.getElementById('boardMessagesLog');
+      let saved = JSON.parse(localStorage.getItem('rhodes_board_msgs') || '[]');
+      saved.forEach(item => {
+        const p = document.createElement('p');
+        p.innerHTML = `[${item.author}] <span class="msg-text-en">${item.text}</span><span class="msg-text-es" style="display:none;">${item.text} (Traducido)</span>`;
+        logContainer.appendChild(p);
+      });
+      switchBoardLanguage();
+    }
+
+    function switchBoardLanguage() {
+      const lang = document.getElementById('boardLangSelect').value;
+      const enEls = document.querySelectorAll('.msg-text-en');
+      const esEls = document.querySelectorAll('.msg-text-es');
+      if (lang === 'es') {
+        enEls.forEach(el => el.style.display = 'none');
+        esEls.forEach(el => el.style.display = 'inline');
+      } else {
+        enEls.forEach(el => el.style.display = 'inline');
+        esEls.forEach(el => el.style.display = 'none');
       }
     }
 
