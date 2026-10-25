@@ -369,7 +369,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 3: DEEP SUB WAR (VANGUARD VS SYNDICATE) -->
+  <!-- PORTAL 3: DEEP SUB WAR (VANGUARD VS SYNDICATE TORPEDO DUEL) -->
   <div class="sandbox-container sub-container hidden" id="portal-sub">
     <div class="sandbox-header" style="color: #38bdf8;">Abyssal Sector • Vanguard Sub-Command</div>
     <h1 style="color: #38bdf8;">Deep Sub War: Syndicate Trench</h1>
@@ -395,7 +395,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 4: DETROIT '313 STREET RACER -->
+  <!-- PORTAL 4: DETROIT '313 STREET RACER (SIDE-BY-SIDE START, COUNTDOWN, DETAILED CARS & BOOST CONTROL) -->
   <div class="sandbox-container runner-container hidden" id="portal-runner">
     <div class="sandbox-header" style="color: #60a5fa;">Detroit '313 Grid • Street Racing Arena</div>
     <h1 style="color: #60a5fa;">Detroit '313 Grid: Street Racer</h1>
@@ -709,14 +709,15 @@
       speakText(`Resonance frequency locked for ${selectedAvatar}.`);
     }
 
-    // --- DEEP SUB WAR: VANGUARD VS SYNDICATE ENGINE ---
+    // --- DEEP SUB WAR: VANGUARD VS SYNDICATE TORPEDO DUEL ---
     function initSubEngine() {
       const canvas = document.getElementById('subCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       let subX = 300, targetX = 300;
       let hull = 100, torpedoes = 5, score = 0;
-      let syndicateSubs = [], torpedoList = [], dataCores = [];
+      let syndicateSubX = 300, syndicateTorpedoes = [];
+      let torpedoList = [], dataCores = [], waterMines = [];
 
       window.moveSub = (dir) => {
         playSound('steer');
@@ -736,31 +737,32 @@
       function loop() {
         if (canvas.offsetParent !== null) {
           subX += (targetX - subX) * 0.2;
+          syndicateSubX += Math.sin(Date.now() * 0.003) * 2;
 
-          // Deep Abyssal Background
+          // Deep Abyssal Background with Waves
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Computer Grid Lines (Sonar / Radar aesthetic)
           ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
           ctx.lineWidth = 1;
           for (let i = 0; i < canvas.width; i += 60) {
             ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
           }
 
-          // Spawn Syndicate Drones / Subs
-          if (Math.random() < 0.03 && syndicateSubs.length < 3) {
-            let sx = Math.random() * (canvas.width - 120) + 60;
-            syndicateSubs.push({ x: sx, y: -30, speed: 1.5 });
+          // Syndicate firing lock-on torpedoes at player
+          if (Math.random() < 0.02 && syndicateTorpedoes.length < 2) {
+            syndicateTorpedoes.push({ x: syndicateSubX, y: 80, targetX: subX, speed: 2 });
           }
 
-          // Spawn Data Cores
-          if (Math.random() < 0.035 && dataCores.length < 3) {
-            let dx = Math.random() * (canvas.width - 100) + 50;
-            dataCores.push({ x: dx, y: -20, speed: 2 });
+          // Spawn Water Hazards / Mines & Data Cores
+          if (Math.random() < 0.025 && waterMines.length < 3) {
+            waterMines.push({ x: Math.random() * (canvas.width - 100) + 50, y: -20, speed: 1.8 });
+          }
+          if (Math.random() < 0.03 && dataCores.length < 3) {
+            dataCores.push({ x: Math.random() * (canvas.width - 100) + 50, y: -20, speed: 2 });
           }
 
-          // Update Torpedoes
+          // Update Player Torpedoes
           torpedoList.forEach((t, tIdx) => {
             t.y -= 6;
             ctx.fillStyle = '#f59e0b';
@@ -769,34 +771,51 @@
             ctx.fillRect(t.x - 3, t.y, 6, 16);
             ctx.shadowBlur = 0;
 
-            // Check collision with syndicate subs
-            syndicateSubs.forEach((s, sIdx) => {
-              if (Math.abs(t.x - s.x) < 35 && Math.abs(t.y - s.y) < 30) {
-                playSound('crash');
-                syndicateSubs.splice(sIdx, 1);
-                torpedoList.splice(tIdx, 1);
-                score += 1;
-                document.getElementById('sub-score').innerText = score;
-              }
-            });
-
+            if (Math.abs(t.x - syndicateSubX) < 40 && Math.abs(t.y - 80) < 30) {
+              playSound('crash');
+              torpedoList.splice(tIdx, 1);
+              score += 3;
+              document.getElementById('sub-score').innerText = score;
+            }
             if (t.y < 0) torpedoList.splice(tIdx, 1);
           });
 
-          // Update Syndicate Subs
-          syndicateSubs.forEach((s, idx) => {
-            s.y += s.speed;
-            ctx.fillStyle = '#ef4444'; // Red syndicate hostile
-            ctx.fillRect(s.x - 24, s.y - 14, 48, 28);
+          // Update Syndicate Lock-on Torpedoes
+          syndicateTorpedoes.forEach((st, stIdx) => {
+            st.y += st.speed;
+            // slight tracking towards player
+            if (st.x < subX) st.x += 0.8;
+            if (st.x > subX) st.x -= 0.8;
+
+            ctx.fillStyle = '#ef4444';
+            ctx.shadowColor = '#ef4444';
+            ctx.shadowBlur = 12;
+            ctx.beginPath(); ctx.arc(st.x, st.y, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
 
             // Collision with Player Sub
-            if (Math.abs(subX - s.x) < 40 && Math.abs(340 - s.y) < 35) {
+            if (Math.abs(subX - st.x) < 35 && Math.abs(340 - st.y) < 25) {
               playSound('crash');
-              hull -= 15;
+              hull -= 20;
               document.getElementById('sub-hull').innerText = Math.max(0, hull) + '%';
-              syndicateSubs.splice(idx, 1);
+              syndicateTorpedoes.splice(stIdx, 1);
             }
-            if (s.y > canvas.height) syndicateSubs.splice(idx, 1);
+            if (st.y > canvas.height) syndicateTorpedoes.splice(stIdx, 1);
+          });
+
+          // Update Water Mines
+          waterMines.forEach((m, idx) => {
+            m.y += m.speed;
+            ctx.fillStyle = '#f87171';
+            ctx.beginPath(); ctx.arc(m.x, m.y, 14, 0, Math.PI * 2); ctx.fill();
+
+            if (Math.abs(subX - m.x) < 35 && Math.abs(340 - m.y) < 30) {
+              playSound('crash');
+              hull -= 10;
+              document.getElementById('sub-hull').innerText = Math.max(0, hull) + '%';
+              waterMines.splice(idx, 1);
+            }
+            if (m.y > canvas.height) waterMines.splice(idx, 1);
           });
 
           // Update Data Cores
@@ -819,14 +838,19 @@
             if (d.y > canvas.height) dataCores.splice(idx, 1);
           });
 
-          // Render Vanguard Submarine (Cyan / Metallic Blue Command Hull)
+          // Render Syndicate Boss Sub (Red hostile)
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.ellipse(syndicateSubX, 80, 42, 20, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Render Vanguard Submarine
           ctx.fillStyle = '#38bdf8';
           ctx.shadowColor = '#38bdf8';
           ctx.shadowBlur = 18;
           ctx.beginPath();
           ctx.ellipse(subX, 340, 36, 18, 0, 0, Math.PI * 2);
           ctx.fill();
-          // Conning Tower & Periscope
           ctx.fillStyle = '#66fcf1';
           ctx.fillRect(subX - 8, 325, 16, 14);
           ctx.fillRect(subX + 2, 312, 4, 15);
@@ -837,26 +861,39 @@
       loop();
     }
 
-    // --- DETROIT '313 STREET RACER ENGINE ---
+    // --- DETROIT '313 STREET RACER ENGINE (DETAILED CAR SPRITES, SIDE-BY-SIDE START, COUNTDOWN & MANUAL BOOST) ---
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let playerX = 300, targetX = 300, aiX = 250;
+      let playerX = 240, targetX = 240, aiX = 360;
       let relics = 0, raceProgress = 0;
       let runnerItems = [];
       let tier = 1;
+      let gameState = 'countdown'; // countdown, racing, finished
+      let countdownTimer = 3;
+
+      // Start countdown sequence
+      let countInterval = setInterval(() => {
+        countdownTimer--;
+        if (countdownTimer <= 0) {
+          clearInterval(countInterval);
+          gameState = 'racing';
+        }
+      }, 1000);
 
       window.moveRunner = (dir) => {
+        if (gameState !== 'racing') return;
         playSound('steer');
         if (dir === 'left') targetX = Math.max(120, targetX - 120);
         if (dir === 'right') targetX = Math.min(canvas.width - 120, targetX + 120);
       };
 
       window.triggerRunnerBoost = () => {
+        if (gameState !== 'racing') return;
         playSound('orb');
-        raceProgress += 15;
-        relics += 2;
+        raceProgress += 12;
+        targetX += (Math.random() > 0.5 ? 20 : -20);
         checkProgression();
       };
 
@@ -872,29 +909,66 @@
         document.getElementById('race-progress').innerText = Math.min(100, raceProgress) + '%';
       }
 
+      function drawDetailedCar(ctx, x, y, color, isPlayer) {
+        ctx.save();
+        ctx.translate(x, y);
+        // Car Body Shadow & Chassis
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = isPlayer ? 15 : 8;
+        ctx.fillRect(-18, -35, 36, 70);
+
+        // Windshield
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(-14, -20, 28, 18);
+
+        // Headlights
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(-16, -36, 8, 4);
+        ctx.fillRect(8, -36, 8, 4);
+
+        // Wheels
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-22, -26, 6, 16);
+        ctx.fillRect(16, -26, 6, 16);
+        ctx.fillRect(-22, 10, 6, 16);
+        ctx.fillRect(16, 10, 6, 16);
+
+        ctx.restore();
+      }
+
       function loop() {
         if (canvas.offsetParent !== null) {
-          playerX += (targetX - playerX) * 0.2;
-          aiX += Math.sin(Date.now() * 0.002) * 1.5;
+          if (gameState === 'racing') {
+            playerX += (targetX - playerX) * 0.2;
+            aiX += Math.sin(Date.now() * 0.002) * 1.2;
+            raceProgress += 0.05;
+            if (raceProgress >= 100) {
+              raceProgress = 100;
+              gameState = 'finished';
+            }
+          }
 
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // Track Lanes
           ctx.strokeStyle = 'rgba(96, 165, 250, 0.2)';
           ctx.lineWidth = 2;
           ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, canvas.height); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, canvas.height); ctx.stroke();
 
+          // Finish Line
           ctx.fillStyle = '#f59e0b';
-          ctx.fillRect(100, 20, 400, 8);
+          ctx.fillRect(100, 30, 400, 8);
 
-          if (Math.random() < 0.03 && runnerItems.length < 4) {
+          if (gameState === 'racing' && Math.random() < 0.03 && runnerItems.length < 4) {
             let laneX = [140, 300, 460][Math.floor(Math.random() * 3)];
             runnerItems.push({ x: laneX, y: -20, speed: 2.5 });
           }
 
           runnerItems.forEach((r, idx) => {
-            r.y += r.speed;
+            if (gameState === 'racing') r.y += r.speed;
             ctx.fillStyle = '#38bdf8';
             ctx.shadowColor = '#38bdf8';
             ctx.shadowBlur = 15;
@@ -904,30 +978,42 @@
             if (Math.abs(playerX - r.x) < 40 && Math.abs(360 - r.y) < 40) {
               playSound('orb');
               relics++;
-              raceProgress += 8;
               checkProgression();
               runnerItems.splice(idx, 1);
             }
             if (r.y > canvas.height) runnerItems.splice(idx, 1);
           });
 
-          ctx.fillStyle = '#ef4444';
-          ctx.fillRect(aiX - 20, 150, 40, 70);
+          // Render AI Rival Car (Crimson Syndicate)
+          drawDetailedCar(ctx, aiX, 220, '#ef4444', false);
 
-          if (tier === 3) {
+          // Render Player Car (Tier-based color: Cyan, Blue, or Gold)
+          let carColor = '#45a29e';
+          if (tier === 2) carColor = '#60a5fa';
+          if (tier === 3) carColor = '#f59e0b';
+          drawDetailedCar(ctx, playerX, 350, carColor, true);
+
+          // Countdown Overlay
+          if (gameState === 'countdown') {
+            ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#66fcf1';
+            ctx.font = 'bold 42px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(`STARTING IN: ${countdownTimer}`, canvas.width / 2, canvas.height / 2);
+            ctx.textAlign = 'left';
+          } else if (gameState === 'finished') {
+            ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#f59e0b';
-            ctx.shadowColor = '#f59e0b';
-            ctx.shadowBlur = 20;
-          } else if (tier === 2) {
-            ctx.fillStyle = '#60a5fa';
-            ctx.shadowColor = '#60a5fa';
-            ctx.shadowBlur = 15;
-          } else {
-            ctx.fillStyle = '#45a29e';
-            ctx.shadowBlur = 10;
+            ctx.font = 'bold 36px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(`🏆 RACE COMPLETE!`, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.font = 'bold 18px Courier New';
+            ctx.fillStyle = '#66fcf1';
+            ctx.fillText(`Relics Collected: ${relics} / 10`, canvas.width / 2, canvas.height / 2 + 20);
+            ctx.textAlign = 'left';
           }
-          ctx.fillRect(playerX - 22, 330, 44, 74);
-          ctx.shadowBlur = 0;
         }
         requestAnimationFrame(loop);
       }
