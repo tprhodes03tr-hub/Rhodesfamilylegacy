@@ -205,7 +205,7 @@
 
     .ar-viewport {
       width: 100%;
-      height: 240px;
+      height: 280px;
       background: #020617;
       border: 1px solid #45a29e;
       border-radius: 6px;
@@ -347,9 +347,9 @@
     </div>
   </div>
 
-  <!-- PORTAL 2: MARROW MATRIX AR (STREAMLINED 8-CARD ROSTER) -->
+  <!-- PORTAL 2: MARROW MATRIX AR (LIVE CAMERA OVERLAY & CARD HOLOGRAPHIC 3D) -->
   <div class="sandbox-container hidden" id="portal-matrix">
-    <div class="sandbox-header">Marrow Matrix • 8-Card Roster Edition</div>
+    <div class="sandbox-header">Marrow Matrix • Live AR Card Scanner Edition</div>
     <h1>Ancestral Resonance Hub</h1>
 
     <div class="epoch-selector">
@@ -357,8 +357,14 @@
       <button class="epoch-btn" id="btn-epoch-syndicate" onclick="switchEpoch('syndicate')">🔴 Al Syndicate (4)</button>
     </div>
 
+    <!-- AR VIEWPORT WITH LIVE CAMERA & 3D HOLOGRAM OVERLAY -->
     <div class="ar-viewport">
-      <canvas id="matrixCanvas" width="600" height="240" style="width: 100%; height: 100%; display: block; background: #020617;"></canvas>
+      <video id="arCameraFeed" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1;"></video>
+      <canvas id="matrixCanvas" width="600" height="280" style="width: 100%; height: 100%; display: block; position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none;"></canvas>
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+      <button class="game-btn" onclick="toggleARCamera()" id="cam-toggle-btn" style="flex: 1; font-size: 0.7rem; background: #082f49; border-color: #38bdf8; color: #38bdf8;">📷 Enable Live Camera AR</button>
     </div>
 
     <div class="holographic-ledger" id="holographic-text">
@@ -366,7 +372,7 @@
     </div>
 
     <div class="node-grid" id="matrix-node-grid"></div>
-    <button class="game-btn primary" onclick="resonancePulse()">✨ Execute Resonance Bridge</button>
+    <button class="game-btn primary" onclick="resonancePulse()">✨ Execute Resonance Bridge & Power Showcase</button>
     <p id="matrix-feedback" style="color: #66fcf1; margin-top: 8px; font-size: 0.8rem;"></p>
 
     <div style="margin-top: 14px;">
@@ -408,7 +414,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 4: DETROIT '313 STREET RACER -->
+  <!-- PORTAL 4: DETROIT '313 STREET RACER (BALANCED OVERTAKE & SPINOUT PHYSICS) -->
   <div class="sandbox-container runner-container hidden" id="portal-runner">
     <div class="sandbox-header" style="color: #60a5fa;">Detroit '313 Grid • Street Racing Arena</div>
     <h1 style="color: #60a5fa;">Detroit '313 Grid: Street Racer</h1>
@@ -630,11 +636,13 @@
       speakText("Sandbox adventure reset.");
     }
 
-    // --- STREAMLINED 8-CARD ROSTER ENGINE ---
+    // --- MARROW MATRIX AR CARD SCANNER & 3D HOLOGRAM ENGINE ---
     let currentEpoch = 'vanguard';
     let selectedAvatar = 'Guacan';
     let matrixRunning = false;
     let powerAnimFrame = 0;
+    let cameraActive = false;
+    let cameraStream = null;
 
     const epochData = {
       vanguard: [
@@ -668,13 +676,45 @@
         div.innerText = node.label;
         div.onclick = () => {
           selectedAvatar = node.id;
-          powerAnimFrame = 45;
+          powerAnimFrame = 60;
           document.getElementById('holographic-text').innerText = node.ledger;
-          speakText(node.label + " selected. Initializing " + node.power);
+          speakText(node.label + " selected. Initializing 3D Holo-Card: " + node.power);
           renderEpochNodes();
         };
         grid.appendChild(div);
       });
+    }
+
+    function toggleARCamera() {
+      const video = document.getElementById('arCameraFeed');
+      const btn = document.getElementById('cam-toggle-btn');
+      if (!cameraActive) {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+          .then(stream => {
+            cameraStream = stream;
+            video.srcObject = stream;
+            cameraActive = true;
+            btn.innerText = "📷 Disable Live Camera";
+            btn.style.background = '#1e3a8a';
+            btn.style.borderColor = '#60a5fa';
+            btn.style.color = '#60a5fa';
+            speakText("Live AR camera scanner engaged. Point camera at trading card to anchor hologram.");
+          })
+          .catch(err => {
+            alert("Camera access denied or unavailable.");
+          });
+      } else {
+        if (cameraStream) {
+          cameraStream.getTracks().forEach(track => track.stop());
+        }
+        video.srcObject = null;
+        cameraActive = false;
+        btn.innerText = "📷 Enable Live Camera AR";
+        btn.style.background = '#082f49';
+        btn.style.borderColor = '#38bdf8';
+        btn.style.color = '#38bdf8';
+        speakText("Live camera disengaged.");
+      }
     }
 
     function initMatrixEngine() {
@@ -687,17 +727,20 @@
         if (canvas.offsetParent !== null) {
           if (powerAnimFrame > 0) powerAnimFrame--;
 
-          ctx.fillStyle = '#020617';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          // Cyberpunk Grid Background
-          ctx.strokeStyle = 'rgba(102, 252, 241, 0.12)';
-          ctx.lineWidth = 1;
-          for (let i = 0; i < canvas.width; i += 30) {
-            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-          }
-          for (let j = 0; j < canvas.height; j += 30) {
-            ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+          // If camera is off, draw subtle cyberpunk grid
+          if (!cameraActive) {
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = 'rgba(102, 252, 241, 0.12)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 30) {
+              ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+            for (let j = 0; j < canvas.height; j += 30) {
+              ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+            }
           }
 
           ctx.save();
@@ -710,104 +753,74 @@
           }
           let themeColor = activeNode ? activeNode.color : '#66fcf1';
 
+          // AR Card Targeting Reticle & Tracking Box
+          ctx.strokeStyle = themeColor;
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(-50, -75, 100, 150);
+
+          // Corner AR Tracking Markers
+          ctx.fillStyle = themeColor;
+          ctx.fillRect(-54, -79, 10, 4); ctx.fillRect(-54, -79, 4, 10);
+          ctx.fillRect(44, -79, 10, 4); ctx.fillRect(50, -79, 4, 10);
+          ctx.fillRect(-54, 75, 10, 4); ctx.fillRect(-54, 69, 4, 10);
+          ctx.fillRect(44, 75, 10, 4); ctx.fillRect(50, 69, 4, 10);
+
           // Power Resonance Shockwave Ripple
           if (powerAnimFrame > 0) {
             ctx.strokeStyle = themeColor;
             ctx.lineWidth = 3;
-            let rippleRadius = (45 - powerAnimFrame) * 5;
+            let rippleRadius = (60 - powerAnimFrame) * 6;
             ctx.beginPath();
             ctx.arc(0, 0, rippleRadius, 0, Math.PI * 2);
             ctx.stroke();
+
+            // Floating Power Name Text above Card
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 13px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(`⚡ ${activeNode ? activeNode.power : 'POWER'} ACTIVE! ⚡`, 0, -95);
+            ctx.textAlign = 'left';
           }
 
-          // FULLY CENTERED CARD GRAPHIC & VECTOR RENDERING (ABSOLUTELY ALIGNED TO 0,0)
+          // 3D HOLOGRAM CHARACTER MODEL PROJECTED DIRECTLY ONTO CARD CENTER
           ctx.save();
+          ctx.translate(0, 10);
 
-          // Card Background Panel Frame
-          ctx.fillStyle = '#0f172a';
-          ctx.strokeStyle = themeColor;
-          ctx.lineWidth = 2;
-          ctx.fillRect(-35, -55, 70, 110);
-          ctx.strokeRect(-35, -55, 70, 110);
-
-          // Top Header Bar inside Card
+          // Hologram Body Core
           ctx.fillStyle = themeColor;
-          ctx.globalAlpha = 0.25;
-          ctx.fillRect(-35, -55, 70, 20);
-          ctx.globalAlpha = 1.0;
+          ctx.globalAlpha = cameraActive ? 0.8 : 0.45;
+          ctx.fillRect(-18, -35, 36, 60);
 
-          // Glowing Core Orb / Sigil in Center of Card
-          ctx.fillStyle = '#ffffff';
+          // Glowing Hologram Head
           ctx.beginPath();
-          ctx.arc(0, 5, 8, 0, Math.PI * 2);
+          ctx.arc(0, -48, 12, 0, Math.PI * 2);
           ctx.fill();
 
-          // Outer Pulsing Ring
-          ctx.strokeStyle = themeColor;
-          ctx.lineWidth = 1.5;
+          // Glowing Chest Core Emblem
+          ctx.fillStyle = '#ffffff';
           ctx.beginPath();
-          ctx.arc(0, 5, 16, 0, Math.PI * 2);
-          ctx.stroke();
+          ctx.arc(0, -10, 6, 0, Math.PI * 2);
+          ctx.fill();
 
-          // Unique Sigil Symbols / Accents per Operative
-          if (selectedAvatar === 'Guacan') {
-            // Wave Crest Indicator
-            ctx.strokeStyle = '#38bdf8';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(-20, -30);
-            ctx.quadraticCurveTo(0, -42, 20, -30);
-            ctx.stroke();
-          } else if (selectedAvatar === 'Marcus') {
-            // Industrial Gear Bracket
-            ctx.strokeStyle = '#66fcf1';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-26, -45, 52, 90);
-          } else if (selectedAvatar === 'Amina') {
-            // Lightning Bolt Core
-            ctx.fillStyle = '#f59e0b';
-            ctx.beginPath();
-            ctx.moveTo(2, -10); ctx.lineTo(-6, 5); ctx.lineTo(4, 5); ctx.lineTo(-2, 20);
-            ctx.fill();
-          } else if (selectedAvatar === 'Akecheta') {
-            // Target Reticle
-            ctx.strokeStyle = '#10b981';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.arc(0, 5, 24, 0, Math.PI * 2); ctx.stroke();
-          } else if (selectedAvatar === 'AlborCommander') {
-            // Syndicate Crimson Chevron
-            ctx.fillStyle = '#ef4444';
-            ctx.beginPath();
-            ctx.moveTo(0, -8); ctx.lineTo(-12, 12); ctx.lineTo(12, 12);
-            ctx.fill();
-          } else if (selectedAvatar === 'Vipera') {
-            // Fang / Viper Chevron pointing DOWN inside card
-            ctx.fillStyle = '#ec4899';
-            ctx.beginPath();
-            ctx.moveTo(0, 22); ctx.lineTo(-10, 6); ctx.lineTo(10, 6);
-            ctx.fill();
-          } else if (selectedAvatar === 'Chronolock') {
-            // Hourglass Frame
-            ctx.strokeStyle = '#a855f7';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-20, -35, 40, 80);
-          } else if (selectedAvatar === 'ApexVault') {
-            // Heavy Vault Plate
-            ctx.fillStyle = '#64748b';
-            ctx.fillRect(-24, -40, 48, 90);
+          // Scanline Effect across Hologram
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.25);';
+          for (let sy = -55; sy <= 35; sy += 6) {
+            ctx.fillRect(-22, sy, 44, 2);
           }
 
-          ctx.restore();
+          ctx.globalAlpha = 1.0;
           ctx.restore();
 
-          // HUD Entity Labels
+          ctx.restore();
+
+          // HUD Status Header on Viewport
           ctx.fillStyle = themeColor;
-          ctx.font = 'bold 12px Courier New';
-          ctx.fillText(`3D AR ENTITY: ${selectedAvatar.toUpperCase()}`, 16, 26);
+          ctx.font = 'bold 11px Courier New';
+          ctx.fillText(`AR CARD TARGET: ${selectedAvatar.toUpperCase()}`, 16, 24);
           if (activeNode) {
             ctx.fillStyle = '#94a3b8';
             ctx.font = '10px Courier New';
-            ctx.fillText(`SIGNATURE POWER: ${activeNode.power}`, 16, 42);
+            ctx.fillText(`ABILITY: ${activeNode.power}`, 16, 40);
           }
         }
         requestAnimationFrame(loop);
@@ -821,7 +834,7 @@
 
     function resonancePulse() {
       playSound('orb');
-      powerAnimFrame = 45;
+      powerAnimFrame = 60;
       let activeNode = null;
       for (let cat in epochData) {
         let found = epochData[cat].find(n => n.id === selectedAvatar);
@@ -830,8 +843,8 @@
       let powerName = activeNode ? activeNode.power : 'Resonance Wave';
       
       const f = document.getElementById('matrix-feedback');
-      if (f) f.innerText = `✨ ${powerName} executed for ${selectedAvatar} (+750 XP)!`;
-      speakText(`${powerName} deployed successfully.`);
+      if (f) f.innerText = `✨ ${powerName} holographically projected on AR card for ${selectedAvatar} (+750 XP)!`;
+      speakText(`${powerName} holographic showcase initiated.`);
     }
 
     // --- DEEP SUB WAR ENGINE ---
@@ -1128,7 +1141,7 @@
       loop();
     }
 
-    // --- DETROIT '313 STREET RACER ENGINE ---
+    // --- DETROIT '313 STREET RACER ENGINE (BALANCED OVERTAKE & SPINOUT PHYSICS) ---
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
@@ -1136,8 +1149,11 @@
       
       let playerX = 240, targetX = 240;
       let aiX = 360, targetAiX = 360;
+      let aiY = 280; // AI Y position to allow true overtakes!
+      let aiSpinoutTimer = 0;
       let relics = 0, currentLap = 1, totalLaps = 15;
       let raceProgress = 0;
+      let aiProgress = 0;
       let runnerItems = [];
       let tier = 1;
       let gameState = 'countdown';
@@ -1179,7 +1195,7 @@
       window.triggerRunnerBoost = () => {
         if (gameState !== 'racing' || isPaused) return;
         playSound('orb');
-        nitroFrames = 45;
+        nitroFrames = 75; // Extended nitro duration for true advantage
       };
 
       function checkLapProgress() {
@@ -1215,9 +1231,12 @@
         }
       }
 
-      function drawCarWithFlames(ctx, x, y, color, isPlayer, currentTier, isBoosting) {
+      function drawCarWithFlames(ctx, x, y, color, isPlayer, currentTier, isBoosting, isSpinning) {
         ctx.save();
         ctx.translate(x, y);
+        if (isSpinning) {
+          ctx.rotate(Date.now() * 0.02); // Spinout visual rotation
+        }
 
         let bodyWidth = 36 + (currentTier - 1) * 4;
         let bodyHeight = 70 + (currentTier - 1) * 6;
@@ -1261,38 +1280,52 @@
       function loop() {
         if (canvas.offsetParent !== null) {
           if (gameState === 'racing' && !isPaused) {
-            let playerSpeed = 0.025;
+            // Balanced Player Speed scaling with Tiers and Nitro
+            let playerBaseSpeed = 0.022 + (tier * 0.003);
+            let playerSpeed = playerBaseSpeed;
             if (nitroFrames > 0) {
               nitroFrames--;
-              playerSpeed = 0.06;
+              playerSpeed = 0.075; // True surging speed boost that overtakes AI
             }
 
             playerX += (targetX - playerX) * 0.2;
             
-            let aiTargetSpeed = 0.022 + (currentLap * 0.0005);
-            if (playerX > aiX + 40) aiTargetSpeed += 0.003;
-            aiX += (targetAiX - aiX) * 0.08;
+            // AI Progress & Position Logic
+            let aiSpeed = 0.024 + (currentLap * 0.0003);
+            if (aiSpinoutTimer > 0) {
+              aiSpinoutTimer--;
+              aiSpeed = 0.005; // Significant slowdown during spinout
+            }
+            aiProgress += aiSpeed;
 
-            if (Math.random() < 0.025) {
+            // Make AI Y position dynamic relative to player progress so you can pass them!
+            let progressDiff = raceProgress - aiProgress;
+            aiY = 350 - (progressDiff * 250);
+            aiY = Math.max(60, Math.min(400, aiY));
+
+            if (aiSpinoutTimer <= 0 && Math.random() < 0.03) {
               targetAiX = [140, 260, 380][Math.floor(Math.random() * 3)];
             }
+            aiX += (targetAiX - aiX) * 0.08;
 
             raceProgress += playerSpeed;
-            roadScrollOffset = (roadScrollOffset + (nitroFrames > 0 ? 16 : 8)) % 40;
+            roadScrollOffset = (roadScrollOffset + (nitroFrames > 0 ? 18 : 9)) % 40;
             checkLapProgress();
 
-            if (Math.abs(playerX - aiX) < 35 && Math.abs(350 - 280) < 55) {
+            // COLLISION & SPINOUT PHYSICS: Ramming AI from behind causes them to spin out and lose control!
+            if (Math.abs(playerX - aiX) < 40 && Math.abs(350 - aiY) < 45) {
               playSound('crash');
-              let pushDir = playerX < aiX ? -25 : 25;
-              targetX += pushDir;
-              targetAiX -= pushDir;
-              for (let i = 0; i < 6; i++) {
+              aiSpinoutTimer = 45; // Trigger spinout animation & slowdown
+              targetAiX = aiX + (playerX < aiX ? 60 : -60); // Knock AI sideways
+              targetX += (playerX < aiX ? -15 : 15); // Slight recoil for player
+
+              for (let i = 0; i < 10; i++) {
                 sparkParticles.push({
                   x: (playerX + aiX) / 2,
-                  y: 315,
-                  vx: (Math.random() - 0.5) * 10,
-                  vy: (Math.random() - 0.5) * 10,
-                  life: 18
+                  y: (350 + aiY) / 2,
+                  vx: (Math.random() - 0.5) * 14,
+                  vy: (Math.random() - 0.5) * 14,
+                  life: 22
                 });
               }
             }
@@ -1301,6 +1334,7 @@
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // Track Lanes & Glowing Dividers
           ctx.strokeStyle = 'rgba(96, 165, 250, 0.4)';
           ctx.lineWidth = 3;
           ctx.setLineDash([20, 20]);
@@ -1312,9 +1346,9 @@
           ctx.fillStyle = '#f59e0b';
           ctx.fillRect(100, 30, 400, 8);
 
-          if (gameState === 'racing' && !isPaused && Math.random() < 0.035 && runnerItems.length < 5) {
+          if (gameState === 'racing' && !isPaused && Math.random() < 0.04 && runnerItems.length < 5) {
             let laneX = [140, 300, 460][Math.floor(Math.random() * 3)];
-            runnerItems.push({ x: laneX, y: -20, speed: 2.8 });
+            runnerItems.push({ x: laneX, y: -20, speed: 3.2 });
           }
 
           runnerItems.forEach((r, idx) => {
@@ -1339,17 +1373,19 @@
             sp.y += sp.vy;
             sp.life--;
             ctx.fillStyle = '#f59e0b';
-            ctx.fillRect(sp.x, sp.y, 4, 4);
+            ctx.fillRect(sp.x, sp.y, 5, 5);
             if (sp.life <= 0) sparkParticles.splice(sIdx, 1);
           });
 
-          drawCarWithFlames(ctx, aiX, 280, '#ef4444', false, 2, false);
+          // Draw AI Car (with spinout physics support)
+          drawCarWithFlames(ctx, aiX, aiY, '#ef4444', false, 2, false, aiSpinoutTimer > 0);
 
+          // Draw Player Car
           let carColor = '#45a29e';
           if (tier === 2) carColor = '#60a5fa';
           if (tier === 3) carColor = '#38bdf8';
           if (tier === 4) carColor = '#f59e0b';
-          drawCarWithFlames(ctx, playerX, 350, carColor, true, tier, nitroFrames > 0);
+          drawCarWithFlames(ctx, playerX, 350, carColor, true, tier, nitroFrames > 0, false);
 
           if (gameState === 'countdown') {
             ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
@@ -1379,6 +1415,7 @@
             ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#f59e0b';
+            ctx.font = 'bold 36px Courier Nonospaced';
             ctx.font = 'bold 36px Courier New';
             ctx.textAlign = 'center';
             ctx.fillText(`🏆 GRAND PRIX CHAMPION!`, canvas.width / 2, canvas.height / 2 - 20);
