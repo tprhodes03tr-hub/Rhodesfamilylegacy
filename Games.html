@@ -372,7 +372,7 @@
   <!-- PORTAL 3: DEEP SUB WAR -->
   <div class="sandbox-container sub-container hidden" id="portal-sub">
     <div class="sandbox-header" style="color: #38bdf8;">Abyssal Trench • [VANGUARD U-7: MARROW CLASS] vs [ALBOR SYNDICATE: DREADNAUGHT]</div>
-    <h1 style="color: #38bdf8;">Deep Sub War: Syndicate Trench</h1>
+    <h1>Deep Sub War: Syndicate Trench</h1>
 
     <div class="stats-bar" style="border-color: #0369a1; color: #38bdf8;">
       <span>⚓ Vanguard Hull: <strong id="sub-hull">100%</strong></span>
@@ -396,25 +396,29 @@
     </div>
   </div>
 
-  <!-- PORTAL 4: DETROIT '313 STREET RACER (WITH SCROLLING HIGHWAY STREET EFFECT) -->
+  <!-- PORTAL 4: DETROIT '313 STREET RACER (15 LAPS, 3-LAP PIT STOPS, CAR BUMPING SPARKS & PAUSE/RESTART) -->
   <div class="sandbox-container runner-container hidden" id="portal-runner">
     <div class="sandbox-header" style="color: #60a5fa;">Detroit '313 Grid • Street Racing Arena</div>
     <h1 style="color: #60a5fa;">Detroit '313 Grid: Street Racer</h1>
 
     <div class="stats-bar" style="border-color: #1e3a8a; color: #60a5fa;">
-      <span>🚗 Car Tier: <strong id="car-tier" style="color: #f59e0b;">Tier 1 (Street Cruiser)</strong></span>
-      <span>🏆 Relics: <strong id="runner-score">0</strong> / 10</span>
-      <span>🏁 Race Progress: <strong id="race-progress">0%</strong></span>
+      <span>🚗 Car Tier: <strong id="car-tier" style="color: #f59e0b;">Tier 1</strong></span>
+      <span>🔄 Lap: <strong id="lap-count">1</strong> / 15</span>
+      <span>🏁 Progress: <strong id="race-progress">0%</strong></span>
     </div>
 
     <div style="width: 100%; aspect-ratio: 4 / 3; background: #020617; border: 2px solid #60a5fa; border-radius: 10px; position: relative; overflow: hidden; margin-bottom: 12px;">
       <canvas id="runnerCanvas" width="600" height="450" style="width: 100%; height: 100%; display: block;"></canvas>
     </div>
 
-    <div class="choice-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 8px;">
-      <button class="game-btn" onclick="moveRunner('left')" style="border-color: #60a5fa; color: #60a5fa;">◀ Steer Left</button>
-      <button class="game-btn" onclick="moveRunner('right')" style="border-color: #60a5fa; color: #60a5fa;">Steer Right ▶</button>
-      <button class="game-btn" onclick="triggerRunnerBoost()" style="grid-column: span 2; background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">🚀 Execute Nitro Turbo Boost</button>
+    <div class="choice-grid" style="grid-template-columns: repeat(3, 1fr); display: grid; gap: 6px; margin-bottom: 8px;">
+      <button class="game-btn" onclick="moveRunner('left')" style="border-color: #60a5fa; color: #60a5fa; text-align: center;">◀ Left</button>
+      <button class="game-btn" onclick="togglePauseGame()" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;" id="pause-btn">⏸️ Pause</button>
+      <button class="game-btn" onclick="moveRunner('right')" style="border-color: #60a5fa; color: #60a5fa; text-align: center;">Right ▶</button>
+    </div>
+    <div class="choice-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 6px;">
+      <button class="game-btn" onclick="triggerRunnerBoost()" style="background: #1e3a8a; border-color: #60a5fa; color: #f8fafc; text-align: center;">🚀 Nitro Turbo</button>
+      <button class="game-btn" onclick="initRunnerEngine()" style="background: #0f172a; border-color: #ef4444; color: #ef4444; text-align: center;">🔄 Restart Race</button>
     </div>
 
     <div style="margin-top: 14px;">
@@ -930,54 +934,91 @@
       loop();
     }
 
-    // --- DETROIT '313 STREET RACER ENGINE (WITH SCROLLING HIGHWAY ROAD LINES) ---
+    // --- DETROIT '313 STREET RACER ENGINE (15 LAPS, PIT STOP, BUMPING SPARKS, PAUSE & BALANCED AI) ---
+    let runnerGameInstance = null;
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let playerX = 240, targetX = 240, aiX = 240; // start side-by-side
-      let relics = 0, raceProgress = 0;
+      
+      let playerX = 240, targetX = 240;
+      let aiX = 360, targetAiX = 360;
+      let relics = 0, currentLap = 1, totalLaps = 15;
+      let raceProgress = 0;
       let runnerItems = [];
       let tier = 1;
-      let gameState = 'countdown';
+      let gameState = 'countdown'; // countdown, racing, paused, pitstop, finished
       let countdownTimer = 3;
       let roadScrollOffset = 0;
+      let sparkParticles = [];
+      let isPaused = false;
 
       let countInterval = setInterval(() => {
-        countdownTimer--;
-        if (countdownTimer <= 0) {
-          clearInterval(countInterval);
-          gameState = 'racing';
+        if (!isPaused) {
+          countdownTimer--;
+          if (countdownTimer <= 0) {
+            clearInterval(countInterval);
+            gameState = 'racing';
+          }
         }
       }, 1000);
 
       window.moveRunner = (dir) => {
-        if (gameState !== 'racing') return;
+        if (gameState !== 'racing' || isPaused) return;
         playSound('steer');
         if (dir === 'left') targetX = Math.max(120, targetX - 120);
         if (dir === 'right') targetX = Math.min(canvas.width - 120, targetX + 120);
       };
 
-      window.triggerRunnerBoost = () => {
-        if (gameState !== 'racing') return;
-        playSound('orb');
-        raceProgress += 10;
-        checkProgression();
+      window.togglePauseGame = () => {
+        if (gameState === 'racing') {
+          gameState = 'paused';
+          isPaused = true;
+          document.getElementById('pause-btn').innerText = "▶️ Resume";
+        } else if (gameState === 'paused') {
+          gameState = 'racing';
+          isPaused = false;
+          document.getElementById('pause-btn').innerText = "⏸️ Pause";
+        }
       };
 
+      window.triggerRunnerBoost = () => {
+        if (gameState !== 'racing' || isPaused) return;
+        playSound('orb');
+        raceProgress += 6;
+        checkLapProgress();
+      };
+
+      function checkLapProgress() {
+        if (raceProgress >= 100) {
+          raceProgress = 0;
+          currentLap++;
+          if (currentLap > totalLaps) {
+            gameState = 'finished';
+          } else if (currentLap === 8) {
+            // Pit stop garage upgrade event
+            gameState = 'pitstop';
+            setTimeout(() => {
+              if (gameState === 'pitstop') gameState = 'racing';
+            }, 3000);
+          }
+        }
+        document.getElementById('lap-count').innerText = currentLap;
+        document.getElementById('race-progress').innerText = Math.floor(raceProgress) + '%';
+      }
+
       function checkProgression() {
-        if (relics >= 7) {
+        if (relics >= 10) {
           tier = 3;
-          document.getElementById('car-tier').innerText = "Tier 3 (Apex Quantum Hyper-Car)";
-        } else if (relics >= 4) {
+          document.getElementById('car-tier').innerText = "Tier 3 (Apex Quantum)";
+        } else if (relics >= 5) {
           tier = 2;
           document.getElementById('car-tier').innerText = "Tier 2 (Turbo Interceptor)";
         }
         document.getElementById('runner-score').innerText = relics;
-        document.getElementById('race-progress').innerText = Math.min(100, Math.floor(raceProgress)) + '%';
       }
 
-      function drawDetailedCar(ctx, x, y, color, isPlayer) {
+      function drawCarWithFlames(ctx, x, y, color, isPlayer, isBoosting) {
         ctx.save();
         ctx.translate(x, y);
         ctx.fillStyle = color;
@@ -998,49 +1039,76 @@
         ctx.fillRect(-22, 10, 6, 16);
         ctx.fillRect(16, 10, 6, 16);
 
+        // Nitro exhaust flames if player boosts
+        if (isPlayer && isBoosting) {
+          ctx.fillStyle = '#f59e0b';
+          ctx.fillRect(-10, 35, 6, 15 + Math.random() * 10);
+          ctx.fillRect(4, 35, 6, 15 + Math.random() * 10);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(-8, 35, 4, 8);
+          ctx.fillRect(6, 35, 4, 8);
+        }
+
         ctx.restore();
       }
 
       function loop() {
         if (canvas.offsetParent !== null) {
-          if (gameState === 'racing') {
+          if (gameState === 'racing' && !isPaused) {
             playerX += (targetX - playerX) * 0.2;
-            // Balanced AI: starts side-by-side, moves forward based on progress
-            aiX += Math.sin(Date.now() * 0.0015) * 0.8;
-            raceProgress += 0.04;
-            roadScrollOffset = (roadScrollOffset + 6) % 40;
+            aiX += (targetAiX - aiX) * 0.1;
 
-            if (raceProgress >= 100) {
-              raceProgress = 100;
-              gameState = 'finished';
+            // Balanced AI behavior: gives player fair chance to overtake
+            if (Math.random() < 0.02) {
+              targetAiX = [140, 260, 380][Math.floor(Math.random() * 3)];
+            }
+
+            raceProgress += 0.035;
+            roadScrollOffset = (roadScrollOffset + 8) % 40;
+            checkLapProgress();
+
+            // Car Bumping & Sparks Mechanics
+            if (Math.abs(playerX - aiX) < 30 && Math.abs(350 - 280) < 50) {
+              playSound('crash');
+              // Push cars apart and spawn sparks
+              let pushDir = playerX < aiX ? -20 : 20;
+              targetX += pushDir;
+              targetAiX -= pushDir;
+              for (let i = 0; i < 8; i++) {
+                sparkParticles.push({
+                  x: (playerX + aiX) / 2,
+                  y: 310,
+                  vx: (Math.random() - 0.5) * 8,
+                  vy: (Math.random() - 0.5) * 8,
+                  life: 20
+                });
+              }
             }
           }
 
-          // Background Road Color
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Moving Scrolling Highway Grid / Lane Dashes
+          // Moving Highway Lanes
           ctx.strokeStyle = 'rgba(96, 165, 250, 0.4)';
           ctx.lineWidth = 3;
           ctx.setLineDash([20, 20]);
           ctx.lineDashOffset = -roadScrollOffset;
-          
           ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, canvas.height); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, canvas.height); ctx.stroke();
-          ctx.setLineDash([]); // reset line dash
+          ctx.setLineDash([]);
 
-          // Finish Line at top
+          // Finish Line
           ctx.fillStyle = '#f59e0b';
           ctx.fillRect(100, 30, 400, 8);
 
-          if (gameState === 'racing' && Math.random() < 0.03 && runnerItems.length < 4) {
+          if (gameState === 'racing' && !isPaused && Math.random() < 0.03 && runnerItems.length < 4) {
             let laneX = [140, 300, 460][Math.floor(Math.random() * 3)];
             runnerItems.push({ x: laneX, y: -20, speed: 2.5 });
           }
 
           runnerItems.forEach((r, idx) => {
-            if (gameState === 'racing') r.y += r.speed;
+            if (gameState === 'racing' && !isPaused) r.y += r.speed;
             ctx.fillStyle = '#38bdf8';
             ctx.shadowColor = '#38bdf8';
             ctx.shadowBlur = 15;
@@ -1050,22 +1118,31 @@
             if (Math.abs(playerX - r.x) < 40 && Math.abs(350 - r.y) < 40) {
               playSound('orb');
               relics++;
-              raceProgress += 3;
               checkProgression();
               runnerItems.splice(idx, 1);
             }
             if (r.y > canvas.height) runnerItems.splice(idx, 1);
           });
 
-          // Render AI Rival Car (Albor Syndicate Crimson) and Player Car Side-by-Side
-          let aiY = 350 - (raceProgress * 2.2); // moves up toward finish line as progress increases
-          drawDetailedCar(ctx, aiX, Math.max(80, aiY), '#ef4444', false);
+          // Render Sparks
+          sparkParticles.forEach((sp, sIdx) => {
+            sp.x += sp.vx;
+            sp.y += sp.vy;
+            sp.life--;
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(sp.x, sp.y, 4, 4);
+            if (sp.life <= 0) sparkParticles.splice(sIdx, 1);
+          });
+
+          // Render AI Rival (Crimson) and Player Car
+          drawCarWithFlames(ctx, aiX, 280, '#ef4444', false, false);
 
           let carColor = '#45a29e';
           if (tier === 2) carColor = '#60a5fa';
           if (tier === 3) carColor = '#f59e0b';
-          drawDetailedCar(ctx, playerX, 350, carColor, true);
+          drawCarWithFlames(ctx, playerX, 350, carColor, true, gameState === 'racing');
 
+          // Overlays (Countdown, Pause, Pit Stop, Finished)
           if (gameState === 'countdown') {
             ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1074,16 +1151,32 @@
             ctx.textAlign = 'center';
             ctx.fillText(`STARTING IN: ${countdownTimer}`, canvas.width / 2, canvas.height / 2);
             ctx.textAlign = 'left';
+          } else if (gameState === 'paused') {
+            ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#f59e0b';
+            ctx.font = 'bold 36px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(`⏸️ GAME PAUSED`, canvas.width / 2, canvas.height / 2);
+            ctx.textAlign = 'left';
+          } else if (gameState === 'pitstop') {
+            ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 32px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(`🔧 PIT STOP: TIRE CHANGE & UPGRADE`, canvas.width / 2, canvas.height / 2);
+            ctx.textAlign = 'left';
           } else if (gameState === 'finished') {
             ctx.fillStyle = 'rgba(3, 7, 18, 0.85)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#f59e0b';
             ctx.font = 'bold 36px Courier New';
             ctx.textAlign = 'center';
-            ctx.fillText(`🏆 RACE COMPLETE!`, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillText(`🏆 GRAND PRIX CHAMPION!`, canvas.width / 2, canvas.height / 2 - 20);
             ctx.font = 'bold 18px Courier New';
             ctx.fillStyle = '#66fcf1';
-            ctx.fillText(`Relics Collected: ${relics} / 10`, canvas.width / 2, canvas.height / 2 + 20);
+            ctx.fillText(`Relics Collected: ${relics}`, canvas.width / 2, canvas.height / 2 + 20);
             ctx.textAlign = 'left';
           }
         }
