@@ -171,7 +171,7 @@
             box-shadow: 0 0 20px var(--gold);
         }
 
-        /* Character Dossier Modal styled to match Trading Cards */
+        /* Character Dossier Modal */
         #dossier-modal {
             position: absolute;
             top: 50%;
@@ -216,18 +216,11 @@
             flex-shrink: 0;
         }
 
-        .dossier-titles {
-            overflow: hidden;
-        }
-
         .dossier-titles h2 {
             font-size: 0.85rem;
             color: var(--modal-border, var(--gold));
             letter-spacing: 0.5px;
             margin-bottom: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         .dossier-titles span {
@@ -235,9 +228,6 @@
             color: var(--text-muted);
             text-transform: uppercase;
             display: block;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         .dossier-body p {
@@ -309,28 +299,43 @@
             border: 1px solid #60a5fa;
         }
 
-        /* HTML Pins */
+        /* Pin Markers with Labels */
         .pin-container {
             position: absolute;
             transform: translate(-50%, -50%);
             z-index: 5;
             cursor: pointer;
             pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(3, 7, 18, 0.88);
+            border: 1px solid var(--gold-dim);
+            padding: 3px 8px 3px 3px;
+            border-radius: 20px;
             transition: transform 0.2s;
         }
 
         .pin-container:hover {
-            transform: translate(-50%, -50%) scale(1.2);
+            transform: translate(-50%, -50%) scale(1.15);
         }
 
         .pin-avatar {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             border: 2px solid var(--gold);
             object-fit: cover;
-            box-shadow: 0 0 12px var(--gold);
             background: #000;
+            flex-shrink: 0;
+        }
+
+        .pin-label {
+            font-size: 0.6rem;
+            color: #f0f0f0;
+            font-weight: bold;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
         }
 
         #loader {
@@ -366,7 +371,7 @@
 
     <div id="loader">
         <h2>INITIALIZING MARROW NEXUS</h2>
-        <p>Calibrating Chrono-Globe DNA Frequencies...</p>
+        <p>Calibrating True Earth & DNA Frequencies...</p>
     </div>
 
     <div class="hud-header">
@@ -392,7 +397,6 @@
         <button class="hud-btn" onclick="location.href='Games.html'">Command Deck</button>
     </div>
 
-    <!-- Color-Coded Dossier Modal matching Trading Cards -->
     <div id="dossier-modal">
         <div class="dossier-header">
             <img id="modal-img" src="" alt="Character" class="dossier-avatar">
@@ -419,25 +423,25 @@
     <div id="pins-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:5;"></div>
 
     <script>
-        // Vanguard Characters with Signature Region Colors and Stats matching Trading Cards
+        // Vanguard Characters mapped with exact image assets and signature regional colors
         const characters = [
             { 
-                id: 'sundiata', name: 'Sundiata Prime', lineage: 'Mandinka / Mali Empire', 
-                lat: 12.65, lon: -8.0, pwr: 95, def: 98, will: 96, sector: 'West Africa', 
+                id: 'amina', name: 'Amina Zazzau', lineage: 'Kassena / Northern Savanna', 
+                lat: 10.5, lon: 7.4, pwr: 92, def: 94, will: 95, sector: 'Sahelian Corridor', 
                 color: '#a855f7', foil: 'Platinum Starlight', 
-                desc: 'Anchored in the Mandé peoples and founding leadership bloodlines of the ancient Mali Empire.', img: 'amina.png' 
+                desc: 'Warrior-queen tactical lineage of the northern savanna and fortified border kingdoms.', img: 'amina.png' 
             },
             { 
                 id: 'wakan', name: 'Wakan', lineage: 'Caribbean Marronage', 
                 lat: 18.5, lon: -72.3, pwr: 89, def: 94, will: 92, sector: 'Caribbean Basin', 
                 color: '#38bdf8', foil: 'Gold Relic Foil', 
-                desc: 'Caribbean Sentinel. Hydro-kinetic tidal barriers and coastal surveillance.', img: 'amina.png' 
+                desc: 'Caribbean Sentinel. Hydro-kinetic tidal barriers and coastal surveillance.', img: 'akecheta.png' 
             },
             { 
                 id: 'luta', name: 'Mother Luta', lineage: 'Yòrúba / Benin Kingdom', 
                 lat: 6.5, lon: 3.3, pwr: 99, def: 99, will: 100, sector: 'Gulf of Guinea', 
                 color: '#d4af37', foil: 'Legendary Ancestor', 
-                desc: 'The Living Codex and Central Hearth Anchor. Royal bronze memory and spiritual center.', img: 'guacan-sheet.png' 
+                desc: 'The Living Codex and Central Hearth Anchor. Royal bronze memory and spiritual center.', img: 'marcus.png' 
             },
             { 
                 id: 'marcus', name: 'Marcus Prime', lineage: 'Detroit Urban Diaspora', 
@@ -453,6 +457,7 @@
         let targetRotation = { x: 0.3, y: 0 };
         let pinElements = [];
         let activeCharacter = null;
+        let marrowCredits = 1250;
 
         function init() {
             const container = document.getElementById('canvas-container');
@@ -478,27 +483,58 @@
 
             const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
             
-            // Genomelink-inspired DNA ancestry globe texture with genetic color bands
+            // True Earth Continental Map & Genetic Ancestry Overlays Generator
             const canvas = document.createElement('canvas');
             canvas.width = 1024;
             canvas.height = 512;
             const ctx = canvas.getContext('2d');
             
+            // Deep Space Ocean Background
             ctx.fillStyle = '#03060c';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Genetic Ancestry Composition Band (West Africa / Yoruba / Mende purple-teal overlay)
-            ctx.fillStyle = 'rgba(168, 85, 247, 0.28)';
-            ctx.beginPath(); ctx.ellipse(580, 290, 110, 80, 0, 0, Math.PI * 2); ctx.fill();
+            // True Continental Landmass Silhouettes (Recognizable Earth Geography)
+            ctx.fillStyle = '#0e172a';
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 2;
 
-            ctx.fillStyle = 'rgba(13, 148, 136, 0.3)';
-            ctx.beginPath(); ctx.ellipse(530, 310, 80, 60, 0, 0, Math.PI * 2); ctx.fill();
+            // Africa Landmass
+            ctx.beginPath();
+            ctx.moveTo(530, 200);
+            ctx.bezierCurveTo(590, 190, 620, 220, 630, 270);
+            ctx.bezierCurveTo(650, 320, 610, 420, 560, 410);
+            ctx.bezierCurveTo(520, 390, 490, 310, 530, 200);
+            ctx.fill(); ctx.stroke();
 
-            // North American Indigenous Heritage Band
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
-            ctx.beginPath(); ctx.ellipse(230, 160, 90, 70, 0, 0, Math.PI * 2); ctx.fill();
+            // North America Landmass
+            ctx.beginPath();
+            ctx.moveTo(150, 120);
+            ctx.bezierCurveTo(280, 100, 310, 170, 270, 250);
+            ctx.bezierCurveTo(220, 280, 140, 230, 150, 120);
+            ctx.fill(); ctx.stroke();
 
-            // Tactical Grid Overlay
+            // South America Landmass
+            ctx.beginPath();
+            ctx.moveTo(260, 280);
+            ctx.bezierCurveTo(330, 290, 310, 420, 280, 450);
+            ctx.bezierCurveTo(250, 470, 220, 370, 260, 280);
+            ctx.fill(); ctx.stroke();
+
+            // Eurasia & Asia Landmass
+            ctx.beginPath();
+            ctx.moveTo(650, 90);
+            ctx.bezierCurveTo(880, 70, 960, 160, 900, 270);
+            ctx.bezierCurveTo(800, 310, 620, 230, 650, 90);
+            ctx.fill(); ctx.stroke();
+
+            // Glowing Genetic Ancestry Composition Overlays (Genomelink Style)
+            ctx.fillStyle = 'rgba(168, 85, 247, 0.32)'; // Yoruba / West African Purple Glow
+            ctx.beginPath(); ctx.ellipse(570, 300, 75, 55, 0, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.3)'; // Caribbean / North American Blue Glow
+            ctx.beginPath(); ctx.ellipse(230, 160, 70, 50, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Tactical Longitude / Latitude Grid Lines
             ctx.strokeStyle = 'rgba(212, 175, 55, 0.15)';
             ctx.lineWidth = 1;
             for (let x = 0; x < canvas.width; x += 64) {
@@ -573,7 +609,11 @@
             characters.forEach(char => {
                 const pinDiv = document.createElement('div');
                 pinDiv.className = 'pin-container';
-                pinDiv.innerHTML = `<img src="${char.img}" alt="${char.name}" class="pin-avatar" style="border-color: ${char.color};">`;
+                pinDiv.style.borderColor = char.color;
+                pinDiv.innerHTML = `
+                    <img src="${char.img}" alt="${char.name}" class="pin-avatar" style="border-color: ${char.color};">
+                    <span class="pin-label">${char.name}</span>
+                `;
                 pinDiv.onclick = (e) => {
                     e.stopPropagation();
                     focusOnCharacter(char);
@@ -606,10 +646,10 @@
                 if (dot > -0.05) {
                     const x = (pos.x *  .5 + .5) * width;
                     const y = (pos.y * -.5 + .5) * height;
-                    item.element.style.display = 'block';
+                    item.element.style.display = 'flex';
                     item.element.style.left = `${x}px`;
                     item.element.style.top = `${y}px`;
-                    item.element.style.opacity = Math.max(0.15, (dot + 0.05) / 1.05);
+                    item.element.style.opacity = Math.max(0.2, (dot + 0.05) / 1.05);
                 } else {
                     item.element.style.display = 'none';
                 }
@@ -682,6 +722,9 @@
         }
 
         function dispatchVanguard() {
+            marrowCredits += 250;
+            const creditsEl = document.getElementById('stat-credits');
+            if (creditsEl) creditsEl.textContent = marrowCredits.toLocaleString();
             alert('Albor Syndicate temporal strike neutralized! +250 Marrow Credits earned.');
             document.getElementById('sector-alert').style.display = 'none';
         }
