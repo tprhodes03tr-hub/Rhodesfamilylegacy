@@ -109,7 +109,7 @@
             gap: 8px;
             box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
             max-width: 90%;
-            width: 330px;
+            width: 340px;
             display: none;
         }
 
@@ -299,7 +299,7 @@
             border: 1px solid #60a5fa;
         }
 
-        /* Pin Markers with Labels */
+        /* Pin Markers with Labels & Threat Beacons */
         .pin-container {
             position: absolute;
             transform: translate(-50%, -50%);
@@ -338,6 +338,27 @@
             letter-spacing: 0.5px;
         }
 
+        /* Threat Beacon Pulse */
+        .threat-beacon {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.8);
+            box-shadow: 0 0 15px #ef4444;
+            transform: translate(-50%, -50%);
+            animation: beaconPulse 1.2s infinite;
+            z-index: 6;
+            display: none;
+            pointer-events: none;
+        }
+
+        @keyframes beaconPulse {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.6); opacity: 0.3; }
+            100% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+        }
+
         #loader {
             position: absolute;
             top: 0;
@@ -371,7 +392,7 @@
 
     <div id="loader">
         <h2>INITIALIZING MARROW NEXUS</h2>
-        <p>Calibrating True Earth & DNA Frequencies...</p>
+        <p>Calibrating Tactical AI & DNA Frequencies...</p>
     </div>
 
     <div class="hud-header">
@@ -381,20 +402,21 @@
 
     <div class="nexus-stats">
         <span>⚡ Marrow Credits: <strong id="stat-credits">1,250</strong></span>
-        <span>🛡️ Tycoon Funding: <strong id="stat-funds">ACTIVE</strong></span>
+        <span>🛡️ Tactical AI: <strong id="stat-ai" style="color: #10b981;">ONLINE</strong></span>
     </div>
 
     <div id="sector-alert">
         <span id="alert-text">⚡ ALBOR SYNDICATE THREAT: Erasure Pulse Detected in West Africa!</span>
-        <button onclick="dispatchVanguard()">DEPLOY</button>
+        <button onclick="dispatchStrikeTeam('West Africa')">DEPLOY TEAM</button>
     </div>
 
     <div id="canvas-container"></div>
+    <div id="threat-beacon" class="threat-beacon"></div>
 
     <div class="hud-footer">
         <button class="hud-btn" onclick="resetView()">Reset Orbit</button>
-        <button class="hud-btn" onclick="triggerAlert()">Simulate Incursion</button>
-        <button class="hud-btn" onclick="location.href='Games.html'">Command Deck</button>
+        <button class="hud-btn" onclick="triggerRandomIncursion()">Simulate Incursion</button>
+        <button class="hud-btn" onclick="location.href='combat-portal.html'">Combat Portal</button>
     </div>
 
     <div id="dossier-modal">
@@ -415,7 +437,7 @@
             <p id="modal-desc">Character historical description...</p>
         </div>
         <div class="modal-action-grid">
-            <button class="dispatch-modal-btn" onclick="launchSectorDefense()">🚀 Defend Sector</button>
+            <button class="dispatch-modal-btn" onclick="dispatchHeroDirectly()">🚀 Deploy Unit</button>
             <button class="close-modal" onclick="closeDossier()">Close</button>
         </div>
     </div>
@@ -423,11 +445,11 @@
     <div id="pins-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:5;"></div>
 
     <script>
-        // Exact Vanguard Character mapping to match correct card portraits and assets
+        // Vanguard Characters mapped with exact image assets and sector coordinates
         const characters = [
             { 
                 id: 'amina', name: 'Amina Zazzau', lineage: 'Kassena / Northern Savanna', 
-                lat: 10.5, lon: 7.4, pwr: 92, def: 94, will: 95, sector: 'Sahelian Corridor', 
+                lat: 10.5, lon: 7.4, pwr: 92, def: 94, will: 95, sector: 'West Africa', 
                 color: '#a855f7', foil: 'Platinum Starlight', 
                 desc: 'Warrior-queen tactical lineage of the northern savanna and fortified border kingdoms.', img: 'amina-zazzau.png' 
             },
@@ -458,6 +480,18 @@
         let pinElements = [];
         let activeCharacter = null;
         let marrowCredits = 1250;
+        let currentThreatSector = { name: 'West Africa', lat: 10.5, lon: 7.4 };
+
+        // Tactical AI Voice Announcer
+        function speakAI(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                let utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.05;
+                utterance.pitch = 0.85;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
 
         function init() {
             const container = document.getElementById('canvas-container');
@@ -483,7 +517,6 @@
 
             const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
             
-            // Genomelink-inspired DNA ancestry globe texture with genetic color bands
             const canvas = document.createElement('canvas');
             canvas.width = 1024;
             canvas.height = 512;
@@ -492,11 +525,23 @@
             ctx.fillStyle = '#03060c';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Glowing Genetic Ancestry Composition Overlays matching Genomelink style
-            ctx.fillStyle = 'rgba(168, 85, 247, 0.32)'; // West African Segment
+            // Landmass Silhouettes & Genetic Ancestry Glows
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 2.5;
+
+            ctx.beginPath();
+            ctx.moveTo(530, 200); ctx.bezierCurveTo(590, 185, 625, 215, 635, 270); ctx.bezierCurveTo(655, 330, 615, 430, 560, 420); ctx.bezierCurveTo(515, 400, 485, 310, 530, 200);
+            ctx.fill(); ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(140, 110); ctx.bezierCurveTo(290, 90, 320, 170, 270, 260); ctx.bezierCurveTo(210, 290, 130, 220, 140, 110);
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = 'rgba(168, 85, 247, 0.35)';
             ctx.beginPath(); ctx.ellipse(570, 300, 75, 55, 0, 0, Math.PI * 2); ctx.fill();
 
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.32)'; // North American Segment
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.32)';
             ctx.beginPath(); ctx.ellipse(230, 160, 70, 50, 0, 0, Math.PI * 2); ctx.fill();
 
             ctx.strokeStyle = 'rgba(212, 175, 55, 0.15)';
@@ -509,24 +554,14 @@
             }
 
             const texture = new THREE.CanvasTexture(canvas);
-            const sphereMaterial = new THREE.MeshStandardMaterial({
-                map: texture,
-                roughness: 0.5,
-                metalness: 0.5
-            });
+            const sphereMaterial = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.5, metalness: 0.5 });
 
             globe = new THREE.Mesh(sphereGeometry, sphereMaterial);
             globeGroup.add(globe);
 
             const atmosGeometry = new THREE.SphereGeometry(1.03, 32, 32);
-            const atmosMaterial = new THREE.MeshBasicMaterial({
-                color: 0xd4af37,
-                transparent: true,
-                opacity: 0.18,
-                side: THREE.BackSide
-            });
-            const atmosMesh = new THREE.Mesh(atmosGeometry, atmosMaterial);
-            scene.add(atmosMesh);
+            const atmosMaterial = new THREE.MeshBasicMaterial({ color: 0xd4af37, transparent: true, opacity: 0.18, side: THREE.BackSide });
+            scene.add(new THREE.Mesh(atmosGeometry, atmosMaterial));
 
             createPins();
 
@@ -535,9 +570,7 @@
             window.addEventListener('mouseup', onPointerUp);
 
             window.addEventListener('touchstart', (e) => {
-                if(e.touches.length === 1) {
-                    onPointerDown(e.touches[0].clientX, e.touches[0].clientY);
-                }
+                if(e.touches.length === 1) onPointerDown(e.touches[0].clientX, e.touches[0].clientY);
             }, { passive: false });
 
             window.addEventListener('touchmove', (e) => {
@@ -554,7 +587,8 @@
                 const loader = document.getElementById('loader');
                 loader.style.opacity = 0;
                 setTimeout(() => loader.remove(), 500);
-            }, 800);
+                triggerRandomIncursion();
+            }, 1000);
 
             animate();
         }
@@ -618,6 +652,21 @@
                     item.element.style.display = 'none';
                 }
             });
+
+            // Update Red Threat Beacon position on globe
+            const beacon = document.getElementById('threat-beacon');
+            const bPos = latLonToVector3(currentThreatSector.lat, currentThreatSector.lon, 1.02);
+            bPos.applyMatrix4(globeGroup.matrixWorld);
+            bPos.project(camera);
+            const bVec = latLonToVector3(currentThreatSector.lat, currentThreatSector.lon, 1).normalize();
+            bVec.applyQuaternion(globeGroup.quaternion);
+            if (bVec.dot(new THREE.Vector3(0, 0, 1)) > -0.05) {
+                beacon.style.display = 'block';
+                beacon.style.left = `${(bPos.x * .5 + .5) * width}px`;
+                beacon.style.top = `${(bPos.y * -.5 + .5) * height}px`;
+            } else {
+                beacon.style.display = 'none';
+            }
         }
 
         function onPointerDown(clientX, clientY) {
@@ -627,18 +676,12 @@
 
         function onPointerMove(clientX, clientY) {
             if (!isDragging) return;
-            const deltaX = clientX - previousMousePosition.x;
-            const deltaY = clientY - previousMousePosition.y;
-
-            targetRotation.y += deltaX * 0.005;
-            targetRotation.x += deltaY * 0.005;
-            targetRotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, targetRotation.x));
-
+            targetRotation.y += (clientX - previousMousePosition.x) * 0.005;
+            targetRotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, targetRotation.x + (clientY - previousMousePosition.y) * 0.005));
             previousMousePosition = { x: clientX, y: clientY };
         }
 
         function onPointerUp() { isDragging = false; }
-
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -649,9 +692,7 @@
             requestAnimationFrame(animate);
             globeGroup.rotation.y += (targetRotation.y - globeGroup.rotation.y) * 0.1;
             globeGroup.rotation.x += (targetRotation.x - globeGroup.rotation.x) * 0.1;
-
             if (!isDragging) targetRotation.y += 0.0005;
-
             updatePins();
             renderer.render(scene, camera);
         }
@@ -660,7 +701,6 @@
             const modal = document.getElementById('dossier-modal');
             modal.style.setProperty('--modal-border', char.color);
             modal.style.setProperty('--modal-glow', char.color + '66');
-
             document.getElementById('modal-img').src = char.img;
             document.getElementById('modal-name').textContent = char.name;
             document.getElementById('modal-lineage').textContent = char.lineage;
@@ -670,6 +710,7 @@
             document.getElementById('modal-foil').textContent = char.foil;
             document.getElementById('modal-desc').textContent = char.desc;
             modal.classList.add('active');
+            speakAI(`Accessing Vanguard dossier for ${char.name}.`);
         }
 
         function closeDossier() {
@@ -681,30 +722,34 @@
             targetRotation.y = 0;
         }
 
-        function triggerAlert() {
+        function triggerRandomIncursion() {
+            const sectors = [
+                { name: 'West Africa', lat: 10.5, lon: 7.4 },
+                { name: 'North American Great Lakes', lat: 42.3, lon: -83.0 },
+                { name: 'Caribbean Basin', lat: 18.5, lon: -72.3 }
+            ];
+            currentThreatSector = sectors[Math.floor(Math.random() * sectors.length)];
+            document.getElementById('alert-text').textContent = `⚡ ALBOR SYNDICATE THREAT: Temporal Pulse Detected in ${currentThreatSector.name}!`;
             document.getElementById('sector-alert').style.display = 'flex';
+            speakAI(`Warning. Albor Syndicate temporal incursion detected in ${currentThreatSector.name}. Deploy strike team immediately.`);
         }
 
-        function dispatchVanguard() {
-            marrowCredits += 250;
-            const creditsEl = document.getElementById('stat-credits');
-            if (creditsEl) creditsEl.textContent = marrowCredits.toLocaleString();
-            alert('Albor Syndicate temporal strike neutralized! +250 Marrow Credits earned.');
+        function dispatchStrikeTeam(sectorName) {
+            marrowCredits += 350;
+            document.getElementById('stat-credits').textContent = marrowCredits.toLocaleString();
             document.getElementById('sector-alert').style.display = 'none';
+            speakAI(`Strike team deployed to ${sectorName}. Temporal rift sealed. Three hundred fifty Marrow Credits earned.`);
+            alert(`⚡ Sector ${sectorName} successfully defended! +350 Marrow Credits secured.`);
+            setTimeout(triggerRandomIncursion, 8000);
         }
 
-        function launchSectorDefense() {
+        function dispatchHeroDirectly() {
             if (activeCharacter) {
-                if (activeCharacter.id === 'marcus') {
-                    window.location.href = 'Games.html';
-                } else {
-                    alert(`Vanguard Unit ${activeCharacter.name} deployed to ${activeCharacter.sector}! Initializing defense protocol.`);
-                    closeDossier();
-                }
+                dispatchStrikeTeam(activeCharacter.sector);
+                closeDossier();
             }
         }
 
-        setTimeout(triggerAlert, 3000);
         window.onload = init;
     </script>
 </body>
