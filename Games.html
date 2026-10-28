@@ -102,7 +102,7 @@
       padding: 8px;
       border-radius: 6px;
       margin-bottom: 14px;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: #38bdf8;
       font-weight: bold;
     }
@@ -206,7 +206,7 @@
     <h1>Planetary Defense Grid</h1>
 
     <div class="stats-bar" style="border-color: #d4af37; color: #d4af37;">
-      <span>🌍 Sector Sector: <strong id="current-active-sector" style="color: #38bdf8;">West Africa (Amina's Domain)</strong></span>
+      <span>🌍 Sector: <strong id="current-active-sector" style="color: #38bdf8;">West Africa (Amina's Domain)</strong></span>
       <span>⚡ Roster Units: <strong>14 Active</strong></span>
       <span>🛡️ Grid Status: <strong style="color: #10b981;">SECURE</strong></span>
     </div>
@@ -274,7 +274,8 @@
 
     <div class="stats-bar" style="border-color: #1e3a8a; color: #60a5fa;">
       <span>🚗 Interceptor Tier: <strong id="car-tier" style="color: #f59e0b;">Tier 1 (Street Stock)</strong></span>
-      <span>📍 Distance to Incursion: <strong id="transit-distance">1,500</strong>m</span>
+      <span>❤️ Hull Integrity: <strong id="car-hull" style="color: #10b981;">100%</strong></span>
+      <span>📍 Distance: <strong id="transit-distance">1,500</strong>m</span>
       <span>✨ Relics: <strong id="relic-count" style="color: #38bdf8;">0</strong></span>
     </div>
 
@@ -546,6 +547,7 @@
       
       let playerX = 300, targetX = 300;
       let relics = 0;
+      let carHull = 100;
       let transitDistance = 1500; 
       let runnerItems = [];
       let obstacles = [];
@@ -647,7 +649,6 @@
       function loop() {
         if (canvas.offsetParent !== null) {
           if (gameState === 'racing' && !isPaused) {
-            // INCREASED BASE SPEED FOR HIGH-OCTANE ACTION
             let playerBaseSpeed = 5.2 + (tier * 0.9) + (relics * 0.2); 
             let forwardSpeed = playerBaseSpeed;
             if (nitroFrames > 0) {
@@ -659,19 +660,17 @@
             transitDistance = Math.max(0, transitDistance - forwardSpeed);
             document.getElementById('transit-distance').innerText = Math.floor(transitDistance);
             document.getElementById('relic-count').innerText = relics;
+            document.getElementById('car-hull').innerText = carHull + '%';
 
             roadScrollOffset = (roadScrollOffset + forwardSpeed * 2.0) % 40;
 
-            // Trigger Waypoint spawn when distance hits 0
             if (transitDistance <= 0 && !incursionWaypoint) {
               incursionWaypoint = { x: [140, 300, 460][Math.floor(Math.random()*3)], y: -50, radius: 45 };
             }
 
-            // If waypoint is active, move it down the screen
             if (incursionWaypoint) {
               incursionWaypoint.y += forwardSpeed * 0.9;
               
-              // Check if player catches waypoint
               if (Math.abs(playerX - incursionWaypoint.x) < 60 && Math.abs(350 - incursionWaypoint.y) < 60) {
                 gameState = 'reached_waypoint';
                 playSound('orb');
@@ -681,16 +680,14 @@
                 }, 1200);
               }
 
-              // RECYCLE WAYPOINT IF PASSED BY ACCIDENT
               if (incursionWaypoint.y > canvas.height + 60) {
                 transitLoopCount++;
-                transitDistance = 1200 * transitLoopCount; // Extend next transit loop
-                incursionWaypoint = null; // Reset waypoint to loop back later
+                transitDistance = 1200 * transitLoopCount; 
+                incursionWaypoint = null; 
                 speakText("Waypoint missed. Rerouting transit grid sector.");
               }
             }
 
-            // Spawning items & obstacles with high pacing
             if (transitDistance > 50 && !incursionWaypoint) {
               if (Math.random() < 0.045 && runnerItems.length < 5) {
                 let laneX = [140, 300, 460][Math.floor(Math.random() * 3)];
@@ -717,8 +714,15 @@
               obs.y += obs.speed;
               if (Math.abs(playerX - obs.x) < 50 && Math.abs(350 - obs.y) < 50) {
                 playSound('crash');
-                relics = Math.max(0, relics - 1);
-                checkProgression();
+                carHull -= 25; // DAMAGE FROM HITTING OBSTACLES
+                document.getElementById('car-hull').innerText = carHull + '%';
+                
+                if (carHull <= 0) {
+                  gameState = 'game_over';
+                  playSound('crash');
+                  speakText("Hull breached. Interceptor destroyed.");
+                }
+
                 obstacles.splice(idx, 1);
                 for (let i = 0; i < 12; i++) {
                   sparkParticles.push({
@@ -735,7 +739,6 @@
           ctx.fillStyle = '#020617';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Road Lanes
           ctx.strokeStyle = 'rgba(96, 165, 250, 0.4)';
           ctx.lineWidth = 3;
           ctx.setLineDash([20, 20]);
@@ -744,7 +747,6 @@
           ctx.beginPath(); ctx.moveTo(380, 0); ctx.lineTo(380, canvas.height); ctx.stroke();
           ctx.setLineDash([]);
 
-          // Draw Relics
           runnerItems.forEach(r => {
             ctx.fillStyle = '#38bdf8';
             ctx.shadowColor = '#38bdf8';
@@ -753,7 +755,6 @@
             ctx.shadowBlur = 0;
           });
 
-          // Draw Obstacles
           obstacles.forEach(obs => {
             ctx.fillStyle = '#ef4444';
             ctx.shadowColor = '#ef4444';
@@ -762,7 +763,6 @@
             ctx.shadowBlur = 0;
           });
 
-          // Draw Recyclable Red Dot Waypoint
           if (incursionWaypoint) {
             ctx.fillStyle = '#ef4444';
             ctx.shadowColor = '#ef4444';
@@ -815,6 +815,17 @@
             ctx.font = 'bold 16px Courier New';
             ctx.fillStyle = '#66fcf1';
             ctx.fillText(`Launching Space Odyssey Defense...`, canvas.width / 2, canvas.height / 2 + 25);
+            ctx.textAlign = 'left';
+          } else if (gameState === 'game_over') {
+            ctx.fillStyle = 'rgba(3, 7, 18, 0.95)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 36px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(`💥 HULL BREACHED`, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.font = 'bold 14px Courier New';
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText(`Interceptor destroyed. Reset transit to try again.`, canvas.width / 2, canvas.height / 2 + 20);
             ctx.textAlign = 'left';
           }
         }
