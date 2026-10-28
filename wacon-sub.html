@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhodes Family Legacy • Wacon Naval & Air Command</title>
+    <title>Rhodes Family Legacy • Wakan Trench Submarine Ops</title>
     <style>
         :root {
-            --bg-color: #050b14;
-            --panel-bg: rgba(8, 18, 34, 0.88);
-            --border-color: #1e3a60;
+            --bg-color: #020813;
+            --panel-bg: rgba(6, 15, 30, 0.92);
+            --border-color: #1b365d;
             --accent-cyan: #00f3ff;
             --accent-gold: #f39c12;
             --accent-red: #ff3333;
@@ -70,7 +70,7 @@
             border: 2px solid var(--border-color);
             border-radius: 8px;
             padding: 12px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.8);
         }
 
         .hud-header {
@@ -86,7 +86,7 @@
             display: flex;
             justify-content: space-between;
             font-size: 10px;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.5);
             padding: 6px 8px;
             border: 1px solid var(--border-color);
             border-radius: 4px;
@@ -117,18 +117,8 @@
             to { opacity: 1; }
         }
 
-        canvas {
-            width: 100%;
-            height: 350px;
-            background: #02060c;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            display: block;
-            margin-bottom: 10px;
-        }
-
         .radio-dispatch {
-            background: rgba(0, 20, 40, 0.9);
+            background: rgba(0, 20, 40, 0.95);
             border: 1px dashed var(--accent-gold);
             padding: 8px;
             border-radius: 4px;
@@ -163,6 +153,16 @@
             font-size: 11px;
         }
 
+        canvas {
+            width: 100%;
+            height: 350px;
+            background: #01060e;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
         .controls-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -171,7 +171,7 @@
         }
 
         .ctrl-btn {
-            background: rgba(10, 25, 45, 0.9);
+            background: rgba(12, 28, 50, 0.9);
             border: 1px solid var(--border-color);
             color: var(--text-main);
             padding: 10px;
@@ -240,21 +240,21 @@
     </header>
 
     <div class="game-container">
-        <div class="hud-header" id="modeHeader">WACON TRENCH • SUBMARINE OPS</div>
+        <div class="hud-header" id="modeHeader">WAKAN TRENCH • SUBMARINE OPS</div>
         
         <div class="stats-bar">
             <div class="stat-item">Integrity: <span id="hullVal">100</span>%</div>
-            <div class="stat-item">Objective: <span id="objVal">4500</span>m</div>
-            <div class="stat-item">Ammo: <span id="ammoVal">15</span></div>
-            <div class="stat-item">Class: <span id="tierVal" style="color: #f59e0b;">MK I</span></div>
+            <div class="stat-item">Depth: <span id="objVal">4500</span>m</div>
+            <div class="stat-item">Torpedoes: <span id="ammoVal">15</span></div>
+            <div class="stat-item">Vessel: <span id="tierVal" style="color: #f59e0b;">NAUTILUS MK I</span></div>
         </div>
 
         <div class="missile-alert" id="missileAlert">
-            🚨 MISSILE LOCK-ON! TAP BARREL ROLL TO EVADE!
+            🚨 ACOUSTIC LOCK-ON! TAP RESONANCE SHIELD TO EVADE!
         </div>
 
         <div class="radio-dispatch" id="radioBox">
-            <p>🔊 [COMMS SECURE] Command: Enter override code to clear blockade!</p>
+            <p>🔊 [WAKAN COMMS] "Enter trench security override code to bypass Albor gate!"</p>
             <div style="display: flex; gap: 6px;">
                 <input type="text" id="codeInput" placeholder="Enter Code (e.g. 313)">
                 <button onclick="verifyCode()">TRANSMIT</button>
@@ -269,8 +269,8 @@
         </div>
 
         <div class="action-row">
-            <button class="action-btn fire" onclick="fireWeapon()">🚀 FIRE WEAPON</button>
-            <button class="action-btn evade" onclick="triggerEvade()">🌀 BARREL ROLL</button>
+            <button class="action-btn fire" onclick="fireWeapon()">🚀 FIRE TORPEDO</button>
+            <button class="action-btn evade" onclick="triggerEvade()">🛡️ RESONANCE SHIELD</button>
         </div>
     </div>
 
@@ -282,12 +282,12 @@
         const canvas = document.getElementById('combatCanvas');
         const ctx = canvas.getContext('2d');
 
-        let craft = { x: 215, y: 280, width: 30, height: 44, speed: 6 };
+        let craft = { x: 215, y: 270, width: 34, height: 48, speed: 6 };
         let integrity = 100;
         let objectiveProgress = 4500;
         let ammo = 15;
         let craftTier = 1;
-        let gameMode = 'submarine'; // 'submarine' or 'jet_dogfight'
+        let gameMode = 'submarine'; 
         let gameActive = true;
         let activeCode = "313";
         let inCodeLock = false;
@@ -295,7 +295,18 @@
         let obstacles = [];
         let projectiles = [];
         let incomingMissiles = [];
-        let marineLife = [];
+        let bubbles = [];
+        let trenchFloorOffset = 0;
+
+        // Initialize ambient background bubbles
+        for(let i=0; i<25; i++) {
+            bubbles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: Math.random() * 2 + 1,
+                speed: Math.random() * 1 + 0.5
+            });
+        }
 
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowLeft' || e.key === 'a') moveCraft('left');
@@ -315,7 +326,7 @@
             if (!gameActive || ammo <= 0) return;
             ammo--;
             document.getElementById('ammoVal').innerText = ammo;
-            projectiles.push({ x: craft.x + 12, y: craft.y, vx: 0, vy: -10, type: gameMode === 'submarine' ? 'torpedo' : 'laser' });
+            projectiles.push({ x: craft.x + 14, y: craft.y, vx: 0, vy: -10, type: gameMode === 'submarine' ? 'torpedo' : 'laser' });
         }
 
         let isEvading = false;
@@ -324,18 +335,18 @@
             isEvading = true;
             document.getElementById('missileAlert').style.display = 'none';
             incomingMissiles = [];
-            setTimeout(() => { isEvading = false; }, 600);
+            setTimeout(() => { isEvading = false; }, 800);
         }
 
         function checkUpgradeTier() {
             if (objectiveProgress <= 3000 && craftTier < 2) {
                 craftTier = 2;
                 integrity = Math.min(100, integrity + 25);
-                document.getElementById('tierVal').innerText = gameMode === 'submarine' ? "MK II Nautilus" : "MK II Jet";
+                document.getElementById('tierVal').innerText = gameMode === 'submarine' ? "NAUTILUS MK II" : "APEX FIGHTER MK II";
             } else if (objectiveProgress <= 1500 && craftTier < 3) {
                 craftTier = 3;
                 integrity = Math.min(100, integrity + 25);
-                document.getElementById('tierVal').innerText = gameMode === 'submarine' ? "MK III Dreadnought" : "MK III Apex Fighter";
+                document.getElementById('tierVal').innerText = gameMode === 'submarine' ? "WAKAN DREADNOUGHT" : "APEX FIGHTER MK III";
             }
             document.getElementById('hullVal').innerText = integrity;
         }
@@ -351,7 +362,7 @@
                 document.getElementById('ammoVal').innerText = ammo;
                 obstacles = [];
             } else {
-                alert('Incorrect Code! Transmission jammed.');
+                alert('Incorrect Code! Security breach blocked.');
             }
         }
 
@@ -359,23 +370,30 @@
             if (!gameActive) return;
 
             objectiveProgress -= 3;
+            trenchFloorOffset += 1.5;
             document.getElementById('objVal').innerText = Math.max(0, objectiveProgress);
             checkUpgradeTier();
+
+            // Update ambient bubbles
+            bubbles.forEach(b => {
+                b.y -= b.speed;
+                if(b.y < 0) { b.y = canvas.height; b.x = Math.random() * canvas.width; }
+            });
 
             if (objectiveProgress <= 2250 && gameMode === 'submarine') {
                 gameMode = 'jet_dogfight';
                 document.getElementById('modeHeader').innerText = "CARIBBEAN AIRSPACE • VANGUARD JET INTERCEPT";
-                document.getElementById('tierVal').innerText = craftTier === 3 ? "MK III Apex Fighter" : "MK II Jet";
-                craft.y = 260;
+                document.getElementById('tierVal').innerText = craftTier === 3 ? "APEX FIGHTER MK III" : "APEX FIGHTER MK II";
+                craft.y = 250;
                 objectiveProgress = 2250;
                 obstacles = [];
-                alert('Submarine mission complete! Surfacing to board Vanguard Interceptor Jet for aerial dogfight.');
+                alert('Trench sector cleared! Wakan surfaces to board the Vanguard Interceptor Jet for aerial dogfight.');
             }
 
             if (objectiveProgress <= 0) {
                 gameActive = false;
                 document.getElementById('nextStageBtn').style.display = 'block';
-                alert('Caribbean Sector Secured! Distress beacon active. You can now launch 313 Grid transit.');
+                alert('Caribbean Sector Secured! You can now launch 313 Grid transit.');
                 return;
             }
 
@@ -383,7 +401,7 @@
                 inCodeLock = true;
                 activeCode = String(Math.floor(100 + Math.random() * 900));
                 document.getElementById('radioBox').style.display = 'block';
-                document.querySelector('.radio-dispatch p').innerHTML = `🔊 [COMMS SECURE] Input override code <b>${activeCode}</b> to clear sector blockades!`;
+                document.querySelector('.radio-dispatch p').innerHTML = `🔊 [WAKAN COMMS] Input override code <b>${activeCode}</b> to bypass Albor trench lock!`;
             }
 
             if (Math.random() < 0.035) {
@@ -392,8 +410,8 @@
                     x: Math.random() * (canvas.width - 70) + 35,
                     y: -40,
                     type: type,
-                    width: 32,
-                    height: 32,
+                    width: 34,
+                    height: 34,
                     speed: 2.0 + Math.random() * 1.5
                 });
             }
@@ -415,7 +433,7 @@
                     obstacles.splice(i, 1);
                     if (integrity <= 0) {
                         gameActive = false;
-                        alert('Craft Destroyed in Combat Sector!');
+                        alert('Vessel hull breached in combat zone!');
                     }
                     continue;
                 }
@@ -433,7 +451,7 @@
                         document.getElementById('hullVal').innerText = Math.max(0, integrity);
                         if (integrity <= 0) {
                             gameActive = false;
-                            alert('Missile Impact! Craft Lost.');
+                            alert('Missile Impact! Vessel Lost.');
                         }
                     }
                     incomingMissiles.splice(i, 1);
@@ -462,10 +480,12 @@
         }
 
         function draw() {
+            // Deep sea gradient background
             let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             if (gameMode === 'submarine') {
-                grad.addColorStop(0, '#010814');
-                grad.addColorStop(1, '#04182c');
+                grad.addColorStop(0, '#010b1a');
+                grad.addColorStop(0.7, '#031930');
+                grad.addColorStop(1, '#082545');
             } else {
                 grad.addColorStop(0, '#021a30');
                 grad.addColorStop(1, '#0b355e');
@@ -473,53 +493,90 @@
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // Draw glowing ocean floor & coral reefs in submarine mode
+            if (gameMode === 'submarine') {
+                ctx.fillStyle = '#051b30';
+                ctx.beginPath();
+                ctx.moveTo(0, canvas.height);
+                for(let x=0; x<=canvas.width; x+=30) {
+                    let h = Math.sin((x + trenchFloorOffset) * 0.02) * 15 + 25;
+                    ctx.lineTo(x, canvas.height - h);
+                }
+                ctx.lineTo(canvas.width, canvas.height);
+                ctx.fill();
+
+                // Bioluminescent coral highlights
+                ctx.fillStyle = '#00f3ff';
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 8;
+                ctx.fillRect(80, canvas.height - 22, 6, 12);
+                ctx.fillRect(240, canvas.height - 28, 8, 16);
+                ctx.fillRect(380, canvas.height - 20, 5, 10);
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw rising bubbles
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.25)';
+            bubbles.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw Craft / Wakan Submarine
             ctx.save();
             ctx.translate(craft.x, craft.y);
             if (isEvading) ctx.rotate(Date.now() * 0.05);
 
             if (gameMode === 'submarine') {
-                if (craftTier === 1) {
-                    ctx.fillStyle = '#00f3ff';
-                    ctx.fillRect(4, 8, 22, 28);
-                    ctx.fillStyle = '#f39c12';
-                    ctx.fillRect(-2, 14, 34, 6);
-                } else if (craftTier === 2) {
-                    ctx.fillStyle = '#38bdf8';
-                    ctx.fillRect(2, 6, 26, 32);
-                    ctx.fillStyle = '#60a5fa';
-                    ctx.fillRect(-6, 12, 42, 6);
-                } else {
-                    ctx.fillStyle = '#f59e0b';
-                    ctx.fillRect(0, 4, 30, 36);
-                    ctx.fillStyle = '#ef4444';
-                    ctx.fillRect(-8, 10, 46, 8);
-                }
+                // Detailed Wakan Nautilus Submarine Sprite
+                ctx.fillStyle = craftTier === 3 ? '#f39c12' : (craftTier === 2 ? '#38bdf8' : '#00f3ff');
+                ctx.shadowColor = craftTier === 3 ? '#f39c12' : '#00f3ff';
+                ctx.shadowBlur = 10;
+                
+                // Hull body
+                ctx.beginPath();
+                ctx.ellipse(17, 24, 14, 22, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Conning tower & periscope
+                ctx.fillStyle = '#1e3a60';
+                ctx.fillRect(13, 14, 8, 12);
+                ctx.fillStyle = '#f39c12';
+                ctx.fillRect(16, 8, 2, 8);
+
+                // Golden lineage accents
+                ctx.fillStyle = '#f39c12';
+                ctx.fillRect(6, 22, 22, 4);
+                ctx.shadowBlur = 0;
             } else {
                 // Jet Dogfight Tier Visuals
                 ctx.fillStyle = craftTier === 3 ? '#f59e0b' : '#d4af37';
                 ctx.beginPath();
-                ctx.moveTo(15, -10);
+                ctx.moveTo(17, -10);
                 ctx.lineTo(-12, 28);
-                ctx.lineTo(42, 28);
+                ctx.lineTo(44, 28);
                 ctx.closePath();
                 ctx.fill();
                 ctx.fillStyle = '#38bdf8';
-                ctx.fillRect(12, 5, 6, 12);
+                ctx.fillRect(14, 5, 6, 12);
             }
             ctx.restore();
 
+            // Draw Obstacles (Albor mines & drones)
             obstacles.forEach(obs => {
                 if (obs.type === 'mine' || obs.type === 'chopper') {
                     ctx.fillStyle = obs.type === 'mine' ? '#ff3333' : '#e67e22';
                     ctx.beginPath();
-                    ctx.arc(obs.x + 16, obs.y + 16, 14, 0, Math.PI * 2);
+                    ctx.arc(obs.x + 17, obs.y + 17, 14, 0, Math.PI * 2);
                     ctx.fill();
                 } else {
                     ctx.fillStyle = '#9b59b6';
-                    ctx.fillRect(obs.x, obs.y + 6, 32, 16);
+                    ctx.fillRect(obs.x, obs.y + 6, 34, 16);
                 }
             });
 
+            // Draw Incoming Missiles / Torpedoes
             incomingMissiles.forEach(m => {
                 ctx.fillStyle = '#ff3333';
                 ctx.shadowColor = '#ff3333';
@@ -528,6 +585,7 @@
                 ctx.shadowBlur = 0;
             });
 
+            // Draw Projectiles
             projectiles.forEach(p => {
                 ctx.fillStyle = p.type === 'torpedo' ? '#ff3333' : '#00f3ff';
                 ctx.fillRect(p.x, p.y, 4, 10);
