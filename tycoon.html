@@ -758,7 +758,6 @@
         document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
     }
 
-    // --- P2P HOST & JOIN WORKFLOW (FIXED & STREAMLINED) ---
     function hostP2PSession() {
         if(peer) peer.destroy();
         let customCode = document.getElementById('room-code-input').value.trim() || "DETROIT-MARROW";
@@ -993,8 +992,10 @@
                     let bonus = Math.random() > 0.5 ? 100 : -50;
                     tycoonGame.funds += bonus;
                 } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
+                    // FIXED: Correctly deduct rent from player and credit it to the property owner (Bot / P2)
                     tycoonGame.funds -= tile.rent;
                     tycoonGame.p2Funds += tile.rent;
+                    logTycoon(`${tycoonGame.p1Name} paid rent of ${tile.rent} ME to ${tile.owner}!`);
                 }
 
                 updateUIFunds();
@@ -1062,8 +1063,10 @@
             tile.owner = tycoonGame.p2Name;
             logTycoon(`Bot 101 purchased ${tile.name}!`);
         } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
+            // FIXED: Correctly deduct rent from Bot and credit it to Player (Tommy)
             tycoonGame.p2Funds -= tile.rent;
             tycoonGame.funds += tile.rent;
+            logTycoon(`Bot 101 paid rent of ${tile.rent} ME to ${tile.owner}!`);
         }
 
         updateUIFunds();
@@ -1300,6 +1303,7 @@
         funds: 800,
         rivalFunds: 800,
         position: 0,
+        rivalPosition: 0, // FIXED: Added AI / Rival position tracking
         faction: "vanguard",
         hero: "Marcus Prime",
         rival: "Barons Rust",
@@ -1366,6 +1370,7 @@
         vanguardGame.funds = 800;
         vanguardGame.rivalFunds = 800;
         vanguardGame.position = 0;
+        vanguardGame.rivalPosition = 0;
         vanguardGame.tiles.forEach(t => { if(t.cost > 0) { t.owner = "None"; t.hasHotel = false; } });
         updateVanguardUI();
         drawVanguardBoard();
@@ -1406,10 +1411,11 @@
             vTileRects.push({x: pt.x, y: pt.y, w: w, h: h, index: i});
             
             let isHere = (vanguardGame.position === i);
+            let isRivalHere = (vanguardGame.rivalPosition === i); // FIXED: Check rival position
 
-            vCtx.fillStyle = isHere ? '#1f1b2c' : '#0b0c10';
+            vCtx.fillStyle = (isHere || isRivalHere) ? '#1f1b2c' : '#0b0c10';
             vCtx.strokeStyle = t.color;
-            vCtx.lineWidth = isHere ? 3 : 1.5;
+            vCtx.lineWidth = (isHere || isRivalHere) ? 3 : 1.5;
             
             vCtx.save();
             vCtx.shadowColor = t.color;
@@ -1436,10 +1442,14 @@
             vCtx.font = 'bold 10px Courier New';
             vCtx.fillText(`Control: ${t.owner.substring(0, 10)}`, pt.x + 8, pt.y + 65);
 
-            if(isHere) {
+            // FIXED: Render both Player and Rival tokens on the Vanguard board tile
+            if(isHere || isRivalHere) {
                 vCtx.fillStyle = '#ff7b00';
-                vCtx.font = 'bold 13px Courier New';
-                vCtx.fillText(`🛡️ ${vanguardGame.hero}`, pt.x + 8, pt.y + 83);
+                vCtx.font = 'bold 12px Courier New';
+                let tokenStr = "";
+                if(isHere) tokenStr += "🛡️ ";
+                if(isRivalHere) tokenStr += "⚔️ ";
+                vCtx.fillText(tokenStr, pt.x + 8, pt.y + 83);
             }
         });
 
@@ -1501,6 +1511,7 @@
                 vanguardGame.funds += surge;
                 logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
             } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero) {
+                // FIXED: Correctly deduct toll from player and credit it to the rival faction
                 vanguardGame.funds -= tile.rent;
                 vanguardGame.rivalFunds += tile.rent;
                 logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
@@ -1511,12 +1522,24 @@
 
             setTimeout(() => {
                 let rivalRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
-                let rivalTile = vanguardGame.tiles[(vanguardGame.position + rivalRoll) % vanguardGame.tiles.length];
-                logVanguard(`${vanguardGame.rival} countered on ${rivalTile.name}!`);
+                let oldRivalPos = vanguardGame.rivalPosition;
+                vanguardGame.rivalPosition = (vanguardGame.rivalPosition + rivalRoll) % vanguardGame.tiles.length;
+                if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+
+                let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
+                logVanguard(`${vanguardGame.rival} countered and landed on ${rivalTile.name}.`);
+                
                 if(rivalTile.owner === "None" && rivalTile.cost > 0 && vanguardGame.rivalFunds >= rivalTile.cost) {
                     rivalTile.owner = vanguardGame.rival;
                     vanguardGame.rivalFunds -= rivalTile.cost;
+                    logVanguard(`${vanguardGame.rival} claimed ${rivalTile.name}!`);
+                } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival) {
+                    // FIXED: Correctly deduct toll from Rival and credit it to Player (Hero)
+                    vanguardGame.rivalFunds -= rivalTile.rent;
+                    vanguardGame.funds += rivalTile.rent;
+                    logVanguard(`${vanguardGame.rival} paid toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
                 }
+
                 updateVanguardUI();
                 drawVanguardBoard();
             }, 1000);
