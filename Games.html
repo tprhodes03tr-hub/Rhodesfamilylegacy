@@ -274,7 +274,7 @@
 
     <div class="stats-bar" style="border-color: #1e3a8a; color: #60a5fa;">
       <span>🚗 Interceptor Tier: <strong id="car-tier" style="color: #f59e0b;">Tier 1 (Street Stock)</strong></span>
-      <span>📍 Distance to Incursion: <strong id="transit-distance">1,200</strong>m</span>
+      <span>📍 Distance to Incursion: <strong id="transit-distance">1,500</strong>m</span>
       <span>✨ Relics: <strong id="relic-count" style="color: #38bdf8;">0</strong></span>
     </div>
 
@@ -544,9 +544,9 @@
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       
-      let playerX = 240, targetX = 240;
+      let playerX = 300, targetX = 300;
       let relics = 0;
-      let transitDistance = 1200; // Balanced distance for smoother interception
+      let transitDistance = 1500; 
       let runnerItems = [];
       let obstacles = [];
       let tier = 1;
@@ -557,6 +557,7 @@
       let isPaused = false;
       let nitroFrames = 0;
       let incursionWaypoint = null;
+      let transitLoopCount = 1;
 
       let countInterval = setInterval(() => {
         if (!isPaused) {
@@ -590,14 +591,14 @@
       window.triggerRunnerBoost = () => {
         if (gameState !== 'racing' || isPaused) return;
         playSound('orb');
-        nitroFrames = 90;
+        nitroFrames = 120;
       };
 
       function checkProgression() {
-        if (relics >= 6) {
+        if (relics >= 8) {
           tier = 4;
           document.getElementById('car-tier').innerText = "Tier 4 (Vanguard Mecha-Hyper)";
-        } else if (relics >= 4) {
+        } else if (relics >= 5) {
           tier = 3;
           document.getElementById('car-tier').innerText = "Tier 3 (Apex Quantum)";
         } else if (relics >= 2) {
@@ -637,8 +638,8 @@
 
         if (isBoosting || (isPlayer && nitroFrames > 0)) {
           ctx.fillStyle = '#f59e0b';
-          ctx.fillRect(-10, bodyHeight/2, 8, 22 + Math.random() * 12);
-          ctx.fillRect(2, bodyHeight/2, 8, 22 + Math.random() * 12);
+          ctx.fillRect(-10, bodyHeight/2, 8, 28 + Math.random() * 14);
+          ctx.fillRect(2, bodyHeight/2, 8, 28 + Math.random() * 14);
         }
         ctx.restore();
       }
@@ -646,28 +647,32 @@
       function loop() {
         if (canvas.offsetParent !== null) {
           if (gameState === 'racing' && !isPaused) {
-            let playerBaseSpeed = 2.8 + (tier * 0.6) + (relics * 0.15); // Balanced speed for player control
+            // INCREASED BASE SPEED FOR HIGH-OCTANE ACTION
+            let playerBaseSpeed = 5.2 + (tier * 0.9) + (relics * 0.2); 
             let forwardSpeed = playerBaseSpeed;
             if (nitroFrames > 0) {
               nitroFrames--;
-              forwardSpeed = 8.0;
+              forwardSpeed = 11.5;
             }
 
-            playerX += (targetX - playerX) * 0.2;
+            playerX += (targetX - playerX) * 0.25;
             transitDistance = Math.max(0, transitDistance - forwardSpeed);
             document.getElementById('transit-distance').innerText = Math.floor(transitDistance);
             document.getElementById('relic-count').innerText = relics;
 
-            roadScrollOffset = (roadScrollOffset + forwardSpeed * 1.5) % 40;
+            roadScrollOffset = (roadScrollOffset + forwardSpeed * 2.0) % 40;
 
-            // Trigger Arrival at Red Dot Waypoint
+            // Trigger Waypoint spawn when distance hits 0
             if (transitDistance <= 0 && !incursionWaypoint) {
-              incursionWaypoint = { x: 300, y: 150, radius: 40 };
+              incursionWaypoint = { x: [140, 300, 460][Math.floor(Math.random()*3)], y: -50, radius: 45 };
             }
 
+            // If waypoint is active, move it down the screen
             if (incursionWaypoint) {
-              incursionWaypoint.y += forwardSpeed * 0.8;
-              if (Math.abs(playerX - incursionWaypoint.x) < 55 && Math.abs(350 - incursionWaypoint.y) < 55) {
+              incursionWaypoint.y += forwardSpeed * 0.9;
+              
+              // Check if player catches waypoint
+              if (Math.abs(playerX - incursionWaypoint.x) < 60 && Math.abs(350 - incursionWaypoint.y) < 60) {
                 gameState = 'reached_waypoint';
                 playSound('orb');
                 speakText("Waypoint secured. Launching Vanguard Space Odyssey portal.");
@@ -675,23 +680,31 @@
                   window.location.href = 'odyssey.html';
                 }, 1200);
               }
+
+              // RECYCLE WAYPOINT IF PASSED BY ACCIDENT
+              if (incursionWaypoint.y > canvas.height + 60) {
+                transitLoopCount++;
+                transitDistance = 1200 * transitLoopCount; // Extend next transit loop
+                incursionWaypoint = null; // Reset waypoint to loop back later
+                speakText("Waypoint missed. Rerouting transit grid sector.");
+              }
             }
 
-            // Spawn items & drones along transit (generous spacing for smooth play)
-            if (transitDistance > 80) {
-              if (Math.random() < 0.035 && runnerItems.length < 4) {
+            // Spawning items & obstacles with high pacing
+            if (transitDistance > 50 && !incursionWaypoint) {
+              if (Math.random() < 0.045 && runnerItems.length < 5) {
                 let laneX = [140, 300, 460][Math.floor(Math.random() * 3)];
-                runnerItems.push({ x: laneX, y: -20, speed: 3.2 });
+                runnerItems.push({ x: laneX, y: -30, speed: 4.0 + (tier * 0.5) });
               }
-              if (Math.random() < 0.025 && obstacles.length < 2) {
+              if (Math.random() < 0.035 && obstacles.length < 3) {
                 let laneX = [140, 300, 460][Math.floor(Math.random() * 3)];
-                obstacles.push({ x: laneX, y: -20, speed: 3.5 });
+                obstacles.push({ x: laneX, y: -30, speed: 4.5 + (tier * 0.4) });
               }
             }
 
             runnerItems.forEach((r, idx) => {
               r.y += r.speed;
-              if (Math.abs(playerX - r.x) < 45 && Math.abs(350 - r.y) < 45) {
+              if (Math.abs(playerX - r.x) < 50 && Math.abs(350 - r.y) < 50) {
                 playSound('orb');
                 relics++;
                 checkProgression();
@@ -702,15 +715,15 @@
 
             obstacles.forEach((obs, idx) => {
               obs.y += obs.speed;
-              if (Math.abs(playerX - obs.x) < 45 && Math.abs(350 - obs.y) < 45) {
+              if (Math.abs(playerX - obs.x) < 50 && Math.abs(350 - obs.y) < 50) {
                 playSound('crash');
                 relics = Math.max(0, relics - 1);
                 checkProgression();
                 obstacles.splice(idx, 1);
-                for (let i = 0; i < 10; i++) {
+                for (let i = 0; i < 12; i++) {
                   sparkParticles.push({
                     x: playerX, y: 350,
-                    vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14, life: 25
+                    vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 16, life: 30
                   });
                 }
               }
@@ -727,8 +740,8 @@
           ctx.lineWidth = 3;
           ctx.setLineDash([20, 20]);
           ctx.lineDashOffset = -roadScrollOffset;
-          ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, canvas.height); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, canvas.height); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(220, 0); ctx.lineTo(220, canvas.height); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(380, 0); ctx.lineTo(380, canvas.height); ctx.stroke();
           ctx.setLineDash([]);
 
           // Draw Relics
@@ -736,29 +749,29 @@
             ctx.fillStyle = '#38bdf8';
             ctx.shadowColor = '#38bdf8';
             ctx.shadowBlur = 15;
-            ctx.beginPath(); ctx.arc(r.x, r.y, 15, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(r.x, r.y, 16, 0, Math.PI * 2); ctx.fill();
             ctx.shadowBlur = 0;
           });
 
-          // Draw Security Drone Obstacles
+          // Draw Obstacles
           obstacles.forEach(obs => {
             ctx.fillStyle = '#ef4444';
             ctx.shadowColor = '#ef4444';
             ctx.shadowBlur = 12;
-            ctx.fillRect(obs.x - 18, obs.y - 18, 36, 36);
+            ctx.fillRect(obs.x - 20, obs.y - 20, 40, 40);
             ctx.shadowBlur = 0;
           });
 
-          // Draw Red Dot Waypoint when transit nears end
+          // Draw Recyclable Red Dot Waypoint
           if (incursionWaypoint) {
             ctx.fillStyle = '#ef4444';
             ctx.shadowColor = '#ef4444';
-            ctx.shadowBlur = 25;
-            ctx.beginPath(); ctx.arc(incursionWaypoint.x, incursionWaypoint.y, 35 + Math.sin(Date.now() * 0.01) * 8, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 30;
+            ctx.beginPath(); ctx.arc(incursionWaypoint.x, incursionWaypoint.y, 40 + Math.sin(Date.now() * 0.012) * 10, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 12px Courier New';
             ctx.textAlign = 'center';
-            ctx.fillText('INCURSION WAYPOINT', incursionWaypoint.x, incursionWaypoint.y - 45);
+            ctx.fillText(`INCURSION WAYPOINT (LOOP ${transitLoopCount})`, incursionWaypoint.x, incursionWaypoint.y - 50);
             ctx.textAlign = 'left';
             ctx.shadowBlur = 0;
           }
