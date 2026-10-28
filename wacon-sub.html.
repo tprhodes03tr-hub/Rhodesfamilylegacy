@@ -85,9 +85,9 @@
         .stats-bar {
             display: flex;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 10px;
             background: rgba(0, 0, 0, 0.4);
-            padding: 6px 10px;
+            padding: 6px 8px;
             border: 1px solid var(--border-color);
             border-radius: 4px;
             margin-bottom: 8px;
@@ -162,7 +162,6 @@
             border-radius: 4px;
             text-align: center;
             user-select: none;
-            transition: background 0.1s;
         }
 
         .ctrl-btn:active {
@@ -193,10 +192,6 @@
             color: var(--accent-red);
         }
 
-        .action-btn:hover {
-            filter: brightness(1.2);
-        }
-
         .footer-link {
             text-align: center;
             margin-top: 10px;
@@ -225,9 +220,10 @@
         
         <div class="stats-bar">
             <div class="stat-item">Hull: <span id="hullVal">100</span>%</div>
-            <div class="stat-item">Sector Depth: <span id="depthVal">4500</span>m</div>
-            <div class="stat-item">Torpedoes: <span id="torpVal">12</span></div>
+            <div class="stat-item">Depth: <span id="depthVal">4500</span>m</div>
+            <div class="stat-item">Torp: <span id="torpVal">12</span></div>
             <div class="stat-item">Relics: <span id="relicVal">0</span></div>
+            <div class="stat-item">Tier: <span id="tierVal" style="color: #f59e0b;">MK I</span></div>
         </div>
 
         <div class="radio-dispatch" id="radioBox">
@@ -246,7 +242,7 @@
         </div>
 
         <div class="action-row">
-            <button class="action-btn fire-torpedo" onclick="fireWeapon('torpedo')">🚀 FIRE SEEKING TORPEDO</button>
+            <button class="action-btn fire-torpedo" onclick="fireWeapon('torpedo')">🚀 SEEKING TORPEDO</button>
             <button class="action-btn" onclick="fireWeapon('laser')">⚡ PULSE LASER</button>
         </div>
     </div>
@@ -259,66 +255,76 @@
         const canvas = document.getElementById('subCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Game State
-        let sub = { x: 215, y: 300, width: 28, height: 42, speed: 4 };
+        let sub = { x: 215, y: 300, width: 28, height: 42, speed: 5 };
         let hull = 100;
         let depth = 4500;
         let torpedoes = 12;
         let relics = 0;
+        let subTier = 1; // MK I to MK III
         let gameActive = true;
         let activeCode = "313";
         let inCodeLock = false;
 
-        let obstacles = []; // Mines & Albor Patrol Subs
-        let projectiles = []; // Torpedoes & Lasers
-        let particles = []; // Bubbles & debris
-        let marineLife = []; // Fish / Octopuses
-
-        // Controls
-        let keys = { left: false, right: false };
+        let obstacles = [];
+        let projectiles = [];
+        let marineLife = [];
 
         window.addEventListener('keydown', e => {
-            if (e.key === 'ArrowLeft' || e.key === 'a') sub.x = Math.max(20, sub.x - 15);
-            if (e.key === 'ArrowRight' || e.key === 'd') sub.x = Math.min(canvas.width - 40, sub.x + 15);
+            if (e.key === 'ArrowLeft' || e.key === 'a') sub.x = Math.max(20, sub.x - 18);
+            if (e.key === 'ArrowRight' || e.key === 'd') sub.x = Math.min(canvas.width - 40, sub.x + 18);
             if (e.key === ' ') fireWeapon('torpedo');
         });
 
         function moveSub(dir) {
-            if (dir === 'left') sub.x = Math.max(20, sub.x - 20);
-            if (dir === 'right') sub.x = Math.min(canvas.width - 40, sub.x + 20);
+            let step = subTier === 3 ? 24 : 18;
+            if (dir === 'left') sub.x = Math.max(20, sub.x - step);
+            if (dir === 'right') sub.x = Math.min(canvas.width - 40, sub.x + step);
         }
 
         function fireWeapon(type) {
             if (!gameActive) return;
             if (type === 'torpedo' && torpedoes > 0) {
                 torpedoes--;
-                projectiles.push({ x: sub.x + 10, y: sub.y, vx: 0, vy: -7, type: 'torpedo' });
+                projectiles.push({ x: sub.x + 10, y: sub.y, vx: 0, vy: -8, type: 'torpedo' });
             } else if (type === 'laser') {
-                projectiles.push({ x: sub.x + 12, y: sub.y, vx: 0, vy: -12, type: 'laser' });
+                let spread = subTier >= 2 ? [-8, 0, 8] : [0];
+                spread.forEach(off => {
+                    projectiles.push({ x: sub.x + 12 + off, y: sub.y, vx: 0, vy: -12, type: 'laser' });
+                });
             }
             document.getElementById('torpVal').innerText = torpedoes;
         }
 
-        // Spawn environment elements
+        function checkSubTier() {
+            if (relics >= 6 && subTier < 3) {
+                subTier = 3;
+                hull = Math.min(100, hull + 30);
+                document.getElementById('tierVal').innerText = "MK III (Apex Dreadnought)";
+            } else if (relics >= 3 && subTier < 2) {
+                subTier = 2;
+                hull = Math.min(100, hull + 20);
+                document.getElementById('tierVal').innerText = "MK II (Tactical Nautilus)";
+            }
+            document.getElementById('hullVal').innerText = hull;
+        }
+
         function spawnElements() {
             if (!gameActive) return;
-            // Spawn mines or Albor scout subs
-            if (Math.random() < 0.03) {
+            if (Math.random() < 0.035) {
                 obstacles.push({
                     x: Math.random() * (canvas.width - 60) + 30,
                     y: -40,
                     type: Math.random() > 0.4 ? 'mine' : 'albor_sub',
-                    width: 30,
-                    height: 30,
-                    speed: 1.5 + Math.random() * 1.5
+                    width: 32,
+                    height: 32,
+                    speed: 1.8 + Math.random() * 1.5
                 });
             }
-            // Spawn marine life (fish / coral particles)
             if (Math.random() < 0.05) {
                 marineLife.push({
                     x: Math.random() * canvas.width,
                     y: canvas.height + 10,
-                    speed: 0.5 + Math.random() * 1,
+                    speed: 0.6 + Math.random() * 1,
                     size: 2 + Math.random() * 4
                 });
             }
@@ -338,15 +344,14 @@
                 document.getElementById('radioBox').style.display = 'none';
                 document.getElementById('codeInput').value = '';
                 relics += 2;
+                checkSubTier();
                 document.getElementById('relicVal').innerText = relics;
-                // Clear all mines on screen
                 obstacles = [];
             } else {
                 alert('Incorrect Code! Transmission jammed.');
             }
         }
 
-        // Main Game Loop
         function update() {
             if (!gameActive) return;
 
@@ -356,26 +361,24 @@
             if (depth <= 0) {
                 gameActive = false;
                 document.getElementById('nextStageBtn').style.display = 'block';
-                alert('Wacon Trench Cleared! Distress beacon relayed to Detroit Grid. You can now launch 313 Grid transit.');
+                alert('Wacon Trench Cleared! Distress beacon relayed. You can now launch 313 Grid transit.');
                 return;
             }
 
-            // Trigger random comms check
             if (depth === 3000 || depth === 1500) {
                 triggerRadioCheck();
             }
 
             spawnElements();
 
-            // Update obstacles
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let obs = obstacles[i];
                 obs.y += obs.speed;
 
-                // Collision with sub
                 if (sub.x < obs.x + obs.width && sub.x + sub.width > obs.x &&
                     sub.y < obs.y + obs.height && sub.y + sub.height > obs.y) {
-                    hull -= 20;
+                    let damage = subTier === 3 ? 10 : (subTier === 2 ? 15 : 20);
+                    hull -= damage;
                     document.getElementById('hullVal').innerText = Math.max(0, hull);
                     obstacles.splice(i, 1);
                     if (hull <= 0) {
@@ -385,24 +388,22 @@
                     continue;
                 }
 
-                // Remove off-screen
                 if (obs.y > canvas.height) {
                     obstacles.splice(i, 1);
                 }
             }
 
-            // Update projectiles
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 let p = projectiles[i];
                 p.y += p.vy;
 
-                // Check hit on obstacles
                 for (let j = obstacles.length - 1; j >= 0; j--) {
                     let obs = obstacles[j];
                     if (p.x > obs.x && p.x < obs.x + obs.width && p.y > obs.y && p.y < obs.y + obs.height) {
                         obstacles.splice(j, 1);
                         projectiles.splice(i, 1);
                         relics += 1;
+                        checkSubTier();
                         document.getElementById('relicVal').innerText = relics;
                         break;
                     }
@@ -411,7 +412,6 @@
                 if (p.y < 0) projectiles.splice(i, 1);
             }
 
-            // Update marine life
             for (let i = marineLife.length - 1; i >= 0; i--) {
                 let m = marineLife[i];
                 m.y -= m.speed;
@@ -420,14 +420,12 @@
         }
 
         function draw() {
-            // Clear canvas with dark deep-sea blue gradient
             let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             grad.addColorStop(0, '#010814');
             grad.addColorStop(1, '#04182c');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Marine Life (Bio-luminescent drift)
             ctx.fillStyle = 'rgba(0, 243, 255, 0.3)';
             marineLife.forEach(m => {
                 ctx.beginPath();
@@ -435,32 +433,54 @@
                 ctx.fill();
             });
 
-            // Draw Submarine (Wacon Deep-Sea Vessel)
-            ctx.fillStyle = '#00f3ff';
-            ctx.fillRect(sub.x + 6, sub.y + 10, 16, 22); // Hull
-            ctx.fillStyle = '#f39c12';
-            ctx.fillRect(sub.x, sub.y + 18, 28, 6); // Wing fins
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(sub.x + 10, sub.y + 4, 8, 8); // Conning tower / cockpit
+            // DRAW TRANSFORMING SUBMARINE HULL BASED ON TIER
+            ctx.save();
+            ctx.translate(sub.x, sub.y);
 
-            // Draw Obstacles (Mines & Albor Drones)
+            if (subTier === 1) {
+                // MK I: Recon Sub
+                ctx.fillStyle = '#00f3ff';
+                ctx.fillRect(4, 10, 20, 24);
+                ctx.fillStyle = '#f39c12';
+                ctx.fillRect(0, 16, 28, 6);
+            } else if (subTier === 2) {
+                // MK II: Tactical Nautilus
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(2, 8, 24, 28);
+                ctx.fillStyle = '#60a5fa';
+                ctx.fillRect(-4, 14, 36, 6);
+            } else {
+                // MK III: Apex Abyssal Dreadnought
+                ctx.fillStyle = '#f59e0b';
+                ctx.shadowColor = '#f59e0b';
+                ctx.shadowBlur = 15;
+                ctx.fillRect(0, 6, 28, 32);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(-6, 12, 40, 8);
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(8, 2, 12, 10); // Cockpit viewport
+
+            ctx.restore();
+
             obstacles.forEach(obs => {
                 if (obs.type === 'mine') {
                     ctx.fillStyle = '#ff3333';
                     ctx.beginPath();
-                    ctx.arc(obs.x + 15, obs.y + 15, 12, 0, Math.PI * 2);
+                    ctx.arc(obs.x + 16, obs.y + 16, 14, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.strokeStyle = '#fff';
                     ctx.stroke();
                 } else {
-                    ctx.fillStyle = '#9b59b6'; // Albor hostile sub
-                    ctx.fillRect(obs.x, obs.y + 5, 30, 15);
+                    ctx.fillStyle = '#9b59b6';
+                    ctx.fillRect(obs.x, obs.y + 6, 32, 16);
                     ctx.fillStyle = '#ff3333';
-                    ctx.fillRect(obs.x + 10, obs.y, 10, 5);
+                    ctx.fillRect(obs.x + 10, obs.y, 12, 6);
                 }
             });
 
-            // Draw Projectiles
             projectiles.forEach(p => {
                 ctx.fillStyle = p.type === 'torpedo' ? '#ff3333' : '#00f3ff';
                 ctx.fillRect(p.x, p.y, 4, 10);
