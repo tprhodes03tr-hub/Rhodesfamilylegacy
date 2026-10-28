@@ -181,7 +181,7 @@
     let shield = 100;
     let hull = 100;
     let orbsCollected = 0;
-    let shipTier = 1; // MK I to MK III
+    let shipTier = 1;
     let torpedoes = 3;
     let isWarping = false;
     let sectorName = "Earth Orbit (Sector 1)";
@@ -216,7 +216,6 @@
 
     setInterval(() => {
       if (!isWarping && launchSequenceTimer <= 0) {
-        let fireRate = shipTier === 3 ? 250 : 350;
         projectiles.push({ x: player.x, y: player.y - 20, vx: 0, vy: -9, isTorpedo: false });
         playSound('laser');
       }
@@ -239,7 +238,6 @@
       isWarping = true;
       playSound('warp');
 
-      // Shift to new cosmic background sector
       let sectors = [
         "Deep Nebula (Sector 2)",
         "Crimson Star Cluster (Sector 3)",
@@ -249,7 +247,6 @@
       sectorName = sectors[Math.floor(Math.random() * sectors.length)];
       document.getElementById('mission-status').innerText = `VANGUARD FLEET • ${sectorName}`;
 
-      // Trigger random distress call event
       if (!distressActive && Math.random() < 0.7) {
         triggerDistressCall();
       }
@@ -290,7 +287,6 @@
     }
 
     function loop() {
-      // Dynamic background tint based on sector warp state
       ctx.fillStyle = isWarping ? '#0f172a' : '#020617';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -332,31 +328,35 @@
           enemies.push({ x: Math.random() * (canvas.width - 60) + 30, y: -30, size: 32, hp: shipTier > 1 ? 3 : 2 });
         }
 
-        projectiles.forEach((p, idx) => {
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+          let p = projectiles[i];
           p.x += p.vx;
           p.y += p.vy;
           ctx.fillStyle = p.isTorpedo ? '#f59e0b' : '#38bdf8';
           ctx.fillRect(p.x - 3, p.y - 8, p.isTorpedo ? 6 : 4, p.isTorpedo ? 16 : 12);
 
-          enemies.forEach((e, eIdx) => {
+          for (let j = enemies.length - 1; j >= 0; j--) {
+            let e = enemies[j];
             let dist = Math.hypot(p.x - e.x, p.y - e.y);
             if (dist < e.size) {
               e.hp -= p.isTorpedo ? 3 : 1;
-              projectiles.splice(idx, 1);
+              projectiles.splice(i, 1);
               if (e.hp <= 0) {
                 if (Math.random() < 0.75) {
                   orbs.push({ x: e.x, y: e.y, vy: 2.2 });
                 }
-                enemies.splice(eIdx, 1);
+                enemies.splice(j, 1);
                 updateHUD();
               }
+              break;
             }
-          });
+          }
 
-          if (p.y < 0) projectiles.splice(idx, 1);
-        });
+          if (p && p.y < 0) projectiles.splice(i, 1);
+        }
 
-        orbs.forEach((o, idx) => {
+        for (let i = orbs.length - 1; i >= 0; i--) {
+          let o = orbs[i];
           o.y += o.vy;
           ctx.fillStyle = '#38bdf8';
           ctx.shadowColor = '#38bdf8';
@@ -371,7 +371,6 @@
             playSound('collect');
             orbsCollected++;
             
-            // SHIP TRANSFORMATION PROGRESSION
             if (orbsCollected >= 10 && shipTier < 3) {
               shipTier = 3;
               torpedoes += 5;
@@ -384,17 +383,17 @@
               distressActive = false;
               clearInterval(distressInterval);
               document.getElementById('distress-banner').style.display = 'none';
-              score += 300;
             }
 
             updateHUD();
-            orbs.splice(idx, 1);
+            orbs.splice(i, 1);
+          } else if (o.y > canvas.height) {
+            orbs.splice(i, 1);
           }
-          if (o.y > canvas.height) orbs.splice(idx, 1);
-        });
+        }
 
-        // ENEMY WARSHIPS
-        enemies.forEach((e, idx) => {
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          let e = enemies[i];
           e.y += 2.4;
           ctx.save();
           ctx.translate(e.x, e.y);
@@ -417,7 +416,7 @@
 
           let dist = Math.hypot(player.x - e.x, player.y - e.y);
           if (dist < 35) {
-            enemies.splice(idx, 1);
+            enemies.splice(i, 1);
             if (shield > 0) {
               shield -= 20;
               shieldPulse = 15;
@@ -425,13 +424,12 @@
               hull -= 15;
             }
             updateHUD();
+          } else if (e.y > canvas.height + 40) {
+            enemies.splice(i, 1);
           }
-
-          if (e.y > canvas.height + 40) enemies.splice(idx, 1);
-        });
+        }
       }
 
-      // TRANSFORMING VANGUARD SHIP HULL BASED ON TIER
       ctx.save();
       ctx.translate(player.x, player.y);
       
@@ -445,7 +443,6 @@
       }
 
       if (shipTier === 1) {
-        // MK I: Standard Gold Interceptor
         ctx.fillStyle = '#d4af37';
         ctx.beginPath();
         ctx.moveTo(0, -26);
@@ -457,7 +454,6 @@
         ctx.closePath();
         ctx.fill();
       } else if (shipTier === 2) {
-        // MK II: Sleek Dual-Helix Cruiser
         ctx.fillStyle = '#38bdf8';
         ctx.beginPath();
         ctx.moveTo(0, -32);
@@ -469,7 +465,6 @@
         ctx.closePath();
         ctx.fill();
       } else {
-        // MK III: Apex Quantum Vanguard Dreadnought
         ctx.fillStyle = '#f59e0b';
         ctx.shadowColor = '#f59e0b';
         ctx.shadowBlur = 20;
@@ -485,13 +480,11 @@
         ctx.shadowBlur = 0;
       }
 
-      // Cockpit Glow
       ctx.fillStyle = '#38bdf8';
       ctx.beginPath();
       ctx.ellipse(0, -4, 5, 10, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Thrusters
       ctx.fillStyle = '#f59e0b';
       ctx.fillRect(-12, shipTier === 3 ? 30 : 22, 6, 14 + Math.random() * 8);
       ctx.fillRect(6, shipTier === 3 ? 30 : 22, 6, 14 + Math.random() * 8);
