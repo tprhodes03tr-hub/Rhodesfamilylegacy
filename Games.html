@@ -244,7 +244,7 @@
     <div class="stats-bar" style="border-color: #1e3a8a; color: #60a5fa;">
       <span>🚗 Tier: <strong id="car-tier" style="color: #f59e0b;">Tier 1 (Street Stock)</strong></span>
       <span>❤️ Hull: <strong id="car-hull" style="color: #10b981;">100%</strong></span>
-      <span>📍 Distance: <strong id="transit-distance">1,500</strong>m</span>
+      <span>🔴 Excursion Target: <strong id="transit-distance" style="color: #ef4444;">1,500</strong>m</span>
       <span>⚡ Beams: <strong id="beam-count" style="color: #38bdf8;">10</strong></span>
     </div>
 
@@ -424,6 +424,16 @@
         let centerX = canvas.width / 2; let centerY = canvas.height / 2;
         let globeRadius = 150;
 
+        // Check Threat Beacon Click
+        let threatTheta = -1.05 + globeRotationY; let threatPhi = 0.45 + globeRotationX;
+        let threatX = centerX + globeRadius * Math.cos(threatPhi) * Math.sin(threatTheta);
+        let threatY = centerY + globeRadius * Math.sin(threatPhi);
+        if (Math.hypot(clickX - threatX, clickY - threatY) < 30) {
+          playSound('transform');
+          switchPortal('runner');
+          return;
+        }
+
         globalSectors.forEach((sec) => {
           let theta = sec.lon + globeRotationY;
           let phi = sec.lat + globeRotationX;
@@ -483,9 +493,10 @@
           let threatX = centerX + globeRadius * Math.cos(threatPhi) * Math.sin(threatTheta);
           let threatY = centerY + globeRadius * Math.sin(threatPhi);
           if (Math.cos(threatPhi) * Math.cos(threatTheta) > -0.2) {
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
-            ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 18;
-            ctx.beginPath(); ctx.arc(threatX, threatY, 14 + Math.sin(Date.now() * 0.01) * 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
+            ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 22;
+            ctx.beginPath(); ctx.arc(threatX, threatY, 14 + Math.sin(Date.now() * 0.01) * 5, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
             ctx.shadowBlur = 0;
           }
 
@@ -521,6 +532,7 @@
       let electricBeamsCount = 10, runnerItems = [], obstacles = [], electricProjectiles = [];
       let tier = 1, orbsCollected = 0, isPaused = false, roadScrollOffset = 0;
       let shockwaveActive = false, shockwaveRadius = 0;
+      let excursionNode = { x: 300, y: -100, active: true };
 
       window.moveRunner = (dir) => {
         if (isPaused) return;
@@ -556,8 +568,18 @@
           if (!isPaused) {
             playerX += (targetX - playerX) * 0.25;
             transitDistance = Math.max(0, transitDistance - 4);
-            document.getElementById('transit-distance').innerText = Math.floor(transitDistance);
+            document.getElementById('transit-distance').innerText = Math.floor(transitDistance) + 'm';
             roadScrollOffset = (roadScrollOffset + 12) % 40;
+
+            if (transitDistance <= 200 && excursionNode.active) {
+              excursionNode.y += 4.5;
+              if (Math.abs(playerX - excursionNode.x) < 50 && Math.abs(350 - excursionNode.y) < 50) {
+                playSound('transform');
+                excursionNode.active = false;
+                alert("🎯 EXCURSION NODE SECURED! Albor Syndicate sector anomaly neutralized!");
+                switchPortal('globe3d');
+              }
+            }
 
             if (Math.random() < 0.04 && runnerItems.length < 4) {
               runnerItems.push({ x: [140, 300, 460][Math.floor(Math.random()*3)], y: -30, speed: 4 });
@@ -612,6 +634,14 @@
           ctx.beginPath(); ctx.moveTo(220, 0); ctx.lineTo(220, canvas.height); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(380, 0); ctx.lineTo(380, canvas.height); ctx.stroke();
           ctx.setLineDash([]);
+
+          if (transitDistance <= 200 && excursionNode.active) {
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+            ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 20;
+            ctx.beginPath(); ctx.arc(excursionNode.x, excursionNode.y, 24 + Math.sin(Date.now()*0.02)*6, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.shadowBlur = 0;
+          }
 
           runnerItems.forEach(r => {
             ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(r.x, r.y, 14, 0, Math.PI*2); ctx.fill();
