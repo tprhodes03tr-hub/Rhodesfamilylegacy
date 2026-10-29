@@ -504,8 +504,9 @@
             <div id="ar-deed-name" class="ar-det" style="font-size: 1.15rem; font-weight: bold; color: var(--accent-blue);">Woodward Ave</div>
             <div id="ar-deed-owner" class="ar-det">Owner: Tommy</div>
             <div id="ar-deed-value" class="ar-det">Valuation: 100 ME (Rent: 20 ME)</div>
-            <div style="margin-top: 18px;">
-                <button class="ctrl-btn" onclick="closeArModal()">CLOSE VIEW</button>
+            <div style="margin-top: 15px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                <button class="ctrl-btn danger" id="mortgage-btn" style="font-size: 0.75rem; padding: 6px 10px;" onclick="toggleMortgageCurrentTile()">MORTGAGE</button>
+                <button class="ctrl-btn" style="font-size: 0.75rem; padding: 6px 10px;" onclick="closeArModal()">CLOSE</button>
             </div>
         </div>
     </div>
@@ -684,6 +685,7 @@
     };
 
     let tileRects = [];
+    let activeInspectedTileIndex = null;
     let peer = null;
     let conn = null;
 
@@ -847,6 +849,13 @@
         broadcastState();
     }
 
+    // Check if player owns all properties of a specific color group for monopoly rent bonus
+    function hasColorMonopoly(playerName, colorHex) {
+        let sameColorTiles = tycoonGame.tiles.filter(t => t.color === colorHex && t.cost > 0);
+        if(sameColorTiles.length === 0) return false;
+        return sameColorTiles.every(t => t.owner === playerName);
+    }
+
     function drawTycoonBoard() {
         if (!tCtx) return;
         tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
@@ -888,7 +897,11 @@
             tCtx.strokeRect(pt.x, pt.y, w, h);
             tCtx.restore();
 
-            if (t.hasHotel) {
+            if (t.isMortgaged) {
+                tCtx.fillStyle = '#e74c3c';
+                tCtx.font = 'bold 10px Courier New';
+                tCtx.fillText("⚠️ [MORTGAGED]", pt.x + 8, pt.y + 15);
+            } else if (t.hasHotel) {
                 tCtx.fillStyle = '#ff7b00';
                 tCtx.font = 'bold 10px Courier New';
                 tCtx.fillText("🏨 [HOTEL]", pt.x + 8, pt.y + 15);
@@ -896,11 +909,14 @@
 
             tCtx.fillStyle = '#f0f2f5';
             tCtx.font = 'bold 11px Courier New';
-            tCtx.fillText(t.name.substring(0, 18), pt.x + 8, pt.y + (t.hasHotel ? 30 : 20));
+            tCtx.fillText(t.name.substring(0, 18), pt.x + 8, pt.y + (t.hasHotel || t.isMortgaged ? 30 : 20));
             
+            let effectiveRent = t.rent;
+            if(t.owner !== "None" && hasColorMonopoly(t.owner, t.color)) effectiveRent *= 2;
+
             tCtx.fillStyle = '#66fcf1';
             tCtx.font = '10px Courier New';
-            tCtx.fillText(t.cost > 0 ? `$${t.cost} (R:$${t.rent})` : t.type.toUpperCase(), pt.x + 8, pt.y + 45);
+            tCtx.fillText(t.cost > 0 ? `$${t.cost} (R:$${effectiveRent})` : t.type.toUpperCase(), pt.x + 8, pt.y + 45);
             
             tCtx.fillStyle = (t.owner === tycoonGame.p1Name) ? '#66fcf1' : (t.owner === tycoonGame.p2Name ? '#ff7b00' : '#94a3b8');
             tCtx.font = 'bold 10px Courier New';
@@ -949,17 +965,56 @@
 
         for(let item of tileRects) {
             if(clickX >= item.x && clickX <= item.x + item.w && clickY >= item.y && clickY <= item.y + item.h) {
-                openDeed3DForTile(tycoonGame.tiles[item.index]);
+                openDeed3DForTile(item.index);
                 break;
             }
         }
     }
 
-    function openDeed3DForTile(tile) {
+    function openDeed3DForTile(tileIndex) {
+        activeInspectedTileIndex = tileIndex;
+        let tile = tycoonGame.tiles[tileIndex];
         document.getElementById('ar-deed-name').innerText = tile.name;
-        document.getElementById('ar-deed-owner').innerText = `Owner: ${tile.owner}`;
+        document.getElementById('ar-deed-owner').innerText = `Owner: ${tile.owner} ${tile.isMortgaged ? '(MORTGAGED)' : ''}`;
         document.getElementById('ar-deed-value').innerText = tile.cost > 0 ? `Valuation: $${tile.cost} (Rent: $${tile.rent})` : `Special Utility / System Tile`;
+        
+        let mBtn = document.getElementById('mortgage-btn');
+        if(tile.cost > 0 && (tile.owner === tycoonGame.p1Name || tile.owner === tycoonGame.p2Name)) {
+            mBtn.style.display = "inline-block";
+            mBtn.innerText = tile.isMortgaged ? `UNMORTGAGE ($${Math.floor(tile.cost*0.5)})` : `MORTGAGE (+$${Math.floor(tile.cost*0.5)})`;
+        } else {
+            mBtn.style.display = "none";
+        }
+
         document.getElementById('ar-modal').classList.remove('hidden');
+    }
+
+    function toggleMortgageCurrentTile() {
+        if(activeInspectedTileIndex === null) return;
+        let tile = tycoonGame.tiles[activeInspectedTileIndex];
+        let mortgageValue = Math.floor(tile.cost * 0.5);
+
+        if(!tile.isMortgaged) {
+            tile.isMortgaged = true;
+            if(tile.owner === tycoonGame.p1Name && tycoonGame.myRole === 'p1') {
+                tycoonGame.funds += mortgageValue;
+            } else {
+                tycoonGame.p2Funds += mortgageValue;
+            }
+            logTycoon(`${tile.name} was mortgaged for +$${mortgageValue} ME.`);
+        } else {
+            if(tycoonGame.funds >= mortgageValue) {
+                tile.isMortgaged = false;
+                tycoonGame.funds -= mortgageValue;
+                logTycoon(`${tile.name} was unmortgaged for -$${mortgageValue} ME.`);
+            } else {
+                logTycoon(`Insufficient funds to unmortgage ${tile.name}.`);
+            }
+        }
+        updateUIFunds();
+        drawTycoonBoard();
+        closeArModal();
+        broadcastState();
     }
 
     function closeArModal() { document.getElementById('ar-modal').classList.add('hidden'); }
@@ -991,11 +1046,13 @@
                 if(tile.type === 'event') {
                     let bonus = Math.random() > 0.5 ? 100 : -50;
                     tycoonGame.funds += bonus;
-                } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name) {
-                    // FIXED: Correctly deduct rent from player and credit it to the property owner (Bot / P2)
-                    tycoonGame.funds -= tile.rent;
-                    tycoonGame.p2Funds += tile.rent;
-                    logTycoon(`${tycoonGame.p1Name} paid rent of ${tile.rent} ME to ${tile.owner}!`);
+                } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p1Name && !tile.isMortgaged) {
+                    let payableRent = tile.rent;
+                    if(hasColorMonopoly(tile.owner, tile.color)) payableRent *= 2;
+
+                    tycoonGame.funds -= payableRent;
+                    tycoonGame.p2Funds += payableRent;
+                    logTycoon(`${tycoonGame.p1Name} paid rent of ${payableRent} ME to ${tile.owner}!` + (payableRent > tile.rent ? " (Monopoly Double Rent!)" : ""));
                 }
 
                 updateUIFunds();
@@ -1029,7 +1086,7 @@
             let tile = tycoonGame.tiles[tycoonGame.position];
             const tycoonContainer = document.getElementById('tycoon-view');
 
-            if(tile.owner === tycoonGame.p1Name && tycoonGame.funds >= 50) {
+            if(tile.owner === tycoonGame.p1Name && tycoonGame.funds >= 50 && !tile.isMortgaged) {
                 tycoonGame.funds -= 50;
                 tile.rent += 30;
                 tile.hasHotel = true;
@@ -1044,7 +1101,7 @@
                 drawTycoonBoard();
                 broadcastState();
             } else {
-                logTycoon(`You must own the tile and have 50 ME.`);
+                logTycoon(`You must own the unmortgaged tile and have 50 ME.`);
             }
         }
     }
@@ -1062,11 +1119,13 @@
             tycoonGame.p2Funds -= tile.cost;
             tile.owner = tycoonGame.p2Name;
             logTycoon(`Bot 101 purchased ${tile.name}!`);
-        } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name) {
-            // FIXED: Correctly deduct rent from Bot and credit it to Player (Tommy)
-            tycoonGame.p2Funds -= tile.rent;
-            tycoonGame.funds += tile.rent;
-            logTycoon(`Bot 101 paid rent of ${tile.rent} ME to ${tile.owner}!`);
+        } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name && !tile.isMortgaged) {
+            let payableRent = tile.rent;
+            if(hasColorMonopoly(tile.owner, tile.color)) payableRent *= 2;
+
+            tycoonGame.p2Funds -= payableRent;
+            tycoonGame.funds += payableRent;
+            logTycoon(`Bot 101 paid rent of ${payableRent} ME to ${tile.owner}!`);
         }
 
         updateUIFunds();
@@ -1303,7 +1362,7 @@
         funds: 800,
         rivalFunds: 800,
         position: 0,
-        rivalPosition: 0, // FIXED: Added AI / Rival position tracking
+        rivalPosition: 0,
         faction: "vanguard",
         hero: "Marcus Prime",
         rival: "Barons Rust",
@@ -1411,7 +1470,7 @@
             vTileRects.push({x: pt.x, y: pt.y, w: w, h: h, index: i});
             
             let isHere = (vanguardGame.position === i);
-            let isRivalHere = (vanguardGame.rivalPosition === i); // FIXED: Check rival position
+            let isRivalHere = (vanguardGame.rivalPosition === i);
 
             vCtx.fillStyle = (isHere || isRivalHere) ? '#1f1b2c' : '#0b0c10';
             vCtx.strokeStyle = t.color;
@@ -1442,7 +1501,6 @@
             vCtx.font = 'bold 10px Courier New';
             vCtx.fillText(`Control: ${t.owner.substring(0, 10)}`, pt.x + 8, pt.y + 65);
 
-            // FIXED: Render both Player and Rival tokens on the Vanguard board tile
             if(isHere || isRivalHere) {
                 vCtx.fillStyle = '#ff7b00';
                 vCtx.font = 'bold 12px Courier New';
@@ -1490,6 +1548,7 @@
                 document.getElementById('ar-deed-name').innerText = tile.name;
                 document.getElementById('ar-deed-owner').innerText = `Faction Control: ${tile.owner}`;
                 document.getElementById('ar-deed-value').innerText = tile.cost > 0 ? `Cost: $${tile.cost} VC (Toll: $${tile.rent} VC)` : `Tactical Anomaly Hub`;
+                document.getElementById('mortgage-btn').style.display = "none";
                 document.getElementById('ar-modal').classList.remove('hidden');
                 break;
             }
@@ -1511,7 +1570,6 @@
                 vanguardGame.funds += surge;
                 logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
             } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero) {
-                // FIXED: Correctly deduct toll from player and credit it to the rival faction
                 vanguardGame.funds -= tile.rent;
                 vanguardGame.rivalFunds += tile.rent;
                 logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
@@ -1534,7 +1592,6 @@
                     vanguardGame.rivalFunds -= rivalTile.cost;
                     logVanguard(`${vanguardGame.rival} claimed ${rivalTile.name}!`);
                 } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival) {
-                    // FIXED: Correctly deduct toll from Rival and credit it to Player (Hero)
                     vanguardGame.rivalFunds -= rivalTile.rent;
                     vanguardGame.funds += rivalTile.rent;
                     logVanguard(`${vanguardGame.rival} paid toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
