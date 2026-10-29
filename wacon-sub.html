@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhodes Family Legacy • Wakan Trench Submarine Ops [A-Tier]</title>
+    <title>Rhodes Family Legacy • Wakan Trench Submarine Ops [AAA Tier]</title>
     <style>
         :root {
             --bg-color: #010409;
@@ -102,6 +102,23 @@
         .stat-item span {
             color: var(--accent-gold);
             font-weight: bold;
+        }
+
+        .health-bar-container {
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            height: 6px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .health-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #fbbf24, #00f3ff);
+            width: 100%;
+            transition: width 0.3s ease;
         }
 
         .missile-alert {
@@ -211,21 +228,25 @@
     </header>
 
     <div class="game-container">
-        <div class="hud-header">WAKAN TRENCH • TEMPLE REEF DEFENSE MATRIX</div>
+        <div class="hud-header">WAKAN TRENCH • OUROBOROS RIFT DEFENSE</div>
         
         <div class="chapter-tracker" id="chapterTracker">
-            SECTOR: CARIBBEAN TRENCH REEF — Defend sacred sanctuary against Albor incursion!
+            SECTOR: CARIBBEAN TRENCH — Intercept Ouroboros Syndicate before rift breach!
         </div>
 
         <div class="stats-bar">
             <div class="stat-item">Hull: <span id="hullVal">100</span>%</div>
             <div class="stat-item">Depth: <span id="objVal">4500</span>m</div>
-            <div class="stat-item">Torpedoes: <span id="ammoVal">20</span></div>
-            <div class="stat-item">Shield: <span id="shieldVal" style="color: var(--accent-cyan);">ACTIVE</span></div>
+            <div class="stat-item">Torps: <span id="ammoVal">25</span></div>
+            <div class="stat-item">Shield: <span id="shieldVal" style="color: var(--accent-cyan);">READY</span></div>
+        </div>
+
+        <div class="health-bar-container">
+            <div class="health-bar-fill" id="healthBarFill"></div>
         </div>
 
         <div class="missile-alert" id="missileAlert">
-            🚨 ALBOR INCOMING MISSILE LOCK! DEPLOY RESONANCE SHIELD!
+            🚨 OUROBOROS SEEKING MISSILE LOCK! DEPLOY RESONANCE SHIELD!
         </div>
 
         <canvas id="combatCanvas" width="450" height="320"></canvas>
@@ -237,24 +258,24 @@
         </div>
 
         <div class="action-row">
-            <button class="action-btn fire" onclick="fireWeapon('torpedo')">🚀 TORPEDO</button>
-            <button class="action-btn laser" onclick="fireWeapon('laser')">⚡ LASER</button>
+            <button class="action-btn fire" onclick="fireWeapon('torpedo')">🚀 H-TORPEDO</button>
+            <button class="action-btn laser" onclick="fireWeapon('laser')">⚡ PULSE BEAM</button>
             <button class="action-btn" onclick="triggerShield()">🛡️ SHIELD</button>
         </div>
     </div>
 
     <div class="footer-link">
-        <a href="index.html">← RETURN TO MAIN LEGACY HUB</a>
+        <a href="index.html">← RETURN TO MARROW GLOBE NEXUS</a>
     </div>
 
     <script>
         const canvas = document.getElementById('combatCanvas');
         const ctx = canvas.getContext('2d');
 
-        let craft = { x: 215, y: 245, width: 42, height: 60, speed: 6 };
+        let craft = { x: 215, y: 240, width: 44, height: 64, speed: 6.5 };
         let integrity = 100;
         let objectiveProgress = 4500;
-        let ammo = 20;
+        let ammo = 25;
         let gameActive = true;
         let isPaused = false;
         let shieldActive = false;
@@ -264,41 +285,43 @@
         let obstacles = [];
         let projectiles = [];
         let incomingMissiles = [];
-        let jellyfish = [];
+        let marineLife = [];
         let trenchFloorOffset = 0;
-        let bioluminescentFlora = [];
+        let coralReefs = [];
 
-        // Generate glowing bioluminescent temple reef flora along canyon floor
-        for(let i=0; i<18; i++) {
-            bioluminescentFlora.push({
-                x: i * 28,
-                height: 30 + Math.random() * 35,
-                color: Math.random() > 0.4 ? '#00f3ff' : '#9333ea',
-                sway: Math.random() * Math.PI
+        // Generate glowing bioluminescent deep sea coral formations
+        for(let i=0; i<22; i++) {
+            coralReefs.push({
+                x: i * 22,
+                height: 25 + Math.random() * 45,
+                color: Math.random() > 0.3 ? '#00f3ff' : (Math.random() > 0.5 ? '#9333ea' : '#3b82f6'),
+                branchSpread: Math.random() * 10
             });
         }
 
-        // Generate floating bioluminescent jellyfish
-        for(let i=0; i<10; i++) {
-            jellyfish.push({
+        // Generate swimming marine life & glowing jellyfish
+        for(let i=0; i<12; i++) {
+            marineLife.push({
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
-                radius: 6 + Math.random() * 6,
-                speedY: 0.4 + Math.random() * 0.8,
-                pulse: Math.random() * Math.PI
+                radius: 4 + Math.random() * 6,
+                speedY: 0.5 + Math.random() * 1.2,
+                speedX: (Math.random() - 0.5) * 0.6,
+                pulse: Math.random() * Math.PI,
+                type: Math.random() > 0.5 ? 'jelly' : 'fish'
             });
         }
 
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowLeft' || e.key === 'a') moveCraft('left');
             if (e.key === 'ArrowRight' || e.key === 'd') moveCraft('right');
-            if (e.key === ' ') fireWeapon('torpedo');
+            if (e.key === ' ' || e.key === 'ArrowUp') fireWeapon('torpedo');
             if (e.key === 'e' || e.key === 'Shift') triggerShield();
         });
 
         function moveCraft(dir) {
             if (!gameActive || isPaused) return;
-            if (dir === 'left') craft.x = Math.max(35, craft.x - craft.speed);
+            if (dir === 'left') craft.x = Math.max(30, craft.x - craft.speed);
             if (dir === 'right') craft.x = Math.min(canvas.width - 45, craft.x + craft.speed);
         }
 
@@ -312,16 +335,18 @@
                 if (ammo <= 0) return;
                 ammo--;
                 document.getElementById('ammoVal').innerText = ammo;
-                projectiles.push({ x: craft.x + 21, y: craft.y, vx: 0, vy: -10, type: 'torpedo' });
+                // Dual heat-seeking torpedo pods from submarine wings
+                projectiles.push({ x: craft.x + 8, y: craft.y, vx: -0.8, vy: -9, type: 'homing' });
+                projectiles.push({ x: craft.x + 36, y: craft.y, vx: 0.8, vy: -9, type: 'homing' });
             } else if (type === 'laser') {
-                projectiles.push({ x: craft.x + 21, y: craft.y, vx: 0, vy: -16, type: 'laser' });
+                projectiles.push({ x: craft.x + 22, y: craft.y, vx: 0, vy: -16, type: 'laser' });
             }
         }
 
         function triggerShield() {
             if (!gameActive || isPaused || shieldActive) return;
             shieldActive = true;
-            shieldTimer = 90; // frames
+            shieldTimer = 100; // frames
             document.getElementById('shieldVal').innerText = "DEFLECTING";
             document.getElementById('missileAlert').style.display = 'none';
             incomingMissiles = [];
@@ -330,8 +355,8 @@
         function update() {
             if (!gameActive || isPaused) return;
 
-            objectiveProgress -= 1.5;
-            trenchFloorOffset += 1.2;
+            objectiveProgress -= 1.2;
+            trenchFloorOffset += 1.5;
             document.getElementById('objVal').innerText = Math.max(0, Math.floor(objectiveProgress));
 
             if (shieldActive) {
@@ -344,38 +369,41 @@
 
             if (damageFlash > 0) damageFlash--;
 
-            // Floating jellyfish movement
-            jellyfish.forEach(j => {
-                j.y -= j.speedY;
-                j.pulse += 0.05;
-                if(j.y < -20) { j.y = canvas.height + 20; j.x = Math.random() * canvas.width; }
+            // Marine life animation
+            marineLife.forEach(m => {
+                m.y -= m.speedY;
+                m.x += m.speedX;
+                m.pulse += 0.06;
+                if(m.y < -20) { m.y = canvas.height + 20; m.x = Math.random() * canvas.width; }
+                if(m.x < 0) m.x = canvas.width;
+                if(m.x > canvas.width) m.x = 0;
             });
 
             if (objectiveProgress <= 0) {
                 gameActive = false;
-                document.getElementById('chapterTracker').innerText = "MISSION SUCCESS: Temple Reef Defended & Secured!";
+                document.getElementById('chapterTracker').innerText = "MISSION SUCCESS: Ouroboros Rift Sealed at Wakan Trench!";
                 document.getElementById('nextStageBtn').style.display = 'block';
-                alert('Temple Reef Secured! 313 Grid launch unlocked.');
+                alert('Ouroboros Rift Neutralized! 313 Grid Intercept Unlocked.');
                 return;
             }
 
-            // Spawn enemy ships & mines representing Albor Incursion
-            if (Math.random() < 0.03) {
-                let isDreadnought = objectiveProgress < 2200 && Math.random() > 0.4;
+            // Spawn Ouroboros syndicate vessels & deep sea mines
+            if (Math.random() < 0.035) {
+                let isDreadnought = objectiveProgress < 2000 && Math.random() > 0.3;
                 obstacles.push({
                     x: Math.random() * (canvas.width - 90) + 45,
                     y: -60,
-                    type: isDreadnought ? 'cruiser' : (Math.random() > 0.5 ? 'mine' : 'attack_sub'),
-                    width: isDreadnought ? 54 : 40,
-                    height: isDreadnought ? 42 : 34,
-                    speed: isDreadnought ? 1.5 : 2.2,
-                    health: isDreadnought ? 4 : 2
+                    type: isDreadnought ? 'cruiser' : (Math.random() > 0.5 ? 'mine' : 'syndicate_sub'),
+                    width: isDreadnought ? 58 : 42,
+                    height: isDreadnought ? 44 : 36,
+                    speed: isDreadnought ? 1.4 : 2.0,
+                    health: isDreadnought ? 5 : 2
                 });
             }
 
-            // Incoming acoustic missiles from Albor forces
-            if (Math.random() < 0.012 && incomingMissiles.length === 0) {
-                incomingMissiles.push({ x: Math.random() * canvas.width, y: -20, speed: 3.8 });
+            // Ouroboros seeking missile lock
+            if (Math.random() < 0.015 && incomingMissiles.length === 0) {
+                incomingMissiles.push({ x: Math.random() * canvas.width, y: -20, speed: 4.2 });
                 document.getElementById('missileAlert').style.display = 'block';
             }
 
@@ -384,16 +412,15 @@
                 let obs = obstacles[i];
                 obs.y += obs.speed;
 
-                // Collision with submarine
                 if (craft.x < obs.x + obs.width && craft.x + craft.width > obs.x &&
                     craft.y < obs.y + obs.height && craft.y + craft.height > obs.y) {
                     if (!shieldActive) {
-                        integrity -= 20;
+                        integrity -= 18;
                         damageFlash = 15;
-                        document.getElementById('hullVal').innerText = Math.max(0, integrity);
+                        updateHealthUI();
                         if (integrity <= 0) {
                             gameActive = false;
-                            alert('Submarine Hull Breached! Temple Reef Incursion Lost.');
+                            alert('Submarine Hull Breached! Ouroboros Syndicate Prevails.');
                         }
                     }
                     obstacles.splice(i, 1);
@@ -402,20 +429,21 @@
                 if (obs.y > canvas.height) obstacles.splice(i, 1);
             }
 
-            // Update incoming missiles
+            // Update seeking missiles
             for (let i = incomingMissiles.length - 1; i >= 0; i--) {
                 let m = incomingMissiles[i];
-                m.x += (craft.x - m.x) * 0.035;
+                // Heat-seeking tracking curve toward submarine
+                m.x += (craft.x - m.x) * 0.045;
                 m.y += m.speed;
 
-                if (Math.abs(craft.x - m.x) < 32 && Math.abs(craft.y - m.y) < 32) {
+                if (Math.abs(craft.x - m.x) < 35 && Math.abs(craft.y - m.y) < 35) {
                     if (!shieldActive) {
-                        integrity -= 30;
-                        damageFlash = 20;
-                        document.getElementById('hullVal').innerText = Math.max(0, integrity);
+                        integrity -= 28;
+                        damageFlash = 22;
+                        updateHealthUI();
                         if (integrity <= 0) {
                             gameActive = false;
-                            alert('Acoustic Torpedo Direct Hit! Vessel Destroyed.');
+                            alert('Acoustic Seeking Missile Direct Hit! Vessel Lost.');
                         }
                     }
                     incomingMissiles.splice(i, 1);
@@ -427,9 +455,24 @@
                 }
             }
 
-            // Update projectiles
+            // Update projectiles & heat-seeking behavior
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 let p = projectiles[i];
+                
+                if (p.type === 'homing' && obstacles.length > 0) {
+                    // Target nearest enemy obstacle
+                    let target = obstacles[0];
+                    let minDist = 9999;
+                    obstacles.forEach(obs => {
+                        let d = Math.hypot(obs.x - p.x, obs.y - p.y);
+                        if (d < minDist) { minDist = d; target = obs; }
+                    });
+                    if (target) {
+                        if (p.x < target.x) p.vx += 0.3;
+                        if (p.x > target.x) p.vx -= 0.3;
+                    }
+                    p.x += p.vx;
+                }
                 p.y += p.vy;
 
                 for (let j = obstacles.length - 1; j >= 0; j--) {
@@ -445,102 +488,103 @@
             }
         }
 
+        function updateHealthUI() {
+            let currentHull = Math.max(0, integrity);
+            document.getElementById('hullVal').innerText = currentHull;
+            document.getElementById('healthBarFill').style.width = currentHull + '%';
+        }
+
         function draw() {
-            // Deep Ocean Bioluminescent Gradient Background
+            // Deep Trench Gradient Background
             let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            grad.addColorStop(0, '#00040a');
-            grad.addColorStop(0.5, '#020f21');
-            grad.addColorStop(1, '#071d36');
+            grad.addColorStop(0, '#000308');
+            grad.addColorStop(0.5, '#010c1c');
+            grad.addColorStop(1, '#051830');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Bioluminescent Temple Reef Floor
-            ctx.fillStyle = '#041224';
+            // Draw Bioluminescent Trench Coral Reef Floor
+            ctx.fillStyle = '#020e1a';
             ctx.beginPath();
             ctx.moveTo(0, canvas.height);
-            for(let x=0; x<=canvas.width; x+=20) {
-                let h = Math.sin((x + trenchFloorOffset) * 0.025) * 14 + 26;
+            for(let x=0; x<=canvas.width; x+=18) {
+                let h = Math.sin((x + trenchFloorOffset) * 0.03) * 16 + 30;
                 ctx.lineTo(x, canvas.height - h);
             }
             ctx.lineTo(canvas.width, canvas.height);
             ctx.fill();
 
-            // Glowing flora on canyon floor
-            bioluminescentFlora.forEach((f, idx) => {
-                ctx.shadowColor = f.color;
-                ctx.shadowBlur = 12;
-                ctx.fillStyle = f.color;
-                let swayX = Math.sin(trenchFloorOffset * 0.05 + f.sway) * 4;
-                ctx.fillRect(idx * 26 + (trenchFloorOffset % 26), canvas.height - f.height, 6, f.height);
-            });
-            ctx.shadowBlur = 0;
-
-            // Draw Floating Bioluminescent Jellyfish
-            jellyfish.forEach(j => {
-                ctx.shadowColor = '#00f3ff';
-                ctx.shadowBlur = 10;
-                ctx.fillStyle = 'rgba(0, 243, 255, 0.4)';
+            // Glowing coral stems
+            coralReefs.forEach((c, idx) => {
+                ctx.shadowColor = c.color;
+                ctx.shadowBlur = 14;
+                ctx.fillStyle = c.color;
+                let sway = Math.sin(trenchFloorOffset * 0.04 + idx) * 5;
+                ctx.fillRect(idx * 21 + (trenchFloorOffset % 21), canvas.height - c.height, 5, c.height);
+                // Coral branching tip
                 ctx.beginPath();
-                ctx.arc(j.x + Math.sin(j.pulse) * 6, j.y, j.radius, Math.PI, 0, false);
+                ctx.arc(idx * 21 + (trenchFloorOffset % 21) + 2, canvas.height - c.height, 4, 0, Math.PI * 2);
                 ctx.fill();
-                // Tentacles
-                ctx.strokeStyle = 'rgba(0, 243, 255, 0.25)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(j.x - j.radius + 2, j.y);
-                ctx.lineTo(j.x - j.radius + 4, j.y + 12);
-                ctx.moveTo(j.x + j.radius - 2, j.y);
-                ctx.lineTo(j.x + j.radius - 4, j.y + 12);
-                ctx.stroke();
             });
             ctx.shadowBlur = 0;
 
-            // DRAW DETAILED SUBMARINE SPRITE
+            // Draw Marine Life & Jellyfish
+            marineLife.forEach(m => {
+                ctx.shadowColor = m.type === 'jelly' ? '#00f3ff' : '#fbbf24';
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = m.type === 'jelly' ? 'rgba(0, 243, 255, 0.45)' : 'rgba(251, 191, 36, 0.5)';
+                ctx.beginPath();
+                ctx.arc(m.x + Math.sin(m.pulse) * 5, m.y, m.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.shadowBlur = 0;
+
+            // DRAW HIGH-TECH APEX SUBMARINE SPRITE
             ctx.save();
             ctx.translate(craft.x, craft.y);
 
             if (damageFlash > 0 && Math.floor(damageFlash / 3) % 2 === 0) {
                 ctx.shadowColor = '#ef4444';
-                ctx.shadowBlur = 20;
+                ctx.shadowBlur = 24;
             } else {
                 ctx.shadowColor = '#00f3ff';
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = 18;
             }
 
-            // Outer Hull Structure
-            ctx.fillStyle = '#0e2338';
+            // Outer Hydrodynamic Titanium Hull
+            ctx.fillStyle = '#0a192f';
             ctx.beginPath();
-            ctx.ellipse(21, 30, 16, 28, 0, 0, Math.PI * 2);
+            ctx.ellipse(22, 32, 18, 30, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Metallic Steel Plating
-            ctx.fillStyle = '#1e3a60';
+            // Reinforced Armor Plating
+            ctx.fillStyle = '#172a45';
             ctx.beginPath();
-            ctx.ellipse(21, 30, 11, 22, 0, 0, Math.PI * 2);
+            ctx.ellipse(22, 32, 12, 24, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // Conning Tower & Rotating Periscope
-            ctx.fillStyle = '#091524';
-            ctx.fillRect(15, 18, 12, 16);
+            // Command Bridge & Rotating Tactical Periscope
+            ctx.fillStyle = '#060f1d';
+            ctx.fillRect(16, 18, 12, 18);
             ctx.fillStyle = '#00f3ff';
-            ctx.fillRect(20, 8, 3, 12); // Periscope scope
-            ctx.fillRect(18, 14, 7, 3);
+            ctx.fillRect(21, 6, 3, 14); // Sensor mast
+            ctx.fillRect(17, 13, 10, 3); // Cross-scan array
 
-            // Stern Dive Planes & Twin Torpedo Pods
+            // Twin Torpedo Launch Pods & Stabilizer Fins
             ctx.fillStyle = '#fbbf24';
-            ctx.fillRect(6, 36, 8, 14);
-            ctx.fillRect(28, 36, 8, 14);
+            ctx.fillRect(6, 38, 8, 16);
+            ctx.fillRect(30, 38, 8, 16);
             ctx.fillStyle = '#00f3ff';
-            ctx.fillRect(10, 4, 4, 8);
-            ctx.fillRect(28, 4, 4, 8);
+            ctx.fillRect(11, 4, 4, 10);
+            ctx.fillRect(29, 4, 4, 10);
 
             // Resonance Shield Bubble Overlay
             if (shieldActive) {
                 ctx.strokeStyle = '#00f3ff';
-                ctx.lineWidth = 2;
-                ctx.fillStyle = 'rgba(0, 243, 255, 0.15)';
+                ctx.lineWidth = 2.5;
+                ctx.fillStyle = 'rgba(0, 243, 255, 0.18)';
                 ctx.beginPath();
-                ctx.arc(21, 30, 32, 0, Math.PI * 2);
+                ctx.arc(22, 32, 35, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
             }
@@ -548,63 +592,63 @@
             ctx.shadowBlur = 0;
             ctx.restore();
 
-            // DRAW ENEMIES (Albor Mines, Attack Subs, Cruisers)
+            // DRAW ENEMIES (Ouroboros Syndicate Units)
             obstacles.forEach(obs => {
                 ctx.save();
                 ctx.translate(obs.x, obs.y);
                 if (obs.type === 'mine') {
                     ctx.fillStyle = '#ef4444';
                     ctx.shadowColor = '#ef4444';
-                    ctx.shadowBlur = 10;
+                    ctx.shadowBlur = 12;
                     ctx.beginPath();
-                    ctx.arc(20, 20, 15, 0, Math.PI * 2);
+                    ctx.arc(21, 21, 16, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#fff';
-                    ctx.fillRect(18, 2, 4, 8);
-                    ctx.fillRect(18, 30, 4, 8);
-                    ctx.fillRect(2, 18, 8, 4);
-                    ctx.fillRect(30, 18, 8, 4);
-                } else if (obs.type === 'attack_sub') {
-                    ctx.fillStyle = '#7c2d12';
-                    ctx.shadowColor = '#ea580c';
-                    ctx.shadowBlur = 10;
-                    ctx.fillRect(0, 6, 40, 22);
+                    ctx.fillRect(19, 2, 4, 8);
+                    ctx.fillRect(19, 32, 4, 8);
+                    ctx.fillRect(2, 19, 8, 4);
+                    ctx.fillRect(32, 19, 8, 4);
+                } else if (obs.type === 'syndicate_sub') {
+                    ctx.fillStyle = '#581c87';
+                    ctx.shadowColor = '#a855f7';
+                    ctx.shadowBlur = 12;
+                    ctx.fillRect(0, 6, 42, 24);
                     ctx.fillStyle = '#ef4444';
-                    ctx.fillRect(16, 2, 8, 6);
+                    ctx.fillRect(17, 2, 8, 6);
                 } else {
-                    // Albor Dreadnought Cruiser
-                    ctx.fillStyle = '#450a0a';
-                    ctx.shadowColor = '#ef4444';
-                    ctx.shadowBlur = 14;
-                    ctx.fillRect(0, 0, 54, 42);
+                    // Ouroboros Leviathan Dreadnought
+                    ctx.fillStyle = '#3b0764';
+                    ctx.shadowColor = '#ec4899';
+                    ctx.shadowBlur = 16;
+                    ctx.fillRect(0, 0, 58, 44);
                     ctx.fillStyle = '#ef4444';
-                    ctx.fillRect(21, 15, 12, 12);
+                    ctx.fillRect(23, 16, 12, 12);
                 }
                 ctx.shadowBlur = 0;
                 ctx.restore();
             });
 
-            // Draw Incoming Acoustic Torpedoes
+            // Draw Incoming Seeking Missiles
             incomingMissiles.forEach(m => {
                 ctx.fillStyle = '#ef4444';
                 ctx.shadowColor = '#ef4444';
-                ctx.shadowBlur = 12;
-                ctx.fillRect(m.x - 3, m.y, 6, 20);
+                ctx.shadowBlur = 14;
+                ctx.fillRect(m.x - 3, m.y, 6, 22);
                 ctx.shadowBlur = 0;
             });
 
-            // Draw Fired Projectiles (Torpedoes & Lasers)
+            // Draw Fired Projectiles (Homing Torpedoes & Pulse Beams)
             projectiles.forEach(p => {
                 if (p.type === 'laser') {
                     ctx.fillStyle = '#fbbf24';
                     ctx.shadowColor = '#fbbf24';
-                    ctx.shadowBlur = 10;
-                    ctx.fillRect(p.x - 1, p.y, 3, 16);
+                    ctx.shadowBlur = 12;
+                    ctx.fillRect(p.x - 1, p.y, 3, 18);
                 } else {
                     ctx.fillStyle = '#00f3ff';
                     ctx.shadowColor = '#00f3ff';
-                    ctx.shadowBlur = 10;
-                    ctx.fillRect(p.x, p.y, 4, 14);
+                    ctx.shadowBlur = 14;
+                    ctx.fillRect(p.x, p.y, 4, 16);
                 }
                 ctx.shadowBlur = 0;
             });
