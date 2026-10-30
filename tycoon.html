@@ -448,12 +448,16 @@
     <div id="vanguard-view" class="app-container hidden">
         <div class="lobby-bar">
             <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                <span style="font-weight: bold; color: var(--accent-magenta);">⚡ VANGUARD FACTION HUB</span>
-                <select id="v-faction-select" style="width: 120px;" onchange="updateVanguardFaction()">
-                    <option value="vanguard">🛡️ Ancestral Vanguard</option>
-                    <option value="syndicate">⚔️ Iron Syndicate</option>
+                <span style="font-weight: bold; color: var(--accent-magenta);">⚡ VANGUARD FACTION HUB (2P P2P)</span>
+                <select id="v-mode-select" style="width: 100px;" onchange="updateVanguardMode()">
+                    <option value="ai">🤖 vs AI Bot</option>
+                    <option value="p2p">👥 P2P Lobby</option>
                 </select>
-                <select id="v-hero-select" style="width: 140px;" onchange="updateVanguardHero()">
+                <select id="v-role-select" style="width: 85px;" onchange="updateVanguardRole()">
+                    <option value="p1">Hero (P1)</option>
+                    <option value="p2">Rival (P2)</option>
+                </select>
+                <select id="v-hero-select" style="width: 130px;" onchange="updateVanguardHero()">
                     <option value="Marcus Prime">Marcus Prime</option>
                     <option value="Amina Zazzau">Amina Zazzau</option>
                     <option value="Wakan">Wakan</option>
@@ -487,11 +491,11 @@
         <canvas id="vanguardCanvas" width="900" height="540" onclick="handleVanguardTouch(event)"></canvas>
 
         <div id="log-box-v" style="margin-top: 10px; background: var(--bg-dark); border: 1px solid var(--accent-magenta); padding: 6px 10px; border-radius: 8px; height: 40px; overflow-y: auto; font-size: 0.78rem; color: #a0aec0;">
-            Select your Faction and Hero! Click Roll Dice to battle for cosmic sectors.
+            Select your Hero & Mode! Click Roll Dice to battle for cosmic sectors.
         </div>
 
         <div class="controls">
-            <button class="ctrl-btn" style="border-color: var(--accent-magenta); color: var(--accent-magenta);" onclick="vanguardAction('roll')">🎲 ROLL VANGUARD DICE</button>
+            <button class="ctrl-btn" id="v-btn-roll" style="border-color: var(--accent-magenta); color: var(--accent-magenta);" onclick="vanguardAction('roll')">🎲 ROLL VANGUARD DICE</button>
             <button class="ctrl-btn secondary" onclick="vanguardAction('buy')">🛡️ CLAIM SECTOR</button>
             <button class="ctrl-btn purple" onclick="vanguardAction('upgrade')">⚡ UPGRADE NEXUS ($60)</button>
         </div>
@@ -657,7 +661,7 @@
                 { name: "UCR Botanical Gardens", cost: 210, owner: "None", type: "prop", color: "#f39c12", rent: 52 },
                 { name: "Tyler Mall Plaza", cost: 230, owner: "None", type: "prop", color: "#9b59b6", rent: 58 },
                 { name: "Mystery Suitcase", cost: 0, owner: "Event", type: "event", color: "#9b59b6", rent: 0 },
-                { name: "Santa Ana River Trail", cost: 250, owner: "None", type: "prop", color: "#62", rent: 62 },
+                { name: "Santa Ana River Trail", cost: 250, owner: "None", type: "prop", color: "#66fcf1", rent: 62 },
                 { name: "GOLDEN STATE VAULT", cost: 290, owner: "None", type: "prop", color: "#2ecc71", rent: 72 },
                 { name: "Magnolia Avenue", cost: 270, owner: "None", type: "prop", color: "#66fcf1", rent: 68 },
                 { name: "Orange Crest", cost: 310, owner: "None", type: "prop", color: "#2ecc71", rent: 78 },
@@ -680,7 +684,6 @@
         p2Token: "🤖",
         myRole: "p1",
         gameMode: "ai",
-        turn: "Tommy",
         tiles: JSON.parse(JSON.stringify(cityBoards.detroit.tiles))
     };
 
@@ -797,23 +800,23 @@
     function setupConnectionEvents() {
         if(!conn) return;
         conn.on('data', (incomingData) => {
-            if(incomingData.tiles) tycoonGame.tiles = incomingData.tiles;
+            if (incomingData.tycoonGame) {
+                tycoonGame = incomingData.tycoonGame;
+                updateUIFunds();
+                drawTycoonBoard();
+            }
+            if (incomingData.vanguardGame) {
+                vanguardGame = incomingData.vanguardGame;
+                updateVanguardUI();
+                drawVanguardBoard();
+                logVanguard(`Vanguard board state synchronized with peer.`);
+            }
+            // Backward compatibility for flat objects
+            if(incomingData.tiles && !incomingData.tycoonGame) tycoonGame.tiles = incomingData.tiles;
             if(incomingData.position !== undefined) tycoonGame.position = incomingData.position;
             if(incomingData.p2Position !== undefined) tycoonGame.p2Position = incomingData.p2Position;
             if(incomingData.funds !== undefined) tycoonGame.funds = incomingData.funds;
             if(incomingData.p2Funds !== undefined) tycoonGame.p2Funds = incomingData.p2Funds;
-            
-            if(tycoonGame.myRole === 'p1' && incomingData.p2Name) {
-                tycoonGame.p2Name = incomingData.p2Name;
-                tycoonGame.p2Token = incomingData.p2Token;
-            } else if(tycoonGame.myRole === 'p2' && incomingData.p1Name) {
-                tycoonGame.p1Name = incomingData.p1Name;
-                tycoonGame.p1Token = incomingData.p1Token;
-            }
-
-            updateUIFunds();
-            drawTycoonBoard();
-            logTycoon(`Board state synchronized with peer.`);
         });
         conn.on('open', () => {
             logTycoon(`P2P Connection Established Successfully!`);
@@ -823,7 +826,10 @@
 
     function broadcastState() {
         if(conn && conn.open) {
-            conn.send(tycoonGame);
+            conn.send({
+                tycoonGame: tycoonGame,
+                vanguardGame: vanguardGame
+            });
         }
     }
 
@@ -849,7 +855,6 @@
         broadcastState();
     }
 
-    // Check if player owns all properties of a specific color group for monopoly rent bonus
     function hasColorMonopoly(playerName, colorHex) {
         let sameColorTiles = tycoonGame.tiles.filter(t => t.color === colorHex && t.cost > 0);
         if(sameColorTiles.length === 0) return false;
@@ -1356,14 +1361,15 @@
     }
 
 
-    // --- VANGUARD VS SYNDICATE NEON TYCOON ---
+    // --- VANGUARD VS SYNDICATE NEON TYCOON (2P P2P UPGRADED) ---
     let vCanvas, vCtx;
     let vanguardGame = {
         funds: 800,
         rivalFunds: 800,
         position: 0,
         rivalPosition: 0,
-        faction: "vanguard",
+        gameMode: "ai",
+        myRole: "p1",
         hero: "Marcus Prime",
         rival: "Barons Rust",
         tiles: [
@@ -1404,18 +1410,13 @@
         speakGameEvent(msg);
     }
 
-    function updateVanguardFaction() {
-        let f = document.getElementById('v-faction-select').value;
-        vanguardGame.faction = f;
-        if(f === 'vanguard') {
-            vanguardGame.hero = document.getElementById('v-hero-select').value;
-            vanguardGame.rival = "Barons Rust";
-        } else {
-            vanguardGame.hero = document.getElementById('v-hero-select').value;
-            vanguardGame.rival = "Marcus Prime";
-        }
-        document.getElementById('v-label-hero').innerText = vanguardGame.hero;
-        document.getElementById('v-label-rival').innerText = vanguardGame.rival;
+    function updateVanguardMode() {
+        vanguardGame.gameMode = document.getElementById('v-mode-select').value;
+        drawVanguardBoard();
+    }
+
+    function updateVanguardRole() {
+        vanguardGame.myRole = document.getElementById('v-role-select').value;
         drawVanguardBoard();
     }
 
@@ -1434,10 +1435,11 @@
         updateVanguardUI();
         drawVanguardBoard();
         logVanguard("Vanguard Faction Board reset!");
+        broadcastState();
     }
 
     function updateVanguardUI() {
-        document.getElementById('v-funds').innerText = `${vanguardGame.funds} VC`;
+        document.getElementById('v-funds').innerText = `${vanguardGame.myRole === 'p1' ? vanguardGame.funds : vanguardGame.rivalFunds} VC`;
         document.getElementById('v-hero-bal').innerText = vanguardGame.funds;
         document.getElementById('v-rival-bal').innerText = vanguardGame.rivalFunds;
     }
@@ -1558,73 +1560,115 @@
     function vanguardAction(action) {
         if(action === 'roll') {
             let roll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
-            let oldPos = vanguardGame.position;
-            vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
-            if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
+            
+            if (vanguardGame.myRole === 'p1') {
+                let oldPos = vanguardGame.position;
+                vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
+                if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
 
-            let tile = vanguardGame.tiles[vanguardGame.position];
-            logVanguard(`${vanguardGame.hero} advanced ${roll} steps to ${tile.name}.`);
+                let tile = vanguardGame.tiles[vanguardGame.position];
+                logVanguard(`${vanguardGame.hero} advanced ${roll} steps to ${tile.name}.`);
 
-            if(tile.type === 'event') {
-                let surge = Math.random() > 0.5 ? 120 : -60;
-                vanguardGame.funds += surge;
-                logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
-            } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero) {
-                vanguardGame.funds -= tile.rent;
-                vanguardGame.rivalFunds += tile.rent;
-                logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
+                if(tile.type === 'event') {
+                    let surge = Math.random() > 0.5 ? 120 : -60;
+                    vanguardGame.funds += surge;
+                    logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
+                } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero) {
+                    vanguardGame.funds -= tile.rent;
+                    vanguardGame.rivalFunds += tile.rent;
+                    logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
+                }
+            } else {
+                let oldRivalPos = vanguardGame.rivalPosition;
+                vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
+                if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+
+                let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
+                logVanguard(`${vanguardGame.rival} advanced ${roll} steps to ${rivalTile.name}.`);
+                
+                if(rivalTile.type === 'event') {
+                    let surge = Math.random() > 0.5 ? 120 : -60;
+                    vanguardGame.rivalFunds += surge;
+                    logVanguard(`Syndicate anomaly triggered! Credit adjustment: ${surge} VC.`);
+                } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival) {
+                    vanguardGame.rivalFunds -= rivalTile.rent;
+                    vanguardGame.funds += rivalTile.rent;
+                    logVanguard(`Paid sector toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                }
             }
 
             updateVanguardUI();
             drawVanguardBoard();
+            broadcastState();
 
-            setTimeout(() => {
-                let rivalRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
-                let oldRivalPos = vanguardGame.rivalPosition;
-                vanguardGame.rivalPosition = (vanguardGame.rivalPosition + rivalRoll) % vanguardGame.tiles.length;
-                if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+            // If playing vs AI bot locally, trigger AI turn automatically
+            if(vanguardGame.gameMode === 'ai' && vanguardGame.myRole === 'p1') {
+                setTimeout(() => {
+                    let rivalRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
+                    let oldRivalPos = vanguardGame.rivalPosition;
+                    vanguardGame.rivalPosition = (vanguardGame.rivalPosition + rivalRoll) % vanguardGame.tiles.length;
+                    if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
 
-                let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
-                logVanguard(`${vanguardGame.rival} countered and landed on ${rivalTile.name}.`);
-                
-                if(rivalTile.owner === "None" && rivalTile.cost > 0 && vanguardGame.rivalFunds >= rivalTile.cost) {
-                    rivalTile.owner = vanguardGame.rival;
-                    vanguardGame.rivalFunds -= rivalTile.cost;
-                    logVanguard(`${vanguardGame.rival} claimed ${rivalTile.name}!`);
-                } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival) {
-                    vanguardGame.rivalFunds -= rivalTile.rent;
-                    vanguardGame.funds += rivalTile.rent;
-                    logVanguard(`${vanguardGame.rival} paid toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
-                }
+                    let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
+                    logVanguard(`Bot (Barons Rust) rolled ${rivalRoll} and landed on ${rivalTile.name}.`);
+                    
+                    if(rivalTile.owner === "None" && rivalTile.cost > 0 && vanguardGame.rivalFunds >= rivalTile.cost) {
+                        rivalTile.owner = vanguardGame.rival;
+                        vanguardGame.rivalFunds -= rivalTile.cost;
+                        logVanguard(`Bot claimed ${rivalTile.name}!`);
+                    } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival) {
+                        vanguardGame.rivalFunds -= rivalTile.rent;
+                        vanguardGame.funds += rivalTile.rent;
+                        logVanguard(`Bot paid toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                    }
 
-                updateVanguardUI();
-                drawVanguardBoard();
-            }, 1000);
+                    updateVanguardUI();
+                    drawVanguardBoard();
+                }, 1000);
+            }
 
         } else if(action === 'buy') {
-            let tile = vanguardGame.tiles[vanguardGame.position];
+            let activePos = (vanguardGame.myRole === 'p1') ? vanguardGame.position : vanguardGame.rivalPosition;
+            let activeOwner = (vanguardGame.myRole === 'p1') ? vanguardGame.hero : vanguardGame.rival;
+            let activeFunds = (vanguardGame.myRole === 'p1') ? vanguardGame.funds : vanguardGame.rivalFunds;
+
+            let tile = vanguardGame.tiles[activePos];
             if(tile.cost === 0 || tile.owner !== "None") {
                 logVanguard(`Sector cannot be claimed.`);
                 return;
             }
-            if(vanguardGame.funds >= tile.cost) {
-                vanguardGame.funds -= tile.cost;
-                tile.owner = vanguardGame.hero;
+            if(activeFunds >= tile.cost) {
+                if(vanguardGame.myRole === 'p1') {
+                    vanguardGame.funds -= tile.cost;
+                } else {
+                    vanguardGame.rivalFunds -= tile.cost;
+                }
+                tile.owner = activeOwner;
                 updateVanguardUI();
-                logVanguard(`${vanguardGame.hero} claimed ${tile.name} for ${tile.cost} VC!`);
+                logVanguard(`${activeOwner} claimed ${tile.name} for ${tile.cost} VC!`);
                 drawVanguardBoard();
+                broadcastState();
             } else {
                 logVanguard(`Insufficient War Credits.`);
             }
         } else if(action === 'upgrade') {
-            let tile = vanguardGame.tiles[vanguardGame.position];
-            if(tile.owner === vanguardGame.hero && vanguardGame.funds >= 60) {
-                vanguardGame.funds -= 60;
+            let activePos = (vanguardGame.myRole === 'p1') ? vanguardGame.position : vanguardGame.rivalPosition;
+            let activeOwner = (vanguardGame.myRole === 'p1') ? vanguardGame.hero : vanguardGame.rival;
+            let activeFunds = (vanguardGame.myRole === 'p1') ? vanguardGame.funds : vanguardGame.rivalFunds;
+
+            let tile = vanguardGame.tiles[activePos];
+            if(tile.owner === activeOwner && activeFunds >= 60) {
+                if(vanguardGame.myRole === 'p1') {
+                    vanguardGame.funds -= 60;
+                } else {
+                    vanguardGame.rivalFunds -= 60;
+                }
                 tile.rent += 35;
                 tile.hasHotel = true;
                 updateVanguardUI();
                 logVanguard(`Nexus Tower constructed on ${tile.name}! Toll surged to ${tile.rent} VC.`);
                 drawVanguardBoard();
+                broadcastState();
             } else {
                 logVanguard(`You must own this sector and have 60 VC.`);
             }
