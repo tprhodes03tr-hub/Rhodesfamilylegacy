@@ -811,7 +811,6 @@
                 drawVanguardBoard();
                 logVanguard(`Vanguard board state synchronized with peer.`);
             }
-            // Backward compatibility for flat objects
             if(incomingData.tiles && !incomingData.tycoonGame) tycoonGame.tiles = incomingData.tiles;
             if(incomingData.position !== undefined) tycoonGame.position = incomingData.position;
             if(incomingData.p2Position !== undefined) tycoonGame.p2Position = incomingData.p2Position;
@@ -1361,7 +1360,7 @@
     }
 
 
-    // --- VANGUARD VS SYNDICATE NEON TYCOON (2P P2P UPGRADED) ---
+    // --- VANGUARD VS SYNDICATE NEON TYCOON (2P P2P + COLOR SHIFT) ---
     let vCanvas, vCtx;
     let vanguardGame = {
         funds: 800,
@@ -1474,19 +1473,27 @@
             let isHere = (vanguardGame.position === i);
             let isRivalHere = (vanguardGame.rivalPosition === i);
 
+            // Dynamic border and neon glow color based on sector owner
+            let activeBorderColor = t.color;
+            if (t.owner === vanguardGame.hero) {
+                activeBorderColor = '#66fcf1'; // Cyan for Hero
+            } else if (t.owner === vanguardGame.rival) {
+                activeBorderColor = '#ff0055'; // Magenta for Rival
+            }
+
             vCtx.fillStyle = (isHere || isRivalHere) ? '#1f1b2c' : '#0b0c10';
-            vCtx.strokeStyle = t.color;
+            vCtx.strokeStyle = activeBorderColor;
             vCtx.lineWidth = (isHere || isRivalHere) ? 3 : 1.5;
             
             vCtx.save();
-            vCtx.shadowColor = t.color;
+            vCtx.shadowColor = activeBorderColor;
             vCtx.shadowBlur = 10;
             vCtx.fillRect(pt.x, pt.y, w, h);
             vCtx.strokeRect(pt.x, pt.y, w, h);
             vCtx.restore();
 
             if (t.hasHotel) {
-                vCtx.fillStyle = '#ff0055';
+                vCtx.fillStyle = activeBorderColor;
                 vCtx.font = 'bold 10px Courier New';
                 vCtx.fillText("⚡ [NEXUS TOWER]", pt.x + 8, pt.y + 15);
             }
@@ -1601,7 +1608,6 @@
             drawVanguardBoard();
             broadcastState();
 
-            // If playing vs AI bot locally, trigger AI turn automatically
             if(vanguardGame.gameMode === 'ai' && vanguardGame.myRole === 'p1') {
                 setTimeout(() => {
                     let rivalRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
