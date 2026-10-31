@@ -449,15 +449,15 @@
         <div class="lobby-bar">
             <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                 <span style="font-weight: bold; color: var(--accent-magenta);">⚡ VANGUARD FACTION HUB (2P P2P)</span>
-                <select id="v-mode-select" style="width: 100px;" onchange="updateVanguardMode()">
-                    <option value="ai">🤖 vs AI Bot</option>
-                    <option value="p2p">👥 P2P Lobby</option>
+                <select id="v-mode-select" style="width: 90px;" onchange="updateVanguardMode()">
+                    <option value="ai">🤖 AI Bot</option>
+                    <option value="p2p">👥 P2P</option>
                 </select>
-                <select id="v-role-select" style="width: 85px;" onchange="updateVanguardRole()">
+                <select id="v-role-select" style="width: 80px;" onchange="updateVanguardRole()">
                     <option value="p1">Hero (P1)</option>
                     <option value="p2">Rival (P2)</option>
                 </select>
-                <select id="v-hero-select" style="width: 130px;" onchange="updateVanguardHero()">
+                <select id="v-hero-select" style="width: 120px;" onchange="updateVanguardHero()">
                     <option value="Marcus Prime">Marcus Prime</option>
                     <option value="Amina Zazzau">Amina Zazzau</option>
                     <option value="Wakan">Wakan</option>
@@ -467,7 +467,11 @@
                     <option value="Prism-Ghost">Prism-Ghost</option>
                     <option value="Nexus-Zero">Nexus-Zero</option>
                 </select>
-                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="resetVanguardGame()">RESET FACTION BOARD</button>
+                <input type="text" id="v-room-code-input" placeholder="Room" value="VANGUARD-313" style="width: 110px;">
+                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem; border-color: var(--accent-magenta); color: var(--accent-magenta);" onclick="generateVanguardRoomCode()">⚡ CODE</button>
+                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="hostVanguardP2P()">HOST</button>
+                <button class="ctrl-btn purple" style="padding: 3px 6px; font-size: 0.7rem;" onclick="joinVanguardP2P()">🔗 JOIN</button>
+                <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="resetVanguardGame()">RESET</button>
             </div>
         </div>
 
@@ -809,6 +813,16 @@
         logTycoon(`Generated compound room code: [${code}]`);
     }
 
+    function generateVanguardRoomCode() {
+        const prefixes = ["VANGUARD", "MARROW", "DETROIT", "SAGINAW", "CHRONO", "NEXUS", "SYNDICATE"];
+        const suffixes = ["313", "517", "GRID", "VAULT", "STATION", "CORE", "BASTION"];
+        let p = prefixes[Math.floor(Math.random() * prefixes.length)];
+        let s = suffixes[Math.floor(Math.random() * suffixes.length)];
+        let code = `${p}-${s}`;
+        document.getElementById('v-room-code-input').value = code;
+        logVanguard(`Generated Vanguard compound code: [${code}]`);
+    }
+
     function applyProfileSettings() {
         let nameVal = document.getElementById('player-name-input').value || "Tommy";
         let roleVal = document.getElementById('player-role-select').value;
@@ -877,6 +891,40 @@
         });
         peer.on('error', (err) => {
             logTycoon(`Failed to connect. Make sure Host clicked HOST first and code matches.`);
+        });
+    }
+
+    function hostVanguardP2P() {
+        if(peer) peer.destroy();
+        let customCode = document.getElementById('v-room-code-input').value.trim() || "VANGUARD-313";
+        
+        peer = new Peer(customCode);
+        peer.on('open', (id) => {
+            logVanguard(`Hosting Vanguard room [${customCode}]! Waiting for Rival to join.`);
+        });
+        peer.on('connection', (incomingConn) => {
+            conn = incomingConn;
+            setupConnectionEvents();
+            logVanguard(`Rival successfully connected to Vanguard Hub!`);
+            broadcastState();
+        });
+        peer.on('error', (err) => {
+            logVanguard(`Host error: Code [${customCode}] may already be active. Click ⚡ CODE.`);
+        });
+    }
+
+    function joinVanguardP2P() {
+        if(peer) peer.destroy();
+        let targetCode = document.getElementById('v-room-code-input').value.trim() || "VANGUARD-313";
+
+        peer = new Peer();
+        peer.on('open', (id) => {
+            logVanguard(`Connecting to Vanguard Host [${targetCode}]...`);
+            conn = peer.connect(targetCode);
+            setupConnectionEvents();
+        });
+        peer.on('error', (err) => {
+            logVanguard(`Failed to connect. Make sure Host clicked HOST first.`);
         });
     }
 
