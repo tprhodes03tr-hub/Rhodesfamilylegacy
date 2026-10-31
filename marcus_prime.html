@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Marcus Prime • 313 Screen Saver</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #05050a; font-family: 'Courier New', monospace; }
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        /* HUD UI Overlay */
+        .hud-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hud-panel {
+            background: rgba(10, 10, 25, 0.75);
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            padding: 12px 18px;
+            border-radius: 8px;
+            backdrop-filter: blur(6px);
+            color: #00f3ff;
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.6);
+            pointer-events: auto;
+        }
+        .hud-panel h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; color: #fff; }
+        .hud-panel p { font-size: 11px; color: #a0aec0; letter-spacing: 1px; }
+        
+        .controls-panel {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .control-btn {
+            background: rgba(189, 0, 255, 0.2);
+            border: 1px solid #bd00ff;
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-shadow: 0 0 6px #bd00ff;
+        }
+        .control-btn:hover { background: rgba(189, 0, 255, 0.4); box-shadow: 0 0 12px #bd00ff; }
+        
+        .footer-hint {
+            position: absolute;
+            bottom: 15px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255,255,255,0.4);
+            font-size: 10px;
+            letter-spacing: 2px;
+            pointer-events: none;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="hud-overlay">
+        <div class="hud-panel">
+            <h1>MARCUS PRIME</h1>
+            <p>DETROIT '313 GRID • VANGUARD COMMAND</p>
+        </div>
+        <div class="hud-panel controls-panel">
+            <button class="control-btn" id="surgeBtn">⚡ MANA SURGE</button>
+            <button class="control-btn" id="fsBtn">FULLSCREEN</button>
+        </div>
+    </div>
+
+    <div class="footer-hint">Tap screen or click Surge to trigger high-voltage electric discharge</div>
+
+    <canvas id="screenSaverCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('screenSaverCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Load Marcus Prime Character Image
+        const charImg = new Image();
+        charImg.src = '20904.jpg'; // References your uploaded art file
+        let imgLoaded = false;
+        charImg.onload = () => { imgLoaded = true; };
+
+        // Rain particles
+        const raindrops = [];
+        const maxRain = 150;
+        for(let i=0; i<maxRain; i++) {
+            raindrops.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                length: Math.random() * 25 + 10,
+                speed: Math.random() * 12 + 8,
+                opacity: Math.random() * 0.5 + 0.2
+            });
+        }
+
+        // Lightning / Electric Surge System
+        let surgeActive = false;
+        let surgeIntensity = 0;
+        let nextSurgeTime = Date.now() + 3000;
+        let lightningBolts = [];
+
+        function triggerSurge() {
+            surgeActive = true;
+            surgeIntensity = 1.0;
+            generateBolts();
+            setTimeout(() => {
+                surgeActive = false;
+            }, 600);
+        }
+
+        document.getElementById('surgeBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            triggerSurge();
+        });
+
+        window.addEventListener('click', () => {
+            triggerSurge();
+        });
+
+        document.getElementById('fsBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        });
+
+        function generateBolts() {
+            lightningBolts = [];
+            const count = 5;
+            for(let i=0; i<count; i++) {
+                let points = [];
+                let startX = canvas.width/2 + (Math.random() * 200 - 100);
+                let startY = canvas.height/2 + (Math.random() * 200 - 100);
+                let currentX = startX;
+                let currentY = startY;
+                
+                points.push({x: currentX, y: currentY});
+                for(let j=0; j<6; j++) {
+                    currentX += (Math.random() * 80 - 40);
+                    currentY += (Math.random() * 80 - 40);
+                    points.push({x: currentX, y: currentY});
+                }
+                lightningBolts.push(points);
+            }
+        }
+
+        // Parallax background offset based on gentle mouse movement or time oscillation
+        let time = 0;
+
+        function animate() {
+            time += 0.03;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background City Gradient
+            let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGrad.addColorStop(0, '#04040c');
+            bgGrad.addColorStop(0.5, '#0b0b24');
+            bgGrad.addColorStop(1, '#1a0b2e');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Cyberpunk Towers (Parallax layers)
+            ctx.fillStyle = '#0f0f24';
+            ctx.fillRect(canvas.width * 0.1, canvas.height * 0.2, 120, canvas.height * 0.8);
+            ctx.fillStyle = '#141432';
+            ctx.fillRect(canvas.width * 0.7, canvas.height * 0.15, 150, canvas.height * 0.85);
+
+            // Neon Glow signs in background
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00f3ff';
+            ctx.fillStyle = '#00f3ff';
+            ctx.font = 'bold 14px Courier New';
+            ctx.fillText("313 GRID", canvas.width * 0.15, canvas.height * 0.35);
+
+            ctx.shadowColor = '#bd00ff';
+            ctx.fillStyle = '#bd00ff';
+            ctx.fillText("MOTOR CITY OPS", canvas.width * 0.73, canvas.height * 0.3);
+            ctx.shadowBlur = 0; // reset
+
+            // Render Marcus Prime Character Image Centered
+            if (imgLoaded) {
+                let h = canvas.height * 0.85;
+                let w = h * (charImg.width / charImg.height);
+                let x = (canvas.width - w) / 2;
+                let y = (canvas.height - h) / 2 + (Math.sin(time * 2) * 4); // subtle floating breathing motion
+
+                ctx.drawImage(charImg, x, y, w, h);
+
+                // Electric Surge Overlay Effect on Character
+                if (surgeActive || Math.random() < 0.05) {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'screen';
+                    ctx.fillStyle = `rgba(0, 243, 255, ${surgeActive ? 0.4 : 0.1})`;
+                    ctx.fillRect(x, y, w, h);
+                    ctx.restore();
+                }
+            }
+
+            // Automatic Periodic Surge Timer
+            if (Date.now() > nextSurgeTime) {
+                triggerSurge();
+                nextSurgeTime = Date.now() + Math.random() * 4000 + 3000;
+            }
+
+            // Draw Lightning Arcs during Surge
+            if (surgeActive && lightningBolts.length > 0) {
+                ctx.save();
+                ctx.strokeStyle = '#00f3ff';
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#bd00ff';
+                
+                lightningBolts.forEach(bolt => {
+                    ctx.beginPath();
+                    ctx.moveTo(bolt[0].x, bolt[0].y);
+                    for(let i=1; i<bolt.length; i++) {
+                        ctx.lineTo(bolt[i].x + (Math.random()*10-5), bolt[i].y + (Math.random()*10-5));
+                    }
+                    ctx.stroke();
+                });
+                ctx.restore();
+            }
+
+            // Render Falling Rain
+            ctx.strokeStyle = 'rgba(150, 220, 255, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for(let i=0; i<raindrops.length; i++) {
+                let r = raindrops[i];
+                ctx.moveTo(r.x, r.y);
+                ctx.lineTo(r.x - 2, r.y + r.length);
+                
+                r.y += r.speed;
+                r.x -= 0.5;
+                if(r.y > canvas.height) {
+                    r.y = -20;
+                    r.x = Math.random() * canvas.width;
+                }
+            }
+            ctx.stroke();
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
