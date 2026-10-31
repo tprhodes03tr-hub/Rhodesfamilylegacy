@@ -323,7 +323,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 4: VANGUARD FLEET • DEEP SPACE SECTOR WARP & UPGRADEABLE STARFLEET -->
+  <!-- PORTAL 4: VANGUARD FLEET • DEEP SPACE SECTOR WARP & STARFLEET ARCADE -->
   <div class="sandbox-container space-container hidden" id="portal-space">
     <div class="sandbox-header" style="color: #f59e0b;">Vanguard Fleet • <span id="sector-title">Crimson Star Cluster (Sector 3)</span></div>
     <h1 style="color: #f59e0b;">Deep Space Intercept & Incursion Run</h1>
@@ -606,7 +606,7 @@
       globeLoop();
     }
 
-    // DETROIT '313 GRID RUNNER ENGINE
+    // DETROIT '313 GRID RUNNER ENGINE (FIXED REACHABLE INCURSION COLLISION)
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
@@ -616,7 +616,8 @@
       let electricBeamsCount = 12, runnerItems = [], obstacles = [], electricProjectiles = [];
       let tier = 1, orbsCollected = 0, isPaused = false, roadScrollOffset = 0;
       let shockwaveActive = false, shockwaveRadius = 0;
-      let excursionNode = { x: 300, y: -100, active: false };
+      // Fixed incursion dot positioned dead center on canvas so it is fully reachable
+      let excursionNode = { x: 300, y: 180, active: false };
 
       window.moveRunner = (dir) => {
         if (isPaused) return;
@@ -658,11 +659,10 @@
 
             if (transitDistance <= 50) {
               excursionNode.active = true;
-              excursionNode.y += 2.0;
-              if (excursionNode.y > 220) excursionNode.y = 220;
             }
 
             if (excursionNode.active) {
+              // Generous collision detection radius so player can easily approach and hit it
               if (Math.hypot(playerX - excursionNode.x, 350 - excursionNode.y) < 75) {
                 playSound('transform');
                 excursionNode.active = false;
@@ -766,8 +766,12 @@
             shockwaveRadius += 15; if (shockwaveRadius > 400) shockwaveActive = false;
           }
 
+          // RESTORED DETAILED MARCUS PRIME INTERCEPTOR CAR SPRITE
           ctx.save();
           let primaryColor = tier === 1 ? '#60a5fa' : tier === 2 ? '#38bdf8' : '#d4af37';
+          let accentColor = tier === 1 ? '#1e3a8a' : tier === 2 ? '#f59e0b' : '#0f172a';
+
+          ctx.shadowColor = primaryColor; ctx.shadowBlur = 15;
           ctx.fillStyle = primaryColor;
           ctx.beginPath();
           ctx.moveTo(playerX, 350 - 45);
@@ -777,6 +781,29 @@
           ctx.lineTo(playerX - 20, 350 - 20);
           ctx.closePath();
           ctx.fill();
+
+          ctx.fillStyle = '#020617';
+          ctx.beginPath();
+          ctx.moveTo(playerX, 350 - 25);
+          ctx.lineTo(playerX + 14, 350 - 5);
+          ctx.lineTo(playerX + 12, 350 + 15);
+          ctx.lineTo(playerX - 12, 350 + 15);
+          ctx.lineTo(playerX - 14, 350 - 5);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = accentColor;
+          ctx.fillRect(playerX - 5, 350 - 30, 10, 60);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(playerX - 16, 350 - 42, 6, 4);
+          ctx.fillRect(playerX + 10, 350 - 42, 6, 4);
+
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(playerX - 14, 350 + 35, 8, 10 + Math.random() * 6);
+          ctx.fillRect(playerX + 6, 350 + 35, 8, 10 + Math.random() * 6);
+
+          ctx.shadowBlur = 0;
           ctx.restore();
 
           activeRunnerId = requestAnimationFrame(runnerLoop);
@@ -797,7 +824,7 @@
       let isTurboActive = false, turboTimer = 0;
       let torpedoesList = [], subEnemies = [], enemyProjectiles = [], marineOrbs = [], marineLife = [], coralReefs = [];
       let isSubPaused = false, trenchOffset = 0;
-      let excursionNode = { x: 700, y: 225, active: false };
+      let excursionNode = { x: 300, y: 225, active: false };
 
       for (let i = 0; i < 25; i++) {
         coralReefs.push({ x: i * 30, height: 40 + Math.random() * 60, color: Math.random() > 0.4 ? '#34d399' : '#38bdf8' });
@@ -869,12 +896,10 @@
 
             if (subDistance <= 50) {
               excursionNode.active = true;
-              excursionNode.x -= 2.5;
-              if (excursionNode.x < 150) excursionNode.x = 150;
             }
 
             if (excursionNode.active) {
-              if (Math.hypot(subX - excursionNode.x, subY - excursionNode.y) < 55) {
+              if (Math.hypot(subX - excursionNode.x, subY - excursionNode.y) < 75) {
                 playSound('transform');
                 excursionNode.active = false;
                 speakText("Wacon Trench incursion target secured. Returning to Marrow Globe Nexus.");
@@ -980,8 +1005,11 @@
 
           coralReefs.forEach((c, idx) => {
             ctx.fillStyle = c.color;
+            ctx.shadowColor = c.color;
+            ctx.shadowBlur = 15;
             let h = c.height + Math.sin(trenchOffset * 0.04 + idx) * 10;
             ctx.fillRect((idx * 28 - (trenchOffset % 30)) + canvas.width, canvas.height - h, 12, h);
+            ctx.shadowBlur = 0;
           });
 
           if (excursionNode.active) {
@@ -994,20 +1022,32 @@
           subEnemies.forEach(en => {
             ctx.save();
             ctx.translate(en.x, en.y);
+            ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 15;
             ctx.fillStyle = '#1e293b';
             ctx.beginPath(); ctx.ellipse(0, 0, 22, 12, 0, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.5; ctx.stroke();
             ctx.fillStyle = '#ef4444';
             ctx.beginPath(); ctx.arc(-6, -2, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(20, -4, 6, 8);
+            ctx.shadowBlur = 0;
             ctx.restore();
           });
 
           ctx.save();
           ctx.translate(subX, subY);
+          ctx.shadowColor = '#34d399'; ctx.shadowBlur = 22;
           ctx.fillStyle = '#064e3b';
           ctx.beginPath(); ctx.ellipse(0, 0, 42, 18, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#022c22';
+          ctx.beginPath(); ctx.ellipse(0, 0, 32, 11, 0, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = '#34d399';
           ctx.fillRect(-6, -18, 14, 10);
+          ctx.fillRect(0, -26, 4, 10);
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath(); ctx.arc(14, -2, 3, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(22, -2, 3, 0, Math.PI*2); ctx.fill();
+          ctx.shadowBlur = 0;
           ctx.restore();
 
           activeSubId = requestAnimationFrame(subLoop);
@@ -1017,7 +1057,7 @@
       subLoop();
     }
 
-    // VANGUARD FLEET / UPGRADEABLE STARFLEET ENGINE
+    // VANGUARD FLEET / STARFLEET ARCADE ENGINE (WITH FIRING ENEMIES, WARP JUMP & REACHABLE INCLUSION)
     function initSpaceEngine() {
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
@@ -1025,8 +1065,9 @@
 
       let shipX = 300, shipY = 350, targetShipX = 300;
       let shield = 100, hull = 100, orbs = 0, sectorIndex = 3, spaceTier = 1;
-      let spaceBullets = [], enemyDroids = [], spaceOrbs = [], starfield = [];
-      let spaceExcursion = { x: 300, y: -80, active: false };
+      let spaceBullets = [], enemyDroids = [], enemyProjectiles = [], spaceOrbs = [], starfield = [];
+      let spaceExcursion = { x: 300, y: 180, active: false };
+      let isWarping = false, warpTimer = 0;
 
       const sectorThemes = [
         { name: "Crimson Star Cluster (Sector 3)", bg: "#000206", starColor: "#ffffff" },
@@ -1066,15 +1107,16 @@
 
       window.triggerVanguardWarp = () => {
         playSound('transform');
+        isWarping = true;
+        warpTimer = 45; // 45 frames of Star Trek hyper-speed star streaks
         sectorIndex = (sectorIndex % 3) + 3;
         document.getElementById('sector-num').innerText = sectorIndex;
         document.getElementById('sector-title').innerText = sectorThemes[sectorIndex - 3].name;
-        speakText(`Vanguard warp engaged. Entering sector ${sectorIndex}.`);
+        speakText(`Vanguard warp drive engaged. Entering galaxy sector ${sectorIndex}.`);
         
         spaceExcursion.active = true;
-        spaceExcursion.x = 100 + Math.random() * (canvas.width - 200);
-        spaceExcursion.y = -50;
         enemyDroids = [];
+        enemyProjectiles = [];
       };
 
       function spaceLoop() {
@@ -1085,18 +1127,26 @@
           ctx.fillStyle = theme.bg;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // Star Trek Transwarp / Hyper-speed effect when warping
+          let currentSpeedMultiplier = isWarping ? 18 : 1.0;
+          if (isWarping) {
+            warpTimer--;
+            if (warpTimer <= 0) isWarping = false;
+          }
+
           starfield.forEach(s => {
-            s.y += s.speed;
+            s.y += s.speed * currentSpeedMultiplier;
             if (s.y > canvas.height) s.y = 0;
             ctx.fillStyle = theme.starColor;
-            ctx.fillRect(s.x, s.y, s.size, s.size);
+            if (isWarping) {
+              ctx.fillRect(s.x, s.y, 2, s.speed * 12); // Star streak effect
+            } else {
+              ctx.fillRect(s.x, s.y, s.size, s.size);
+            }
           });
 
           if (spaceExcursion.active) {
-            spaceExcursion.y += 1.5;
-            if (spaceExcursion.y > 200) spaceExcursion.y = 200;
-
-            if (Math.hypot(shipX - spaceExcursion.x, shipY - spaceExcursion.y) < 65) {
+            if (Math.hypot(shipX - spaceExcursion.x, shipY - spaceExcursion.y) < 75) {
               playSound('transform');
               spaceExcursion.active = false;
               speakText("Space incursion target secured! Sector anomaly neutralized.");
@@ -1106,12 +1156,14 @@
             }
           }
 
-          if (Math.random() < 0.035 && enemyDroids.length < 5) {
-            enemyDroids.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.2 });
-          }
+          if (!isWarping) {
+            if (Math.random() < 0.035 && enemyDroids.length < 5) {
+              enemyDroids.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.2, shootTimer: 0 });
+            }
 
-          if (Math.random() < 0.03 && spaceOrbs.length < 4) {
-            spaceOrbs.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.0 });
+            if (Math.random() < 0.03 && spaceOrbs.length < 4) {
+              spaceOrbs.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.0 });
+            }
           }
 
           for (let i = spaceOrbs.length - 1; i >= 0; i--) {
@@ -1123,7 +1175,6 @@
               document.getElementById('space-orbs').innerText = orbs;
               spaceOrbs.splice(i, 1);
 
-              // Starfighter transformation progression based on orbs collected
               if (orbs >= 3 && spaceTier === 1) {
                 spaceTier = 2;
                 playSound('transform');
@@ -1156,9 +1207,16 @@
             if (hit || b.y < 0) spaceBullets.splice(i, 1);
           }
 
+          // Enemy firing logic
           for (let i = enemyDroids.length - 1; i >= 0; i--) {
             let en = enemyDroids[i];
             en.y += en.speed;
+            en.shootTimer++;
+            if (en.shootTimer > 50) {
+              en.shootTimer = 0;
+              enemyProjectiles.push({ x: en.x, y: en.y, vy: 5.0 });
+            }
+
             if (Math.hypot(shipX - en.x, shipY - en.y) < 35) {
               playSound('crash');
               hull -= 20;
@@ -1172,10 +1230,27 @@
             }
           }
 
+          for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+            let ep = enemyProjectiles[i];
+            ep.y += ep.vy;
+            if (Math.hypot(shipX - ep.x, shipY - ep.y) < 30) {
+              playSound('crash');
+              hull -= 15;
+              document.getElementById('space-hull').innerText = hull + '%';
+              enemyProjectiles.splice(i, 1);
+              if (hull <= 0) {
+                hull = 100; document.getElementById('space-hull').innerText = "100%";
+              }
+            } else if (ep.y > canvas.height) {
+              enemyProjectiles.splice(i, 1);
+            }
+          }
+
           if (spaceExcursion.active) {
             ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
             ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 35;
-            ctx.beginPath(); ctx.arc(spaceExcursion.x, spaceExcursion.y, 25, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(spaceExcursion.x, spaceExcursion.y, 26 + Math.sin(Date.now()*0.02)*6, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke();
             ctx.shadowBlur = 0;
           }
 
@@ -1191,6 +1266,12 @@
             ctx.shadowBlur = 0;
           });
 
+          enemyProjectiles.forEach(ep => {
+            ctx.fillStyle = '#f59e0b'; ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 10;
+            ctx.fillRect(ep.x - 4, ep.y, 8, 14);
+            ctx.shadowBlur = 0;
+          });
+
           enemyDroids.forEach(en => {
             ctx.save();
             ctx.translate(en.x, en.y);
@@ -1203,7 +1284,7 @@
             ctx.restore();
           });
 
-          // DRAW UPGRADED VANGUARD STARFLEET CRUISER SPRITE BASED ON TIER
+          // RESTORED DETAILED STARFLEET CRUISER SPRITE WITH WINGS & NACELLES
           ctx.save();
           ctx.translate(shipX, shipY);
           let primaryColor = spaceTier === 1 ? '#f59e0b' : spaceTier === 2 ? '#38bdf8' : '#d4af37';
@@ -1222,6 +1303,13 @@
           ctx.fillStyle = spaceTier >= 3 ? '#93c5fd' : '#60a5fa';
           ctx.fillRect(-24 - (spaceTier*2), -12, 6, 28 + spaceTier*4);
           ctx.fillRect(18, -12, 6, 28 + spaceTier*4);
+
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(-22, -8, 2, 20);
+          ctx.fillRect(20, -8, 2, 20);
+
+          ctx.fillStyle = '#93c5fd';
+          ctx.beginPath(); ctx.arc(0, -12, 5, 0, Math.PI*2); ctx.fill();
 
           ctx.fillStyle = '#ef4444';
           ctx.fillRect(-6, 20, 4, 10 + Math.random()*8);
