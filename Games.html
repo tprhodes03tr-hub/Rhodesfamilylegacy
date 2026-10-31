@@ -517,8 +517,8 @@
         let threatY = centerY + globeRadius * Math.sin(threatPhi);
         if (Math.hypot(clickX - threatX, clickY - threatY) < 30) {
           playSound('transform');
-          speakText("Threat beacon engaged. Inspecting anomaly coordinates.");
-          alert("⚡ SECTOR ALERT INSPECTION:\nTemporal pulse confirmed in Great Lakes Sector 6.");
+          speakText("Threat beacon engaged. Launching Detroit Intercept.");
+          switchPortal('runner');
           return;
         }
 
@@ -606,14 +606,14 @@
       globeLoop();
     }
 
-    // DETROIT '313 GRID RUNNER ENGINE (SCROLLING INCURSION NODE WITH 20-SEC AUTO-LOOP)
+    // DETROIT '313 GRID RUNNER ENGINE (BATMOBILE TIER 3 SIDE LAUNCHERS & INCURSION NODE)
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       
       let playerX = 300, targetX = 300, carHull = 100, transitDistance = 313;
-      let electricBeamsCount = 12, runnerItems = [], obstacles = [], electricProjectiles = [];
+      let electricBeamsCount = 12, runnerItems = [], obstacles = [], electricProjectiles = [], sideMissiles = [];
       let tier = 1, orbsCollected = 0, isPaused = false, roadScrollOffset = 0;
       let shockwaveActive = false, shockwaveRadius = 0;
       
@@ -641,6 +641,12 @@
         playSound('beam');
         electricProjectiles.push({ x: playerX - 16, y: 320, vy: -14 });
         electricProjectiles.push({ x: playerX + 16, y: 320, vy: -14 });
+
+        // Tier 3 Batmobile Pop-Out Kinetic Side-Launchers
+        if (tier === 3) {
+          sideMissiles.push({ x: playerX - 30, y: 340, vx: -4, vy: -12 });
+          sideMissiles.push({ x: playerX + 30, y: 340, vx: 4, vy: -12 });
+        }
       };
 
       window.triggerUrbanShockwave = () => {
@@ -669,7 +675,6 @@
             if (excursionNode.active) {
               excursionNode.y += excursionNode.speed;
               
-              // Collision check with player car (matches orb/obstacle style)
               if (Math.abs(playerX - excursionNode.x) < 45 && Math.abs(350 - excursionNode.y) < 45) {
                 playSound('transform');
                 excursionNode.active = false;
@@ -680,14 +685,13 @@
                 return;
               }
 
-              // If missed off screen, re-loop every 20 seconds (1200 frames at ~60fps)
               if (excursionNode.y > canvas.height + 50) {
                 excursionNode.active = false;
                 nodeSpawnTimer = 0;
               }
             } else if (transitDistance <= 50) {
               nodeSpawnTimer++;
-              if (nodeSpawnTimer > 1200) { // ~20 seconds
+              if (nodeSpawnTimer > 1200) {
                 excursionNode.active = true;
                 excursionNode.y = -50;
                 excursionNode.x = [160, 300, 440][Math.floor(Math.random()*3)];
@@ -713,7 +717,8 @@
                   document.getElementById('car-tier').innerText = "Tier 2";
                 } else if (orbsCollected >= 7 && tier === 2) {
                   tier = 3; playSound('transform');
-                  document.getElementById('car-tier').innerText = "Tier 3";
+                  document.getElementById('car-tier').innerText = "Tier 3 (Batmobile Armor)";
+                  speakText("Marcus Prime vehicle upgraded to Tier 3 Batmobile configuration.");
                 }
               } else if (r.y > canvas.height) {
                 runnerItems.splice(i, 1);
@@ -731,6 +736,19 @@
                 }
               }
               if (hit || proj.y < 0) electricProjectiles.splice(pIdx, 1);
+            }
+
+            for (let sIdx = sideMissiles.length - 1; sIdx >= 0; sIdx--) {
+              let sm = sideMissiles[sIdx];
+              sm.x += sm.vx; sm.y += sm.vy;
+              let hit = false;
+              for (let oIdx = obstacles.length - 1; oIdx >= 0; oIdx--) {
+                let obs = obstacles[oIdx];
+                if (Math.abs(sm.x - obs.x) < 40 && Math.abs(sm.y - obs.y) < 40) {
+                  playSound('crash'); obstacles.splice(oIdx, 1); hit = true; break;
+                }
+              }
+              if (hit || sm.y < 0 || sm.x < 0 || sm.x > canvas.width) sideMissiles.splice(sIdx, 1);
             }
 
             for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -775,6 +793,11 @@
             ctx.fillRect(proj.x - 4, proj.y, 8, 20); ctx.shadowBlur = 0;
           });
 
+          sideMissiles.forEach(sm => {
+            ctx.fillStyle = '#d4af37'; ctx.shadowColor = '#d4af37'; ctx.shadowBlur = 12;
+            ctx.fillRect(sm.x - 3, sm.y, 6, 14); ctx.shadowBlur = 0;
+          });
+
           obstacles.forEach(obs => {
             ctx.fillStyle = '#ef4444'; ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 12;
             ctx.fillRect(obs.x - 20, obs.y - 20, 40, 40); ctx.shadowBlur = 0;
@@ -787,7 +810,7 @@
             shockwaveRadius += 15; if (shockwaveRadius > 400) shockwaveActive = false;
           }
 
-          // DETROIT MARCUS PRIME INTERCEPTOR CAR SPRITE
+          // DETROIT MARCUS PRIME INTERCEPTOR / BATMOBILE TIER 3 SPRITE
           ctx.save();
           let primaryColor = tier === 1 ? '#60a5fa' : tier === 2 ? '#38bdf8' : '#d4af37';
           let accentColor = tier === 1 ? '#1e3a8a' : tier === 2 ? '#f59e0b' : '#0f172a';
@@ -796,12 +819,18 @@
           ctx.fillStyle = primaryColor;
           ctx.beginPath();
           ctx.moveTo(playerX, 350 - 45);
-          ctx.lineTo(playerX + 20, 350 - 20);
-          ctx.lineTo(playerX + 22, 350 + 35);
-          ctx.lineTo(playerX - 22, 350 + 35);
-          ctx.lineTo(playerX - 20, 350 - 20);
+          ctx.lineTo(playerX + (tier === 3 ? 28 : 20), 350 - 20);
+          ctx.lineTo(playerX + (tier === 3 ? 26 : 22), 350 + 35);
+          ctx.lineTo(playerX - (tier === 3 ? 26 : 22), 350 + 35);
+          ctx.lineTo(playerX - (tier === 3 ? 28 : 20), 350 - 20);
           ctx.closePath();
           ctx.fill();
+
+          if (tier === 3) {
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(playerX - 34, 350 - 5, 8, 22);
+            ctx.fillRect(playerX + 26, 350 - 5, 8, 22);
+          }
 
           ctx.fillStyle = '#020617';
           ctx.beginPath();
@@ -821,8 +850,8 @@
           ctx.fillRect(playerX + 10, 350 - 42, 6, 4);
 
           ctx.fillStyle = '#38bdf8';
-          ctx.fillRect(playerX - 14, 350 + 35, 8, 10 + Math.random() * 6);
-          ctx.fillRect(playerX + 6, 350 + 35, 8, 10 + Math.random() * 6);
+          ctx.fillRect(playerX - 16, 350 + 35, 8, 12 + Math.random() * 6);
+          ctx.fillRect(playerX + 8, 350 + 35, 8, 12 + Math.random() * 6);
 
           ctx.shadowBlur = 0;
           ctx.restore();
@@ -834,7 +863,7 @@
       runnerLoop();
     }
 
-    // WACON TRENCH SUBMARINE ENGINE (SCROLLING INCURSION NODE WITH 20-SEC AUTO-LOOP)
+    // WACON TRENCH SUBMARINE ENGINE
     function initSubmarineEngine() {
       const canvas = document.getElementById('subCanvas');
       if (!canvas) return;
@@ -948,7 +977,7 @@
               }
             } else if (subDistance <= 50) {
               nodeSpawnTimer++;
-              if (nodeSpawnTimer > 1200) { // ~20 seconds
+              if (nodeSpawnTimer > 1200) {
                 excursionNode.active = true;
                 excursionNode.x = canvas.width + 40;
                 excursionNode.y = 100 + Math.random() * (canvas.height - 200);
@@ -1157,7 +1186,7 @@
       subLoop();
     }
 
-    // VANGUARD FLEET / STARFLEET ARCADE ENGINE (SCROLLING INCURSION NODE WITH 20-SEC AUTO-LOOP)
+    // VANGUARD FLEET / STARFLEET ARCADE ENGINE (SPACE-THEMED ALBOR DROIDS & TRANSWARP SECTORS)
     function initSpaceEngine() {
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
@@ -1248,7 +1277,7 @@
 
           if (!spaceExcursion.active && !isWarping) {
             nodeSpawnTimer++;
-            if (nodeSpawnTimer > 300) { // triggers shortly after warp or every 20s
+            if (nodeSpawnTimer > 300) {
               spaceExcursion.active = true;
               spaceExcursion.y = -40;
               spaceExcursion.x = 80 + Math.random() * (canvas.width - 160);
@@ -1270,7 +1299,7 @@
 
             if (spaceExcursion.y > canvas.height + 50) {
               spaceExcursion.active = false;
-              nodeSpawnTimer = 0; // Will loop back in 20 seconds
+              nodeSpawnTimer = 0;
             }
           }
 
@@ -1389,14 +1418,19 @@
             ctx.shadowBlur = 0;
           });
 
+          // SPACE-THEMED ALBOR SYNDICATE DROIDS
           enemyDroids.forEach(en => {
             ctx.save();
             ctx.translate(en.x, en.y);
-            ctx.fillStyle = '#ef4444'; ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 12;
+            ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 15;
+            ctx.fillStyle = '#1e293b';
             ctx.beginPath();
-            ctx.moveTo(0, 15); ctx.lineTo(15, -10); ctx.lineTo(-15, -10);
+            ctx.moveTo(0, 16); ctx.lineTo(16, -10); ctx.lineTo(6, -6); ctx.lineTo(-6, -6); ctx.lineTo(-16, -10);
             ctx.closePath();
             ctx.fill();
+            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(0, -2, 4, 0, Math.PI * 2); ctx.fill();
             ctx.shadowBlur = 0;
             ctx.restore();
           });
