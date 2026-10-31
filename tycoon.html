@@ -362,7 +362,7 @@
                     <option value="🟢">🟢 Green</option>
                     <option value="🟣">🟣 Purple</option>
                 </select>
-                <input type="text" id="room-code-input" placeholder="Room" value="DETROIT-MARROW" style="width: 110px;">
+                <input type="text" id="room-code-input" placeholder="Room" value="DETROIT-HUB" style="width: 125px;">
                 <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="generateCompoundRoom()">⚡ CODE</button>
                 <button class="ctrl-btn secondary" style="padding: 3px 6px; font-size: 0.7rem;" onclick="hostP2PSession()">HOST</button>
                 <button class="ctrl-btn purple" style="padding: 3px 6px; font-size: 0.7rem;" onclick="joinP2PSession()">🔗 JOIN</button>
@@ -389,7 +389,7 @@
         <!-- Neon Computer Grid Canvas Board -->
         <canvas id="tycoonCanvas" width="900" height="540" onclick="handleCanvasTouch(event)"></canvas>
 
-        <div id="log-box">Click ⚡ CODE for a unique room, Host clicks HOST, Guest clicks JOIN!</div>
+        <div id="log-box">Click ⚡ CODE for a word code (e.g. DETROIT-313), Host clicks HOST, Guest types code and clicks JOIN!</div>
 
         <div class="controls">
             <button class="ctrl-btn" id="btn-roll" onclick="tycoonAction('roll')">🎲 ROLL DICE</button>
@@ -624,7 +624,6 @@
         drawTycoonBoard();
     };
     treeImg.onerror = function() {
-        // Fallback so canvas draws even if image fails/missing
         treeLoaded = false;
         drawTycoonBoard();
     };
@@ -799,9 +798,10 @@
         drawTycoonBoard();
     });
 
+    // --- COMPOUND WORD-CODE GENERATOR ---
     function generateCompoundRoom() {
         const prefixes = ["DETROIT", "SAGINAW", "VANGUARD", "MARROW", "ROADS", "WRIGHT", "MITCHELL", "ATWATER"];
-        const suffixes = ["HUB", "VAULT", "GRID", "REUNION", "ESTATE", "CORRIDOR", "LEGACY", "STATION"];
+        const suffixes = ["313", "517", "HUB", "VAULT", "GRID", "REUNION", "ESTATE", "CORRIDOR"];
         let p = prefixes[Math.floor(Math.random() * prefixes.length)];
         let s = suffixes[Math.floor(Math.random() * suffixes.length)];
         let code = `${p}-${s}`;
@@ -848,35 +848,35 @@
 
     function hostP2PSession() {
         if(peer) peer.destroy();
-        let customCode = document.getElementById('room-code-input').value.trim() || "DETROIT-MARROW";
+        let customCode = document.getElementById('room-code-input').value.trim() || "DETROIT-313";
         
         peer = new Peer(customCode);
         peer.on('open', (id) => {
-            logTycoon(`Hosting room [${customCode}]! Waiting for Guest to join.`);
+            logTycoon(`Hosting room [${customCode}]! Waiting for Player 2 to join with this code.`);
         });
         peer.on('connection', (incomingConn) => {
             conn = incomingConn;
             setupConnectionEvents();
-            logTycoon(`Guest successfully connected to your board!`);
+            logTycoon(`Player 2 successfully connected to your session!`);
             broadcastState();
         });
         peer.on('error', (err) => {
-            logTycoon(`Host error: Room code might be in use. Try clicking ⚡ CODE.`);
+            logTycoon(`Host error: Code [${customCode}] may already be active. Click ⚡ CODE to generate a new one.`);
         });
     }
 
     function joinP2PSession() {
         if(peer) peer.destroy();
-        let targetCode = document.getElementById('room-code-input').value.trim() || "DETROIT-MARROW";
+        let targetCode = document.getElementById('room-code-input').value.trim() || "DETROIT-313";
 
         peer = new Peer();
         peer.on('open', (id) => {
-            logTycoon(`Connecting to Host [${targetCode}]...`);
+            logTycoon(`Connecting to Host code [${targetCode}]...`);
             conn = peer.connect(targetCode);
             setupConnectionEvents();
         });
         peer.on('error', (err) => {
-            logTycoon(`Failed to join. Make sure Host clicked HOST first.`);
+            logTycoon(`Failed to connect. Make sure Host clicked HOST first and code matches.`);
         });
     }
 
@@ -892,7 +892,6 @@
                 vanguardGame = incomingData.vanguardGame;
                 updateVanguardUI();
                 drawVanguardBoard();
-                logVanguard(`Vanguard board state synchronized with peer.`);
             }
             if(incomingData.tiles && !incomingData.tycoonGame) tycoonGame.tiles = incomingData.tiles;
             if(incomingData.position !== undefined) tycoonGame.position = incomingData.position;
@@ -901,7 +900,7 @@
             if(incomingData.p2Funds !== undefined) tycoonGame.p2Funds = incomingData.p2Funds;
         });
         conn.on('open', () => {
-            logTycoon(`P2P Connection Established Successfully!`);
+            logTycoon(`P2P Connection Established Successfully! Game Synced.`);
             broadcastState();
         });
     }
@@ -923,7 +922,7 @@
         tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[currentCityKey].tiles));
         updateUIFunds();
         drawTycoonBoard();
-        logTycoon(`Board reset for all players!`);
+        logTycoon(`Board reset for all connected players!`);
         broadcastState();
     }
 
@@ -943,7 +942,6 @@
         return sameColorTiles.every(t => t.owner === playerName);
     }
 
-    // --- DEBT & BANKRUPTCY CHECKER FOR NEON TYCOON ---
     function checkTycoonBankruptcy(isPlayer1, debtAmount, creditorName) {
         let currentFunds = isPlayer1 ? tycoonGame.funds : tycoonGame.p2Funds;
         let playerName = isPlayer1 ? tycoonGame.p1Name : tycoonGame.p2Name;
@@ -1492,7 +1490,7 @@
     }
 
 
-    // --- VANGUARD VS SYNDICATE NEON TYCOON (2P P2P + BANKRUPTCY & COLOR SHIFT) ---
+    // --- VANGUARD VS SYNDICATE NEON TYCOON ---
     let vCanvas, vCtx;
     let vanguardGame = {
         funds: 800,
@@ -1575,7 +1573,6 @@
         document.getElementById('v-rival-bal').innerText = vanguardGame.rivalFunds;
     }
 
-    // --- DEBT & BANKRUPTCY CHECKER FOR VANGUARD TYCOON ---
     function checkVanguardBankruptcy(isHero, debtAmount, creditorName) {
         let currentFunds = isHero ? vanguardGame.funds : vanguardGame.rivalFunds;
         let participantName = isHero ? vanguardGame.hero : vanguardGame.rival;
@@ -1650,9 +1647,9 @@
 
             let activeBorderColor = t.color;
             if (t.owner === vanguardGame.hero) {
-                activeBorderColor = '#66fcf1'; // Cyan for Hero
+                activeBorderColor = '#66fcf1';
             } else if (t.owner === vanguardGame.rival) {
-                activeBorderColor = '#ff0055'; // Magenta for Rival
+                activeBorderColor = '#ff0055';
             }
 
             vCtx.fillStyle = (isHere || isRivalHere) ? '#1f1b2c' : '#0b0c10';
