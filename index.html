@@ -296,7 +296,6 @@
     .btn-amber  { background: #b45309; color: #ffffff; box-shadow: 0 0 10px rgba(180, 83, 9, 0.3); }
     .btn-ar     { background: #8b0000; color: #ffffff; box-shadow: 0 0 10px rgba(139, 0, 0, 0.4); }
 
-    /* SPLIT SIDE-BY-SIDE BUTTON ROW FOR BOOK CARDS */
     .split-btn-row {
       display: flex;
       gap: 8px;
@@ -512,11 +511,6 @@
       pointer-events: none;
       transition: opacity 0.4s ease;
     }
-    @keyframes warpSpin {
-      0% { transform: scale(0.7) rotate(0deg); }
-      50% { transform: scale(1.4) rotate(180deg); }
-      100% { transform: scale(0.7) rotate(360deg); }
-    }
   </style>
 </head>
 <body>
@@ -602,7 +596,6 @@
           </div>
           <div class="btn-stack">
             <a href="https://payhip.com/rhodesfamilylegacy" target="_blank" class="btn btn-orange">BUY ON PAYHIP</a>
-            <!-- CLEAN SIDE-BY-SIDE SPLIT BUTTON ROW -->
             <div class="split-btn-row">
               <a href="fannie-may-rescue.html" class="btn btn-blue">🌿 RIVER RESCUE</a>
               <a href="little-luetta-clock.html" class="btn" style="background-color: #d97706; color: #f8fafc;">⏳ GOLDEN CLOCK</a>
@@ -619,7 +612,6 @@
           </div>
           <div class="btn-stack">
             <a href="https://payhip.com/rhodesfamilylegacy" target="_blank" class="btn btn-orange">BUY ON PAYHIP</a>
-            <!-- CLEAN SIDE-BY-SIDE SPLIT BUTTON ROW FOR VANGUARD UNIVERSE -->
             <div class="split-btn-row">
               <a href="vanguard-universe.html" class="btn btn-blue" style="background: #0f766e;">🌌 UNIVERSE</a>
               <button class="btn btn-blue" onclick="toggleComicPreview()" style="background: #0f766e;">📖 PREVIEW</button>
@@ -1420,8 +1412,13 @@
       if (scannerStream) scannerStream.getTracks().forEach(track => track.stop());
       try {
         scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        if (videoElem) videoElem.srcObject = scannerStream;
-      } catch (err) {}
+        if (videoElem) {
+          videoElem.srcObject = scannerStream;
+          await videoElem.play().catch(() => {});
+        }
+      } catch (err) {
+        console.warn("Camera stream access error:", err);
+      }
     }
 
     function stopCameraStream() {
@@ -1431,14 +1428,23 @@
       }
     }
 
-    // FIXED OPTICAL SCANNER "BRAIN": Validates frame pixels to prevent false matches on coffee cups or objects
+    // FIXED OPTICAL SCANNER "BRAIN": Evaluates pixel color histograms to block non-face objects like apples or cups
     function executeLineageScan() {
       triggerHelixPulse();
       let panel = document.getElementById('genomic-output');
       let imageContainer = document.getElementById('ancestor-image-container');
       let videoElem = document.getElementById('scannerVideo');
 
-      // Capture current video frame into a temporary analysis canvas
+      if (!videoElem || !videoElem.videoWidth) {
+        // Fallback if camera hasn't fully initialized yet
+        panel.innerHTML = `
+          <p class="highlight" style="color: #ef4444; font-size: 1.05rem; letter-spacing: 1px; margin-bottom: 6px;">❌ SCANNER NOT READY</p>
+          <p>> Please ensure the camera viewfinder is active and allowed.</p>
+        `;
+        speakText("Camera viewfinder not active.");
+        return;
+      }
+
       const canvas = document.createElement('canvas');
       canvas.width = videoElem.videoWidth || 320;
       canvas.height = videoElem.videoHeight || 240;
@@ -1450,9 +1456,9 @@
       let skinPixelCount = 0;
       let totalPixels = data.length / 4;
 
-      // Scan pixel color distribution for valid subject presence
       for (let i = 0; i < data.length; i += 4) {
         let r = data[i], g = data[i+1], b = data[i+2];
+        // Heuristic check for skin tone range (filters out apples, walls, cups, etc.)
         if ((r > 60 && g > 40 && b > 20) && (Math.abs(r - g) > 15) && (r > g) && (r > b)) {
           skinPixelCount++;
         }
@@ -1460,8 +1466,7 @@
 
       let skinPercentage = (skinPixelCount / totalPixels) * 100;
 
-      // Guardrail: If no subject/face is detected (e.g., coffee cup, table, blank wall)
-      if (skinPercentage < 12) {
+      if (skinPercentage < 10) {
         panel.innerHTML = `
           <p class="highlight" style="color: #ef4444; font-size: 1.05rem; letter-spacing: 1px; margin-bottom: 6px;">❌ SCAN RESULT: NO BIOMETRIC MATCH</p>
           <p>> Status: Unrecognized Object / Non-Portrait Scan Detected</p>
@@ -1469,13 +1474,13 @@
           <p>> DIAGNOSTIC: Target does not match registered family lineage archives or grandparent profiles.</p>
         `;
         if (imageContainer) {
-          imageContainer.innerHTML = `<div style="padding: 20px; color: #ef4444; font-family: 'Courier New', Courier, monospace; font-weight: bold; text-align: center;">[NO MATCH FOUND]</div>`;
+          imageContainer.innerHTML = `<div style="padding: 20px; color: #ef4444; font-family: 'Courier New', Courier, monospace; font-weight: bold; text-align: center;">[NO MATCH FOUND - OBJECT DETECTED]</div>`;
         }
         speakText("No biometric match detected. Unrecognized object.");
         return;
       }
 
-      // TRUE POSITIVE MATCH (Valid Subject Confirmed)
+      // Valid subject match
       let match = PRECISE_GENOMIC_DATABASE.records[0];
       
       let output = `
