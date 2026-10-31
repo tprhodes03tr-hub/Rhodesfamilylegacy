@@ -606,7 +606,7 @@
       globeLoop();
     }
 
-    // DETROIT '313 GRID RUNNER ENGINE (FIXED REACHABLE INCURSION COLLISION)
+    // DETROIT '313 GRID RUNNER ENGINE (SCROLLING INCURSION NODE WITH 20-SEC AUTO-LOOP)
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
@@ -616,7 +616,9 @@
       let electricBeamsCount = 12, runnerItems = [], obstacles = [], electricProjectiles = [];
       let tier = 1, orbsCollected = 0, isPaused = false, roadScrollOffset = 0;
       let shockwaveActive = false, shockwaveRadius = 0;
-      let excursionNode = { x: 300, y: 180, active: false };
+      
+      let excursionNode = { x: 300, y: -100, active: false, speed: 2.5 };
+      let nodeSpawnTimer = 0;
 
       window.moveRunner = (dir) => {
         if (isPaused) return;
@@ -657,11 +659,18 @@
             roadScrollOffset = (roadScrollOffset + 10) % 40;
 
             if (transitDistance <= 50) {
-              excursionNode.active = true;
+              if (!excursionNode.active) {
+                excursionNode.active = true;
+                excursionNode.y = -50;
+                excursionNode.x = [160, 300, 440][Math.floor(Math.random()*3)];
+              }
             }
 
             if (excursionNode.active) {
-              if (Math.hypot(playerX - excursionNode.x, 350 - excursionNode.y) < 75) {
+              excursionNode.y += excursionNode.speed;
+              
+              // Collision check with player car (matches orb/obstacle style)
+              if (Math.abs(playerX - excursionNode.x) < 45 && Math.abs(350 - excursionNode.y) < 45) {
                 playSound('transform');
                 excursionNode.active = false;
                 speakText("313 Incursion target reached. Returning to Marrow Globe Nexus.");
@@ -669,6 +678,20 @@
                 if (activeRunnerId) cancelAnimationFrame(activeRunnerId);
                 switchPortal('globe3d');
                 return;
+              }
+
+              // If missed off screen, re-loop every 20 seconds (1200 frames at ~60fps)
+              if (excursionNode.y > canvas.height + 50) {
+                excursionNode.active = false;
+                nodeSpawnTimer = 0;
+              }
+            } else if (transitDistance <= 50) {
+              nodeSpawnTimer++;
+              if (nodeSpawnTimer > 1200) { // ~20 seconds
+                excursionNode.active = true;
+                excursionNode.y = -50;
+                excursionNode.x = [160, 300, 440][Math.floor(Math.random()*3)];
+                nodeSpawnTimer = 0;
               }
             }
 
@@ -737,7 +760,7 @@
           if (excursionNode.active) {
             ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
             ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 30;
-            ctx.beginPath(); ctx.arc(excursionNode.x, excursionNode.y, 26 + Math.sin(Date.now()*0.02)*8, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(excursionNode.x, excursionNode.y, 24 + Math.sin(Date.now()*0.02)*6, 0, Math.PI*2); ctx.fill();
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke();
             ctx.shadowBlur = 0;
           }
@@ -811,7 +834,7 @@
       runnerLoop();
     }
 
-    // WACON TRENCH SUBMARINE ENGINE (RESTORED JELLYFISH, REEF CORES & DISTINCT OCEAN LIFE)
+    // WACON TRENCH SUBMARINE ENGINE (SCROLLING INCURSION NODE WITH 20-SEC AUTO-LOOP)
     function initSubmarineEngine() {
       const canvas = document.getElementById('subCanvas');
       if (!canvas) return;
@@ -822,7 +845,9 @@
       let isTurboActive = false, turboTimer = 0;
       let torpedoesList = [], subEnemies = [], enemyProjectiles = [], marineOrbs = [], marineLife = [], jellyfishList = [], coralReefs = [];
       let isSubPaused = false, trenchOffset = 0;
-      let excursionNode = { x: 300, y: 225, active: false };
+      
+      let excursionNode = { x: -50, y: 225, active: false, speed: 2.5 };
+      let nodeSpawnTimer = 0;
 
       for (let i = 0; i < 30; i++) {
         coralReefs.push({ x: i * 25, height: 45 + Math.random() * 70, color: Math.random() > 0.4 ? '#34d399' : '#38bdf8' });
@@ -897,11 +922,17 @@
             }
 
             if (subDistance <= 50) {
-              excursionNode.active = true;
+              if (!excursionNode.active) {
+                excursionNode.active = true;
+                excursionNode.x = canvas.width + 40;
+                excursionNode.y = 100 + Math.random() * (canvas.height - 200);
+              }
             }
 
             if (excursionNode.active) {
-              if (Math.hypot(subX - excursionNode.x, subY - excursionNode.y) < 75) {
+              excursionNode.x -= excursionNode.speed;
+
+              if (Math.hypot(subX - excursionNode.x, subY - excursionNode.y) < 45) {
                 playSound('transform');
                 excursionNode.active = false;
                 speakText("Wacon Trench incursion target secured. Returning to Marrow Globe Nexus.");
@@ -909,6 +940,19 @@
                 if (activeSubId) cancelAnimationFrame(activeSubId);
                 switchPortal('globe3d');
                 return;
+              }
+
+              if (excursionNode.x < -50) {
+                excursionNode.active = false;
+                nodeSpawnTimer = 0;
+              }
+            } else if (subDistance <= 50) {
+              nodeSpawnTimer++;
+              if (nodeSpawnTimer > 1200) { // ~20 seconds
+                excursionNode.active = true;
+                excursionNode.x = canvas.width + 40;
+                excursionNode.y = 100 + Math.random() * (canvas.height - 200);
+                nodeSpawnTimer = 0;
               }
             }
 
@@ -1005,7 +1049,6 @@
           ctx.fillStyle = bgGrad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Render Floating Marine Life & Schools of Fish
           marineLife.forEach(fish => {
             fish.x -= fish.speed;
             if (fish.x < -10) fish.x = canvas.width + 10;
@@ -1016,7 +1059,6 @@
             ctx.shadowBlur = 0;
           });
 
-          // Render Pulsing Jellyfish
           jellyfishList.forEach(j => {
             j.x -= j.speed * 0.7;
             if (j.x < -30) j.x = canvas.width + 30;
@@ -1028,7 +1070,6 @@
             ctx.beginPath();
             ctx.arc(j.x, j.y, currentSize, Math.PI, 0, false);
             ctx.fill();
-            // Tentacles
             ctx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -1116,7 +1157,7 @@
       subLoop();
     }
 
-    // VANGUARD FLEET / STARFLEET ARCADE ENGINE
+    // VANGUARD FLEET / STARFLEET ARCADE ENGINE (SCROLLING INCURSION NODE WITH 20-SEC AUTO-LOOP)
     function initSpaceEngine() {
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
@@ -1125,8 +1166,10 @@
       let shipX = 300, shipY = 350, targetShipX = 300;
       let shield = 100, hull = 100, orbs = 0, sectorIndex = 3, spaceTier = 1;
       let spaceBullets = [], enemyDroids = [], enemyProjectiles = [], spaceOrbs = [], starfield = [];
-      let spaceExcursion = { x: 300, y: 180, active: false };
       let isWarping = false, warpTimer = 0;
+      
+      let spaceExcursion = { x: 300, y: -50, active: false, speed: 2.5 };
+      let nodeSpawnTimer = 0;
 
       const sectorThemes = [
         { name: "Crimson Star Cluster (Sector 3)", bg: "#000206", starColor: "#ffffff" },
@@ -1173,7 +1216,7 @@
         document.getElementById('sector-title').innerText = sectorThemes[sectorIndex - 3].name;
         speakText(`Vanguard warp drive engaged. Entering galaxy sector ${sectorIndex}.`);
         
-        spaceExcursion.active = true;
+        spaceExcursion.active = false;
         enemyDroids = [];
         enemyProjectiles = [];
       };
@@ -1203,14 +1246,31 @@
             }
           });
 
+          if (!spaceExcursion.active && !isWarping) {
+            nodeSpawnTimer++;
+            if (nodeSpawnTimer > 300) { // triggers shortly after warp or every 20s
+              spaceExcursion.active = true;
+              spaceExcursion.y = -40;
+              spaceExcursion.x = 80 + Math.random() * (canvas.width - 160);
+              nodeSpawnTimer = 0;
+            }
+          }
+
           if (spaceExcursion.active) {
-            if (Math.hypot(shipX - spaceExcursion.x, shipY - spaceExcursion.y) < 75) {
+            spaceExcursion.y += spaceExcursion.speed;
+
+            if (Math.hypot(shipX - spaceExcursion.x, shipY - spaceExcursion.y) < 45) {
               playSound('transform');
               spaceExcursion.active = false;
               speakText("Space incursion target secured! Sector anomaly neutralized.");
               alert(`🚀 SECTOR ${sectorIndex} INCURSION SECURED! Returning to Earth Command.`);
               switchPortal('globe3d');
               return;
+            }
+
+            if (spaceExcursion.y > canvas.height + 50) {
+              spaceExcursion.active = false;
+              nodeSpawnTimer = 0; // Will loop back in 20 seconds
             }
           }
 
@@ -1306,7 +1366,7 @@
           if (spaceExcursion.active) {
             ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
             ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 35;
-            ctx.beginPath(); ctx.arc(spaceExcursion.x, spaceExcursion.y, 26 + Math.sin(Date.now()*0.02)*6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(spaceExcursion.x, spaceExcursion.y, 24 + Math.sin(Date.now()*0.02)*6, 0, Math.PI*2); ctx.fill();
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke();
             ctx.shadowBlur = 0;
           }
