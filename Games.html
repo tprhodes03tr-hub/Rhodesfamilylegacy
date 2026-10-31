@@ -811,7 +811,7 @@
       runnerLoop();
     }
 
-    // WACON TRENCH SUBMARINE ENGINE (RESTORED HOMING TORPEDOES WITH TAIL RUDDER & TURBO BOOST)
+    // WACON TRENCH SUBMARINE ENGINE (RESTORED JELLYFISH, REEF CORES & DISTINCT OCEAN LIFE)
     function initSubmarineEngine() {
       const canvas = document.getElementById('subCanvas');
       if (!canvas) return;
@@ -820,16 +820,20 @@
       let subX = 120, subY = 225, subTargetX = 120, subTargetY = 225;
       let subIntegrity = 100, subDistance = 313, homingTorpedoes = 18;
       let isTurboActive = false, turboTimer = 0;
-      let torpedoesList = [], subEnemies = [], enemyProjectiles = [], marineOrbs = [], marineLife = [], coralReefs = [];
+      let torpedoesList = [], subEnemies = [], enemyProjectiles = [], marineOrbs = [], marineLife = [], jellyfishList = [], coralReefs = [];
       let isSubPaused = false, trenchOffset = 0;
       let excursionNode = { x: 300, y: 225, active: false };
 
-      for (let i = 0; i < 25; i++) {
-        coralReefs.push({ x: i * 30, height: 40 + Math.random() * 60, color: Math.random() > 0.4 ? '#34d399' : '#38bdf8' });
+      for (let i = 0; i < 30; i++) {
+        coralReefs.push({ x: i * 25, height: 45 + Math.random() * 70, color: Math.random() > 0.4 ? '#34d399' : '#38bdf8' });
       }
 
-      for (let i = 0; i < 15; i++) {
-        marineLife.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 4 + Math.random() * 7, speed: 0.8 + Math.random() * 1.5, pulse: Math.random() * Math.PI });
+      for (let i = 0; i < 18; i++) {
+        marineLife.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 3 + Math.random() * 5, speed: 1.0 + Math.random() * 2.0, color: Math.random() > 0.5 ? '#6ee7b7' : '#93c5fd' });
+      }
+
+      for (let i = 0; i < 6; i++) {
+        jellyfishList.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: 12 + Math.random() * 10, speed: 0.6 + Math.random() * 1.2, pulse: Math.random() * Math.PI });
       }
 
       window.moveSub = (dir) => {
@@ -860,7 +864,6 @@
         homingTorpedoes--;
         document.getElementById('sub-torpedoes').innerText = homingTorpedoes;
         playSound('beam');
-        // Fires homing torpedo with tail rudder tracking logic
         torpedoesList.push({ x: subX + 25, y: subY, vx: 7, vy: 0 });
       };
 
@@ -930,7 +933,6 @@
               }
             }
 
-            // Homing Torpedo tracking logic with tail rudder
             for (let i = torpedoesList.length - 1; i >= 0; i--) {
               let t = torpedoesList[i];
               if (subEnemies.length > 0) {
@@ -1003,12 +1005,47 @@
           ctx.fillStyle = bgGrad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // Render Floating Marine Life & Schools of Fish
+          marineLife.forEach(fish => {
+            fish.x -= fish.speed;
+            if (fish.x < -10) fish.x = canvas.width + 10;
+            ctx.fillStyle = fish.color;
+            ctx.shadowColor = fish.color;
+            ctx.shadowBlur = 8;
+            ctx.beginPath(); ctx.ellipse(fish.x, fish.y, fish.radius * 1.5, fish.radius, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+          });
+
+          // Render Pulsing Jellyfish
+          jellyfishList.forEach(j => {
+            j.x -= j.speed * 0.7;
+            if (j.x < -30) j.x = canvas.width + 30;
+            j.pulse += 0.05;
+            let currentSize = j.size + Math.sin(j.pulse) * 3;
+            ctx.fillStyle = 'rgba(52, 211, 153, 0.45)';
+            ctx.shadowColor = '#34d399';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(j.x, j.y, currentSize, Math.PI, 0, false);
+            ctx.fill();
+            // Tentacles
+            ctx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(j.x - currentSize * 0.5, j.y);
+            ctx.lineTo(j.x - currentSize * 0.5 + Math.sin(j.pulse)*4, j.y + currentSize * 1.5);
+            ctx.moveTo(j.x + currentSize * 0.5, j.y);
+            ctx.lineTo(j.x + currentSize * 0.5 + Math.cos(j.pulse)*4, j.y + currentSize * 1.5);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          });
+
           coralReefs.forEach((c, idx) => {
             ctx.fillStyle = c.color;
             ctx.shadowColor = c.color;
             ctx.shadowBlur = 15;
             let h = c.height + Math.sin(trenchOffset * 0.04 + idx) * 10;
-            ctx.fillRect((idx * 28 - (trenchOffset % 30)) + canvas.width, canvas.height - h, 12, h);
+            ctx.fillRect((idx * 25 - (trenchOffset % 25)) + canvas.width, canvas.height - h, 10, h);
             ctx.shadowBlur = 0;
           });
 
@@ -1018,6 +1055,13 @@
             ctx.beginPath(); ctx.arc(excursionNode.x, excursionNode.y, 24, 0, Math.PI*2); ctx.fill();
             ctx.shadowBlur = 0;
           }
+
+          marineOrbs.forEach(o => {
+            ctx.fillStyle = '#38bdf8';
+            ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 12;
+            ctx.beginPath(); ctx.arc(o.x, o.y, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+          });
 
           subEnemies.forEach(en => {
             ctx.save();
@@ -1034,7 +1078,6 @@
             ctx.restore();
           });
 
-          // DRAW HOMING TORPEDOES WITH TAIL RUDDER FIN
           torpedoesList.forEach(t => {
             ctx.save();
             ctx.translate(t.x, t.y);
@@ -1043,7 +1086,6 @@
             ctx.beginPath();
             ctx.ellipse(0, 0, 10, 4, 0, 0, Math.PI * 2);
             ctx.fill();
-            // Tail rudder fin
             ctx.fillStyle = '#f59e0b';
             ctx.fillRect(-12, -4, 4, 8);
             ctx.shadowBlur = 0;
@@ -1074,7 +1116,7 @@
       subLoop();
     }
 
-    // VANGUARD FLEET / STARFLEET ARCADE ENGINE (WITH FIRING ENEMIES, WARP JUMP & TIER TRANSFORMATION)
+    // VANGUARD FLEET / STARFLEET ARCADE ENGINE
     function initSpaceEngine() {
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
@@ -1299,7 +1341,7 @@
             ctx.restore();
           });
 
-          // UPGRADEABLE STARFLEET CRUISER SPRITE (TRANSFORMS MARK 1 -> MARK 2 -> MARK 3)
+          // UPGRADEABLE STARFLEET CRUISER SPRITE
           ctx.save();
           ctx.translate(shipX, shipY);
           let primaryColor = spaceTier === 1 ? '#f59e0b' : spaceTier === 2 ? '#38bdf8' : '#d4af37';
