@@ -314,8 +314,8 @@
       <button class="game-btn" onclick="moveSub('down')" style="border-color: #34d399; color: #34d399; text-align: center;">Dive Down ▼</button>
     </div>
     <div class="choice-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 6px;">
-      <button class="game-btn" onclick="fireHomingTorpedo()" style="background: #1e293b; border-color: #ef4444; color: #ef4444; text-align: center;">🔥 Fire Torpedoes</button>
-      <button class="game-btn" onclick="triggerSubTurbo()" style="background: #1e3a8a; border-color: #38bdf8; color: #38bdf8; text-align: center;">⚡ Turbo Boost</button>
+      <button class="game-btn" onclick="fireHomingTorpedo()" style="background: #1e293b; border-color: #ef4444; color: #ef4444; text-align: center;">🔥 Fire Homing Torpedoes</button>
+      <button class="game-btn" onclick="triggerSubTurbo()" style="background: #1e3a8a; border-color: #38bdf8; color: #38bdf8; text-align: center;">⚡ Sub Turbo Boost</button>
     </div>
 
     <div style="margin-top: 8px;">
@@ -323,7 +323,7 @@
     </div>
   </div>
 
-  <!-- PORTAL 4: VANGUARD FLEET • DEEP SPACE SECTOR WARP & STARFLEET ARCADE -->
+  <!-- PORTAL 4: VANGUARD FLEET • DEEP SPACE SECTOR WARP & UPGRADEABLE STARFLEET -->
   <div class="sandbox-container space-container hidden" id="portal-space">
     <div class="sandbox-header" style="color: #f59e0b;">Vanguard Fleet • <span id="sector-title">Crimson Star Cluster (Sector 3)</span></div>
     <h1 style="color: #f59e0b;">Deep Space Intercept & Incursion Run</h1>
@@ -616,7 +616,6 @@
       let electricBeamsCount = 12, runnerItems = [], obstacles = [], electricProjectiles = [];
       let tier = 1, orbsCollected = 0, isPaused = false, roadScrollOffset = 0;
       let shockwaveActive = false, shockwaveRadius = 0;
-      // Fixed incursion dot positioned dead center on canvas so it is fully reachable
       let excursionNode = { x: 300, y: 180, active: false };
 
       window.moveRunner = (dir) => {
@@ -662,7 +661,6 @@
             }
 
             if (excursionNode.active) {
-              // Generous collision detection radius so player can easily approach and hit it
               if (Math.hypot(playerX - excursionNode.x, 350 - excursionNode.y) < 75) {
                 playSound('transform');
                 excursionNode.active = false;
@@ -766,7 +764,7 @@
             shockwaveRadius += 15; if (shockwaveRadius > 400) shockwaveActive = false;
           }
 
-          // RESTORED DETAILED MARCUS PRIME INTERCEPTOR CAR SPRITE
+          // DETROIT MARCUS PRIME INTERCEPTOR CAR SPRITE
           ctx.save();
           let primaryColor = tier === 1 ? '#60a5fa' : tier === 2 ? '#38bdf8' : '#d4af37';
           let accentColor = tier === 1 ? '#1e3a8a' : tier === 2 ? '#f59e0b' : '#0f172a';
@@ -813,7 +811,7 @@
       runnerLoop();
     }
 
-    // WACON TRENCH SUBMARINE ENGINE
+    // WACON TRENCH SUBMARINE ENGINE (RESTORED HOMING TORPEDOES WITH TAIL RUDDER & TURBO BOOST)
     function initSubmarineEngine() {
       const canvas = document.getElementById('subCanvas');
       if (!canvas) return;
@@ -862,7 +860,8 @@
         homingTorpedoes--;
         document.getElementById('sub-torpedoes').innerText = homingTorpedoes;
         playSound('beam');
-        torpedoesList.push({ x: subX + 25, y: subY, vx: 6, vy: 0 });
+        // Fires homing torpedo with tail rudder tracking logic
+        torpedoesList.push({ x: subX + 25, y: subY, vx: 7, vy: 0 });
       };
 
       window.triggerSubTurbo = () => {
@@ -931,6 +930,7 @@
               }
             }
 
+            // Homing Torpedo tracking logic with tail rudder
             for (let i = torpedoesList.length - 1; i >= 0; i--) {
               let t = torpedoesList[i];
               if (subEnemies.length > 0) {
@@ -940,8 +940,8 @@
                   let d = Math.hypot(en.x - t.x, en.y - t.y);
                   if (d < minDst) { minDst = d; nearest = en; }
                 });
-                if (nearest.x > t.x) t.vx += 0.25;
-                if (nearest.y > t.y) t.vy += 0.2; else if (nearest.y < t.y) t.vy -= 0.2;
+                if (nearest.x > t.x) t.vx += 0.3;
+                if (nearest.y > t.y) t.vy += 0.25; else if (nearest.y < t.y) t.vy -= 0.25;
               }
               t.x += t.vx;
               t.y += t.vy;
@@ -1034,6 +1034,23 @@
             ctx.restore();
           });
 
+          // DRAW HOMING TORPEDOES WITH TAIL RUDDER FIN
+          torpedoesList.forEach(t => {
+            ctx.save();
+            ctx.translate(t.x, t.y);
+            ctx.fillStyle = '#ef4444';
+            ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 10, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Tail rudder fin
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(-12, -4, 4, 8);
+            ctx.shadowBlur = 0;
+            ctx.restore();
+          });
+
+          // GUACAN SUBMARINE SPRITE
           ctx.save();
           ctx.translate(subX, subY);
           ctx.shadowColor = '#34d399'; ctx.shadowBlur = 22;
@@ -1057,7 +1074,7 @@
       subLoop();
     }
 
-    // VANGUARD FLEET / STARFLEET ARCADE ENGINE (WITH FIRING ENEMIES, WARP JUMP & REACHABLE INCLUSION)
+    // VANGUARD FLEET / STARFLEET ARCADE ENGINE (WITH FIRING ENEMIES, WARP JUMP & TIER TRANSFORMATION)
     function initSpaceEngine() {
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
@@ -1108,7 +1125,7 @@
       window.triggerVanguardWarp = () => {
         playSound('transform');
         isWarping = true;
-        warpTimer = 45; // 45 frames of Star Trek hyper-speed star streaks
+        warpTimer = 45;
         sectorIndex = (sectorIndex % 3) + 3;
         document.getElementById('sector-num').innerText = sectorIndex;
         document.getElementById('sector-title').innerText = sectorThemes[sectorIndex - 3].name;
@@ -1127,7 +1144,6 @@
           ctx.fillStyle = theme.bg;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Star Trek Transwarp / Hyper-speed effect when warping
           let currentSpeedMultiplier = isWarping ? 18 : 1.0;
           if (isWarping) {
             warpTimer--;
@@ -1139,7 +1155,7 @@
             if (s.y > canvas.height) s.y = 0;
             ctx.fillStyle = theme.starColor;
             if (isWarping) {
-              ctx.fillRect(s.x, s.y, 2, s.speed * 12); // Star streak effect
+              ctx.fillRect(s.x, s.y, 2, s.speed * 12);
             } else {
               ctx.fillRect(s.x, s.y, s.size, s.size);
             }
@@ -1207,7 +1223,6 @@
             if (hit || b.y < 0) spaceBullets.splice(i, 1);
           }
 
-          // Enemy firing logic
           for (let i = enemyDroids.length - 1; i >= 0; i--) {
             let en = enemyDroids[i];
             en.y += en.speed;
@@ -1284,7 +1299,7 @@
             ctx.restore();
           });
 
-          // RESTORED DETAILED STARFLEET CRUISER SPRITE WITH WINGS & NACELLES
+          // UPGRADEABLE STARFLEET CRUISER SPRITE (TRANSFORMS MARK 1 -> MARK 2 -> MARK 3)
           ctx.save();
           ctx.translate(shipX, shipY);
           let primaryColor = spaceTier === 1 ? '#f59e0b' : spaceTier === 2 ? '#38bdf8' : '#d4af37';
