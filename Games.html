@@ -26,7 +26,6 @@
       padding: 10px;
     }
 
-    /* QUANTUM SCI-FI COMMAND BAR */
     .hub-switch-bar {
       display: flex;
       gap: 6px;
@@ -173,7 +172,7 @@
     </div>
 
     <div class="dialogue-banner" id="runner-comm-banner" style="border-color: #60a5fa; color: #60a5fa;">
-      💬 <b>Marcus Prime Comm-Link:</b> "That was a close one! Woodward Avenue grid is holding firm."
+      💬 <b>Marcus Prime Comm-Link:</b> "That was a close one! I was just too fast for 'em!"
     </div>
 
     <div style="width: 100%; aspect-ratio: 4 / 3; background: #020617; border: 2px solid #60a5fa; border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 8px;">
@@ -206,7 +205,7 @@
     </div>
 
     <div class="dialogue-banner" id="sub-comm-banner" style="border-color: #34d399; color: #34d399;">
-      💬 <b>Guacan Comm-Link:</b> "Deep trench sensors calibrated. Caribbean corridor secure!"
+      💬 <b>Wakan Comm-Link:</b> "That was close... diving deeper into the trench!"
     </div>
 
     <div style="width: 100%; aspect-ratio: 4 / 3; background: #010c14; border: 2px solid #34d399; border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 8px;">
@@ -432,7 +431,7 @@
       else if (target === 'brawler') {
         selectedBossName = bossPool[Math.floor(Math.random() * bossPool.length)];
         document.getElementById('brawler-boss-title').innerText = `STAGE 1 • DEFEAT BOSS: ${selectedBossName.toUpperCase()}`;
-        speakText(`Brawler arena engaged against ${selectedBossName}. Defeat the incoming sets of droids first!`);
+        speakText(`Brawler arena engaged against ${selectedBossName}. Prepping defensive posture!`);
         initBrawlerEngine();
       }
     }
@@ -440,7 +439,7 @@
     let globeRotationY = 0, globeRotationX = 0.2;
     function resetGlobeOrbit() { globeRotationY = 0; globeRotationX = 0.2; playSound('transform'); }
 
-    // 3D MARROW GLOBE ENGINE
+    // 3D MARROW GLOBE ENGINE (Fixed Touch/Mouse Drag Orbit Controls)
     function initGlobeEngine() {
       const canvas = document.getElementById('globeCanvas');
       if (!canvas) return;
@@ -449,14 +448,22 @@
       const starfield = [];
       for (let i = 0; i < 80; i++) starfield.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: Math.random() * 1.5 });
 
-      canvas.onmousedown = (e) => { isDragging = true; startX = e.clientX; startY = e.clientY; };
-      window.onmousemove = (e) => {
+      const handlePointerDown = (clientX, clientY) => { isDragging = true; startX = clientX; startY = clientY; };
+      const handlePointerMove = (clientX, clientY) => {
         if (!isDragging) return;
-        globeRotationY += (e.clientX - startX) * 0.008;
-        globeRotationX = Math.max(-0.8, Math.min(0.8, globeRotationX - (e.clientY - startY) * 0.008));
-        startX = e.clientX; startY = e.clientY;
+        globeRotationY += (clientX - startX) * 0.012;
+        globeRotationX = Math.max(-0.8, Math.min(0.8, globeRotationX - (clientY - startY) * 0.012));
+        startX = clientX; startY = clientY;
       };
-      window.onmouseup = () => { isDragging = false; };
+      const handlePointerUp = () => { isDragging = false; };
+
+      canvas.onmousedown = (e) => handlePointerDown(e.clientX, e.clientY);
+      window.onmousemove = (e) => handlePointerMove(e.clientX, e.clientY);
+      window.onmouseup = handlePointerUp;
+
+      canvas.ontouchstart = (e) => { if (e.touches.length === 1) handlePointerDown(e.touches[0].clientX, e.touches[0].clientY); };
+      canvas.ontouchmove = (e) => { if (e.touches.length === 1) handlePointerMove(e.touches[0].clientX, e.touches[0].clientY); };
+      canvas.ontouchend = handlePointerUp;
 
       canvas.onclick = (e) => {
         let rect = canvas.getBoundingClientRect();
@@ -467,7 +474,7 @@
         let threatTheta = 0.5 + globeRotationY, threatPhi = -0.3 + globeRotationX;
         let tx = centerX + globeRadius * Math.cos(threatPhi) * Math.sin(threatTheta);
         let ty = centerY + globeRadius * Math.sin(threatPhi);
-        if (Math.hypot(clickX - tx, clickY - ty) < 30) {
+        if (Math.hypot(clickX - tx, clickY - ty) < 35) {
           triggerRandomSectorJump(); return;
         }
 
@@ -499,7 +506,7 @@
           let tx = centerX + globeRadius * Math.cos(threatPhi) * Math.sin(threatTheta);
           let ty = centerY + globeRadius * Math.sin(threatPhi);
           ctx.fillStyle = '#ef4444'; ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 20;
-          ctx.beginPath(); ctx.arc(tx, ty, 8 + Math.sin(Date.now() * 0.01) * 3, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(tx, ty, 10 + Math.sin(Date.now() * 0.01) * 3, 0, Math.PI*2); ctx.fill();
           ctx.shadowBlur = 0;
 
           globalSectors.forEach((sec) => {
@@ -521,7 +528,7 @@
       globeLoop();
     }
 
-    // DETROIT '313 GRID RUNNER
+    // DETROIT '313 GRID RUNNER (Restored continuous Orbs & Droid Spawns)
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
@@ -529,10 +536,10 @@
       let playerX = 300, targetX = 300, carHull = 100, transitDistance = 271, beamCount = 16;
       let orbsCollected = 0, carTier = 1, obstacles = [], runnerOrbs = [], roadScrollOffset = 0, roadSpeed = 12;
       let playerBeams = [], droidProjectiles = [], sideMissiles = [];
-      let equationDot = { x: 300, y: -120, active: true };
+      let equationDot = { x: 300, y: -240, active: true };
       
       const marcusQuotes = [
-        "Marcus Prime: 'That was a close one! I was just too fast for 'em!'",
+        "Marcus Prime: 'That was close... I was just too fast for 'em!'",
         "Marcus Prime: 'Engaging supersonic turbo! Nothing escapes the 313 grid!'",
         "Marcus Prime: 'Marrow-root bio-electric energy surging through the chassis!'"
       ];
@@ -566,7 +573,7 @@
       function runnerLoop() {
         if (canvas.offsetParent !== null) {
           playerX += (targetX - playerX) * 0.25;
-          transitDistance = Math.max(0, transitDistance - 0.2);
+          transitDistance = Math.max(0, transitDistance - 0.1);
           document.getElementById('transit-distance').innerText = Math.floor(transitDistance);
           roadScrollOffset = (roadScrollOffset + roadSpeed) % 40;
 
@@ -578,9 +585,9 @@
           }
 
           if (equationDot.active) {
-            equationDot.y += 2.2;
-            if (equationDot.y > canvas.height + 50) {
-              equationDot.y = -100;
+            equationDot.y += 1.8;
+            if (equationDot.y > canvas.height + 100) {
+              equationDot.y = -150;
               equationDot.x = [160, 300, 440][Math.floor(Math.random() * 3)];
             }
             if (Math.abs(playerX - equationDot.x) < 45 && Math.abs(320 - equationDot.y) < 45) {
@@ -592,16 +599,16 @@
             }
           }
 
-          if (Math.random() < 0.035 && obstacles.length < 5) {
-            let isFlying = Math.random() > 0.5;
-            obstacles.push({ x: [160, 300, 440][Math.floor(Math.random()*3)], y: -30, speed: (isFlying ? 5.0 : 3.8) + (carTier * 0.5), type: isFlying ? 'flying' : 'ground', shootTimer: 0 });
+          if (Math.random() < 0.045 && obstacles.length < 6) {
+            let isFlying = Math.random() > 0.4;
+            obstacles.push({ x: [160, 300, 440][Math.floor(Math.random()*3)], y: -40, speed: (isFlying ? 4.5 : 3.5) + (carTier * 0.5), type: isFlying ? 'flying' : 'ground', shootTimer: 0 });
           }
-          if (Math.random() < 0.04 && runnerOrbs.length < 4) runnerOrbs.push({ x: [160, 300, 440][Math.floor(Math.random()*3)], y: -30, speed: 3.2 });
+          if (Math.random() < 0.06 && runnerOrbs.length < 5) runnerOrbs.push({ x: [160, 300, 440][Math.floor(Math.random()*3)], y: -40, speed: 3.5 });
 
           obstacles.forEach(obs => {
             obs.y += obs.speed;
             obs.shootTimer++;
-            if (obs.shootTimer > 75) {
+            if (obs.shootTimer > 70) {
               obs.shootTimer = 0;
               droidProjectiles.push({ x: obs.x, y: obs.y, vx: 0, vy: 6.5 });
             }
@@ -689,7 +696,7 @@
             ctx.beginPath(); ctx.arc(equationDot.x, equationDot.y, 16, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
           }
 
-          runnerOrbs.forEach(o => { ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(o.x, o.y, 10, 0, Math.PI*2); ctx.fill(); });
+          runnerOrbs.forEach(o => { ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(o.x, o.y, 12, 0, Math.PI*2); ctx.fill(); });
           
           obstacles.forEach(obs => {
             if (obs.type === 'flying') {
@@ -707,7 +714,7 @@
           playerBeams.forEach(b => { ctx.fillStyle = '#38bdf8'; ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 10; ctx.fillRect(b.x - 3, b.y, 6, 18); ctx.shadowBlur = 0; });
           sideMissiles.forEach(sm => { ctx.fillStyle = '#f59e0b'; ctx.fillRect(sm.x - 3, sm.y, 6, 12); });
 
-          // Active Deflect Forcefield Bubble Around Marcus Prime
+          // Active Deflect Forcefield Bubble
           ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
           ctx.lineWidth = 2;
           ctx.beginPath();
@@ -734,19 +741,19 @@
       runnerLoop();
     }
 
-    // WAKAN SUBMARINE
+    // WAKAN SUBMARINE (Restored Coral Reefs, Jellyfish, & Continuous Marine Orbs)
     function initSubmarineEngine() {
       const canvas = document.getElementById('subCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       let subX = 120, subY = 225, subTargetX = 120, subTargetY = 225;
       let subDistance = 300, subOrbs = 0, subTier = 1, torpedoes = 15, subHull = 100;
-      let marineOrbs = [], subTorpedoes = [], trenchDrones = [], coralReefs = [], heatVents = [], droneTorps = [], abyssFish = [];
-      let equationDot = { x: canvas.width + 50, y: 225, active: true };
+      let marineOrbs = [], subTorpedoes = [], trenchDrones = [], coralReefs = [], droneTorps = [], abyssJellies = [];
+      let equationDot = { x: canvas.width + 100, y: 225, active: true };
 
-      for (let i = 0; i < 7; i++) trenchDrones.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 1.2 + Math.random(), size: 18 });
-      for (let i = 0; i < 6; i++) coralReefs.push({ x: i * 100, height: 70 + Math.random() * 80 });
-      for (let i = 0; i < 5; i++) abyssFish.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 0.8 + Math.random() * 1.2 });
+      for (let i = 0; i < 7; i++) trenchDrones.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 1.2 + Math.random(), size: 18, shootTimer: 0 });
+      for (let i = 0; i < 6; i++) coralReefs.push({ x: i * 110, height: 70 + Math.random() * 80 });
+      for (let i = 0; i < 6; i++) abyssJellies.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 0.8 + Math.random() * 1.0, pulse: Math.random() * Math.PI });
 
       const guacanQuotes = [
         "Wakan: 'Sub-aquatic telemetry secure. Trench relays clear.'",
@@ -768,7 +775,7 @@
       function subLoop() {
         if (canvas.offsetParent !== null) {
           subX += (subTargetX - subX) * 0.2; subY += (subTargetY - subY) * 0.2;
-          subDistance = Math.max(0, subDistance - 0.5);
+          subDistance = Math.max(0, subDistance - 0.3);
           document.getElementById('sub-distance').innerText = Math.floor(subDistance) + 'm (Abyssal Trench)';
 
           subQuoteTimer++;
@@ -779,9 +786,9 @@
           }
 
           if (equationDot.active) {
-            equationDot.x -= 2.0;
-            if (equationDot.x < -60) {
-              equationDot.x = canvas.width + 60;
+            equationDot.x -= 1.8;
+            if (equationDot.x < -80) {
+              equationDot.x = canvas.width + 80;
               equationDot.y = 80 + Math.random() * (canvas.height - 160);
             }
             if (Math.hypot(subX - equationDot.x, subY - equationDot.y) < 55) {
@@ -793,7 +800,7 @@
             }
           }
 
-          if (Math.random() < 0.04 && marineOrbs.length < 6) marineOrbs.push({ x: canvas.width + 20, y: 80 + Math.random() * (canvas.height - 160), speed: 2.5 });
+          if (Math.random() < 0.05 && marineOrbs.length < 6) marineOrbs.push({ x: canvas.width + 30, y: 80 + Math.random() * (canvas.height - 160), speed: 2.5 });
           
           marineOrbs.forEach((o, idx) => {
             o.x -= o.speed;
@@ -809,7 +816,7 @@
           trenchDrones.forEach(d => {
             d.x -= d.speed;
             d.shootTimer = (d.shootTimer || 0) + 1;
-            if (d.shootTimer > 90) { d.shootTimer = 0; droneTorps.push({ x: d.x, y: d.y, vx: -5, vy: 0 }); }
+            if (d.shootTimer > 85) { d.shootTimer = 0; droneTorps.push({ x: d.x, y: d.y, vx: -5, vy: 0 }); }
           });
 
           for (let i = droneTorps.length - 1; i >= 0; i--) {
@@ -840,9 +847,9 @@
             if (j.x < -30) j.x = canvas.width + 30;
           });
 
-          abyssFish.forEach(f => {
-            f.x -= f.speed;
-            if (f.x < -20) f.x = canvas.width + 20;
+          abyssJellies.forEach(j => {
+            j.x -= j.speed; j.pulse += 0.04;
+            if (j.x < -30) j.x = canvas.width + 30;
           });
 
           let oceanGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -851,11 +858,16 @@
           oceanGrad.addColorStop(1, '#000204');
           ctx.fillStyle = oceanGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          abyssFish.forEach(f => {
-            ctx.fillStyle = '#34d399';
-            ctx.beginPath(); ctx.ellipse(f.x, f.y, 8, 4, 0, 0, Math.PI*2); ctx.fill();
+          // Render Floating Jellyfish
+          abyssJellies.forEach(j => {
+            ctx.fillStyle = 'rgba(52, 211, 153, 0.4)';
+            ctx.beginPath(); ctx.arc(j.x, j.y, 10 + Math.sin(j.pulse)*3, Math.PI, 0, false); ctx.fill();
+            ctx.strokeStyle = 'rgba(52, 211, 153, 0.6)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(j.x - 6, j.y); ctx.lineTo(j.x - 6, j.y + 14); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(j.x + 6, j.y); ctx.lineTo(j.x + 6, j.y + 14); ctx.stroke();
           });
 
+          // Render Coral Reefs
           coralReefs.forEach(c => {
             ctx.fillStyle = '#042f2e';
             ctx.beginPath(); ctx.moveTo(c.x, canvas.height); ctx.lineTo(c.x + 35, canvas.height - c.height); ctx.lineTo(c.x + 70, canvas.height); ctx.fill();
@@ -873,7 +885,7 @@
             ctx.beginPath(); ctx.arc(equationDot.x, equationDot.y, 18, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
           }
 
-          marineOrbs.forEach(o => { ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(o.x, o.y, 10, 0, Math.PI * 2); ctx.fill(); });
+          marineOrbs.forEach(o => { ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(o.x, o.y, 12, 0, Math.PI * 2); ctx.fill(); });
           subTorpedoes.forEach(t => { ctx.fillStyle = '#ef4444'; ctx.fillRect(t.x, t.y - 3, 16, 6); });
           droneTorps.forEach(dt => { ctx.fillStyle = '#f43f5e'; ctx.fillRect(dt.x, dt.y, 10, 4); });
           
@@ -894,7 +906,7 @@
       subLoop();
     }
 
-    // VANGUARD FLEET
+    // VANGUARD FLEET (Restored continuous Space Orbs & Droid Spawns)
     function initSpaceEngine() {
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
@@ -902,7 +914,7 @@
       let shipX = 300, targetShipX = 300, orbs = 0, spaceTier = 1, shipHull = 100, starfield = [];
       for (let i = 0; i < 70; i++) starfield.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 2.0 + Math.random() * 3.0 });
       let spaceOrbs = [], spaceDroids = [], spaceTorpedoes = [], droidLasers = [];
-      let equationDot = { x: 300, y: -50, active: true };
+      let equationDot = { x: 300, y: -150, active: true };
       let syndicateBoss = { active: false, x: 300, y: 80, hp: 100, shootTimer: 0 };
 
       window.moveSpaceShip = (dir) => { if (dir === 'left') targetShipX = Math.max(50, targetShipX - 100); if (dir === 'right') targetShipX = Math.min(canvas.width - 50, targetShipX + 100); };
@@ -926,8 +938,8 @@
           starfield.forEach(s => { s.y += s.speed; if (s.y > canvas.height) s.y = 0; ctx.fillStyle = '#ffffff'; ctx.fillRect(s.x, s.y, 2, 2); });
 
           if (equationDot.active && !syndicateBoss.active) {
-            equationDot.y += 2.0;
-            if (equationDot.y > canvas.height + 50) { equationDot.y = -50; equationDot.x = 80 + Math.random() * (canvas.width - 160); }
+            equationDot.y += 1.8;
+            if (equationDot.y > canvas.height + 80) { equationDot.y = -100; equationDot.x = 80 + Math.random() * (canvas.width - 160); }
             if (Math.hypot(shipX - equationDot.x, 350 - equationDot.y) < 45) {
               playSound('transform'); speakText("Equation Dot reached! Engaging Brawler Arena.");
               addScore(100);
@@ -962,15 +974,15 @@
             }
           }
 
-          if (Math.random() < 0.03 && spaceOrbs.length < 4 && !syndicateBoss.active) spaceOrbs.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.0 });
-          if (Math.random() < 0.025 && spaceDroids.length < 3 && !syndicateBoss.active) {
+          if (Math.random() < 0.05 && spaceOrbs.length < 5 && !syndicateBoss.active) spaceOrbs.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.2 });
+          if (Math.random() < 0.04 && spaceDroids.length < 4 && !syndicateBoss.active) {
             spaceDroids.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.5, shootTimer: 0 });
           }
 
           spaceDroids.forEach(d => {
             d.y += d.speed;
             d.shootTimer++;
-            if (d.shootTimer > 80) { d.shootTimer = 0; droidLasers.push({ x: d.x, y: d.y, vx: 0, vy: 5 }); }
+            if (d.shootTimer > 75) { d.shootTimer = 0; droidLasers.push({ x: d.x, y: d.y, vx: 0, vy: 5 }); }
           });
 
           for (let i = droidLasers.length - 1; i >= 0; i--) {
@@ -1048,7 +1060,7 @@
       spaceLoop();
     }
 
-    // 2D SIDE-SCROLLING BRAWLER ARENA
+    // 2D SIDE-SCROLLING BRAWLER ARENA (Fixed Initial Droid Firing Delay so You Can Strike First)
     function initBrawlerEngine() {
       const canvas = document.getElementById('brawlerCanvas');
       if (!canvas) return;
@@ -1065,7 +1077,8 @@
         preBossDroids = [];
         let count = waveNum === 1 ? 8 : 7;
         for (let i = 0; i < count; i++) {
-          preBossDroids.push({ x: 450 + (i * 35), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.2, shootTimer: 0 });
+          // Give initial droids a delayed shootTimer so player can strike first!
+          preBossDroids.push({ x: 450 + (i * 35), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.2, shootTimer: -45 });
         }
       }
       spawnWave(1);
