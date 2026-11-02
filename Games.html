@@ -497,7 +497,7 @@
       globeLoop();
     }
 
-    // DETROIT '313 GRID RUNNER (3 Sci-Fi Tiers: Interceptor -> Stalker Enforcer -> Batmobile Armored Tank with Side Missiles)
+    // DETROIT '313 GRID RUNNER
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
@@ -527,7 +527,6 @@
         playerBeams.push({ x: playerX - 18, y: 270, vx: 0, vy: -14 });
         playerBeams.push({ x: playerX + 18, y: 270, vx: 0, vy: -14 });
         
-        // Tier 3 Batmobile Tank fires side-locking missiles
         if (carTier === 3) {
           sideMissiles.push({ x: playerX - 45, y: 300, vx: -6, vy: -8 });
           sideMissiles.push({ x: playerX + 45, y: 300, vx: 6, vy: -8 });
@@ -671,23 +670,19 @@
           playerBeams.forEach(b => { ctx.fillStyle = '#38bdf8'; ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 10; ctx.fillRect(b.x - 3, b.y, 6, 18); ctx.shadowBlur = 0; });
           sideMissiles.forEach(sm => { ctx.fillStyle = '#f59e0b'; ctx.fillRect(sm.x - 3, sm.y, 6, 12); });
 
-          // MARCUS PRIME VEHICLE TIER RENDERING (Sleek Interceptor -> Stalker Enforcer -> Batmobile Armored Tank)
           if (carTier === 3) {
-            // Tier 3: Batmobile Armored Tank with Side Missile Pods
             ctx.fillStyle = '#090d16';
             ctx.beginPath(); ctx.roundRect(playerX - 36, 265, 72, 105, 14); ctx.fill();
             ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.stroke();
-            ctx.fillStyle = '#ef4444'; ctx.fillRect(playerX - 44, 285, 12, 45); ctx.fillRect(playerX + 32, 285, 12, 45); // Side Missile Pods
+            ctx.fillStyle = '#ef4444'; ctx.fillRect(playerX - 44, 285, 12, 45); ctx.fillRect(playerX + 32, 285, 12, 45);
             ctx.fillStyle = '#1e3a8a'; ctx.fillRect(playerX - 22, 290, 44, 32);
           } else if (carTier === 2) {
-            // Tier 2: Stalker-Class Heavy Enforcer
             ctx.fillStyle = '#1e293b';
             ctx.beginPath(); ctx.roundRect(playerX - 28, 275, 56, 90, 12); ctx.fill();
             ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2; ctx.stroke();
             ctx.fillStyle = '#38bdf8'; ctx.fillRect(playerX - 18, 298, 36, 26);
             ctx.fillStyle = '#f59e0b'; ctx.fillRect(playerX - 12, 277, 24, 6);
           } else {
-            // Tier 1: Sleek Sci-Fi Interceptor
             ctx.fillStyle = '#2563eb';
             ctx.beginPath(); ctx.roundRect(playerX - 22, 285, 44, 75, 10); ctx.fill();
             ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 2; ctx.stroke();
@@ -733,7 +728,10 @@
 
           if (equationDot.active) {
             equationDot.x -= 2.0;
-            if (equationDot.x < -60) { equationDot.x = canvas.width + 60; equationDot.y = 80 + Math.random() * (canvas.height - 160); }
+            if (equationDot.x < -60) {
+              equationDot.x = canvas.width + 60;
+              equationDot.y = 80 + Math.random() * (canvas.height - 160);
+            }
             if (Math.hypot(subX - equationDot.x, subY - equationDot.y) < 55) {
               playSound('transform'); switchPortal('brawler'); return;
             }
@@ -944,7 +942,7 @@
       spaceLoop();
     }
 
-    // 2D SIDE-SCROLLING BRAWLER ARENA (Stable Waves & Pacing)
+    // 2D SIDE-SCROLLING BRAWLER ARENA (Stabilized Wave Transitions)
     function initBrawlerEngine() {
       const canvas = document.getElementById('brawlerCanvas');
       if (!canvas) return;
@@ -961,11 +959,10 @@
         preBossDroids = [];
         let count = waveNum === 1 ? 8 : 7;
         for (let i = 0; i < count; i++) {
-          preBossDroids.push({ x: 450 + (i * 30), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.5 + (waveNum * 0.3), shootTimer: 0 });
+          preBossDroids.push({ x: 450 + (i * 30), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.2 + (waveNum * 0.2), shootTimer: 0 });
         }
       }
       spawnWave(1);
-      let droidsRemaining = 15;
       
       let rainDrops = [];
       for (let i = 0; i < 35; i++) rainDrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 7 + Math.random() * 4 });
@@ -1049,7 +1046,7 @@
               else if (d.x < playerX - 15) d.x += d.speed;
 
               d.shootTimer++;
-              if (d.shootTimer > 85) {
+              if (d.shootTimer > 95) {
                 d.shootTimer = 0;
                 droidProjectiles.push({ x: d.x, y: d.isFlying ? d.y - 40 : d.y - 20, vx: -5, vy: 0 });
               }
@@ -1057,17 +1054,25 @@
           });
 
           if (!droidsActive) {
-            timeWarpTimer++;
-            if (timeWarpTimer > 100) {
-              timeWarpTimer = 0;
-              bossProjectiles.push({ x: bossX, y: bossY + 20, vx: -8, width: 35, height: 22, type: 'boss-blast' });
+            let activeCount = preBossDroids.filter(d => !d.active).length;
+            if (activeCount >= preBossDroids.length && currentWave === 1) {
+              currentWave = 2;
+              speakText("Wave 2 reinforcement droids inbound!");
+              spawnWave(2);
+            } else if (currentWave === 2 && preBossDroids.filter(d => !d.active).length >= preBossDroids.length + 8) {
+              // Boss actions
+              timeWarpTimer++;
+              if (timeWarpTimer > 120) {
+                timeWarpTimer = 0;
+                bossProjectiles.push({ x: bossX, y: bossY + 20, vx: -7, width: 35, height: 22, type: 'boss-blast' });
+              }
             }
           }
 
           for (let i = droidProjectiles.length - 1; i >= 0; i--) {
             let dp = droidProjectiles[i]; dp.x += dp.vx;
             if (Math.abs(playerX - dp.x) < 30) {
-              playSound('crash'); teamHealth = Math.max(0, teamHealth - 10);
+              playSound('crash'); teamHealth = Math.max(0, teamHealth - 8);
               document.getElementById('team-health').innerText = teamHealth;
               droidProjectiles.splice(i, 1);
               if (teamHealth <= 0) summonMotherLuetta();
@@ -1077,7 +1082,7 @@
           for (let i = bossProjectiles.length - 1; i >= 0; i--) {
             let bp = bossProjectiles[i]; bp.x += bp.vx;
             if (Math.abs(playerX - bp.x) < 35) {
-              playSound('crash'); teamHealth = Math.max(0, teamHealth - 15);
+              playSound('crash'); teamHealth = Math.max(0, teamHealth - 12);
               document.getElementById('team-health').innerText = teamHealth;
               bossProjectiles.splice(i, 1);
               if (teamHealth <= 0) summonMotherLuetta();
@@ -1089,19 +1094,15 @@
             if (droidsActive) {
               preBossDroids.forEach(d => {
                 if (d.active && Math.abs(bp.x - d.x) < 40) {
-                  d.active = false; droidsRemaining--;
-                  document.getElementById('boss-hp').innerText = droidsRemaining > 0 ? `${droidsRemaining} Units Remaining` : "Boss Incoming!";
+                  d.active = false;
                   playSound('transform');
-                  if (droidsRemaining === 7 && currentWave === 1) {
-                    currentWave = 2;
-                    speakText("Wave 2 reinforcement droids inbound!");
-                    spawnWave(2);
-                  }
+                  let remainingCount = preBossDroids.filter(d => d.active).length;
+                  document.getElementById('boss-hp').innerText = remainingCount > 0 ? `${remainingCount + (currentWave===1?7:0)} Units Remaining` : "Boss Incoming!";
                 }
               });
             } else {
               if (Math.abs(bp.x - bossX) < 50) {
-                playSound('crash'); bossHp = Math.max(0, bossHp - 15);
+                playSound('crash'); bossHp = Math.max(0, bossHp - 12);
                 document.getElementById('boss-hp').innerText = bossHp + '%';
                 brawlerProjectiles.splice(i, 1);
                 if (bossHp <= 0) {
