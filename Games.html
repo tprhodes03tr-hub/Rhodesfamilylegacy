@@ -1049,7 +1049,7 @@
       spaceLoop();
     }
 
-    // 2D SIDE-SCROLLING BRAWLER ARENA (Sets of Droids with Pause & Active Boss Fighting Back)
+    // 2D SIDE-SCROLLING BRAWLER ARENA (Active Boss Counter-Attacks & Wave Pacing Fixed)
     function initBrawlerEngine() {
       const canvas = document.getElementById('brawlerCanvas');
       if (!canvas) return;
@@ -1059,18 +1059,17 @@
       let brawlerProjectiles = [], bossProjectiles = [], droidProjectiles = [];
       let luettaActive = false, luettaY = -50, luettaAlpha = 0;
       let playerSpeedMult = 1.0, groundScrollX = 0, timeOfDayTimer = 0;
-      let currentSet = 1, setDelayTimer = 0;
+      let currentWave = 1;
       
       let preBossDroids = [];
-      function spawnDroidSet(setNum) {
+      function spawnWave(waveNum) {
         preBossDroids = [];
-        let count = (setNum === 1 || setNum === 2) ? 4 : 7; // Spawns in sets of twos/fours with pauses
+        let count = waveNum === 1 ? 8 : 7;
         for (let i = 0; i < count; i++) {
-          preBossDroids.push({ x: 450 + (i * 35), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.4, shootTimer: 0 });
+          preBossDroids.push({ x: 450 + (i * 35), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.2, shootTimer: 0 });
         }
       }
-      spawnWave(1); // will map to spawnDroidSet
-      function spawnWave(w) { spawnDroidSet(w); }
+      spawnWave(1);
       
       let rainDrops = [];
       for (let i = 0; i < 35; i++) rainDrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 7 + Math.random() * 4 });
@@ -1154,45 +1153,30 @@
               else if (d.x < playerX - 15) d.x += d.speed;
 
               d.shootTimer++;
-              if (d.shootTimer > 110) {
+              if (d.shootTimer > 95) {
                 d.shootTimer = 0;
                 droidProjectiles.push({ x: d.x, y: d.isFlying ? d.y - 40 : d.y - 20, vx: -5, vy: 0 });
               }
             }
           });
 
-          // Wave/Set progression with tactical pauses
+          // Wave check & active boss firing integration
           if (!droidsActive) {
-            let clearedCount = preBossDroids.filter(d => !d.active).length;
-            if (clearedCount >= preBossDroids.length) {
-              if (currentSet === 1) {
-                setDelayTimer++;
-                if (setDelayTimer > 60) { // 1 second tactical pause between sets
-                  currentSet = 2;
-                  setDelayTimer = 0;
-                  speakText("Next set of droids incoming. Stay sharp!");
-                  spawnDroidSet(2);
-                }
-              } else if (currentSet === 2) {
-                setDelayTimer++;
-                if (setDelayTimer > 60) {
-                  currentSet = 3;
-                  setDelayTimer = 0;
-                  speakText("Final set inbound! Boss preparing signature strike.");
-                  spawnDroidSet(3);
-                }
-              } else {
-                // BOSS FIGHT ACTIVE & FIGHTING BACK
-                timeWarpTimer++;
-                if (timeWarpTimer > 75) {
-                  timeWarpTimer = 0;
-                  let bossAttackType = selectedBossName === "Chrono Lock" ? 'time-shard' : (selectedBossName === "Apex Volt" ? 'volt-beam' : 'boss-blast');
-                  bossProjectiles.push({ x: bossX, y: bossY + 20, vx: -8, width: 35, height: 22, type: bossAttackType });
-                  
-                  if (selectedBossName === "Chrono Lock" && Math.random() > 0.5) {
-                    bossX = playerX + (Math.random() > 0.5 ? 100 : -100);
-                    playSound('transform');
-                  }
+            let activeCount = preBossDroids.filter(d => !d.active).length;
+            if (activeCount >= preBossDroids.length && currentWave === 1) {
+              currentWave = 2;
+              speakText("Wave 2 reinforcement droids inbound!");
+              spawnWave(2);
+            } else if (currentWave === 2 && preBossDroids.filter(d => !d.active).length >= preBossDroids.length + 8) {
+              timeWarpTimer++;
+              if (timeWarpTimer > 75) {
+                timeWarpTimer = 0;
+                let attackType = selectedBossName === "Chrono Lock" ? 'time-shard' : (selectedBossName === "Apex Volt" ? 'volt-beam' : 'boss-blast');
+                bossProjectiles.push({ x: bossX, y: bossY + 20, vx: -8, width: 35, height: 22, type: attackType });
+                
+                if (selectedBossName === "Chrono Lock" && Math.random() > 0.4) {
+                  bossX = playerX + (Math.random() > 0.5 ? 90 : -90);
+                  playSound('transform');
                 }
               }
             }
@@ -1211,7 +1195,7 @@
           for (let i = bossProjectiles.length - 1; i >= 0; i--) {
             let bp = bossProjectiles[i]; bp.x += bp.vx;
             if (Math.abs(playerX - bp.x) < 35) {
-              playSound('crash'); teamHealth = Math.max(0, teamHealth - 18);
+              playSound('crash'); teamHealth = Math.max(0, teamHealth - 15);
               document.getElementById('team-health').innerText = teamHealth;
               bossProjectiles.splice(i, 1);
               if (teamHealth <= 0) summonMotherLuetta();
@@ -1225,8 +1209,8 @@
                 if (d.active && Math.abs(bp.x - d.x) < 40) {
                   d.active = false;
                   playSound('transform');
-                  let activeRemaining = preBossDroids.filter(d => d.active).length;
-                  document.getElementById('boss-hp').innerText = activeRemaining > 0 ? `${activeRemaining} Units (Set ${currentSet})` : (currentSet < 3 ? "Next Set Incoming..." : "Boss Incoming!");
+                  let remainingCount = preBossDroids.filter(d => d.active).length;
+                  document.getElementById('boss-hp').innerText = remainingCount > 0 ? `${remainingCount + (currentWave===1?7:0)} Units Remaining` : "Boss Incoming!";
                   addScore(25);
                 }
               });
