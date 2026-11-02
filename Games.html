@@ -369,7 +369,6 @@
 
     let activeGlobeId = null, activeRunnerId = null, activeSubId = null, activeSpaceId = null, activeBrawlerId = null;
     
-    // Boss pool recycling: Apex Volt, Chrono Lock, Dread Harmonic, Magnum Weaver, Prism Ghost
     const bossPool = ["Apex Volt", "Chrono Lock", "Dread Harmonic", "Magnum Weaver", "Prism Ghost"];
     let selectedBossName = bossPool[0];
 
@@ -498,7 +497,7 @@
       globeLoop();
     }
 
-    // DETROIT '313 GRID RUNNER (Aggressive Droids & Hull Health Meter)
+    // DETROIT RUNNER
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
@@ -507,13 +506,6 @@
       let orbsCollected = 0, carTier = 1, obstacles = [], runnerOrbs = [], roadScrollOffset = 0;
       let playerBeams = [], droidProjectiles = [];
       let equationDot = { x: 300, y: -120, active: true };
-      
-      const marcusQuotes = [
-        "Marcus Prime: 'That was a close one! Woodward Avenue grid is holding firm.'",
-        "Marcus Prime: 'Syndicate drones think they can block my horsepower? Watch this!'",
-        "Marcus Prime: 'Energy shields at 100 percent. Let's push through the grid!'"
-      ];
-      let quoteTimer = 0;
 
       window.moveRunner = (dir) => {
         playSound('beam');
@@ -528,11 +520,7 @@
         playerBeams.push({ x: playerX - 18, y: 270, vx: 0, vy: -12 });
         playerBeams.push({ x: playerX + 18, y: 270, vx: 0, vy: -12 });
       };
-      window.triggerUrbanShockwave = () => {
-        playSound('transform');
-        obstacles = [];
-        droidProjectiles = [];
-      };
+      window.triggerUrbanShockwave = () => { playSound('transform'); obstacles = []; droidProjectiles = []; };
 
       function runnerLoop() {
         if (canvas.offsetParent !== null) {
@@ -541,19 +529,9 @@
           document.getElementById('transit-distance').innerText = Math.floor(transitDistance);
           roadScrollOffset = (roadScrollOffset + 10) % 40;
 
-          quoteTimer++;
-          if (quoteTimer > 350) {
-            quoteTimer = 0;
-            let q = marcusQuotes[Math.floor(Math.random() * marcusQuotes.length)];
-            document.getElementById('runner-comm-banner').innerHTML = `💬 <b>Marcus Prime Comm-Link:</b> "${q.split("'")[1]}"`;
-          }
-
           if (equationDot.active) {
             equationDot.y += 1.8;
-            if (equationDot.y > canvas.height + 50) {
-              equationDot.y = -100;
-              equationDot.x = [160, 300, 440][Math.floor(Math.random() * 3)];
-            }
+            if (equationDot.y > canvas.height + 50) { equationDot.y = -100; equationDot.x = [160, 300, 440][Math.floor(Math.random() * 3)]; }
             if (Math.abs(playerX - equationDot.x) < 45 && Math.abs(320 - equationDot.y) < 45) {
               playSound('transform'); speakText("Equation Dot reached! Engaging Brawler Arena.");
               if (activeRunnerId) cancelAnimationFrame(activeRunnerId);
@@ -571,34 +549,23 @@
           obstacles.forEach(obs => {
             obs.y += obs.speed;
             obs.shootTimer++;
-            if (obs.shootTimer > 80) {
-              obs.shootTimer = 0;
-              droidProjectiles.push({ x: obs.x, y: obs.y, vx: 0, vy: 6 });
-            }
+            if (obs.shootTimer > 80) { obs.shootTimer = 0; droidProjectiles.push({ x: obs.x, y: obs.y, vx: 0, vy: 6 }); }
           });
 
           for (let i = droidProjectiles.length - 1; i >= 0; i--) {
-            let dp = droidProjectiles[i];
-            dp.y += dp.vy;
+            let dp = droidProjectiles[i]; dp.y += dp.vy;
             if (Math.abs(playerX - dp.x) < 30 && Math.abs(320 - dp.y) < 30) {
-              playSound('crash');
-              carHull = Math.max(0, carHull - 15);
-              document.getElementById('car-hull').innerText = carHull + '%';
-              droidProjectiles.splice(i, 1);
+              playSound('crash'); carHull = Math.max(0, carHull - 15); document.getElementById('car-hull').innerText = carHull + '%'; droidProjectiles.splice(i, 1);
             } else if (dp.y > canvas.height) droidProjectiles.splice(i, 1);
           }
 
           for (let i = playerBeams.length - 1; i >= 0; i--) {
-            let b = playerBeams[i];
-            b.y += b.vy;
+            let b = playerBeams[i]; b.y += b.vy;
             if (b.y < -20) { playerBeams.splice(i, 1); continue; }
             for (let j = obstacles.length - 1; j >= 0; j--) {
               let obs = obstacles[j];
               if (Math.abs(b.x - obs.x) < 25 && Math.abs(b.y - obs.y) < 25) {
-                playSound('crash');
-                obstacles.splice(j, 1);
-                playerBeams.splice(i, 1);
-                break;
+                playSound('crash'); obstacles.splice(j, 1); playerBeams.splice(i, 1); break;
               }
             }
           }
@@ -638,12 +605,10 @@
           
           obstacles.forEach(obs => {
             if (obs.type === 'flying') {
-              ctx.fillStyle = '#f97316';
-              ctx.beginPath(); ctx.ellipse(obs.x, obs.y, 22, 10, 0, 0, Math.PI*2); ctx.fill();
+              ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.ellipse(obs.x, obs.y, 22, 10, 0, 0, Math.PI*2); ctx.fill();
               ctx.fillStyle = '#38bdf8'; ctx.fillRect(obs.x - 4, obs.y - 3, 8, 6);
             } else {
-              ctx.fillStyle = '#dc2626';
-              ctx.fillRect(obs.x - 16, obs.y - 18, 32, 32);
+              ctx.fillStyle = '#dc2626'; ctx.fillRect(obs.x - 16, obs.y - 18, 32, 32);
               ctx.fillStyle = '#facc15'; ctx.fillRect(obs.x - 10, obs.y - 10, 20, 8);
             }
           });
@@ -652,21 +617,18 @@
           playerBeams.forEach(b => { ctx.fillStyle = '#38bdf8'; ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 10; ctx.fillRect(b.x - 3, b.y, 6, 18); ctx.shadowBlur = 0; });
 
           if (carTier === 3) {
-            ctx.fillStyle = '#1e3a8a';
-            ctx.beginPath(); ctx.roundRect(playerX - 30, 275, 60, 95, 16); ctx.fill();
+            ctx.fillStyle = '#1e3a8a'; ctx.beginPath(); ctx.roundRect(playerX - 30, 275, 60, 95, 16); ctx.fill();
             ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 3; ctx.stroke();
             ctx.fillStyle = '#ef4444'; ctx.fillRect(playerX - 38, 295, 12, 40); ctx.fillRect(playerX + 26, 295, 12, 40);
             ctx.fillStyle = '#38bdf8'; ctx.fillRect(playerX - 20, 300, 40, 28);
             ctx.fillStyle = '#ffffff'; ctx.fillRect(playerX - 12, 278, 24, 6);
           } else if (carTier === 2) {
-            ctx.fillStyle = '#1e293b';
-            ctx.beginPath(); ctx.roundRect(playerX - 26, 280, 52, 85, 12); ctx.fill();
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.roundRect(playerX - 26, 280, 52, 85, 12); ctx.fill();
             ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2; ctx.stroke();
             ctx.fillStyle = '#38bdf8'; ctx.fillRect(playerX - 16, 305, 32, 24);
             ctx.fillStyle = '#f59e0b'; ctx.fillRect(playerX - 10, 282, 20, 5);
           } else {
-            ctx.fillStyle = '#3b82f6';
-            ctx.beginPath(); ctx.roundRect(playerX - 22, 285, 44, 75, 10); ctx.fill();
+            ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.roundRect(playerX - 22, 285, 44, 75, 10); ctx.fill();
             ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 2; ctx.stroke();
             ctx.fillStyle = '#020617'; ctx.fillRect(playerX - 15, 310, 30, 22);
             ctx.fillStyle = '#ef4444'; ctx.fillRect(playerX - 6, 287, 12, 4);
@@ -678,7 +640,7 @@
       runnerLoop();
     }
 
-    // WAKAN SUBMARINE (Aggressive Droids & Sub Hull Health Meter)
+    // WAKAN SUBMARINE
     function initSubmarineEngine() {
       const canvas = document.getElementById('subCanvas');
       if (!canvas) return;
@@ -687,13 +649,10 @@
       let subDistance = 300, subOrbs = 0, subTier = 1, torpedoes = 15, subHull = 100;
       let marineOrbs = [], subTorpedoes = [], trenchDrones = [], coralReefs = [], heatVents = [], droneTorps = [];
       let equationDot = { x: canvas.width + 50, y: 225, active: true };
-      
-      const guacanQuotes = [
-        "Guacan: 'Deep trench sensors calibrated. Caribbean corridor secure!'",
-        "Guacan: 'Hydro-pods locked onto target signature. Full steam ahead.'",
-        "Guacan: 'Pressure holding steady through the trench. Let's clear these obstacles!'"
-      ];
-      let subQuoteTimer = 0;
+
+      for (let i = 0; i < 7; i++) trenchDrones.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 1.2 + Math.random(), size: 18 });
+      for (let i = 0; i < 6; i++) coralReefs.push({ x: i * 100, height: 70 + Math.random() * 80 });
+      for (let i = 0; i < 4; i++) heatVents.push({ x: 120 + i * 140, active: true });
 
       window.moveSub = (dir) => { playSound('beam'); if (dir === 'up') subTargetY = Math.max(60, subTargetY - 70); if (dir === 'down') subTargetY = Math.min(canvas.height - 60, subTargetY + 70); };
       window.fireHomingTorpedo = () => {
@@ -711,19 +670,9 @@
           subDistance = Math.max(0, subDistance - 0.5);
           document.getElementById('sub-distance').innerText = Math.floor(subDistance) + 'm';
 
-          subQuoteTimer++;
-          if (subQuoteTimer > 350) {
-            subQuoteTimer = 0;
-            let q = guacanQuotes[Math.floor(Math.random() * guacanQuotes.length)];
-            document.getElementById('sub-comm-banner').innerHTML = `💬 <b>Guacan Comm-Link:</b> "${q.split("'")[1]}"`;
-          }
-
           if (equationDot.active) {
             equationDot.x -= 2.0;
-            if (equationDot.x < -60) {
-              equationDot.x = canvas.width + 60;
-              equationDot.y = 80 + Math.random() * (canvas.height - 160);
-            }
+            if (equationDot.x < -60) { equationDot.x = canvas.width + 60; equationDot.y = 80 + Math.random() * (canvas.height - 160); }
             if (Math.hypot(subX - equationDot.x, subY - equationDot.y) < 55) {
               playSound('transform'); switchPortal('brawler'); return;
             }
@@ -744,40 +693,28 @@
           trenchDrones.forEach(d => {
             d.x -= d.speed;
             d.shootTimer = (d.shootTimer || 0) + 1;
-            if (d.shootTimer > 90) {
-              d.shootTimer = 0;
-              droneTorps.push({ x: d.x, y: d.y, vx: -5, vy: 0 });
-            }
+            if (d.shootTimer > 90) { d.shootTimer = 0; droneTorps.push({ x: d.x, y: d.y, vx: -5, vy: 0 }); }
           });
 
           for (let i = droneTorps.length - 1; i >= 0; i--) {
             let dt = droneTorps[i]; dt.x += dt.vx;
             if (Math.hypot(subX - dt.x, subY - dt.y) < 35) {
-              playSound('crash');
-              subHull = Math.max(0, subHull - 15);
-              document.getElementById('sub-integrity').innerText = subHull + '%';
-              droneTorps.splice(i, 1);
+              playSound('crash'); subHull = Math.max(0, subHull - 15); document.getElementById('sub-integrity').innerText = subHull + '%'; droneTorps.splice(i, 1);
             } else if (dt.x < 0) droneTorps.splice(i, 1);
           }
 
           subTorpedoes.forEach((t, idx) => {
             if (t.target && trenchDrones.includes(t.target)) {
               let angle = Math.atan2(t.target.y - t.y, t.target.x - t.x);
-              t.vx = Math.cos(angle) * 7;
-              t.vy = Math.sin(angle) * 7;
-            } else {
-              t.vx = 8; t.vy = 0;
-            }
+              t.vx = Math.cos(angle) * 7; t.vy = Math.sin(angle) * 7;
+            } else { t.vx = 8; t.vy = 0; }
             t.x += t.vx; t.y += t.vy;
 
             trenchDrones.forEach((j, jIdx) => {
               if (Math.hypot(t.x - j.x, t.y - j.y) < 25) {
-                playSound('crash');
-                trenchDrones.splice(jIdx, 1);
-                subTorpedoes.splice(idx, 1);
+                playSound('crash'); trenchDrones.splice(jIdx, 1); subTorpedoes.splice(idx, 1);
               }
             });
-
             if (t.x > canvas.width) subTorpedoes.splice(idx, 1);
           });
 
@@ -787,9 +724,7 @@
           });
 
           let oceanGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-          oceanGrad.addColorStop(0, '#02182b');
-          oceanGrad.addColorStop(0.5, '#010c14');
-          oceanGrad.addColorStop(1, '#00070c');
+          oceanGrad.addColorStop(0, '#02182b'); oceanGrad.addColorStop(0.5, '#010c14'); oceanGrad.addColorStop(1, '#00070c');
           ctx.fillStyle = oceanGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
           coralReefs.forEach(c => {
@@ -805,8 +740,7 @@
           });
 
           trenchDrones.forEach(j => {
-            ctx.fillStyle = '#38bdf8';
-            ctx.beginPath(); ctx.arc(j.x, j.y, 14, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(j.x, j.y, 14, 0, Math.PI*2); ctx.fill();
             ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 2; ctx.stroke();
             ctx.fillStyle = '#f43f5e'; ctx.fillRect(j.x - 3, j.y - 3, 6, 6);
           });
@@ -821,16 +755,13 @@
           droneTorps.forEach(dt => { ctx.fillStyle = '#f43f5e'; ctx.fillRect(dt.x, dt.y, 10, 4); });
           
           if (subTier === 3) {
-            ctx.fillStyle = '#d4af37';
-            ctx.beginPath(); ctx.ellipse(subX, subY, 64, 28, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.ellipse(subX, subY, 64, 28, 0, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#34d399'; ctx.lineWidth = 3; ctx.stroke();
           } else if (subTier === 2) {
-            ctx.fillStyle = '#0f766e';
-            ctx.beginPath(); ctx.ellipse(subX, subY, 56, 23, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#0f766e'; ctx.beginPath(); ctx.ellipse(subX, subY, 56, 23, 0, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.stroke();
           } else {
-            ctx.fillStyle = '#064e3b';
-            ctx.beginPath(); ctx.ellipse(subX, subY, 48, 19, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#064e3b'; ctx.beginPath(); ctx.ellipse(subX, subY, 48, 19, 0, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.stroke();
           }
           ctx.fillStyle = '#38bdf8'; ctx.fillRect(subX - 10, subY - 26, 12, 10);
@@ -841,7 +772,7 @@
       subLoop();
     }
 
-    // VANGUARD FLEET (Active Droids, Firing Torpedoes, & Ship Hull Health Meter)
+    // VANGUARD FLEET
     function initSpaceEngine() {
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
@@ -883,19 +814,13 @@
           spaceDroids.forEach(d => {
             d.y += d.speed;
             d.shootTimer++;
-            if (d.shootTimer > 80) {
-              d.shootTimer = 0;
-              droidLasers.push({ x: d.x, y: d.y, vx: 0, vy: 5 });
-            }
+            if (d.shootTimer > 80) { d.shootTimer = 0; droidLasers.push({ x: d.x, y: d.y, vx: 0, vy: 5 }); }
           });
 
           for (let i = droidLasers.length - 1; i >= 0; i--) {
             let dl = droidLasers[i]; dl.y += dl.vy;
             if (Math.hypot(shipX - dl.x, 350 - dl.y) < 30) {
-              playSound('crash');
-              shipHull = Math.max(0, shipHull - 15);
-              document.getElementById('space-hull').innerText = shipHull + '%';
-              droidLasers.splice(i, 1);
+              playSound('crash'); shipHull = Math.max(0, shipHull - 15); document.getElementById('space-hull').innerText = shipHull + '%'; droidLasers.splice(i, 1);
             } else if (dl.y > canvas.height) droidLasers.splice(i, 1);
           }
 
@@ -905,10 +830,7 @@
             for (let j = spaceDroids.length - 1; j >= 0; j--) {
               let d = spaceDroids[j];
               if (Math.hypot(st.x - d.x, st.y - d.y) < 30) {
-                playSound('crash');
-                spaceDroids.splice(j, 1);
-                spaceTorpedoes.splice(i, 1);
-                break;
+                playSound('crash'); spaceDroids.splice(j, 1); spaceTorpedoes.splice(i, 1); break;
               }
             }
           }
@@ -961,7 +883,7 @@
       spaceLoop();
     }
 
-    // 2D SIDE-SCROLLING BRAWLER ARENA
+    // 2D SIDE-SCROLLING BRAWLER ARENA (2 Waves of Aggressive Droids & Harder Boss Counter-Attacks)
     function initBrawlerEngine() {
       const canvas = document.getElementById('brawlerCanvas');
       if (!canvas) return;
@@ -971,11 +893,17 @@
       let brawlerProjectiles = [], bossProjectiles = [], droidProjectiles = [], clockDebris = [];
       let luettaActive = false, luettaY = -50, luettaAlpha = 0;
       let playerSpeedMult = 1.0, groundScrollX = 0, timeOfDayTimer = 0;
+      let currentWave = 1;
       
       let preBossDroids = [];
-      for (let i = 0; i < 15; i++) {
-        preBossDroids.push({ x: 450 + (i * 35), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.2 + Math.random(), shootTimer: 0 });
+      function spawnWave(waveNum) {
+        preBossDroids = [];
+        let count = waveNum === 1 ? 8 : 7; // Two waves total 15 units
+        for (let i = 0; i < count; i++) {
+          preBossDroids.push({ x: 450 + (i * 30), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.8 + (waveNum * 0.4), shootTimer: 0 });
+        }
       }
+      spawnWave(1);
       let droidsRemaining = 15;
       
       let rainDrops = [];
@@ -995,18 +923,18 @@
         document.getElementById('brawler-header-title').innerText = `${heroes[heroIndex].name} (Lead) & ${nextPartner.name} (Tactical AI)`;
         
         playSound('transform');
-        speakText(`Tag swap! Active lead is now ${heroes[heroIndex].name}, supported by ${nextPartner.name}`);
+        speakText(`Tag swap! Active lead: ${heroes[heroIndex].name}`);
       };
 
       window.brawlerMove = (dir) => {
         playSound('beam');
-        let moveDist = 30 * playerSpeedMult;
-        if (dir === 'left') { playerX = Math.max(30, playerX - moveDist); groundScrollX += 6; }
-        if (dir === 'right') { playerX = Math.min(canvas.width - 120, playerX + moveDist); groundScrollX -= 6; }
+        let moveDist = 25 * playerSpeedMult;
+        if (dir === 'left') { playerX = Math.max(30, playerX - moveDist); groundScrollX += 4; }
+        if (dir === 'right') { playerX = Math.min(canvas.width - 120, playerX + moveDist); groundScrollX -= 4; }
       };
 
       window.brawlerJump = () => {
-        if (!isJumping) { playSound('transform'); isJumping = true; jumpVel = -13; }
+        if (!isJumping) { playSound('transform'); isJumping = true; jumpVel = -12; }
       };
 
       window.brawlerSkill1 = () => {
@@ -1047,31 +975,45 @@
           timeOfDayTimer += 0.003;
           rotorAngle += 0.4;
 
-          chopperX += chopperDir * 1.2;
+          chopperX += chopperDir * 1.0;
           if (chopperX > 480 || chopperX < 120) chopperDir *= -1;
 
-          if (Math.random() < 0.03 && droidsActive) {
-            brawlerProjectiles.push({ x: playerX - 30, y: playerY, vx: 12, color: '#a855f7', type: 'partner-laser', width: 20, height: 8 });
+          // Independent AI Partner attacking automatically
+          if (Math.random() < 0.025 && droidsActive) {
+            brawlerProjectiles.push({ x: playerX - 30, y: playerY, vx: 10, color: '#a855f7', type: 'partner-laser', width: 20, height: 8 });
           }
 
+          // Aggressive Droid AI hunting down player & firing
           preBossDroids.forEach(d => {
             if (d.active) {
-              if (d.x > playerX + 40) d.x -= d.speed;
-              else if (d.x < playerX - 20) d.x += d.speed;
+              if (d.x > playerX + 25) d.x -= d.speed;
+              else if (d.x < playerX - 15) d.x += d.speed;
 
               d.shootTimer++;
-              if (d.shootTimer > 100) {
+              if (d.shootTimer > 75) {
                 d.shootTimer = 0;
-                droidProjectiles.push({ x: d.x, y: d.isFlying ? d.y - 40 : d.y - 20, vx: -5, vy: 0 });
+                droidProjectiles.push({ x: d.x, y: d.isFlying ? d.y - 40 : d.y - 20, vx: -6, vy: 0 });
               }
             }
           });
 
+          // Boss Counter-Attack Behavior (Harder Boss Fight)
+          if (!droidsActive) {
+            timeWarpTimer++;
+            if (timeWarpTimer > 90) {
+              timeWarpTimer = 0;
+              bossProjectiles.push({ x: bossX, y: bossY + 20, vx: -9, width: 35, height: 22, type: 'boss-blast' });
+              if (selectedBossName === "Chrono Lock" && Math.random() > 0.5) {
+                bossX = playerX + (Math.random() > 0.5 ? 90 : -90);
+                playSound('transform');
+              }
+            }
+          }
+
           for (let i = droidProjectiles.length - 1; i >= 0; i--) {
             let dp = droidProjectiles[i]; dp.x += dp.vx;
             if (Math.abs(playerX - dp.x) < 30) {
-              playSound('crash');
-              teamHealth = Math.max(0, teamHealth - 10);
+              playSound('crash'); teamHealth = Math.max(0, teamHealth - 12);
               document.getElementById('team-health').innerText = teamHealth;
               droidProjectiles.splice(i, 1);
               if (teamHealth <= 0) summonMotherLuetta();
@@ -1081,8 +1023,7 @@
           for (let i = bossProjectiles.length - 1; i >= 0; i--) {
             let bp = bossProjectiles[i]; bp.x += bp.vx;
             if (Math.abs(playerX - bp.x) < 35) {
-              playSound('crash');
-              teamHealth = Math.max(0, teamHealth - 15);
+              playSound('crash'); teamHealth = Math.max(0, teamHealth - 20);
               document.getElementById('team-health').innerText = teamHealth;
               bossProjectiles.splice(i, 1);
               if (teamHealth <= 0) summonMotherLuetta();
@@ -1095,13 +1036,18 @@
               preBossDroids.forEach(d => {
                 if (d.active && Math.abs(bp.x - d.x) < 40) {
                   d.active = false; droidsRemaining--;
-                  document.getElementById('boss-hp').innerText = droidsRemaining > 0 ? droidsRemaining + " Units Remaining" : "Boss Incoming!";
+                  document.getElementById('boss-hp').innerText = droidsRemaining > 0 ? `${droidsRemaining} Units Remaining` : "Boss Incoming!";
                   playSound('transform');
+                  if (droidsRemaining === 7 && currentWave === 1) {
+                    currentWave = 2;
+                    speakText("Wave 2 reinforcement droids inbound!");
+                    spawnWave(2);
+                  }
                 }
               });
             } else {
               if (Math.abs(bp.x - bossX) < 50) {
-                playSound('crash'); bossHp = Math.max(0, bossHp - 20);
+                playSound('crash'); bossHp = Math.max(0, bossHp - 15);
                 document.getElementById('boss-hp').innerText = bossHp + '%';
                 brawlerProjectiles.splice(i, 1);
                 if (bossHp <= 0) {
@@ -1153,7 +1099,7 @@
           brawlerProjectiles.forEach(bp => { ctx.fillStyle = bp.color; ctx.fillRect(bp.x, bp.y, bp.width || 22, bp.height || 8); });
           droidProjectiles.forEach(dp => { ctx.fillStyle = '#f43f5e'; ctx.fillRect(dp.x, dp.y, 10, 4); });
           bossProjectiles.forEach(bp => {
-            ctx.fillStyle = bp.type === 'sonic' ? '#c084fc' : '#ef4444';
+            ctx.fillStyle = bp.type === 'boss-blast' ? '#ec4899' : '#c084fc';
             ctx.fillRect(bp.x, bp.y, bp.width, bp.height);
           });
 
