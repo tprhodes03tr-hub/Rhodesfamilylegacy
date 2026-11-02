@@ -487,6 +487,7 @@
       const ctx = canvas.getContext('2d');
       let playerX = 300, targetX = 300, carHull = 100, transitDistance = 271, beamCount = 16;
       let orbsCollected = 0, carTier = 1, obstacles = [], runnerOrbs = [], roadScrollOffset = 0;
+      let playerBeams = [];
       let equationDot = { x: 300, y: -100, active: false };
 
       window.moveRunner = (dir) => {
@@ -495,8 +496,17 @@
         if (dir === 'right') targetX = Math.min(canvas.width - 140, targetX + 160);
       };
       window.togglePauseGame = () => {};
-      window.fireElectricBeam = () => { playSound('beam'); beamCount++; document.getElementById('beam-count').innerText = beamCount; };
-      window.triggerUrbanShockwave = () => { playSound('transform'); obstacles = []; };
+      window.fireElectricBeam = () => {
+        playSound('beam');
+        beamCount++;
+        document.getElementById('beam-count').innerText = beamCount;
+        playerBeams.push({ x: playerX - 18, y: 270, vx: 0, vy: -12 });
+        playerBeams.push({ x: playerX + 18, y: 270, vx: 0, vy: -12 });
+      };
+      window.triggerUrbanShockwave = () => {
+        playSound('transform');
+        obstacles = [];
+      };
 
       function runnerLoop() {
         if (canvas.offsetParent !== null) {
@@ -520,6 +530,26 @@
 
           if (Math.random() < 0.035 && obstacles.length < 5) obstacles.push({ x: [160, 300, 440][Math.floor(Math.random()*3)], y: -30, speed: 3.8 });
           if (Math.random() < 0.04 && runnerOrbs.length < 4) runnerOrbs.push({ x: [160, 300, 440][Math.floor(Math.random()*3)], y: -30, speed: 3.0 });
+
+          // Update active twin beams
+          for (let i = playerBeams.length - 1; i >= 0; i--) {
+            let b = playerBeams[i];
+            b.y += b.vy;
+            if (b.y < -20) {
+              playerBeams.splice(i, 1);
+              continue;
+            }
+            // Check collision with obstacles
+            for (let j = obstacles.length - 1; j >= 0; j--) {
+              let obs = obstacles[j];
+              if (Math.abs(b.x - obs.x) < 25 && Math.abs(b.y - obs.y) < 25) {
+                playSound('crash');
+                obstacles.splice(j, 1);
+                playerBeams.splice(i, 1);
+                break;
+              }
+            }
+          }
 
           runnerOrbs.forEach((o, idx) => {
             o.y += o.speed;
@@ -555,6 +585,14 @@
 
           runnerOrbs.forEach(o => { ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(o.x, o.y, 10, 0, Math.PI*2); ctx.fill(); });
           obstacles.forEach(obs => { ctx.fillStyle = '#ef4444'; ctx.fillRect(obs.x - 20, obs.y - 20, 40, 40); });
+
+          // Draw active twin beams
+          playerBeams.forEach(b => {
+            ctx.fillStyle = '#38bdf8';
+            ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 10;
+            ctx.fillRect(b.x - 3, b.y, 6, 18);
+            ctx.shadowBlur = 0;
+          });
 
           if (carTier === 3) {
             ctx.fillStyle = '#1e3a8a';
@@ -598,7 +636,9 @@
         if (torpedoes <= 0) return; torpedoes--;
         document.getElementById('sub-torpedoes').innerText = torpedoes;
         playSound('beam');
-        subTorpedoes.push({ x: subX + 40, y: subY, vx: 10 });
+        // Spawn torpedo with active target lock capability
+        let target = jellyfish.length > 0 ? jellyfish[0] : null;
+        subTorpedoes.push({ x: subX + 40, y: subY, vx: 8, vy: 0, target: target });
       };
       window.triggerSubTurbo = () => { playSound('transform'); };
 
@@ -628,8 +668,26 @@
             }
           });
 
+          // Homing torpedo update logic
           subTorpedoes.forEach((t, idx) => {
-            t.x += t.vx;
+            if (t.target && jellyfish.includes(t.target)) {
+              let angle = Math.atan2(t.target.y - t.y, t.target.x - t.x);
+              t.vx = Math.cos(angle) * 7;
+              t.vy = Math.sin(angle) * 7;
+            } else {
+              t.vx = 8; t.vy = 0;
+            }
+            t.x += t.vx; t.y += t.vy;
+
+            // Check collision with jellyfish
+            jellyfish.forEach((j, jIdx) => {
+              if (Math.hypot(t.x - j.x, t.y - j.y) < 25) {
+                playSound('crash');
+                jellyfish.splice(jIdx, 1);
+                subTorpedoes.splice(idx, 1);
+              }
+            });
+
             if (t.x > canvas.width) subTorpedoes.splice(idx, 1);
           });
 
@@ -972,7 +1030,27 @@
           if (heroImg && heroImg.complete && heroImg.naturalWidth !== 0) {
             ctx.drawImage(heroImg, playerX, playerY - 50, 80, 100);
           } else {
-            ctx.fillStyle = '#38bdf8'; ctx.fillRect(playerX, playerY - 20, 40, 80);
+            // Enhanced procedural custom Marcus Prime layered sprite with detailed armor and joint articulation
+            ctx.fillStyle = '#1e3a8a'; // Torso Armor
+            ctx.fillRect(playerX + 10, playerY - 30, 24, 35);
+            ctx.fillStyle = '#38bdf8'; // Glowing Core Crest
+            ctx.fillRect(playerX + 18, playerY - 20, 8, 12);
+            
+            ctx.fillStyle = '#60a5fa'; // Head
+            ctx.beginPath(); ctx.arc(playerX + 22, playerY - 42, 11, 0, Math.PI*2); ctx.fill();
+            
+            // Articulated Arms & Joint Highlights
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(playerX + 2, playerY - 28, 7, 24); // Left arm
+            ctx.fillRect(playerX + 35, playerY - 28, 7, 24); // Right arm
+            ctx.fillStyle = '#d4af37'; // Joint glowing orbs
+            ctx.beginPath(); ctx.arc(playerX + 5, playerY - 16, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(playerX + 38, playerY - 16, 3, 0, Math.PI*2); ctx.fill();
+
+            // Articulated Legs
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(playerX + 11, playerY + 5, 8, 25);
+            ctx.fillRect(playerX + 23, playerY + 5, 8, 25);
           }
 
           if (luettaActive) {
