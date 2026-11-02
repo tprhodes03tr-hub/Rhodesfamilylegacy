@@ -109,6 +109,13 @@
       background: linear-gradient(135deg, rgba(153, 27, 27, 0.95) 0%, rgba(127, 29, 29, 0.95) 100%); border: 1px solid #ef4444; color: #fee2e2; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; text-align: left;
     }
     .deploy-team-btn { background: #f8fafc; color: #991b1b; border: none; padding: 6px 12px; font-weight: bold; font-size: 0.65rem; border-radius: 6px; cursor: pointer; text-transform: uppercase; white-space: nowrap; margin-left: 8px; }
+
+    /* DOSSIER & COMMS POPUP */
+    .comms-overlay {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(2, 6, 23, 0.95); border: 2px solid #38bdf8; padding: 16px; border-radius: 12px;
+      width: 85%; max-width: 380px; z-index: 50; text-align: center; backdrop-filter: blur(8px);
+    }
   </style>
 </head>
 <body onload="initCommandDeck()">
@@ -170,6 +177,11 @@
 
     <div style="width: 100%; aspect-ratio: 4 / 3; background: #020617; border: 2px solid #60a5fa; border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 8px;">
       <canvas id="runnerCanvas" width="600" height="450" style="width: 100%; height: 100%; display: block;"></canvas>
+      <div id="runner-comms" class="comms-overlay hidden">
+        <h3 style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 6px;">📡 COMMAND TRANSMISSION</h3>
+        <p id="runner-comms-text" style="font-size: 0.7rem; color: #cbd5e1; margin-bottom: 12px;"></p>
+        <button class="game-btn primary" onclick="dismissComms('runner')">Continue Mission</button>
+      </div>
     </div>
 
     <div class="choice-grid" style="grid-template-columns: repeat(3, 1fr); display: grid; gap: 6px; margin-bottom: 6px;">
@@ -199,6 +211,11 @@
 
     <div style="width: 100%; aspect-ratio: 4 / 3; background: #010c14; border: 2px solid #34d399; border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 8px;">
       <canvas id="subCanvas" width="600" height="450" style="width: 100%; height: 100%; display: block;"></canvas>
+      <div id="sub-comms" class="comms-overlay hidden" style="border-color: #34d399;">
+        <h3 style="color: #34d399; font-size: 0.85rem; margin-bottom: 6px;">📡 GUACAN TRENCH REPORT</h3>
+        <p id="sub-comms-text" style="font-size: 0.7rem; color: #cbd5e1; margin-bottom: 12px;"></p>
+        <button class="game-btn primary" onclick="dismissComms('sub')" style="background: linear-gradient(135deg, #34d399 0%, #064e3b 100%); color: #022018;">Acknowledge</button>
+      </div>
     </div>
 
     <div class="choice-grid" style="grid-template-columns: repeat(3, 1fr); display: grid; gap: 6px; margin-bottom: 6px;">
@@ -348,7 +365,7 @@
     spriteImages.xochitl.src = 'https://raw.githubusercontent.com/tprhodes/rhodesfamilylegacy/main/magma-weaver.png';
     spriteImages.amina.src = 'https://raw.githubusercontent.com/tprhodes/rhodesfamilylegacy/main/amina-zazzau.png';
     spriteImages.apexVolt.src = 'https://raw.githubusercontent.com/tprhodes/rhodesfamilylegacy/main/apex-volt.png';
-    spriteImages.chronolock.src = 'https://raw.githubusercontent.com/tprhodes/rhodesfamilylegacy/main/dread-harmonic.png'; // or gear boss
+    spriteImages.chronolock.src = 'https://raw.githubusercontent.com/tprhodes/rhodesfamilylegacy/main/dread-harmonic.png';
 
     let audioCtx = null;
     function initAudio() {
@@ -437,6 +454,10 @@
       }
     }
 
+    function dismissComms(type) {
+      document.getElementById(type + '-comms').classList.add('hidden');
+    }
+
     let globeRotationY = 0, globeRotationX = 0.2;
     function resetGlobeOrbit() { globeRotationY = 0; globeRotationX = 0.2; playSound('orb'); speakText("Globe orbit reset."); }
 
@@ -514,13 +535,13 @@
       globeLoop();
     }
 
-    // DETROIT '313 GRID RUNNER ENGINE (3 TIERS: MUSCLE -> ARMORED MUSCLE -> TORPEDO FINNED)
+    // DETROIT GRID RUNNER ENGINE (WITH COMMS TRANSMISSION REPORTING BACK TO HUB)
     function initRunnerEngine() {
       const canvas = document.getElementById('runnerCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       let playerX = 300, targetX = 300, carHull = 100, transitDistance = 626;
-      let electricBeamsCount = 16, runnerItems = [], obstacles = [], electricProjectiles = [];
+      let runnerItems = [], obstacles = [], electricProjectiles = [];
       let tier = 1, orbsCollected = 0, isPaused = false, roadScrollOffset = 0;
 
       window.moveRunner = (dir) => {
@@ -534,14 +555,13 @@
       };
 
       window.fireElectricBeam = () => {
-        if (isPaused || electricBeamsCount <= 0) return;
-        electricBeamsCount -= (tier >= 3 ? 1 : 2);
+        if (isPaused) return;
         playSound('beam');
         electricProjectiles.push({ x: playerX - 16, y: 320, vy: -14 });
         electricProjectiles.push({ x: playerX + 16, y: 320, vy: -14 });
         if (tier >= 3) {
-          electricProjectiles.push({ x: playerX - 26, y: 320, vy: -16 });
-          electricProjectiles.push({ x: playerX + 26, y: 320, vy: -16 });
+          electricProjectiles.push({ x: playerX - 28, y: 320, vy: -16, homing: true });
+          electricProjectiles.push({ x: playerX + 28, y: 320, vy: -16, homing: true });
         }
       };
 
@@ -571,14 +591,20 @@
             for (let i = runnerItems.length - 1; i >= 0; i--) {
               let r = runnerItems[i]; r.y += r.speed;
               if (Math.abs(playerX - r.x) < 45 && Math.abs(350 - r.y) < 45) {
-                playSound('orb'); orbsCollected++; electricBeamsCount += 4; runnerItems.splice(i, 1);
+                playSound('orb'); orbsCollected++; runnerItems.splice(i, 1);
                 document.getElementById('car-orbs').innerText = orbsCollected + '/10';
-                if (orbsCollected >= 10 && tier === 1) {
+                
+                if (orbsCollected === 10) {
                   tier = 2; document.getElementById('car-tier').innerText = "Tier 2 (Armored Muscle)";
-                  playSound('transform'); speakText("Detroit Grid Mobile upgraded to Armored Muscle.");
+                  playSound('transform');
+                  document.getElementById('runner-comms-text.innerText') = "Marcus Prime to Marrow Globe Nexus: 10 Orbs secured. Detroit Grid Mobile integrity optimized. Proceeding to tier 2 armor!";
+                  document.getElementById('runner-comms').classList.remove('hidden');
+                  speakText("Marcus Prime reporting in. Tier 2 armored muscle engaged.");
                 } else if (orbsCollected >= 20 && tier === 2) {
                   tier = 3; document.getElementById('car-tier').innerText = "Tier 3 (Torpedo Interceptor)";
-                  playSound('transform'); speakText("Detroit Grid Mobile upgraded with side torpedo launchers.");
+                  playSound('transform');
+                  document.getElementById('runner-comms-text').innerText = "Marcus Prime to Marrow Globe Nexus: Maximum orbs gathered! Side torpedo launchers active. Zero-day protocol ready!";
+                  document.getElementById('runner-comms').classList.remove('hidden');
                 }
               } else if (r.y > canvas.height) runnerItems.splice(i, 1);
             }
@@ -590,6 +616,17 @@
                 if (carHull <= 0) { carHull = 100; document.getElementById('car-hull').innerText = "100%"; transitDistance = 626; }
               } else if (obs.y > canvas.height) obstacles.splice(i, 1);
             }
+
+            for (let i = electricProjectiles.length - 1; i >= 0; i--) {
+              let p = electricProjectiles[i];
+              p.y += p.vy;
+              if (p.homing && obstacles.length > 0) {
+                let target = obstacles[0];
+                if (p.x < target.x) p.x += 2;
+                else if (p.x > target.x) p.x -= 2;
+              }
+              if (p.y < 0) electricProjectiles.splice(i, 1);
+            }
           }
 
           ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -600,7 +637,7 @@
           ctx.setLineDash([]);
 
           runnerItems.forEach(r => { ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(r.x, r.y, 14, 0, Math.PI*2); ctx.fill(); });
-          electricProjectiles.forEach(p => { ctx.fillStyle = tier === 3 ? '#f59e0b' : '#38bdf8'; ctx.fillRect(p.x - 3, p.y, 6, 18); });
+          electricProjectiles.forEach(p => { ctx.fillStyle = p.homing ? '#f59e0b' : '#38bdf8'; ctx.fillRect(p.x - 3, p.y, 6, 18); });
           obstacles.forEach(obs => { ctx.fillStyle = '#ef4444'; ctx.fillRect(obs.x - 20, obs.y - 20, 40, 40); ctx.fillStyle = '#fee2e2'; ctx.fillRect(obs.x - 6, obs.y - 6, 12, 12); });
 
           // DETROIT GRID MOBILE SPRITE
@@ -626,7 +663,7 @@
       runnerLoop();
     }
 
-    // WACON TRENCH SUBMARINE ENGINE
+    // WACON TRENCH SUBMARINE ENGINE (WITH CORAL REEFS, JELLYFISH, AND GUACAN COMMS REPORT)
     function initSubmarineEngine() {
       const canvas = document.getElementById('subCanvas');
       if (!canvas) return;
@@ -659,7 +696,7 @@
       window.fireHomingTorpedo = () => {
         if (isSubPaused || homingTorpedoes <= 0) return;
         homingTorpedoes--; document.getElementById('sub-torpedoes').innerText = homingTorpedoes;
-        playSound('beam'); torpedoesList.push({ x: subX + 25, y: subY, vx: 7, vy: 0 });
+        playSound('beam'); torpedoesList.push({ x: subX + 25, y: subY, vx: 8, vy: 0, homing: true });
       };
 
       window.triggerSubTurbo = () => { if (isSubPaused || isTurboActive) return; playSound('transform'); isTurboActive = true; setTimeout(() => isTurboActive = false, 3000); };
@@ -684,11 +721,38 @@
 
             marineOrbs.forEach((o, idx) => { o.x -= o.speed; if (Math.hypot(subX - o.x, subY - o.y) < 45) { playSound('orb'); subOrbs++; homingTorpedoes += 3; marineOrbs.splice(idx, 1);
               document.getElementById('sub-orbs').innerText = subOrbs + '/10';
-              if (subOrbs >= 10 && subTier === 1) { subTier = 2; document.getElementById('sub-tier').innerText = "Tier 2 (War Sub)"; playSound('transform'); speakText("Submarine upgraded to Tactical War Sub."); }
-              else if (subOrbs >= 20 && subTier === 2) { subTier = 3; document.getElementById('sub-tier').innerText = "Tier 3 (Supreme Sub)"; playSound('transform'); speakText("Submarine upgraded to Supreme Dreadnought Sub."); }
+              if (subOrbs === 10 && subTier === 1) {
+                subTier = 2; document.getElementById('sub-tier').innerText = "Tier 2 (War Sub)";
+                playSound('transform');
+                document.getElementById('sub-comms-text').innerText = "Guacan to Marrow Globe Nexus: Trench sensors verified. Submarine upgraded to Tactical War Sub with active sonar sweep!";
+                document.getElementById('sub-comms').classList.remove('hidden');
+                speakText("Guacan reporting. War sub operational.");
+              } else if (subOrbs >= 20 && subTier === 2) {
+                subTier = 3; document.getElementById('sub-tier').innerText = "Tier 3 (Supreme Sub)";
+                playSound('transform');
+              }
             } });
 
             subEnemies.forEach((en, idx) => { en.x -= en.speed; if (Math.hypot(subX - en.x, subY - en.y) < 45) { playSound('crash'); subIntegrity -= 25; document.getElementById('sub-integrity').innerText = subIntegrity + '%'; subEnemies.splice(idx, 1); } });
+
+            for (let i = torpedoesList.length - 1; i >= 0; i--) {
+              let t = torpedoesList[i];
+              t.x += t.vx;
+              if (t.homing && subEnemies.length > 0) {
+                let target = subEnemies[0];
+                if (t.y < target.y) t.y += 1.5;
+                else if (t.y > target.y) t.y -= 1.5;
+                for (let eIdx = subEnemies.length - 1; eIdx >= 0; eIdx--) {
+                  if (Math.hypot(t.x - subEnemies[eIdx].x, t.y - subEnemies[eIdx].y) < 30) {
+                    subEnemies.splice(eIdx, 1);
+                    torpedoesList.splice(i, 1);
+                    playSound('transform');
+                    break;
+                  }
+                }
+              }
+              if (t.x > canvas.width) torpedoesList.splice(i, 1);
+            }
 
             jellyfishList.forEach(j => { j.pulse += 0.05; j.y += Math.sin(j.pulse) * 0.5; });
           }
@@ -709,6 +773,7 @@
 
           marineOrbs.forEach(o => { ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(o.x, o.y, 10, 0, Math.PI * 2); ctx.fill(); });
           subEnemies.forEach(en => { ctx.fillStyle = '#ef4444'; ctx.fillRect(en.x - 18, en.y - 12, 36, 24); });
+          torpedoesList.forEach(t => { ctx.fillStyle = '#f59e0b'; ctx.fillRect(t.x, t.y - 3, 12, 6); });
 
           // SUBMARINE SPRITE
           ctx.save(); ctx.translate(subX, subY);
@@ -739,7 +804,7 @@
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let shipX = 300, shipY = 350, targetShipX = 300, hull = 100, orbs = 0, spaceTier = 1, sectorIndex = 3, spaceBullets = [], starfield = [];
+      let shipX = 300, shipY = 350, targetShipX = 300, orbs = 0, spaceTier = 1, sectorIndex = 3, spaceBullets = [], starfield = [];
       let isWarping = false, warpTimer = 0, spaceOrbsList = [];
 
       for (let i = 0; i < 70; i++) starfield.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 2.0 + Math.random() * 3.0 });
