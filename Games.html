@@ -165,7 +165,7 @@
     <h1 style="color: #60a5fa;">Woodward Avenue Supersonic Dual-Shooter Intercept</h1>
 
     <div class="stats-bar" style="border-color: #1e3a8a; color: #60a5fa;">
-      <span>🚗 Tier: <strong id="car-tier" style="color: #f59e0b;">Tier 1</strong></span>
+      <span>🚗 Tier: <strong id="car-tier" style="color: #f59e0b;">Tier 1 (Interceptor)</strong></span>
       <span>❤️ Hull Health: <strong id="car-hull" style="color: #10b981;">100%</strong></span>
       <span>🔴 Incursion: <strong id="transit-distance" style="color: #ef4444;">271</strong></span>
       <span>⚡ Beams: <strong id="beam-count" style="color: #38bdf8;">16</strong></span>
@@ -201,7 +201,7 @@
       <span>🛡️ Sub Hull: <strong id="sub-integrity" style="color: #10b981;">100%</strong></span>
       <span>🌊 Depth: <strong id="sub-distance" style="color: #38bdf8;">300m</strong></span>
       <span>🚀 Torpedoes: <strong id="sub-torpedoes" style="color: #f59e0b;">15</strong></span>
-      <span>⚡ Turbo: <strong id="sub-turbo-status" style="color: #34d399;">READY</strong></span>
+      <span>⚡ Tier: <strong id="sub-tier-label" style="color: #34d399;">Tier 1 (Scout Sub)</strong></span>
     </div>
 
     <div class="dialogue-banner" id="sub-comm-banner" style="border-color: #34d399; color: #34d399;">
@@ -264,7 +264,7 @@
 
     <div class="stats-bar" style="border-color: #1e3a8a; color: #38bdf8;">
       <span>🛡️ Team Health: <strong id="team-health" style="color: #10b981;">100</strong>/100</span>
-      <span>💥 Syndicate Units: <strong id="boss-hp" style="color: #ef4444;">Sets of Droids Incoming</strong></span>
+      <span>💥 Boss Status: <strong id="boss-hp" style="color: #ef4444;">100%</strong></span>
     </div>
 
     <div class="dialogue-banner" id="brawler-dialogue">
@@ -322,7 +322,8 @@
       kofi: './kofi.png',
       motherLuta: './mother-luta.png',
       chronolock: './chrono-lock.png',
-      dreadHarmonic: './dread-harmonic.png'
+      apexVault: './apex-vault.png',
+      magnumWeaver: './magnum-weaver.png'
     };
 
     function preloadAssets() {
@@ -392,8 +393,12 @@
       switchPortal(randomDest);
     }
 
-    const bossPool = ["Apex Volt", "Chrono Lock", "Dread Harmonic", "Magnum Weaver", "Prism Ghost"];
-    let selectedBossName = bossPool[0];
+    let bossIndex = 0;
+    const bossPool = [
+      { name: "Chronolock", title: "CHRONOLOCK (TIME FREEZE & TELEPORT)", sprite: "chronolock" },
+      { name: "Apex Vault", title: "APEX VAULT (VOLT SHOCK & LIGHTNING STRIKES)", sprite: "apexVault" },
+      { name: "Magnum Weaver", title: "MAGNUM WEAVER (MOLTEN LAVA SURGE)", sprite: "magnumWeaver" }
+    ];
 
     let heroIndex = 0;
     const heroes = [
@@ -429,9 +434,10 @@
       else if (target === 'submarine') { speakText("Guacan reporting in. Wacon trench sensor relays and hydro pods active."); initSubmarineEngine(); }
       else if (target === 'space') { speakText("Vanguard Fleet tactical Voyager intercept sequence initiated."); initSpaceEngine(); }
       else if (target === 'brawler') {
-        selectedBossName = bossPool[Math.floor(Math.random() * bossPool.length)];
-        document.getElementById('brawler-boss-title').innerText = `STAGE 1 • DEFEAT BOSS: ${selectedBossName.toUpperCase()}`;
-        speakText(`Brawler arena engaged against ${selectedBossName}. Defeat the droids and face the boss!`);
+        bossIndex = (bossIndex + 1) % bossPool.length;
+        let currentBoss = bossPool[bossIndex];
+        document.getElementById('brawler-boss-title').innerText = `STAGE 1 • DEFEAT BOSS: ${currentBoss.name.toUpperCase()}`;
+        speakText(`Brawler arena engaged against ${currentBoss.name}. Defeat the droids and face the boss!`);
         initBrawlerEngine();
       }
     }
@@ -664,11 +670,11 @@
               if (orbsCollected >= 15) {
                 carTier = 3;
                 roadSpeed = 22;
-                document.getElementById('car-tier').innerText = "Tier 3 (Apex Vanguard Mastery)";
+                document.getElementById('car-tier').innerText = "Tier 3 (Apex Woodward Interceptor)";
               } else if (orbsCollected >= 10) {
                 carTier = 2;
                 roadSpeed = 16;
-                document.getElementById('car-tier').innerText = "Tier 2 (Enforcer Heavy Armor)";
+                document.getElementById('car-tier').innerText = "Tier 2 (Enforcer Cruiser)";
               }
               runnerOrbs.splice(idx, 1);
             } else if (o.y > canvas.height) runnerOrbs.splice(idx, 1);
@@ -714,34 +720,67 @@
           playerBeams.forEach(b => { ctx.fillStyle = '#38bdf8'; ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 10; ctx.fillRect(b.x - 3, b.y, 6, 18); ctx.shadowBlur = 0; });
           sideMissiles.forEach(sm => { ctx.fillStyle = '#f59e0b'; ctx.fillRect(sm.x - 3, sm.y, 6, 12); });
 
-          // Active Deflect Forcefield Bubble
-          ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(playerX, 320, 42, 0, Math.PI * 2);
-          ctx.stroke();
-
-          // High-Tech Car Sprites (Tiers 1, 2, and 3)
+          // Sleek Car Body Rendering for Marcus Prime (Tiers 1, 2, and 3)
+          ctx.save();
+          ctx.translate(playerX, 320);
           if (carTier === 3) {
-            ctx.fillStyle = '#ff00ff';
-            ctx.beginPath(); ctx.roundRect(playerX - 32, 255, 64, 115, 16); ctx.fill();
-            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.stroke();
-            ctx.fillStyle = '#1e3a8a'; ctx.fillRect(playerX - 18, 280, 36, 40);
-            ctx.fillStyle = '#00ffff'; ctx.fillRect(playerX - 42, 290, 12, 50); ctx.fillRect(playerX + 30, 290, 12, 50);
-            ctx.fillStyle = '#f59e0b'; ctx.fillRect(playerX - 10, 370, 20, 15);
-          } else if (carTier === 2) {
-            ctx.fillStyle = '#ffff00';
-            ctx.beginPath(); ctx.roundRect(playerX - 26, 270, 52, 95, 12); ctx.fill();
-            ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = '#1e293b'; ctx.fillRect(playerX - 15, 290, 30, 35);
-            ctx.fillStyle = '#f59e0b'; ctx.fillRect(playerX - 8, 365, 16, 10);
-          } else {
+            // Tier 3: Sleek futuristic super-interceptor with glowing neon wings & twin thrusters
             ctx.fillStyle = '#00ffff';
-            ctx.beginPath(); ctx.roundRect(playerX - 20, 280, 40, 80, 8); ctx.fill();
-            ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = '#0f172a'; ctx.fillRect(playerX - 12, 300, 24, 30);
-            ctx.fillStyle = '#ef4444'; ctx.fillRect(playerX - 6, 360, 12, 8);
+            ctx.beginPath();
+            ctx.moveTo(0, -45);
+            ctx.lineTo(26, -10);
+            ctx.lineTo(22, 40);
+            ctx.lineTo(0, 50);
+            ctx.lineTo(-22, 40);
+            ctx.lineTo(-26, -10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2.5; ctx.stroke();
+            // Wing accents
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath(); ctx.moveTo(22, 10); ctx.lineTo(44, 25); ctx.lineTo(20, 30); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-22, 10); ctx.lineTo(-44, 25); ctx.lineTo(-20, 30); ctx.closePath(); ctx.fill();
+            // Cockpit glass
+            ctx.fillStyle = '#020617';
+            ctx.beginPath(); ctx.ellipse(0, -5, 10, 20, 0, 0, Math.PI*2); ctx.fill();
+            // Exhaust flame
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(-8, 50, 6, 14 + Math.sin(Date.now()*0.05)*4);
+            ctx.fillRect(2, 50, 6, 14 + Math.cos(Date.now()*0.05)*4);
+          } else if (carTier === 2) {
+            // Tier 2: Heavy armored cruiser
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(0, -38);
+            ctx.lineTo(22, -8);
+            ctx.lineTo(18, 36);
+            ctx.lineTo(-18, 36);
+            ctx.lineTo(-22, -8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath(); ctx.ellipse(0, -2, 8, 16, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(-6, 36, 12, 10);
+          } else {
+            // Tier 1: Sleek standard interceptor car
+            ctx.fillStyle = '#60a5fa';
+            ctx.beginPath();
+            ctx.moveTo(0, -32);
+            ctx.lineTo(16, -5);
+            ctx.lineTo(14, 30);
+            ctx.lineTo(-14, 30);
+            ctx.lineTo(-16, -5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.fillStyle = '#020617';
+            ctx.beginPath(); ctx.ellipse(0, 0, 6, 12, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(-4, 30, 8, 6);
           }
+          ctx.restore();
 
           activeRunnerId = requestAnimationFrame(runnerLoop);
         }
@@ -760,8 +799,8 @@
       let equationDot = { x: canvas.width + 100, y: 225, active: true };
 
       for (let i = 0; i < 7; i++) trenchDrones.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 1.2 + Math.random(), size: 18, shootTimer: 0 });
-      for (let i = 0; i < 6; i++) coralReefs.push({ x: i * 110, height: 70 + Math.random() * 80 });
-      for (let i = 0; i < 6; i++) abyssJellies.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 0.8 + Math.random() * 1.0, pulse: Math.random() * Math.PI });
+      for (let i = 0; i < 8; i++) coralReefs.push({ x: i * 85, height: 60 + Math.random() * 90, type: i % 2 === 0 ? 'coral' : 'crystal' });
+      for (let i = 0; i < 6; i++) abyssJellies.push({ x: Math.random() * canvas.width, y: Math.random() * (canvas.height - 150), speed: 0.6 + Math.random() * 0.8, pulse: Math.random() * Math.PI });
 
       const guacanQuotes = [
         "Wakan: 'Sub-aquatic telemetry secure. Trench relays clear.'",
@@ -815,8 +854,13 @@
             if (Math.hypot(subX - o.x, subY - o.y) < 45) {
               playSound('transform'); subOrbs++;
               addScore(15);
-              if (subOrbs >= 15) { subTier = 3; }
-              else if (subOrbs >= 10) { subTier = 2; }
+              if (subOrbs >= 15) {
+                subTier = 3;
+                document.getElementById('sub-tier-label').innerText = "Tier 3 (Abyssal Vanguard Titan Sub)";
+              } else if (subOrbs >= 10) {
+                subTier = 2;
+                document.getElementById('sub-tier-label').innerText = "Tier 2 (Wakan Heavy Cruiser Sub)";
+              }
               marineOrbs.splice(idx, 1);
             }
           });
@@ -857,6 +901,7 @@
 
           abyssJellies.forEach(j => {
             j.x -= j.speed; j.pulse += 0.04;
+            j.y += Math.sin(j.pulse) * 0.6;
             if (j.x < -30) j.x = canvas.width + 30;
           });
 
@@ -866,18 +911,27 @@
           oceanGrad.addColorStop(1, '#000204');
           ctx.fillStyle = oceanGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+          // Render Glowing Bioluminescent Jellyfish
           abyssJellies.forEach(j => {
-            ctx.fillStyle = 'rgba(52, 211, 153, 0.4)';
-            ctx.beginPath(); ctx.arc(j.x, j.y, 10 + Math.sin(j.pulse)*3, Math.PI, 0, false); ctx.fill();
-            ctx.strokeStyle = 'rgba(52, 211, 153, 0.6)'; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(j.x - 6, j.y); ctx.lineTo(j.x - 6, j.y + 14); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(j.x + 6, j.y); ctx.lineTo(j.x + 6, j.y + 14); ctx.stroke();
+            ctx.fillStyle = 'rgba(52, 211, 153, 0.45)';
+            ctx.beginPath(); ctx.arc(j.x, j.y, 14 + Math.sin(j.pulse)*3, Math.PI, 0, false); ctx.fill();
+            ctx.strokeStyle = 'rgba(52, 211, 153, 0.8)'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(j.x - 8, j.y); ctx.lineTo(j.x - 6, j.y + 18); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(j.x, j.y); ctx.lineTo(j.x, j.y + 22); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(j.x + 8, j.y); ctx.lineTo(j.x + 6, j.y + 18); ctx.stroke();
           });
 
+          // Render Rich Coral Reefs & Crystalline Formations along the trench floor
           coralReefs.forEach(c => {
-            ctx.fillStyle = '#042f2e';
-            ctx.beginPath(); ctx.moveTo(c.x, canvas.height); ctx.lineTo(c.x + 35, canvas.height - c.height); ctx.lineTo(c.x + 70, canvas.height); ctx.fill();
-            ctx.fillStyle = '#10b981'; ctx.fillRect(c.x + 28, canvas.height - c.height + 15, 12, 25);
+            ctx.fillStyle = c.type === 'coral' ? '#064e3b' : '#042f2e';
+            ctx.beginPath(); 
+            ctx.moveTo(c.x, canvas.height); 
+            ctx.lineTo(c.x + 25, canvas.height - c.height); 
+            ctx.lineTo(c.x + 50, canvas.height); 
+            ctx.fill();
+            // Glowing tips on reefs
+            ctx.fillStyle = '#34d399';
+            ctx.fillRect(c.x + 20, canvas.height - c.height + 10, 10, 18);
           });
 
           trenchDrones.forEach(j => {
@@ -895,16 +949,32 @@
           subTorpedoes.forEach(t => { ctx.fillStyle = '#ef4444'; ctx.fillRect(t.x, t.y - 3, 16, 6); });
           droneTorps.forEach(dt => { ctx.fillStyle = '#f43f5e'; ctx.fillRect(dt.x, dt.y, 10, 4); });
           
+          // Submarine Evolution Sprites (Tiers 1, 2, and 3)
+          ctx.save();
+          ctx.translate(subX, subY);
           if (subTier === 3) {
-            ctx.fillStyle = '#ff00ff'; ctx.beginPath(); ctx.ellipse(subX, subY, 64, 28, 0, 0, Math.PI * 2); ctx.fill();
+            // Tier 3 Titan Submarine
+            ctx.fillStyle = '#059669';
+            ctx.beginPath(); ctx.ellipse(0, 0, 68, 26, 0, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#34d399'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.ellipse(-10, -8, 16, 10, 0, 0, Math.PI*2); ctx.fill();
+            // Side hydro wings
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-30, 18); ctx.lineTo(10, 18); ctx.closePath(); ctx.fill();
           } else if (subTier === 2) {
-            ctx.fillStyle = '#ffff00'; ctx.beginPath(); ctx.ellipse(subX, subY, 56, 23, 0, 0, Math.PI * 2); ctx.fill();
+            // Tier 2 Heavy Cruiser Sub
+            ctx.fillStyle = '#047857';
+            ctx.beginPath(); ctx.ellipse(0, 0, 58, 22, 0, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.ellipse(-8, -6, 12, 8, 0, 0, Math.PI*2); ctx.fill();
           } else {
-            ctx.fillStyle = '#00ffcc'; ctx.beginPath(); ctx.ellipse(subX, subY, 48, 19, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.stroke();
+            // Tier 1 Scout Sub
+            ctx.fillStyle = '#065f46';
+            ctx.beginPath(); ctx.ellipse(0, 0, 48, 18, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#34d399'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.ellipse(-6, -5, 10, 6, 0, 0, Math.PI*2); ctx.fill();
           }
+          ctx.restore();
 
           activeSubId = requestAnimationFrame(subLoop);
         }
@@ -1017,8 +1087,8 @@
               playSound('transform'); orbs++;
               addScore(15);
               document.getElementById('space-orbs').innerText = orbs + '/25';
-              if (orbs >= 15) { spaceTier = 3; document.getElementById('space-tier').innerText = "Tier 3 (Apex Vanguard Starship)"; }
-              else if (orbs >= 10) { spaceTier = 2; document.getElementById('space-tier').innerText = "Tier 2 (Advanced Battle Cruiser)"; }
+              if (orbs >= 15) { spaceTier = 3; document.getElementById('space-tier').innerText = "Tier 3 (Apex Vanguard Dreadnought)"; }
+              else if (orbs >= 10) { spaceTier = 2; document.getElementById('space-tier').innerText = "Tier 2 (Advanced Cruiser)"; }
               spaceOrbs.splice(idx, 1);
             }
           });
@@ -1049,16 +1119,27 @@
             ctx.fillStyle = '#10b981'; ctx.fillRect(syndicateBoss.x - 30, syndicateBoss.y - 35, (syndicateBoss.hp / 100) * 60, 6);
           }
 
+          // Spaceship Evolution Sprites (Tiers 1, 2, and 3)
+          ctx.save();
+          ctx.translate(shipX, 350);
           if (spaceTier === 3) {
-            ctx.fillStyle = '#ff00ff'; ctx.beginPath(); ctx.moveTo(shipX, 350 - 45); ctx.lineTo(shipX + 32, 350 + 22); ctx.lineTo(shipX - 32, 350 + 22); ctx.closePath(); ctx.fill();
-            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.stroke();
+            // Tier 3 Apex Vanguard Dreadnought Starship
+            ctx.fillStyle = '#d4af37';
+            ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(34, 25); ctx.lineTo(12, 18); ctx.lineTo(0, 32); ctx.lineTo(-12, 18); ctx.lineTo(-34, 25); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.fillStyle = '#38bdf8'; ctx.fillRect(-4, -12, 8, 16);
           } else if (spaceTier === 2) {
-            ctx.fillStyle = '#ffff00'; ctx.beginPath(); ctx.moveTo(shipX, 350 - 40); ctx.lineTo(shipX + 26, 350 + 20); ctx.lineTo(shipX - 26, 350 + 20); ctx.closePath(); ctx.fill();
-            ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.stroke();
+            // Tier 2 Advanced Cruiser
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath(); ctx.moveTo(0, -42); ctx.lineTo(26, 22); ctx.lineTo(0, 26); ctx.lineTo(-26, 22); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.stroke();
           } else {
-            ctx.fillStyle = '#00ffff'; ctx.beginPath(); ctx.moveTo(shipX, 350 - 35); ctx.lineTo(shipX + 20, 350 + 16); ctx.lineTo(shipX - 20, 350 + 16); ctx.closePath(); ctx.fill();
-            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5; ctx.stroke();
+            // Tier 1 Tactical Voyager
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath(); ctx.moveTo(0, -35); ctx.lineTo(20, 18); ctx.lineTo(-20, 18); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 1.5; ctx.stroke();
           }
+          ctx.restore();
 
           activeSpaceId = requestAnimationFrame(spaceLoop);
         }
@@ -1073,11 +1154,15 @@
       const ctx = canvas.getContext('2d');
       let playerX = 80, playerY = 250, isJumping = false, jumpVel = 0;
       let bossX = 450, bossY = 220, bossHp = 100, teamHealth = 100;
-      let brawlerProjectiles = [], bossProjectiles = [], droidProjectiles = [];
+      let brawlerProjectiles = [], bossProjectiles = [], droidProjectiles = [], bossAttacks = [];
       let luettaActive = false, luettaY = -50, luettaAlpha = 1.0;
       let playerSpeedMult = 1.0, groundScrollX = 0, timeOfDayTimer = 0;
       let currentWave = 1, timeWarpTimer = 0, playerHasFired = false;
-      
+      let clockShards = []; // For Chronolock defeat breaking effect
+
+      let currentBossObj = bossPool[bossIndex];
+      document.getElementById('brawler-boss-title').innerText = `STAGE 1 • DEFEAT BOSS: ${currentBossObj.name.toUpperCase()}`;
+
       let preBossDroids = [];
       function spawnWave(waveNum) {
         preBossDroids = [];
@@ -1188,13 +1273,21 @@
               spawnWave(2);
             } else if (currentWave === 2 && preBossDroids.filter(d => !d.active).length >= preBossDroids.length + 8) {
               timeWarpTimer++;
-              if (timeWarpTimer > 50) {
+              if (timeWarpTimer > 55) {
                 timeWarpTimer = 0;
-                bossProjectiles.push({ x: bossX, y: bossY + 20, vx: -9, width: 35, height: 22, type: 'boss-blast' });
                 
-                if (Math.random() > 0.5) {
-                  bossX = playerX + (Math.random() > 0.5 ? 100 : -100);
+                // Active Boss Attack Mechanics based on current boss
+                if (currentBossObj.name === "Chronolock") {
+                  // Chronolock: Time freeze & teleport behind player
+                  bossX = playerX - 70;
                   playSound('transform');
+                  bossAttacks.push({ x: bossX, y: bossY, vx: -8, type: 'clock-bolt', width: 30, height: 30 });
+                } else if (currentBossObj.name === "Apex Vault") {
+                  // Apex Vault: Shoots electric voltage bolts
+                  bossAttacks.push({ x: bossX, y: bossY, vx: -12, type: 'volt-bolt', width: 40, height: 14 });
+                } else if (currentBossObj.name === "Magnum Weaver") {
+                  // Magnum Weaver: Creates incoming molten lava waves
+                  bossAttacks.push({ x: bossX, y: 280, vx: -6, type: 'lava-wave', width: 50, height: 25 });
                 }
               }
             }
@@ -1210,14 +1303,14 @@
             } else if (dp.x < 0) droidProjectiles.splice(i, 1);
           }
 
-          for (let i = bossProjectiles.length - 1; i >= 0; i--) {
-            let bp = bossProjectiles[i]; bp.x += bp.vx;
-            if (Math.abs(playerX - bp.x) < 35) {
+          for (let i = bossAttacks.length - 1; i >= 0; i--) {
+            let ba = bossAttacks[i]; ba.x += ba.vx;
+            if (Math.abs(playerX - ba.x) < 35) {
               playSound('crash'); teamHealth = Math.max(0, teamHealth - 15);
               document.getElementById('team-health').innerText = teamHealth;
-              bossProjectiles.splice(i, 1);
+              bossAttacks.splice(i, 1);
               if (teamHealth <= 0) summonMotherLuetta();
-            } else if (bp.x < 0) bossProjectiles.splice(i, 1);
+            } else if (ba.x < 0) bossAttacks.splice(i, 1);
           }
 
           for (let i = brawlerProjectiles.length - 1; i >= 0; i--) {
@@ -1228,7 +1321,7 @@
                   d.active = false;
                   playSound('transform');
                   let remainingCount = preBossDroids.filter(d => d.active).length;
-                  document.getElementById('boss-hp').innerText = remainingCount > 0 ? `${remainingCount} Units Remaining` : "Boss Incoming!";
+                  document.getElementById('boss-hp').innerText = remainingCount > 0 ? `${remainingCount} Units Remaining` : "Boss Active!";
                   addScore(25);
                 }
               });
@@ -1241,10 +1334,18 @@
                 if (bossHp <= 0) {
                   playSound('transform');
                   addScore(500);
+                  
+                  // Spawn clock/watch shards if Chronolock is defeated
+                  if (currentBossObj.name === "Chronolock") {
+                    for (let s = 0; s < 12; s++) {
+                      clockShards.push({ x: bossX + (Math.random()*60 - 30), y: bossY + (Math.random()*60 - 30), vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, rotation: Math.random()*Math.PI });
+                    }
+                  }
+
                   setTimeout(() => {
-                    speakText("Syndicate boss defeated. Returning to Marrow Globe Nexus.");
+                    speakText(`${currentBossObj.name} defeated! Returning to Marrow Globe Nexus.`);
                     switchPortal('globe3d');
-                  }, 900);
+                  }, 1200);
                   return;
                 }
               }
@@ -1287,7 +1388,16 @@
 
           brawlerProjectiles.forEach(bp => { ctx.fillStyle = bp.color; ctx.fillRect(bp.x, bp.y, bp.width || 22, bp.height || 8); });
           droidProjectiles.forEach(dp => { ctx.fillStyle = '#f43f5e'; ctx.fillRect(dp.x, dp.y, 10, 4); });
-          bossProjectiles.forEach(bp => { ctx.fillStyle = '#ec4899'; ctx.fillRect(bp.x, bp.y, bp.width, bp.height); });
+          
+          bossAttacks.forEach(ba => {
+            if (ba.type === 'lava-wave') {
+              ctx.fillStyle = '#f97316'; ctx.fillRect(ba.x, ba.y, ba.width, ba.height);
+            } else if (ba.type === 'volt-bolt') {
+              ctx.fillStyle = '#38bdf8'; ctx.fillRect(ba.x, ba.y, ba.width, ba.height);
+            } else {
+              ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(ba.x, ba.y, 12, 0, Math.PI*2); ctx.fill();
+            }
+          });
 
           if (droidsActive) {
             preBossDroids.forEach(d => {
@@ -1301,10 +1411,23 @@
               }
             });
           } else if (bossHp > 0) {
-            let bossImg = selectedBossName === "Dread Harmonic" ? sprites.dreadHarmonic : sprites.chronolock;
+            let bossImg = sprites[currentBossObj.sprite];
             if (bossImg && bossImg.complete && bossImg.naturalWidth !== 0) ctx.drawImage(bossImg, bossX - 45, bossY - 50, 90, 110);
             else { ctx.fillStyle = '#ef4444'; ctx.fillRect(bossX - 30, bossY, 60, 80); }
           }
+
+          // Render clock shards when Chronolock breaks apart
+          clockShards.forEach(cs => {
+            cs.x += cs.vx; cs.y += cs.vy; cs.rotation += 0.1;
+            ctx.save();
+            ctx.translate(cs.x, cs.y);
+            ctx.rotate(cs.rotation);
+            ctx.fillStyle = '#d4af37';
+            ctx.fillRect(-10, -5, 20, 10);
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.stroke();
+            ctx.restore();
+          });
 
           let activeHeroKey = heroes[heroIndex].name.toLowerCase();
           let partnerHeroObj = heroes[(heroIndex + 1) % heroes.length];
