@@ -231,13 +231,13 @@
     <h1 style="color: #f59e0b;">Deep Space Intercept & Dreadnought Dogfight</h1>
 
     <div class="stats-bar" style="border-color: #78350f; color: #f59e0b;">
-      <span>🚀 Ship: <strong id="space-tier" style="color: #f59e0b;">MK I (Tactical Voyager)</strong></span>
-      <span>✨ Orbs: <strong id="space-orbs" style="color: #d4af37;">0/25</strong></span>
+      <span>🚀 Ship: <strong id="space-tier" style="color: #f59e0b;">MK I (Two-Shooter Interceptor)</strong></span>
+      <span>✨ Orbs: <strong id="space-orbs" style="color: #d4af37;">0/20</strong></span>
       <span>⚡ Ship Hull: <strong id="space-hull" style="color: #38bdf8;">100%</strong></span>
     </div>
 
     <div class="dialogue-banner" id="space-comm-banner" style="border-color: #f59e0b; color: #f59e0b;">
-      💬 <b>Fleet Comm-Link:</b> "Tactical Voyager engines online. Engage Syndicate dreadnoughts!"
+      💬 <b>Fleet Comm-Link:</b> "Tactical two-shooter online. Collect yellow orbs to upgrade through 3 tiers!"
     </div>
 
     <div style="width: 100%; aspect-ratio: 4 / 3; background: #000206; border: 2px solid #f59e0b; border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 8px;">
@@ -246,7 +246,7 @@
 
     <div class="choice-grid" style="grid-template-columns: repeat(3, 1fr); display: grid; gap: 6px; margin-bottom: 6px;">
       <button class="game-btn" onclick="moveSpaceShip('left')" style="border-color: #f59e0b; color: #f59e0b; text-align: center;">◀ Steer Left</button>
-      <button class="game-btn" onclick="fireSpaceTorpedoes()" style="background: #1e293b; border-color: #ef4444; color: #ef4444; text-align: center;">💥 Fire Torpedoes</button>
+      <button class="game-btn" onclick="fireSpaceTorpedoes()" style="background: #1e293b; border-color: #ef4444; color: #ef4444; text-align: center;">💥 Fire Twin Lasers</button>
       <button class="game-btn" onclick="moveSpaceShip('right')" style="border-color: #f59e0b; color: #f59e0b; text-align: center;">Steer Right ▶</button>
     </div>
     <div class="choice-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 6px;">
@@ -953,7 +953,7 @@
       subLoop();
     }
 
-    // VANGUARD FLEET
+    // VANGUARD FLEET (FIXED & ENHANCED WITH FREQUENT RED EXCURSION BEACONS & 3-TIER TWO-SHOOTER)
     function initSpaceEngine() {
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
@@ -961,172 +961,223 @@
       let shipX = 300, targetShipX = 300, orbs = 0, spaceTier = 1, shipHull = 100, starfield = [];
       for (let i = 0; i < 70; i++) starfield.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 2.0 + Math.random() * 3.0 });
       let spaceOrbs = [], spaceDroids = [], spaceTorpedoes = [], droidLasers = [];
-      let equationDot = { x: 300, y: -150, active: true };
-      let syndicateBoss = { active: false, x: 300, y: 80, hp: 100, shootTimer: 0 };
+      
+      // FREQUENT RED EXCURSION BEACONS SYSTEM
+      let excursionBeacons = [];
 
-      window.moveSpaceShip = (dir) => { if (dir === 'left') targetShipX = Math.max(50, targetShipX - 100); if (dir === 'right') targetShipX = Math.min(canvas.width - 50, targetShipX + 100); };
+      window.moveSpaceShip = (dir) => { 
+        playSound('beam');
+        if (dir === 'left') targetShipX = Math.max(50, targetShipX - 90); 
+        if (dir === 'right') targetShipX = Math.min(canvas.width - 50, targetShipX + 90); 
+      };
+
       window.fireSpaceTorpedoes = () => {
         playSound('beam');
-        spaceTorpedoes.push({ x: shipX, y: 330, vx: 0, vy: -12 });
+        if (spaceTier === 1) {
+          // Tier 1: Two-Shooter setup keeping exact visual look
+          spaceTorpedoes.push({ x: shipX - 12, y: 330, vx: 0, vy: -12, type: 'laser' });
+          spaceTorpedoes.push({ x: shipX + 12, y: 330, vx: 0, vy: -12, type: 'laser' });
+        } else if (spaceTier === 2) {
+          // Tier 2: Quad-Shooter
+          spaceTorpedoes.push({ x: shipX - 20, y: 330, vx: 0, vy: -14, type: 'laser' });
+          spaceTorpedoes.push({ x: shipX - 8, y: 320, vx: 0, vy: -14, type: 'laser' });
+          spaceTorpedoes.push({ x: shipX + 8, y: 320, vx: 0, vy: -14, type: 'laser' });
+          spaceTorpedoes.push({ x: shipX + 20, y: 330, vx: 0, vy: -14, type: 'laser' });
+        } else {
+          // Tier 3: Heavy Plasma Spread
+          spaceTorpedoes.push({ x: shipX - 25, y: 330, vx: -2, vy: -16, type: 'plasma' });
+          spaceTorpedoes.push({ x: shipX - 10, y: 320, vx: 0, vy: -18, type: 'plasma' });
+          spaceTorpedoes.push({ x: shipX + 10, y: 320, vx: 0, vy: -18, type: 'plasma' });
+          spaceTorpedoes.push({ x: shipX + 25, y: 330, vx: 2, vy: -16, type: 'plasma' });
+        }
       };
+
       window.triggerVanguardWarp = () => {
         playSound('transform');
-        if (orbs >= 15) {
-          syndicateBoss.active = true;
-          speakText("Warning! Ashen Syndicate Dreadnought blocking sector jump. Engage dogfight!");
-        }
+        speakText("Vanguard Warp Drive engaged! Surging forward.");
+        addScore(50);
       };
 
       function spaceLoop() {
         if (canvas.offsetParent !== null) {
           shipX += (targetShipX - shipX) * 0.25;
-          ctx.fillStyle = orbs >= 15 ? '#1a0526' : '#000206';
+          ctx.fillStyle = '#000206';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          starfield.forEach(s => { s.y += s.speed; if (s.y > canvas.height) s.y = 0; ctx.fillStyle = '#ffffff'; ctx.fillRect(s.x, s.y, 2, 2); });
+          
+          starfield.forEach(s => { 
+            s.y += s.speed; 
+            if (s.y > canvas.height) s.y = 0; 
+            ctx.fillStyle = '#ffffff'; 
+            ctx.fillRect(s.x, s.y, 2, 2); 
+          });
 
-          // Continuous yellow marrow orbs loop
-          if (Math.random() < 0.04 && spaceOrbs.length < 6 && !syndicateBoss.active) {
-            spaceOrbs.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.2 });
+          // Frequent Yellow Marrow Orbs Spawning
+          if (Math.random() < 0.05 && spaceOrbs.length < 7) {
+            spaceOrbs.push({ x: 50 + Math.random() * (canvas.width - 100), y: -20, speed: 2.4 });
           }
 
-          if (equationDot.active && !syndicateBoss.active) {
-            equationDot.y += 1.8;
-            if (equationDot.y > canvas.height + 80) { equationDot.y = -100; equationDot.x = 80 + Math.random() * (canvas.width - 160); }
-            if (Math.hypot(shipX - equationDot.x, 350 - equationDot.y) < 45) {
-              playSound('transform'); speakText("Equation Dot reached! Engaging Brawler Arena.");
-              addScore(100);
+          // Frequent Red Excursion Beacons Spawning every few feet
+          if (Math.random() < 0.025 && excursionBeacons.length < 3) {
+            excursionBeacons.push({ x: 70 + Math.random() * (canvas.width - 140), y: -30, speed: 2.0, radius: 18 });
+          }
+
+          // Move Red Excursion Beacons & Check Collision
+          excursionBeacons.forEach((eb, idx) => {
+            eb.y += eb.speed;
+            if (Math.hypot(shipX - eb.x, 350 - eb.y) < eb.radius + 25) {
+              playSound('transform');
+              speakText("Red Excursion Beacon reached! Engaging sector jump to Brawler Arena.");
+              addScore(150);
               if (activeSpaceId) cancelAnimationFrame(activeSpaceId);
               switchPortal('brawler');
               return;
             }
-          }
-
-          if (syndicateBoss.active) {
-            syndicateBoss.shootTimer++;
-            if (syndicateBoss.shootTimer > 60) {
-              syndicateBoss.shootTimer = 0;
-              droidLasers.push({ x: syndicateBoss.x + (Math.random()*60 - 30), y: syndicateBoss.y + 40, vx: 0, vy: 6 });
+            if (eb.y > canvas.height + 50) {
+              excursionBeacons.splice(idx, 1);
             }
+          });
 
-            for (let i = spaceTorpedoes.length - 1; i >= 0; i--) {
-              let st = spaceTorpedoes[i];
-              if (Math.hypot(st.x - syndicateBoss.x, st.y - syndicateBoss.y) < 50) {
-                playSound('crash');
-                syndicateBoss.hp = Math.max(0, syndicateBoss.hp - 10);
-                spaceTorpedoes.splice(i, 1);
-                addScore(25);
-                if (syndicateBoss.hp <= 0) {
-                  playSound('transform');
-                  speakText("Syndicate dreadnought destroyed! Portal to Brawler Arena open.");
-                  addScore(300);
-                  switchPortal('brawler');
-                  return;
-                }
-              }
-            }
-          }
-
-          if (Math.random() < 0.04 && spaceDroids.length < 4 && !syndicateBoss.active) {
-            spaceDroids.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.5, shootTimer: 0 });
+          // Space Enemies / Droids Spawning
+          if (Math.random() < 0.04 && spaceDroids.length < 5) {
+            spaceDroids.push({ x: 50 + Math.random() * (canvas.width - 100), y: -20, speed: 2.2, shootTimer: 0, hp: spaceTier });
           }
 
           spaceDroids.forEach(d => {
             d.y += d.speed;
             d.shootTimer++;
-            if (d.shootTimer > 75) { d.shootTimer = 0; droidLasers.push({ x: d.x, y: d.y, vx: 0, vy: 5 }); }
+            if (d.shootTimer > 80) {
+              d.shootTimer = 0;
+              droidLasers.push({ x: d.x, y: d.y, vx: 0, vy: 5.5 });
+            }
           });
 
+          // Droid Lasers Collision with Player
           for (let i = droidLasers.length - 1; i >= 0; i--) {
-            let dl = droidLasers[i]; dl.y += dl.vy;
-            if (Math.hypot(shipX - dl.x, 350 - dl.y) < 30) {
-              playSound('crash'); shipHull = Math.max(0, shipHull - 15); document.getElementById('space-hull').innerText = shipHull + '%'; droidLasers.splice(i, 1);
-            } else if (dl.y > canvas.height) droidLasers.splice(i, 1);
+            let dl = droidLasers[i]; 
+            dl.y += dl.vy;
+            if (Math.hypot(shipX - dl.x, 350 - dl.y) < 28) {
+              playSound('crash'); 
+              shipHull = Math.max(0, shipHull - 12); 
+              document.getElementById('space-hull').innerText = shipHull + '%'; 
+              droidLasers.splice(i, 1);
+            } else if (dl.y > canvas.height) {
+              droidLasers.splice(i, 1);
+            }
           }
 
+          // Player Torpedoes Collision with Droids
           for (let i = spaceTorpedoes.length - 1; i >= 0; i--) {
-            let st = spaceTorpedoes[i]; st.y += st.vy;
-            if (st.y < -20) { spaceTorpedoes.splice(i, 1); continue; }
+            let st = spaceTorpedoes[i]; 
+            st.x += st.vx; 
+            st.y += st.vy;
+            if (st.y < -20) { 
+              spaceTorpedoes.splice(i, 1); 
+              continue; 
+            }
             for (let j = spaceDroids.length - 1; j >= 0; j--) {
               let d = spaceDroids[j];
-              if (Math.hypot(st.x - d.x, st.y - d.y) < 30) {
-                playSound('crash'); spaceDroids.splice(j, 1); spaceTorpedoes.splice(i, 1);
-                addScore(25);
+              if (Math.hypot(st.x - d.x, st.y - d.y) < 32) {
+                playSound('crash');
+                d.hp--;
+                spaceTorpedoes.splice(i, 1);
+                if (d.hp <= 0) {
+                  spaceDroids.splice(j, 1);
+                  addScore(30);
+                }
                 break;
               }
             }
           }
 
+          // Yellow Marrow Orbs Collection & 3-Tier Transformation
           spaceOrbs.forEach((o, idx) => {
             o.y += o.speed;
-            if (Math.hypot(shipX - o.x, 350 - o.y) < 35) {
-              playSound('transform'); orbs++;
+            if (Math.hypot(shipX - o.x, 350 - o.y) < 38) {
+              playSound('transform'); 
+              orbs++;
               addScore(15);
-              document.getElementById('space-orbs').innerText = orbs + '/25';
-              if (orbs >= 15) { spaceTier = 3; document.getElementById('space-tier').innerText = "Tier 3 (Apex Vanguard Dreadnought)"; }
-              else if (orbs >= 10) { spaceTier = 2; document.getElementById('space-tier').innerText = "Tier 2 (Advanced Cruiser)"; }
+              document.getElementById('space-orbs').innerText = orbs + '/20';
+              
+              if (orbs >= 15) { 
+                spaceTier = 3; 
+                document.getElementById('space-tier').innerText = "Tier 3 (Titan Dreadnought)"; 
+              } else if (orbs >= 10) { 
+                spaceTier = 2; 
+                document.getElementById('space-tier').innerText = "Tier 2 (Advanced Interceptor)"; 
+              }
+              spaceOrbs.splice(idx, 1);
+            } else if (o.y > canvas.height) {
               spaceOrbs.splice(idx, 1);
             }
           });
 
-          spaceDroids.forEach((d, idx) => {
-            if (Math.hypot(shipX - d.x, 350 - d.y) < 35) {
-              playSound('crash'); shipHull = Math.max(0, shipHull - 20); document.getElementById('space-hull').innerText = shipHull + '%'; spaceDroids.splice(idx, 1);
-            }
+          // Draw Marrow Orbs
+          spaceOrbs.forEach(o => { 
+            ctx.fillStyle = '#d4af37'; 
+            ctx.shadowColor = '#d4af37'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(o.x, o.y, 12, 0, Math.PI*2); ctx.fill(); 
+            ctx.shadowBlur = 0;
           });
 
-          if (equationDot.active && !syndicateBoss.active) {
-            equationDot.y += 1.8;
-            if (equationDot.y > canvas.height + 80) { equationDot.y = -100; equationDot.x = 80 + Math.random() * (canvas.width - 160); }
-            if (Math.hypot(shipX - equationDot.x, 350 - equationDot.y) < 45) {
-              playSound('transform'); speakText("Equation Dot reached! Engaging Brawler Arena.");
-              addScore(100);
-              if (activeSpaceId) cancelAnimationFrame(activeSpaceId);
-              switchPortal('brawler');
-              return;
-            }
-          }
+          // Draw Red Excursion Beacons (Blinking)
+          excursionBeacons.forEach(eb => {
+            let pulse = 12 + Math.sin(Date.now() * 0.015) * 4;
+            ctx.fillStyle = '#ef4444'; 
+            ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 25;
+            ctx.beginPath(); ctx.arc(eb.x, eb.y, eb.radius + pulse, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(eb.x, eb.y, 6, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+          });
 
-          spaceOrbs.forEach(o => { ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(o.x, o.y, 12, 0, Math.PI*2); ctx.fill(); });
+          // Draw Droids
           spaceDroids.forEach(d => {
-            ctx.fillStyle = '#ec4899'; ctx.beginPath(); ctx.roundRect(d.x - 14, d.y - 14, 28, 28, 6); ctx.fill();
+            ctx.fillStyle = '#ec4899'; 
+            ctx.beginPath(); ctx.roundRect(d.x - 14, d.y - 14, 28, 28, 6); ctx.fill();
             ctx.fillStyle = '#38bdf8'; ctx.fillRect(d.x - 4, d.y - 4, 8, 8);
           });
-          spaceTorpedoes.forEach(st => { ctx.fillStyle = '#38bdf8'; ctx.fillRect(st.x - 3, st.y, 6, 16); });
-          droidLasers.forEach(dl => { ctx.fillStyle = '#ef4444'; ctx.fillRect(dl.x - 3, dl.y, 6, 12); });
 
-          if (syndicateBoss.active) {
-            ctx.fillStyle = '#991b1b'; ctx.beginPath(); ctx.roundRect(syndicateBoss.x - 50, syndicateBoss.y - 25, 100, 50, 10); ctx.fill();
-            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3; ctx.stroke();
-            ctx.fillStyle = '#facc15'; ctx.fillRect(syndicateBoss.x - 30, syndicateBoss.y - 35, 60, 6);
-            ctx.fillStyle = '#10b981'; ctx.fillRect(syndicateBoss.x - 30, syndicateBoss.y - 35, (syndicateBoss.hp / 100) * 60, 6);
-          }
+          // Draw Projectiles
+          spaceTorpedoes.forEach(st => { 
+            ctx.fillStyle = st.type === 'plasma' ? '#38bdf8' : '#f59e0b'; 
+            ctx.shadowColor = st.type === 'plasma' ? '#38bdf8' : '#f59e0b'; ctx.shadowBlur = 12;
+            ctx.fillRect(st.x - 3, st.y, 6, 16); 
+            ctx.shadowBlur = 0;
+          });
+          droidLasers.forEach(dl => { 
+            ctx.fillStyle = '#ef4444'; 
+            ctx.fillRect(dl.x - 3, dl.y, 6, 12); 
+          });
 
-          // DISTINCT TECHNICAL VANGUARD STARSHIP RENDERER (REPLACING PLAIN TRIANGLE)
+          // DISTINCT VANGUARD SPACESHIP RENDERER (3 TIERS WITH TWO-SHOOTER BASE)
           ctx.save();
           ctx.translate(shipX, 350);
           
           if (spaceTier === 3) {
-            // Tier 3 Apex Vanguard Dreadnought
+            // Tier 3 Titan Dreadnought
             ctx.fillStyle = '#d4af37';
-            ctx.beginPath(); ctx.moveTo(0, -50); ctx.lineTo(38, 28); ctx.lineTo(15, 20); ctx.lineTo(0, 36); ctx.lineTo(-15, 20); ctx.lineTo(-38, 28); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(36, 26); ctx.lineTo(14, 18); ctx.lineTo(0, 32); ctx.lineTo(-14, 18); ctx.lineTo(-36, 26); ctx.closePath(); ctx.fill();
             ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2.5; ctx.stroke();
-            ctx.fillStyle = '#38bdf8'; ctx.fillRect(-5, -15, 10, 20);
+            ctx.fillStyle = '#38bdf8'; ctx.fillRect(-14, -10, 6, 16);
+            ctx.fillRect(8, -10, 6, 16);
           } else if (spaceTier === 2) {
-            // Tier 2 Advanced Cruiser
+            // Tier 2 Advanced Interceptor
             ctx.fillStyle = '#f59e0b';
-            ctx.beginPath(); ctx.moveTo(0, -44); ctx.lineTo(30, 24); ctx.lineTo(12, 18); ctx.lineTo(0, 28); ctx.lineTo(-12, 18); ctx.lineTo(-30, 24); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, -42); ctx.lineTo(28, 22); ctx.lineTo(10, 16); ctx.lineTo(0, 26); ctx.lineTo(-10, 16); ctx.lineTo(-28, 22); ctx.closePath(); ctx.fill();
             ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#38bdf8'; ctx.fillRect(-10, -8, 5, 14);
+            ctx.fillRect(5, -8, 5, 14);
           } else {
-            // Tier 1 Technical Vanguard Interceptor
+            // Tier 1 Two-Shooter Interceptor (Preserving original aesthetic)
             ctx.fillStyle = '#1e3a8a';
             ctx.beginPath();
-            ctx.moveTo(0, -42);
+            ctx.moveTo(0, -40);
             ctx.lineTo(16, -10);
-            ctx.lineTo(24, 22);
-            ctx.lineTo(8, 28);
-            ctx.lineTo(0, 20);
-            ctx.lineTo(-8, 28);
-            ctx.lineTo(-24, 22);
+            ctx.lineTo(22, 20);
+            ctx.lineTo(8, 26);
+            ctx.lineTo(0, 18);
+            ctx.lineTo(-8, 26);
+            ctx.lineTo(-22, 20);
             ctx.lineTo(-16, -10);
             ctx.closePath();
             ctx.fill();
@@ -1134,12 +1185,14 @@
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Cockpit Canopy & Engine Glow
+            // Cockpit Canopy & Twin Shooters
             ctx.fillStyle = '#38bdf8';
-            ctx.beginPath(); ctx.ellipse(0, -12, 5, 12, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(0, -10, 5, 10, 0, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = '#f59e0b';
-            ctx.fillRect(-6, 28, 4, 10);
-            ctx.fillRect(2, 28, 4, 10);
+            ctx.fillRect(-10, -15, 4, 12);
+            ctx.fillRect(6, -15, 4, 12);
+            ctx.fillRect(-5, 26, 3, 10);
+            ctx.fillRect(2, 26, 3, 10);
           }
           ctx.restore();
 
@@ -1160,7 +1213,6 @@
       let luettaActive = false, luettaY = -50, luettaAlpha = 1.0;
       let solarLionActive = false, solarLionX = 0, solarLionAlpha = 1.0;
       
-      // Shield Energy System variables
       let shieldEnergy = 100;
       const maxShieldEnergy = 100;
       const shieldDrainRate = 0.4;
@@ -1178,7 +1230,6 @@
       }
 
       let xochitlGlideActive = false, glideX = 80, glideY = 250, glideProgress = 0, featheryDaggers = [];
-
       let playerSpeedMult = 1.0, groundScrollX = 0, timeOfDayTimer = 0;
       let currentWave = 1, bossShootTimer = 0, playerHasFired = false;
       let clockShards = [];
