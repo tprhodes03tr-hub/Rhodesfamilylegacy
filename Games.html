@@ -984,6 +984,11 @@
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           starfield.forEach(s => { s.y += s.speed; if (s.y > canvas.height) s.y = 0; ctx.fillStyle = '#ffffff'; ctx.fillRect(s.x, s.y, 2, 2); });
 
+          // Continuous yellow marrow orbs loop
+          if (Math.random() < 0.04 && spaceOrbs.length < 6 && !syndicateBoss.active) {
+            spaceOrbs.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.2 });
+          }
+
           if (equationDot.active && !syndicateBoss.active) {
             equationDot.y += 1.8;
             if (equationDot.y > canvas.height + 80) { equationDot.y = -100; equationDot.x = 80 + Math.random() * (canvas.width - 160); }
@@ -1021,7 +1026,6 @@
             }
           }
 
-          if (Math.random() < 0.05 && spaceOrbs.length < 5 && !syndicateBoss.active) spaceOrbs.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.2 });
           if (Math.random() < 0.04 && spaceDroids.length < 4 && !syndicateBoss.active) {
             spaceDroids.push({ x: 60 + Math.random() * (canvas.width - 120), y: -20, speed: 2.5, shootTimer: 0 });
           }
@@ -1044,7 +1048,7 @@
             if (st.y < -20) { spaceTorpedoes.splice(i, 1); continue; }
             for (let j = spaceDroids.length - 1; j >= 0; j--) {
               let d = spaceDroids[j];
-              if (Math.hypot(st.x - d.x, 350 - d.y) < 30) {
+              if (Math.hypot(st.x - d.x, st.y - d.y) < 30) {
                 playSound('crash'); spaceDroids.splice(j, 1); spaceTorpedoes.splice(i, 1);
                 addScore(25);
                 break;
@@ -1071,8 +1075,15 @@
           });
 
           if (equationDot.active && !syndicateBoss.active) {
-            ctx.fillStyle = '#ef4444'; ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 25;
-            ctx.beginPath(); ctx.arc(equationDot.x, equationDot.y, 18, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+            equationDot.y += 1.8;
+            if (equationDot.y > canvas.height + 80) { equationDot.y = -100; equationDot.x = 80 + Math.random() * (canvas.width - 160); }
+            if (Math.hypot(shipX - equationDot.x, 350 - equationDot.y) < 45) {
+              playSound('transform'); speakText("Equation Dot reached! Engaging Brawler Arena.");
+              addScore(100);
+              if (activeSpaceId) cancelAnimationFrame(activeSpaceId);
+              switchPortal('brawler');
+              return;
+            }
           }
 
           spaceOrbs.forEach(o => { ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(o.x, o.y, 12, 0, Math.PI*2); ctx.fill(); });
@@ -1090,21 +1101,45 @@
             ctx.fillStyle = '#10b981'; ctx.fillRect(syndicateBoss.x - 30, syndicateBoss.y - 35, (syndicateBoss.hp / 100) * 60, 6);
           }
 
+          // DISTINCT TECHNICAL VANGUARD STARSHIP RENDERER (REPLACING PLAIN TRIANGLE)
           ctx.save();
           ctx.translate(shipX, 350);
+          
           if (spaceTier === 3) {
+            // Tier 3 Apex Vanguard Dreadnought
             ctx.fillStyle = '#d4af37';
-            ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(34, 25); ctx.lineTo(12, 18); ctx.lineTo(0, 32); ctx.lineTo(-12, 18); ctx.lineTo(-34, 25); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, -50); ctx.lineTo(38, 28); ctx.lineTo(15, 20); ctx.lineTo(0, 36); ctx.lineTo(-15, 20); ctx.lineTo(-38, 28); ctx.closePath(); ctx.fill();
             ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2.5; ctx.stroke();
-            ctx.fillStyle = '#38bdf8'; ctx.fillRect(-4, -12, 8, 16);
+            ctx.fillStyle = '#38bdf8'; ctx.fillRect(-5, -15, 10, 20);
           } else if (spaceTier === 2) {
+            // Tier 2 Advanced Cruiser
             ctx.fillStyle = '#f59e0b';
-            ctx.beginPath(); ctx.moveTo(0, -42); ctx.lineTo(26, 22); ctx.lineTo(0, 26); ctx.lineTo(-26, 22); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, -44); ctx.lineTo(30, 24); ctx.lineTo(12, 18); ctx.lineTo(0, 28); ctx.lineTo(-12, 18); ctx.lineTo(-30, 24); ctx.closePath(); ctx.fill();
             ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.stroke();
           } else {
+            // Tier 1 Technical Vanguard Interceptor
+            ctx.fillStyle = '#1e3a8a';
+            ctx.beginPath();
+            ctx.moveTo(0, -42);
+            ctx.lineTo(16, -10);
+            ctx.lineTo(24, 22);
+            ctx.lineTo(8, 28);
+            ctx.lineTo(0, 20);
+            ctx.lineTo(-8, 28);
+            ctx.lineTo(-24, 22);
+            ctx.lineTo(-16, -10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Cockpit Canopy & Engine Glow
             ctx.fillStyle = '#38bdf8';
-            ctx.beginPath(); ctx.moveTo(0, -35); ctx.lineTo(20, 18); ctx.lineTo(-20, 18); ctx.closePath(); ctx.fill();
-            ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(0, -12, 5, 12, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(-6, 28, 4, 10);
+            ctx.fillRect(2, 28, 4, 10);
           }
           ctx.restore();
 
