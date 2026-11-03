@@ -265,6 +265,7 @@
     <div class="stats-bar" style="border-color: #1e3a8a; color: #38bdf8;">
       <span>🛡️ Team Health: <strong id="team-health" style="color: #10b981;">100</strong>/100</span>
       <span>💥 Boss Status: <strong id="boss-hp" style="color: #ef4444;">100%</strong></span>
+      <span>⚡ Shield Energy: <strong id="shield-energy-label" style="color: #38bdf8;">100%</strong></span>
     </div>
 
     <div class="dialogue-banner" id="brawler-dialogue">
@@ -278,7 +279,7 @@
     <div class="choice-grid" style="grid-template-columns: repeat(3, 1fr); display: grid; gap: 6px; margin-bottom: 6px;">
       <button class="game-btn" onclick="brawlerSkill1()" id="skill1-btn" style="background: #1e3a8a; border-color: #38bdf8; color: #38bdf8; text-align: center; font-size: 0.65rem;">⚡ Volt Beam</button>
       <button class="game-btn" onclick="brawlerSkill2()" id="skill2-btn" style="background: #1e293b; border-color: #38bdf8; color: #38bdf8; text-align: center; font-size: 0.65rem;">✨ Plasma Orb</button>
-      <button class="game-btn" onclick="brawlerSkill3()" id="skill3-btn" style="background: #1e293b; border-color: #38bdf8; color: #38bdf8; text-align: center; font-size: 0.65rem;">🛡️ Deflect</button>
+      <button class="game-btn" id="btn-shield" style="background: #1e293b; border-color: #38bdf8; color: #38bdf8; text-align: center; font-size: 0.65rem;">🛡️ Shield (Hold)</button>
     </div>
 
     <div class="choice-grid" style="grid-template-columns: repeat(4, 1fr); display: grid; gap: 4px; margin-bottom: 6px;">
@@ -414,7 +415,7 @@
 
     let heroIndex = 0;
     const heroes = [
-      { name: "Marcus", key: "marcus", tag: "TAG: XOCHITL", s1: "⚡ Volt Beam", s2: "✨ Plasma Orb", s3: "🛡️ Deflect", dialogue: "Co-op: Xochitl covers your flank!" },
+      { name: "Marcus", key: "marcus", tag: "TAG: XOCHITL", s1: "⚡ Volt Beam", s2: "✨ Plasma Orb", s3: "🛡️ Shield", dialogue: "Co-op: Xochitl covers your flank!" },
       { name: "Xochitl", key: "xochitl", tag: "TAG: SUNDIATA", s1: "🕊️ Fire Wings Glide", s2: "✨ Solar Strafe", s3: "🛡️ Wing Shield", dialogue: "Co-op: Xochitl ascends with blazing fire wings!" },
       { name: "Kofi", key: "kofi", tag: "TAG: MARCUS", s1: "🦁 Solar Lion Roar", s2: "🔨 Anvil Sledge", s3: "🛡️ Crucible Bastion", dialogue: "Co-op: Kofi unleashes the solar lion!" },
       { name: "Amina", key: "amina", tag: "TAG: KOFI", s1: "⚡ Lightning Strike", s2: "✨ Bronze Pulse", s3: "🛡️ Spear Guard", dialogue: "Co-op: Amina calls down the storm!" },
@@ -1124,6 +1125,24 @@
       let luettaActive = false, luettaY = -50, luettaAlpha = 1.0;
       let solarLionActive = false, solarLionX = 0, solarLionAlpha = 1.0;
       
+      // Shield Energy System variables
+      let shieldEnergy = 100;
+      const maxShieldEnergy = 100;
+      const shieldDrainRate = 0.4;
+      const shieldRechargerRate = 0.2;
+      let isShieldActive = false;
+      let shieldDepletedLockout = false;
+      let isShieldButtonHeld = false;
+
+      // Hook up shield button hold listeners
+      const shieldBtn = document.getElementById('btn-shield');
+      if (shieldBtn) {
+        shieldBtn.onmousedown = () => { isShieldButtonHeld = true; };
+        shieldBtn.onmouseup = () => { isShieldButtonHeld = false; };
+        shieldBtn.ontouchstart = () => { isShieldButtonHeld = true; };
+        shieldBtn.ontouchend = () => { isShieldButtonHeld = false; };
+      }
+
       // Xochitl Fire Wings Glide State variables
       let xochitlGlideActive = false, glideX = 80, glideY = 250, glideProgress = 0, featheryDaggers = [];
 
@@ -1156,7 +1175,6 @@
         document.getElementById('tag-hero-btn').innerText = h.tag;
         document.getElementById('skill1-btn').innerText = h.s1;
         document.getElementById('skill2-btn').innerText = h.s2;
-        document.getElementById('skill3-btn').innerText = h.s3;
         document.getElementById('brawler-dialogue').innerText = h.dialogue;
         document.getElementById('brawler-header-title').innerText = `${heroes[heroIndex].name} (Lead) & ${nextPartner.name} (Tactical AI)`;
         
@@ -1182,10 +1200,8 @@
         if (activeName === 'Kofi') {
           triggerSolarLionFinishingMove();
         } else if (activeName === 'Marcus') {
-          // Distinct Sharp Electric Arc Beam with Jagged Lightning Stutter
           brawlerProjectiles.push({ x: playerX + 50, y: playerY, vx: 22, color: '#38bdf8', type: 'electric-arc', width: 85, height: 16 });
         } else if (activeName === 'Xochitl') {
-          // Xokita Fire Wings Glide & Feathery Dagger Volley
           if (!xochitlGlideActive) {
             xochitlGlideActive = true;
             glideX = playerX;
@@ -1193,7 +1209,6 @@
             glideProgress = 0;
             featheryDaggers = [];
             speakText("Xochitl unleashes blazing fire wings and aerial feathery daggers!");
-            // Spawn feathery daggers shooting forward toward enemies
             for(let d=0; d<5; d++) {
               featheryDaggers.push({ x: playerX + 40 + (d*25), y: playerY - 40 - (d*8), vx: 14, vy: 3 });
             }
@@ -1209,12 +1224,6 @@
         playSound('transform');
         playerHasFired = true;
         brawlerProjectiles.push({ x: playerX + 40, y: playerY + 10, vx: 14, color: '#f59e0b', type: 'orb', width: 28, height: 28 });
-      };
-
-      window.brawlerSkill3 = () => {
-        playSound('beam');
-        playerHasFired = true;
-        brawlerProjectiles.push({ x: playerX + 40, y: playerY, vx: 0, color: '#10b981', type: 'shield', width: 35, height: 60 });
       };
 
       window.triggerSolarLionFinishingMove = () => {
@@ -1240,8 +1249,51 @@
         speakText("Mother Luetta descends in radiant celestial light, restoring the team!");
       };
 
+      function updateMarcusShield() {
+        if (isShieldButtonHeld && !shieldDepletedLockout) {
+          if (shieldEnergy > 0) {
+            isShieldActive = true;
+            shieldEnergy -= shieldDrainRate;
+            if (shieldEnergy <= 0) {
+              shieldEnergy = 0;
+              isShieldActive = false;
+              shieldDepletedLockout = true;
+            }
+          } else {
+            isShieldActive = false;
+          }
+        } else {
+          isShieldActive = false;
+          if (shieldEnergy < maxShieldEnergy) {
+            shieldEnergy += shieldRechargerRate;
+          }
+          if (shieldEnergy >= 30) {
+            shieldDepletedLockout = false;
+          }
+        }
+        document.getElementById('shield-energy-label').innerText = `${Math.floor(shieldEnergy)}%`;
+      }
+
+      function drawShieldHUD(ctx) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(40, 40, 180, 14);
+        ctx.strokeStyle = "#00ffff";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(40, 40, 180, 14);
+
+        let fillWidth = (shieldEnergy / maxShieldEnergy) * 180;
+        ctx.fillStyle = shieldDepletedLockout ? "#ef4444" : "#00ffff";
+        ctx.fillRect(42, 42, fillWidth - 4, 10);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "10px monospace";
+        ctx.fillText(`SHIELD: ${Math.floor(shieldEnergy)}%`, 45, 52);
+      }
+
       function brawlerLoop() {
         if (canvas.offsetParent !== null) {
+          updateMarcusShield();
+
           if (isJumping) { playerY += jumpVel; jumpVel += 0.8; if (playerY >= 250) { playerY = 250; isJumping = false; } }
           
           let droidsActive = preBossDroids.some(d => d.active);
@@ -1288,7 +1340,6 @@
                 } else if (bossName === "Apex Vault") {
                   bossAttacks.push({ x: bossX, y: bossY, vx: -14, type: 'volt-shock', color: '#38bdf8', width: 45, height: 10 });
                 } else if (bossName === "Magnum Weaver") {
-                  // Magnum Weaver Creeping Lava Floor Surge
                   bossAttacks.push({ x: bossX, y: 285, vx: -5, type: 'creeping-lava', color: '#ea580c', width: 70, height: 16 });
                 } else if (bossName === "Vipera") {
                   bossAttacks.push({ x: bossX, y: bossY, vx: -10, type: 'venom-stream', color: '#10b981', width: 50, height: 14 });
@@ -1302,8 +1353,13 @@
           for (let i = droidProjectiles.length - 1; i >= 0; i--) {
             let dp = droidProjectiles[i]; dp.x += dp.vx;
             if (Math.abs(playerX - dp.x) < 30) {
-              playSound('crash'); teamHealth = Math.max(0, teamHealth - 8);
-              document.getElementById('team-health').innerText = teamHealth;
+              playSound('crash');
+              if (isShieldActive) {
+                shieldEnergy -= 5;
+              } else {
+                teamHealth = Math.max(0, teamHealth - 8);
+                document.getElementById('team-health').innerText = teamHealth;
+              }
               droidProjectiles.splice(i, 1);
               if (teamHealth <= 0) summonMotherLuetta();
             } else if (dp.x < 0) droidProjectiles.splice(i, 1);
@@ -1312,8 +1368,13 @@
           for (let i = bossAttacks.length - 1; i >= 0; i--) {
             let ba = bossAttacks[i]; ba.x += ba.vx;
             if (Math.abs(playerX - ba.x) < 35) {
-              playSound('crash'); teamHealth = Math.max(0, teamHealth - 15);
-              document.getElementById('team-health').innerText = teamHealth;
+              playSound('crash');
+              if (isShieldActive) {
+                shieldEnergy -= 8;
+              } else {
+                teamHealth = Math.max(0, teamHealth - 15);
+                document.getElementById('team-health').innerText = teamHealth;
+              }
               bossAttacks.splice(i, 1);
               if (teamHealth <= 0) summonMotherLuetta();
             } else if (ba.x < 0) bossAttacks.splice(i, 1);
@@ -1391,12 +1452,13 @@
             ctx.beginPath(); ctx.moveTo(gx, 300); ctx.lineTo(gx - 20, canvas.height); ctx.stroke();
           }
 
+          drawShieldHUD(ctx);
+
           brawlerProjectiles.forEach(bp => {
             ctx.fillStyle = bp.color;
             if (bp.type === 'electric-arc') {
               ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 20;
               ctx.fillRect(bp.x, bp.y - 4, bp.width, bp.height);
-              // Draw jagged electric arcs inside beam
               ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
               ctx.beginPath(); ctx.moveTo(bp.x, bp.y); ctx.lineTo(bp.x + 20, bp.y - 6); ctx.lineTo(bp.x + 40, bp.y + 6); ctx.lineTo(bp.x + bp.width, bp.y); ctx.stroke();
               ctx.shadowBlur = 0;
@@ -1413,11 +1475,10 @@
           bossAttacks.forEach(ba => {
             ctx.fillStyle = ba.color;
             if (ba.type === 'creeping-lava') {
-              // Magnum Weaver Creeping Lava Floor Surge
               ctx.shadowColor = '#f97316'; ctx.shadowBlur = 18;
               ctx.fillStyle = '#ea580c';
               ctx.fillRect(ba.x, ba.y, ba.width, ba.height);
-              ctx.fillStyle = '#facc15'; // molten bubbling spots
+              ctx.fillStyle = '#facc15';
               ctx.fillRect(ba.x + 10, ba.y + 4, 12, 6);
               ctx.fillRect(ba.x + 35, ba.y + 4, 16, 6);
               ctx.shadowBlur = 0;
@@ -1468,14 +1529,12 @@
           let activeHero = heroes[heroIndex];
           let partnerHero = heroes[(heroIndex + 1) % heroes.length];
 
-          // Xochitl Fire Wings Glide Animation Rendering
           if (xochitlGlideActive && activeHero.name === 'Xochitl') {
             glideProgress += 0.05;
             glideX += 6;
-            glideY = 250 - Math.sin(glideProgress * Math.PI) * 90; // Arc leap into the sky
+            glideY = 250 - Math.sin(glideProgress * Math.PI) * 90;
 
             ctx.save();
-            // Draw blazing fire wings
             ctx.fillStyle = '#f97316';
             ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 25;
             ctx.beginPath();
@@ -1492,11 +1551,9 @@
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            // Draw character
             ctx.fillStyle = '#fbbf24';
             ctx.fillRect(glideX - 12, glideY - 25, 24, 45);
 
-            // Render feathery daggers shooting forward
             featheryDaggers.forEach(fd => {
               fd.x += fd.vx;
               fd.y += fd.vy;
@@ -1522,6 +1579,16 @@
               ctx.drawImage(leadImg, playerX, playerY - 50, 80, 100);
             } else {
               ctx.fillStyle = '#1e3a8a'; ctx.fillRect(playerX + 10, playerY - 30, 24, 35);
+            }
+
+            if (isShieldActive) {
+              ctx.strokeStyle = '#00ffff';
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              ctx.arc(playerX + 40, playerY, 45, 0, Math.PI * 2);
+              ctx.stroke();
+              ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
+              ctx.fill();
             }
 
             if (partnerImg && partnerImg.complete && partnerImg.naturalWidth !== 0) {
