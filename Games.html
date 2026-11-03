@@ -1044,7 +1044,7 @@
             if (st.y < -20) { spaceTorpedoes.splice(i, 1); continue; }
             for (let j = spaceDroids.length - 1; j >= 0; j--) {
               let d = spaceDroids[j];
-              if (Math.hypot(st.x - d.x, st.y - d.y) < 30) {
+              if (Math.hypot(st.x - d.x, 350 - d.y) < 30) {
                 playSound('crash'); spaceDroids.splice(j, 1); spaceTorpedoes.splice(i, 1);
                 addScore(25);
                 break;
@@ -1158,7 +1158,7 @@
         preBossDroids = [];
         let count = waveNum === 1 ? 8 : 7;
         for (let i = 0; i < count; i++) {
-          preBossDroids.push({ x: 450 + (i * 35), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.2, shootTimer: -50 });
+          preBossDroids.push({ x: 450 + (i * 35), y: 250, active: true, isFlying: i % 2 === 0, speed: 1.2, shootTimer: -50, walkAnim: Math.random() * Math.PI });
         }
       }
       spawnWave(1);
@@ -1202,18 +1202,17 @@
           triggerSolarLionFinishingMove();
         } else if (activeName === 'Marcus') {
           brawlerProjectiles.push({ x: playerX + 50, y: playerY, vx: 22 * currentShieldPowerBonus, color: '#38bdf8', type: 'electric-arc', width: 85 * currentShieldPowerBonus, height: 16 });
-          // Reset or drain partial shield reserve for power surge bonus execution
           if (shieldEnergy > 50) shieldEnergy -= 20;
         } else if (activeName === 'Xochitl') {
           if (!xochitlGlideActive) {
             xochitlGlideActive = true;
-            glideX = playerX;
+            glideX = Math.min(canvas.width - 100, Math.max(80, playerX));
             glideY = playerY;
             glideProgress = 0;
             featheryDaggers = [];
             speakText("Xochitl ascends with right-to-left glide, playing feathery daggers like wings!");
             for(let d=0; d<7; d++) {
-              featheryDaggers.push({ x: playerX + 60 + (d*15), y: playerY - 60 - (d*10), vx: -8, vy: 4 });
+              featheryDaggers.push({ x: glideX + 40 + (d*12), y: glideY - 50 - (d*8), vx: -7, vy: 3 });
             }
           }
         } else if (activeName === 'Guacan') {
@@ -1315,6 +1314,7 @@
               if (d.x > playerX + 25) d.x -= d.speed;
               else if (d.x < playerX - 15) d.x += d.speed;
 
+              d.walkAnim += 0.15;
               d.shootTimer++;
               if (d.shootTimer > 95) {
                 d.shootTimer = 0;
@@ -1343,7 +1343,7 @@
                 } else if (bossName === "Apex Vault") {
                   bossAttacks.push({ x: bossX, y: bossY, vx: -14, type: 'volt-shock', color: '#38bdf8', width: 45, height: 10 });
                 } else if (bossName === "Magnum Weaver") {
-                  bossAttacks.push({ x: bossX, y: 280, vx: -4, type: 'creeping-lava', color: '#ea580c', width: 120, height: 24 });
+                  bossAttacks.push({ x: bossX, y: 275, vx: -4, type: 'creeping-lava', color: '#ea580c', width: 140, height: 30 });
                 } else if (bossName === "Vipera") {
                   bossAttacks.push({ x: bossX, y: bossY, vx: -10, type: 'venom-stream', color: '#10b981', width: 50, height: 14 });
                 } else {
@@ -1422,15 +1422,43 @@
             if (bp.x > canvas.width || bp.x < 0) brawlerProjectiles.splice(i, 1);
           }
 
+          // DYNAMIC DETROIT CITY OF LIGHTS RENCEN SKYLINE BACKGROUND
           let skyAlpha = (Math.sin(timeOfDayTimer) + 1) / 2;
-          ctx.fillStyle = skyAlpha > 0.5 ? '#1e3a8a' : '#030712';
+          let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+          bgGrad.addColorStop(0, skyAlpha > 0.5 ? '#0f172a' : '#030712');
+          bgGrad.addColorStop(1, '#020617');
+          ctx.fillStyle = bgGrad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          ctx.fillStyle = '#172033';
-          ctx.fillRect(200, 80, 100, 220);
-          ctx.fillRect(120, 140, 60, 160);
-          ctx.fillRect(320, 120, 80, 180);
+          // Detroit Skyline Silhouette & RenCen Cylindrical Towers
+          ctx.fillStyle = '#0b1329';
+          ctx.fillRect(80, 110, 80, 190);
+          ctx.fillRect(180, 60, 70, 240);
+          ctx.fillRect(270, 90, 95, 210);
+          ctx.fillRect(380, 75, 75, 225);
 
+          // RenCen Iconic Center Cylinder Towers
+          ctx.fillStyle = '#111e38';
+          ctx.beginPath();
+          ctx.roundRect(470, 50, 45, 250, [12, 12, 0, 0]);
+          ctx.roundRect(525, 80, 35, 220, [10, 10, 0, 0]);
+          ctx.fill();
+
+          // City of Lights Neon Window Grids
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+          for (let wx = 90; wx < 150; wx += 12) {
+            for (let wy = 125; wy < 280; wy += 18) {
+              if ((wx + wy) % 5 === 0) ctx.fillRect(wx, wy, 6, 10);
+            }
+          }
+          ctx.fillStyle = 'rgba(212, 175, 55, 0.45)';
+          for (let wx = 290; wx < 350; wx += 14) {
+            for (let wy = 110; wy < 280; wy += 20) {
+              ctx.fillRect(wx, wy, 8, 12);
+            }
+          }
+
+          // Helicopter Searchlight & Rotor
           ctx.fillStyle = '#475569'; ctx.fillRect(chopperX - 25, 45, 50, 18);
           ctx.fillStyle = '#38bdf8'; ctx.fillRect(chopperX + 10, 48, 12, 10);
           ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 3;
@@ -1442,14 +1470,18 @@
           ctx.fillStyle = searchGradient;
           ctx.beginPath(); ctx.moveTo(chopperX, 55); ctx.lineTo(chopperX - 60, 300); ctx.lineTo(chopperX + 60, 300); ctx.closePath(); ctx.fill();
 
+          // Rain drops
           ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)'; ctx.lineWidth = 1.5;
           rainDrops.forEach(r => {
             r.y += r.speed; if (r.y > canvas.height) r.y = 0;
             ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 2, r.y + 10); ctx.stroke();
           });
 
+          // Styled Ground Roadway & Curbs
           ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 300); ctx.lineTo(canvas.width, 300); ctx.stroke();
-          ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 300, canvas.width, 100);
+          let groundGrad = ctx.createLinearGradient(0, 300, 0, canvas.height);
+          groundGrad.addColorStop(0, '#0f172a'); groundGrad.addColorStop(1, '#020617');
+          ctx.fillStyle = groundGrad; ctx.fillRect(0, 300, canvas.width, 100);
           ctx.strokeStyle = '#1e3a8a'; ctx.lineWidth = 2;
           for (let gx = (groundScrollX % 40) - 40; gx < canvas.width; gx += 40) {
             ctx.beginPath(); ctx.moveTo(gx, 300); ctx.lineTo(gx - 20, canvas.height); ctx.stroke();
@@ -1494,14 +1526,48 @@
             }
           });
 
+          // HIGH-TECH ARTICULATING HUMANOID DROIDS (ENFORCERS / SCOUTS)
           if (droidsActive) {
             preBossDroids.forEach(d => {
               if (d.active) {
                 if (d.isFlying) {
-                  ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.ellipse(d.x, d.y - 40, 16, 8, 0, 0, Math.PI*2); ctx.fill();
+                  // High-tech hovering drone unit
+                  ctx.fillStyle = '#cbd5e1';
+                  ctx.beginPath(); ctx.ellipse(d.x, d.y - 35, 18, 9, 0, 0, Math.PI*2); ctx.fill();
+                  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5; ctx.stroke();
+                  ctx.fillStyle = '#ef4444'; ctx.fillRect(d.x - 3, d.y - 35, 6, 6);
+                  ctx.fillStyle = '#38bdf8'; ctx.fillRect(d.x - 12, d.y - 25, 24, 3);
                 } else {
-                  ctx.fillStyle = '#64748b'; ctx.fillRect(d.x - 12, d.y - 30, 24, 30);
-                  ctx.fillStyle = '#ef4444'; ctx.fillRect(d.x - 6, d.y - 22, 12, 6);
+                  // High-tech Humanoid Droid (Articulating joints & glowing visor)
+                  ctx.save();
+                  ctx.translate(d.x, d.y - 25);
+                  
+                  // Torso armor plate
+                  ctx.fillStyle = '#1e293b';
+                  ctx.strokeStyle = '#38bdf8';
+                  ctx.lineWidth = 1.5;
+                  ctx.beginPath(); ctx.roundRect(-10, -20, 20, 30, 4); ctx.fill(); ctx.stroke();
+
+                  // Glowing Red Ocular Visor
+                  ctx.fillStyle = '#ef4444';
+                  ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 8;
+                  ctx.fillRect(-7, -26, 14, 4);
+                  ctx.shadowBlur = 0;
+
+                  // Head plating
+                  ctx.fillStyle = '#334155';
+                  ctx.fillRect(-8, -32, 16, 7);
+
+                  // Articulating arms and legs with walking bob
+                  let legOffset = Math.sin(d.walkAnim) * 6;
+                  ctx.strokeStyle = '#94a3b8';
+                  ctx.lineWidth = 3;
+                  // Left Leg
+                  ctx.beginPath(); ctx.moveTo(-5, 10); ctx.lineTo(-8 + legOffset, 25); ctx.stroke();
+                  // Right Leg
+                  ctx.beginPath(); ctx.moveTo(5, 10); ctx.lineTo(8 - legOffset, 25); ctx.stroke();
+
+                  ctx.restore();
                 }
               }
             });
@@ -1510,7 +1576,11 @@
             if (bossImg && bossImg.complete && bossImg.naturalWidth !== 0) {
               ctx.drawImage(bossImg, bossX - 50, bossY - 60, 100, 120);
             } else {
-              ctx.fillStyle = '#ef4444'; ctx.fillRect(bossX - 35, bossY - 40, 70, 90);
+              // High-tech fallback boss silhouette if sprite asset is missing
+              ctx.fillStyle = '#991b1b';
+              ctx.beginPath(); ctx.roundRect(bossX - 40, bossY - 50, 80, 100, 8); ctx.fill();
+              ctx.strokeStyle = '#f87171'; ctx.lineWidth = 2; ctx.stroke();
+              ctx.fillStyle = '#38bdf8'; ctx.fillRect(bossX - 20, bossY - 30, 40, 10);
             }
             
             ctx.fillStyle = '#1e293b'; ctx.fillRect(bossX - 40, bossY - 75, 80, 8);
@@ -1534,10 +1604,18 @@
 
           if (xochitlGlideActive && activeHero.name === 'Xochitl') {
             glideProgress += 0.04;
-            glideX -= 5;
-            glideY = 220 - Math.sin(glideProgress * Math.PI) * 70;
+            glideX = Math.max(50, Math.min(canvas.width - 70, glideX - 5));
+            glideY = Math.max(80, Math.min(260, 220 - Math.sin(glideProgress * Math.PI) * 70));
 
             ctx.save();
+            let xochitlImg = sprites['xochitl'];
+            if (xochitlImg && xochitlImg.complete && xochitlImg.naturalWidth !== 0) {
+              ctx.drawImage(xochitlImg, glideX - 25, glideY - 50, 70, 90);
+            } else {
+              ctx.fillStyle = '#fbbf24';
+              ctx.fillRect(glideX - 12, glideY - 25, 24, 45);
+            }
+
             ctx.fillStyle = '#f97316';
             ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 25;
             ctx.beginPath();
@@ -1553,9 +1631,6 @@
             ctx.closePath();
             ctx.fill();
             ctx.shadowBlur = 0;
-
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillRect(glideX - 12, glideY - 25, 24, 45);
 
             featheryDaggers.forEach(fd => {
               fd.x += fd.vx;
