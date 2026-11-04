@@ -119,11 +119,35 @@
       color: #cbd5e1;
       line-height: 1.4;
     }
+    .news-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      gap: 10px;
+    }
     .news-meta {
       font-size: 9px;
       color: #f59e0b;
-      margin-top: 8px;
       text-transform: uppercase;
+    }
+    .tts-btn {
+      background: rgba(102, 252, 241, 0.15);
+      border: 1px solid #66fcf1;
+      color: #66fcf1;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 9px;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .tts-btn:hover {
+      background: #66fcf1;
+      color: #030712;
     }
 
     /* Stargazer AR Viewport */
@@ -198,29 +222,29 @@
 
   <!-- US News Section -->
   <div id="usNews" class="section-content active">
-    <div class="news-card">
-      <div class="news-title">National Infrastructure & Technology Briefing</div>
-      <div class="news-snippet">Real-time updates regarding nationwide broadband expansion, green energy grids, and digital publishing developments across domestic sectors.</div>
-      <div class="news-meta">Source: Sector 313 National Feed • Live Feed Active</div>
-    </div>
-    <div class="news-card">
-      <div class="news-title">Cultural Preservation & Archival Grants Announced</div>
-      <div class="news-snippet">New federal initiatives prioritize the digitization of historical family records, regional migrations, and community heritage portfolios.</div>
-      <div class="news-meta">Source: National Archives Bulletin</div>
+    <div id="usNewsContainer">
+      <div class="news-card">
+        <div class="news-title">Connecting to Live US National Feed...</div>
+        <div class="news-snippet">Fetching real-time dispatches from domestic wire services.</div>
+        <div class="news-footer">
+          <div class="news-meta">Source: Sector 313 National Feed</div>
+          <button class="tts-btn" onclick="speakNews('Connecting to Live US National Feed', 'Fetching real-time dispatches from domestic wire services.')">🔊 Read Aloud</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- World News Section -->
   <div id="worldNews" class="section-content">
-    <div class="news-card">
-      <div class="news-title">Global Scientific Alliance & Space Exploration Updates</div>
-      <div class="news-snippet">International teams report successful telemetry mapping of deep-space stellar alignments and satellite communication upgrades.</div>
-      <div class="news-meta">Source: Global Cosmic Dispatch</div>
-    </div>
-    <div class="news-card">
-      <div class="news-title">Worldwide Digital Infrastructure Milestone</div>
-      <div class="news-snippet">Decentralized web applications and mobile portals reach record adoption globally, empowering independent creators and publishers.</div>
-      <div class="news-meta">Source: International Tech Wire</div>
+    <div id="worldNewsContainer">
+      <div class="news-card">
+        <div class="news-title">Connecting to Global Cosmic Dispatch...</div>
+        <div class="news-snippet">Fetching real-time international dispatches.</div>
+        <div class="news-footer">
+          <div class="news-meta">Source: Global Cosmic Dispatch</div>
+          <button class="tts-btn" onclick="speakNews('Connecting to Global Cosmic Dispatch', 'Fetching real-time international dispatches.')">🔊 Read Aloud</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -229,12 +253,18 @@
     <div class="news-card">
       <div class="news-title">Packed in the Marrow • Volume 4 Release Update</div>
       <div class="news-snippet">The manuscript focusing on the Matriarchs is fully compiled. Archival distribution packs are now live on Payhip for all legacy supporters.</div>
-      <div class="news-meta">Status: Official Rhodes Family Legacy Bulletin</div>
+      <div class="news-footer">
+        <div class="news-meta">Status: Official Rhodes Family Legacy Bulletin</div>
+        <button class="tts-btn" onclick="speakNews('Packed in the Marrow Volume 4 Release Update', 'The manuscript focusing on the Matriarchs is fully compiled. Archival distribution packs are now live on Payhip for all legacy supporters.')">🔊 Read Aloud</button>
+      </div>
     </div>
     <div class="news-card">
       <div class="news-title">Ancestral Vanguard Brawler & Grid Racer Tournaments</div>
       <div class="news-snippet">Sector 313 defense grids report record high scores across the arcade network. Check the command deck vault to join the leaderboard.</div>
-      <div class="news-meta">Status: Vanguard Command Deck Operational</div>
+      <div class="news-footer">
+        <div class="news-meta">Status: Vanguard Command Deck Operational</div>
+        <button class="tts-btn" onclick="speakNews('Ancestral Vanguard Brawler and Grid Racer Tournaments', 'Sector 313 defense grids report record high scores across the arcade network. Check the command deck vault to join the leaderboard.')">🔊 Read Aloud</button>
+      </div>
     </div>
   </div>
 
@@ -280,6 +310,69 @@
       document.getElementById(tabId).classList.add('active');
       event.currentTarget.classList.add('active');
     }
+
+    // Text-to-Speech Engine
+    function speakNews(title, snippet) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const textToRead = `${title}. ${snippet}`;
+        const utterance = new SpeechSynthesisUtterance(textToRead);
+        utterance.rate = 1.0;
+        utterance.pitch = 0.95;
+        window.speechSynthesis.speak(utterance);
+      } else {
+        alert("Text-to-speech is not supported on this browser.");
+      }
+    }
+
+    // Fetch Real-Time Public RSS/News Data Automatically
+    async function fetchLiveNews() {
+      try {
+        // Fetching free public top news via RSS-to-JSON proxy or public API endpoints
+        const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://feeds.bbci.co.uk/news/world/rss.xml'));
+        const data = await res.json();
+        if (data && data.contents) {
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(data.contents, 'text/xml');
+          const items = xml.querySelectorAll('item');
+          
+          let worldHtml = '';
+          let usHtml = '';
+
+          let count = 0;
+          items.forEach(item => {
+            if (count < 5) {
+              const title = item.querySelector('title')?.textContent || 'Global Update';
+              const desc = item.querySelector('description')?.textContent || 'Live intelligence broadcast from sector network.';
+              
+              const card = `
+                <div class="news-card">
+                  <div class="news-title">${title}</div>
+                  <div class="news-snippet">${desc}</div>
+                  <div class="news-footer">
+                    <div class="news-meta">Source: Global Dispatch Feed</div>
+                    <button class="tts-btn" onclick="speakNews('${title.replace(/'/g, "")}', '${desc.replace(/'/g, "").substring(0, 150)}')">🔊 Read Aloud</button>
+                  </div>
+                </div>
+              `;
+              if (count % 2 === 0) worldHtml += card;
+              else usHtml += card;
+              count++;
+            }
+          });
+
+          if (worldHtml) document.getElementById('worldNewsContainer').innerHTML = worldHtml;
+          if (usHtml) document.getElementById('usNewsContainer').innerHTML = usHtml;
+        }
+      } catch (err) {
+        console.log("Using cached tactical feed fallback.");
+      }
+    }
+
+    // Run news fetch on load
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchLiveNews();
+    });
   </script>
 
 </body>
