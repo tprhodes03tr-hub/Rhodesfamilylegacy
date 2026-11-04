@@ -203,7 +203,7 @@
     
     <!-- Q&A Hologram Interaction Bar -->
     <div class="qa-container">
-      <input type="text" id="visitorQuery" class="qa-input" placeholder="Ask Mother Luetta a question..." onkeypress="handleQAPress(event)">
+      <input type="text" id="visitorQuery" class="qa-input" placeholder="Ask the portal a question..." onkeypress="handleQAPress(event)">
       <button class="qa-btn" onclick="submitVisitorQuestion()">Ask AI</button>
     </div>
   </div>
@@ -223,6 +223,7 @@
       <a-assets>
         <img id="familyTreeImg" src="packed-marrow-tree.png" crossorigin="anonymous">
         <img id="motherLuettaImg" src="mother-luta.png" crossorigin="anonymous">
+        <img id="marcusPrimeImg" src="marcus.png" crossorigin="anonymous">
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
@@ -233,11 +234,11 @@
         <!-- Upgraded Holographic Gateway Entity -->
         <a-entity id="gatewayModel" position="0 0 0" scale="0.45 0.45 0.45">
           
-          <!-- Golden Tree Emblem with Holographic Pulse & Material Glow -->
-          <a-image src="#familyTreeImg" width="2.6" height="2.6" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.4;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
+          <!-- Dynamic Center Emblem (Swapped based on Mode) -->
+          <a-image id="centerEmblem" src="#familyTreeImg" width="2.6" height="2.6" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.4;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
 
-          <!-- Mother Luetta Holographic Companion -->
-          <a-image id="luettaSprite" class="clickable" src="#motherLuettaImg" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerMotherLuettaDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
+          <!-- Dynamic Holographic Character Companion (Mother Luetta or Marcus Prime) -->
+          <a-image id="companionSprite" class="clickable" src="#motherLuettaImg" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerCompanionDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
 
           <!-- Outer Golden Tree Ring Gateway -->
           <a-torus radius="1.85" radius-tubular="0.045" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 1.0; roughness: 0.1" animation="property: rotation; to: 0 360 0; loop: true; dur: 9000"></a-torus>
@@ -257,26 +258,38 @@
   </div>
 
   <script>
-    // 1. Dynamic Parameter Reader for Book & Card Modes
+    // 1. Dynamic Parameter Reader for Book & Vanguard Modes
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get('mode');
 
     const titleEl = document.getElementById('portal-title');
     const subtitleEl = document.getElementById('portal-subtitle');
 
-    if (mode === 'children') {
-      if (titleEl) titleEl.innerText = "Storybook Meadow • Little Luetta & Friends";
-      if (subtitleEl) subtitleEl.innerText = `"Hi! Want to explore the golden clock time-slip with me?"`;
-    } else if (mode === 'marrow') {
-      if (titleEl) titleEl.innerText = "Packed in the Marrow • Archival Record";
-      if (subtitleEl) subtitleEl.innerText = `"Welcome to Rhodes Family Legacy. Allow me to introduce our lineage records." — Mother Luetta`;
-    } else if (mode === 'card-codex') {
-      if (titleEl) titleEl.innerText = "Card Codex • Vanguard Battle Index";
-      if (subtitleEl) subtitleEl.innerText = `"Flipping card target... Character operational status active." — Marcus Prime`;
-    }
+    // Apply Mode Configuration on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      const emblemEl = document.getElementById('centerEmblem');
+      const spriteEl = document.getElementById('companionSprite');
+
+      if (mode === 'vanguard' || mode === 'card-codex') {
+        if (titleEl) titleEl.innerText = "Ancestral Vanguard • Motor City Ops";
+        if (subtitleEl) subtitleEl.innerText = `"Marcus Prime online. Sector 313 defense grid active." — Marcus Prime`;
+        if (spriteEl) spriteEl.setAttribute('src', '#marcusPrimeImg');
+      } else if (mode === 'children') {
+        if (titleEl) titleEl.innerText = "Storybook Meadow • Little Luetta & Friends";
+        if (subtitleEl) subtitleEl.innerText = `"Hi! Want to explore the golden clock time-slip with me?"`;
+      } else if (mode === 'marrow') {
+        if (titleEl) titleEl.innerText = "Packed in the Marrow • Archival Record";
+        if (subtitleEl) subtitleEl.innerText = `"Welcome to Rhodes Family Legacy. Allow me to introduce our lineage records." — Mother Luetta`;
+      }
+    });
 
     // 2. Interactive Intelligent Q&A & Lore Dialogue Engine
     const dialogueLines = {
+      vanguard: [
+        `"Marcus Prime online. Sector 313 defense grid active."`,
+        `"The Vanguard fleet stands ready to defend the timeline."`,
+        `"Stay sharp, Commander. The motor city ops are secure."`
+      ],
       children: [
         `"Hi! Want to explore the golden clock time-slip with me?"`,
         `"Every great adventure starts with a curious heart and a touch of courage."`,
@@ -286,11 +299,6 @@
         `"Welcome to Rhodes Family Legacy. Allow me to introduce our lineage records."`,
         `"Every name, veteran, and matriarch is rooted in deep strength."`,
         `"Keep the archival records close; our history is our power."`
-      ],
-      card_codex: [
-        `"Flipping card target... Character operational status active."`,
-        `"The Vanguard fleet stands ready to defend the timeline."`,
-        `"Choose your strategic moves wisely, Commander."`
       ],
       default: [
         `"Welcome to the Vanguard Universe. Which path would you like to choose?"`,
@@ -307,12 +315,12 @@
         const cleanText = text.replace(/["—]/g, '');
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.rate = 1.0;
-        utterance.pitch = 0.9;
+        utterance.pitch = (mode === 'vanguard') ? 0.8 : 0.9;
         window.speechSynthesis.speak(utterance);
       }
     }
 
-    function triggerMotherLuettaDialogue() {
+    function triggerCompanionDialogue() {
       const activeMode = mode || 'default';
       const lines = dialogueLines[activeMode] || dialogueLines.default;
 
@@ -331,16 +339,22 @@
 
       let answer = "";
 
-      if (question.includes("book") || question.includes("marrow") || question.includes("read")) {
-        answer = `"Packed in the Marrow explores our multi-volume family history and Detroit roots. You can find all volumes on our Payhip shelf!"`;
-      } else if (question.includes("game") || question.includes("arcade") || question.includes("brawler") || question.includes("race")) {
-        answer = `"Our arcade portals feature the Ancestral Vanguard Brawler and Detroit Grid Racer. Jump into the command deck to play!"`;
-      } else if (question.includes("dna") || question.includes("lineage") || question.includes("scanner")) {
-        answer = `"The DNA Lineage Scanner connects our ancestral records directly to our family tree. Scan a record to uncover our history."`;
-      } else if (question.includes("who are you") || question.includes("luetta") || question.includes("mother")) {
-        answer = `"I am Mother Luetta, your ancestral guide and guardian of the Rhodes Family Legacy gateway."`;
+      if (mode === 'vanguard') {
+        if (question.includes("grid") || question.includes("Detroit") || question.includes("race")) {
+          answer = `"Detroit Grid 313 is fully operational. The RenCen rooftop is secure against drone incursions!"`;
+        } else if (question.includes("vanguard") || question.includes("fleet") || question.includes("fight")) {
+          answer = `"The Vanguard fleet is standing by for deployment across the multiverse."`;
+        } else {
+          answer = `"Affirmative, Commander. Keep your focus on the mission parameters."`;
+        }
       } else {
-        answer = `"That is a profound question, traveler. The golden tree holds many secrets across our transmedia universe. Explore our portals to discover more."`;
+        if (question.includes("book") || question.includes("marrow") || question.includes("read")) {
+          answer = `"Packed in the Marrow explores our multi-volume family history and Detroit roots. Find all volumes on Payhip!"`;
+        } else if (question.includes("game") || question.includes("arcade") || question.includes("brawler")) {
+          answer = `"Our arcade portals feature the Ancestral Vanguard Brawler and Detroit Grid Racer. Jump into the command deck to play!"`;
+        } else {
+          answer = `"That is a profound question, traveler. The golden tree holds many secrets across our transmedia universe."`;
+        }
       }
 
       if (subtitleEl) subtitleEl.innerText = answer;
@@ -360,18 +374,18 @@
       const btnWorld = document.getElementById('btnWorldMode');
       const sceneContainer = document.getElementById('sceneContainer');
       const videoFeed = document.getElementById('arCameraFeed');
+      const activeSpriteSrc = (mode === 'vanguard' || mode === 'card-codex') ? '#marcusPrimeImg' : '#motherLuettaImg';
 
       if (arType === 'world') {
         btnWorld.classList.add('active');
-        btnImage.classList.remove('active');
+        btnImage.classList.remove('image');
 
-        // Start real camera stream for room passthrough
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
           videoFeed.srcObject = stream;
           videoFeed.style.display = 'block';
         } catch (err) {
-          console.log("Camera passthrough started in simulated mode.");
+          console.log("Camera passthrough simulated.");
         }
 
         sceneContainer.innerHTML = `
@@ -379,15 +393,16 @@
             <a-assets>
               <img id="familyTreeImgWorld" src="packed-marrow-tree.png" crossorigin="anonymous">
               <img id="motherLuettaImgWorld" src="mother-luta.png" crossorigin="anonymous">
+              <img id="marcusPrimeImgWorld" src="marcus.png" crossorigin="anonymous">
             </a-assets>
             <a-camera position="0 1.6 3" look-controls="enabled: true" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
             
             <a-entity position="0 1.0 0" scale="0.5 0.5 0.5">
-              <!-- Golden Tree Emblem with Enhanced Glow -->
+              <!-- Center Emblem -->
               <a-image src="#familyTreeImgWorld" width="2.6" height="2.6" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.5;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
 
-              <!-- Mother Luetta Holographic Companion -->
-              <a-image id="luettaSpriteWorld" class="clickable" src="#motherLuettaImgWorld" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerMotherLuettaDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
+              <!-- Character Sprite (Swapped based on active mode) -->
+              <a-image id="companionSpriteWorld" class="clickable" src="${activeSpriteSrc}" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerCompanionDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
 
               <!-- Golden Ring -->
               <a-torus radius="1.85" radius-tubular="0.045" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 1.2; roughness: 0.1" animation="property: rotation; to: 0 360 0; loop: true; dur: 9000"></a-torus>
@@ -400,9 +415,8 @@
           </a-scene>
         `;
 
-        if (subtitleEl) subtitleEl.innerText = "[ROOM PASSTHROUGH ACTIVE] Tap Mother Luetta or ask a question!";
+        if (subtitleEl) subtitleEl.innerText = "[ROOM PASSTHROUGH ACTIVE] Tap your companion or ask a question!";
       } else {
-        // Stop camera stream if returning to image scan mode
         if (videoFeed.srcObject) {
           videoFeed.srcObject.getTracks().forEach(track => track.stop());
         }
