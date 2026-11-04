@@ -130,7 +130,7 @@
         <img id="motherLuettaImg" src="mother-luta.png" crossorigin="anonymous">
       </a-assets>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
 
       <!-- Target Entity for MindAR Image Index 0 (Used in Image Mode) -->
       <a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
@@ -139,8 +139,8 @@
           <!-- Family Crest Golden Tree Sprite Plane -->
           <a-image src="#familyTreeImg" width="2.4" height="2.4" position="0 0.2 0" material="transparent: true; alphaTest: 0.1"></a-image>
 
-          <!-- Mother Luetta Holographic Companion Sprite -->
-          <a-image src="#motherLuettaImg" width="1.2" height="1.6" position="1.4 -0.2 0.1" material="transparent: true; alphaTest: 0.1"></a-image>
+          <!-- Mother Luetta Holographic Companion Sprite (Clickable/Tap-to-Talk) -->
+          <a-image id="luettaSprite" class="clickable" src="#motherLuettaImg" width="1.2" height="1.6" position="1.4 -0.2 0.1" material="transparent: true; alphaTest: 0.1" raycastable onclick="triggerMotherLuettaDialogue()"></a-image>
 
           <!-- Outer Golden Tree Ring Gateway -->
           <a-torus radius="1.8" radius-tubular="0.04" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 0.8; roughness: 0.2" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"></a-torus>
@@ -174,7 +174,58 @@
       if (subtitleEl) subtitleEl.innerText = `"Flipping card target... Character operational status active." — Marcus Prime`;
     }
 
-    // 2. AR Mode Switching (Image Target Scan vs. Single-Phone Tabletop View)
+    // 2. Interactive Tap-to-Talk Dialogue & Voice Synthesis System for Mother Luetta
+    const dialogueLines = {
+      children: [
+        `"Hi! Want to explore the golden clock time-slip with me?"`,
+        `"Every great adventure starts with a curious heart and a touch of courage."`,
+        `"Let's see what wonders are waiting in the meadow today!"`
+      ],
+      marrow: [
+        `"Welcome to Rhodes Family Legacy. Allow me to introduce our lineage records."`,
+        `"Every name, veteran, and matriarch is rooted in deep strength."`,
+        `"Keep the archival records close; our history is our power."`
+      ],
+      card_codex: [
+        `"Flipping card target... Character operational status active."`,
+        `"The Vanguard fleet stands ready to defend the timeline."`,
+        `"Choose your strategic moves wisely, Commander."`
+      ],
+      default: [
+        `"Welcome to the Vanguard Universe. Which path would you like to choose?"`,
+        `"The golden tree bridges our past, present, and future."`,
+        `"Tap again whenever you wish to hear more of our legacy."`
+      ]
+    };
+
+    let currentLineIndex = 0;
+
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Stop any ongoing speech
+        const cleanText = text.replace(/["—]/g, ''); // Remove quotes/dashes for clean speech
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.rate = 1.0;
+        utterance.pitch = 0.9; // Warm, grounded matriarchal tone
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function triggerMotherLuettaDialogue() {
+      const activeMode = mode || 'default';
+      const lines = dialogueLines[activeMode] || dialogueLines.default;
+
+      currentLineIndex = (currentLineIndex + 1) % lines.length;
+      const selectedLine = lines[currentLineIndex];
+      
+      if (subtitleEl) {
+        subtitleEl.innerText = selectedLine;
+      }
+
+      speakText(selectedLine);
+    }
+
+    // 3. AR Mode Switching (Image Target Scan vs. Single-Phone Tabletop View)
     function setARMode(arType) {
       const btnImage = document.getElementById('btnImageMode');
       const btnWorld = document.getElementById('btnWorldMode');
@@ -184,21 +235,21 @@
         btnWorld.classList.add('active');
         btnImage.classList.remove('active');
 
-        // Rebuild scene container as a clean 3D interactive viewer with your family tree and mother-luta sprites loaded
+        // Rebuild scene container as a clean 3D interactive viewer with clickable sprite & voice triggers
         sceneContainer.innerHTML = `
           <a-scene embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" style="width: 100vw; height: 100vh; background: #030712;">
             <a-assets>
               <img id="familyTreeImgWorld" src="packed-marrow-tree.png" crossorigin="anonymous">
               <img id="motherLuettaImgWorld" src="mother-luta.png" crossorigin="anonymous">
             </a-assets>
-            <a-camera position="0 1.6 3" look-controls="enabled: true"></a-camera>
+            <a-camera position="0 1.6 3" look-controls="enabled: true" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
             
             <a-entity position="0 1.0 0" scale="0.5 0.5 0.5">
               <!-- Family Crest Golden Tree Sprite Plane -->
               <a-image src="#familyTreeImgWorld" width="2.4" height="2.4" position="0 0.2 0" material="transparent: true; alphaTest: 0.1"></a-image>
 
-              <!-- Mother Luetta Holographic Companion Sprite -->
-              <a-image src="#motherLuettaImgWorld" width="1.2" height="1.6" position="1.4 -0.2 0.1" material="transparent: true; alphaTest: 0.1"></a-image>
+              <!-- Mother Luetta Holographic Companion Sprite (Clickable in World Mode) -->
+              <a-image id="luettaSpriteWorld" class="clickable" src="#motherLuettaImgWorld" width="1.2" height="1.6" position="1.4 -0.2 0.1" material="transparent: true; alphaTest: 0.1" raycastable onclick="triggerMotherLuettaDialogue()"></a-image>
 
               <!-- Golden Tree Ring Gateway -->
               <a-torus radius="1.8" radius-tubular="0.04" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 0.8; roughness: 0.2" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"></a-torus>
@@ -211,7 +262,7 @@
           </a-scene>
         `;
 
-        if (subtitleEl) subtitleEl.innerText = "[3D TABLETOP MODE] Rotate & explore your family golden tree & Mother Luetta freely!";
+        if (subtitleEl) subtitleEl.innerText = "[3D TABLETOP MODE] Tap Mother Luetta to hear her lore & explore freely!";
       } else {
         window.location.reload(); // Reset back to image target scanning
       }
