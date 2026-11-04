@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ancestral Vanguard • AR Portal Gateway</title>
+  <title>Ancestral Vanguard • Holographic AR Gateway</title>
   
   <!-- A-Frame Library -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -18,27 +18,42 @@
       user-select: none;
     }
     body {
-      background-color: #04060b;
+      background-color: #030712;
       color: #e2e8f0;
       font-family: 'Courier New', Courier, monospace;
       overflow: hidden;
       width: 100vw;
       height: 100vh;
     }
+    
+    /* Holographic Scanline Overlay on Screen */
+    body::after {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      z-index: 998;
+      background-size: 100% 3px, 3px 100%;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
     .hud-overlay {
       position: absolute;
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 999;
-      background: rgba(4, 6, 11, 0.9);
+      background: rgba(3, 7, 18, 0.85);
       border: 1px solid #66fcf1;
-      padding: 12px 24px;
+      padding: 12px 20px;
       border-radius: 12px;
       text-align: center;
       box-shadow: 0 0 25px rgba(102, 252, 241, 0.35);
-      pointer-events: none;
-      max-width: 90%;
+      pointer-events: auto;
+      max-width: 92%;
+      width: 480px;
     }
     .hud-title {
       font-size: 13px;
@@ -46,6 +61,7 @@
       color: #66fcf1;
       letter-spacing: 2px;
       text-transform: uppercase;
+      text-shadow: 0 0 8px rgba(102, 252, 241, 0.6);
     }
     .hud-subtitle {
       font-size: 11px;
@@ -53,7 +69,45 @@
       margin-top: 6px;
       text-transform: uppercase;
       font-weight: bold;
+      text-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
     }
+
+    /* Holographic Q&A Input Bar */
+    .qa-container {
+      margin-top: 10px;
+      display: flex;
+      gap: 6px;
+    }
+    .qa-input {
+      flex: 1;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #66fcf1;
+      color: #66fcf1;
+      padding: 6px 10px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      border-radius: 6px;
+      outline: none;
+    }
+    .qa-input::placeholder {
+      color: rgba(102, 252, 241, 0.4);
+    }
+    .qa-btn {
+      background: #8b0000;
+      border: 1px solid #f59e0b;
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .qa-btn:hover {
+      background: #a51c1c;
+    }
+
     .ar-mode-selector {
       position: absolute;
       bottom: 85px;
@@ -91,9 +145,9 @@
       border: 2px solid #66fcf1;
       color: #66fcf1;
       font-family: 'Courier New', Courier, monospace;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
-      padding: 12px 24px;
+      padding: 10px 20px;
       border-radius: 10px;
       cursor: pointer;
       text-transform: uppercase;
@@ -104,54 +158,86 @@
       background: rgba(102, 252, 241, 0.1);
     }
   </style>
+
+  <!-- Custom Holographic & Glowing Material Shaders for A-Frame -->
+  <script>
+    AFRAME.registerComponent('hologram-glow', {
+      init: function () {
+        this.el.addEventListener('loaded', () => {
+          const mesh = this.el.getObject3D('mesh');
+          if (mesh) {
+            mesh.traverse(node => {
+              if (node.material) {
+                node.material.transparent = true;
+                node.material.opacity = 0.88;
+                node.material.roughness = 0.1;
+                node.material.metalness = 0.9;
+              }
+            });
+          }
+        });
+      }
+    });
+  </script>
 </head>
 <body>
 
   <div class="hud-overlay">
     <div id="portal-title" class="hud-title">Ancestral Vanguard Portal</div>
     <div id="portal-subtitle" class="hud-subtitle">"Welcome to Rhodes Family Legacy. Which path would you like to choose?" — Mother Luetta</div>
+    
+    <!-- Q&A Hologram Interaction Bar -->
+    <div class="qa-container">
+      <input type="text" id="visitorQuery" class="qa-input" placeholder="Ask Mother Luetta a question..." onkeypress="handleQAPress(event)">
+      <button class="qa-btn" onclick="submitVisitorQuestion()">Ask AI</button>
+    </div>
   </div>
 
-  <!-- Mode Selector for Single-Phone Users -->
+  <!-- Mode Selector -->
   <div class="ar-mode-selector">
     <button id="btnImageMode" onclick="setARMode('image')" class="mode-btn active">Scan Image Target</button>
-    <button id="btnWorldMode" onclick="setARMode('world')" class="mode-btn">Place on Table (1-Phone Mode)</button>
+    <button id="btnWorldMode" onclick="setARMode('world')" class="mode-btn">Tabletop 3D Mode</button>
   </div>
 
-  <!-- Return Link to Master Hub -->
+  <!-- Return Link -->
   <a href="index.html" class="back-btn">← Return to Master Hub</a>
 
   <!-- A-Frame Scene Container -->
   <div id="sceneContainer" style="width: 100vw; height: 100vh; position: absolute; top: 0; left: 0;">
     <a-scene id="arScene" embedded mindar-image="imageTargetSrc: targets.mind; autoStart: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
       <a-assets>
-        <!-- Registered Family Crest & Mother Luetta Sprites -->
         <img id="familyTreeImg" src="packed-marrow-tree.png" crossorigin="anonymous">
         <img id="motherLuettaImg" src="mother-luta.png" crossorigin="anonymous">
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
 
-      <!-- Target Entity for MindAR Image Index 0 (Used in Image Mode) -->
+      <!-- Target Entity for MindAR Image Index 0 -->
       <a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
-        <!-- Family Crest Tree & Mother Luetta AR Gateway Entity -->
+        
+        <!-- Upgraded Holographic Gateway Entity -->
         <a-entity id="gatewayModel" position="0 0 0" scale="0.45 0.45 0.45">
-          <!-- Family Crest Golden Tree Sprite Plane -->
-          <a-image src="#familyTreeImg" width="2.4" height="2.4" position="0 0.2 0" material="transparent: true; alphaTest: 0.1"></a-image>
+          
+          <!-- Golden Tree Emblem with Holographic Pulse & Material Glow -->
+          <a-image src="#familyTreeImg" width="2.6" height="2.6" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.3;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
 
-          <!-- Mother Luetta Holographic Companion Sprite (Clickable/Tap-to-Talk) -->
-          <a-image id="luettaSprite" class="clickable" src="#motherLuettaImg" width="1.2" height="1.6" position="1.4 -0.2 0.1" material="transparent: true; alphaTest: 0.1" raycastable onclick="triggerMotherLuettaDialogue()"></a-image>
+          <!-- Mother Luetta Holographic Companion (Floating Hologram Effect with Subtle Bobbing) -->
+          <a-image id="luettaSprite" class="clickable" src="#motherLuettaImg" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerMotherLuettaDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
 
-          <!-- Outer Golden Tree Ring Gateway -->
-          <a-torus radius="1.8" radius-tubular="0.04" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 0.8; roughness: 0.2" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"></a-torus>
+          <!-- Outer Golden Tree Ring Gateway (Enhanced Emission & Rotation) -->
+          <a-torus radius="1.85" radius-tubular="0.045" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 0.9; roughness: 0.1" animation="property: rotation; to: 0 360 0; loop: true; dur: 9000"></a-torus>
 
-          <!-- Outer Teal Resonance Ring -->
-          <a-torus radius="2.0" radius-tubular="0.02" color="#66fcf1" rotation="45 45 0" material="emissive: #66fcf1; emissiveIntensity: 0.6" animation="property: rotation; to: 360 0 360; loop: true; dur: 15000"></a-torus>
+          <!-- Outer Teal Resonance Ring (High-Tech Hologram Feel) -->
+          <a-torus radius="2.1" radius-tubular="0.02" color="#66fcf1" rotation="45 45 0" material="emissive: #66fcf1; emissiveIntensity: 0.7; transparent: true; opacity: 0.85" animation="property: rotation; to: 360 0 360; loop: true; dur: 13000"></a-torus>
+
+          <!-- Holographic Base Floor Glow Ring -->
+          <a-ring radius-inner="1.6" radius-outer="1.75" color="#66fcf1" rotation="-90 0 0" position="0 -1.2 0" material="emissive: #66fcf1; emissiveIntensity: 0.5; transparent: true; opacity: 0.4"></a-ring>
         </a-entity>
+
       </a-entity>
 
-      <a-light type="ambient" color="#ffffff" intensity="0.9"></a-light>
-      <a-light type="directional" position="1 2 1" color="#f59e0b" intensity="1.2"></a-light>
+      <a-light type="ambient" color="#bfe9ff" intensity="1.0"></a-light>
+      <a-light type="directional" position="1 2 1" color="#f59e0b" intensity="1.5"></a-light>
     </a-scene>
   </div>
 
@@ -174,7 +260,7 @@
       if (subtitleEl) subtitleEl.innerText = `"Flipping card target... Character operational status active." — Marcus Prime`;
     }
 
-    // 2. Interactive Tap-to-Talk Dialogue & Voice Synthesis System for Mother Luetta
+    // 2. Interactive Intelligent Q&A & Lore Dialogue Engine
     const dialogueLines = {
       children: [
         `"Hi! Want to explore the golden clock time-slip with me?"`,
@@ -202,11 +288,11 @@
 
     function speakText(text) {
       if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // Stop any ongoing speech
-        const cleanText = text.replace(/["—]/g, ''); // Remove quotes/dashes for clean speech
+        window.speechSynthesis.cancel();
+        const cleanText = text.replace(/["—]/g, '');
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.rate = 1.0;
-        utterance.pitch = 0.9; // Warm, grounded matriarchal tone
+        utterance.pitch = 0.9;
         window.speechSynthesis.speak(utterance);
       }
     }
@@ -218,14 +304,43 @@
       currentLineIndex = (currentLineIndex + 1) % lines.length;
       const selectedLine = lines[currentLineIndex];
       
-      if (subtitleEl) {
-        subtitleEl.innerText = selectedLine;
-      }
-
+      if (subtitleEl) subtitleEl.innerText = selectedLine;
       speakText(selectedLine);
     }
 
-    // 3. AR Mode Switching (Image Target Scan vs. Single-Phone Tabletop View)
+    // Advanced Intelligent Q&A Handler for Visitor Prompts
+    function submitVisitorQuestion() {
+      const inputEl = document.getElementById('visitorQuery');
+      if (!inputEl) return;
+      const question = inputEl.value.trim().toLowerCase();
+      if (!question) return;
+
+      let answer = "";
+
+      if (question.includes("book") || question.includes("marrow") || question.includes("read")) {
+        answer = `"Packed in the Marrow explores our multi-volume family history and Detroit roots. You can find all volumes on our Payhip shelf!"`;
+      } else.if (question.includes("game") || question.includes("arcade") || question.includes("brawler") || question.includes("race")) {
+        answer = `"Our arcade portals feature the Ancestral Vanguard Brawler and Detroit Grid Racer. Jump into the command deck to play!"`;
+      } else if (question.includes("dna") || question.includes("lineage") || question.includes("scanner")) {
+        answer = `"The DNA Lineage Scanner connects our ancestral records directly to our family tree. Scan a record to uncover our history."`;
+      } else if (question.includes("who are you") || question.includes("luetta") || question.includes("mother")) {
+        answer = `"I am Mother Luetta, your ancestral guide and guardian of the Rhodes Family Legacy gateway."`;
+      } else {
+        answer = `"That is a profound question, traveler. The golden tree holds many secrets across our transmedia universe. Explore our portals to discover more."`;
+      }
+
+      if (subtitleEl) subtitleEl.innerText = answer;
+      speakText(answer);
+      inputEl.value = "";
+    }
+
+    function handleQAPress(event) {
+      if (event.key === 'Enter') {
+        submitVisitorQuestion();
+      }
+    }
+
+    // 3. AR Mode Switching (Image Target Scan vs. Tabletop 3D Mode)
     function setARMode(arType) {
       const btnImage = document.getElementById('btnImageMode');
       const btnWorld = document.getElementById('btnWorldMode');
@@ -235,7 +350,6 @@
         btnWorld.classList.add('active');
         btnImage.classList.remove('active');
 
-        // Rebuild scene container as a clean 3D interactive viewer with clickable sprite & voice triggers
         sceneContainer.innerHTML = `
           <a-scene embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" style="width: 100vw; height: 100vh; background: #030712;">
             <a-assets>
@@ -245,26 +359,26 @@
             <a-camera position="0 1.6 3" look-controls="enabled: true" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
             
             <a-entity position="0 1.0 0" scale="0.5 0.5 0.5">
-              <!-- Family Crest Golden Tree Sprite Plane -->
-              <a-image src="#familyTreeImgWorld" width="2.4" height="2.4" position="0 0.2 0" material="transparent: true; alphaTest: 0.1"></a-image>
+              <!-- Golden Tree Emblem -->
+              <a-image src="#familyTreeImgWorld" width="2.6" height="2.6" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.3;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
 
-              <!-- Mother Luetta Holographic Companion Sprite (Clickable in World Mode) -->
-              <a-image id="luettaSpriteWorld" class="clickable" src="#motherLuettaImgWorld" width="1.2" height="1.6" position="1.4 -0.2 0.1" material="transparent: true; alphaTest: 0.1" raycastable onclick="triggerMotherLuettaDialogue()"></a-image>
+              <!-- Mother Luetta Holographic Companion -->
+              <a-image id="luettaSpriteWorld" class="clickable" src="#motherLuettaImgWorld" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerMotherLuettaDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
 
-              <!-- Golden Tree Ring Gateway -->
-              <a-torus radius="1.8" radius-tubular="0.04" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 0.8; roughness: 0.2" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"></a-torus>
+              <!-- Golden Ring -->
+              <a-torus radius="1.85" radius-tubular="0.045" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 0.9; roughness: 0.1" animation="property: rotation; to: 0 360 0; loop: true; dur: 9000"></a-torus>
               <!-- Teal Resonance Ring -->
-              <a-torus radius="2.0" radius-tubular="0.02" color="#66fcf1" rotation="45 45 0" material="emissive: #66fcf1; emissiveIntensity: 0.6" animation="property: rotation; to: 360 0 360; loop: true; dur: 15000"></a-torus>
+              <a-torus radius="2.1" radius-tubular="0.02" color="#66fcf1" rotation="45 45 0" material="emissive: #66fcf1; emissiveIntensity: 0.7; transparent: true; opacity: 0.85" animation="property: rotation; to: 360 0 360; loop: true; dur: 13000"></a-torus>
             </a-entity>
 
-            <a-light type="ambient" color="#ffffff" intensity="1.0"></a-light>
-            <a-light type="directional" position="1 2 1" color="#f59e0b" intensity="1.4"></a-light>
+            <a-light type="ambient" color="#bfe9ff" intensity="1.0"></a-light>
+            <a-light type="directional" position="1 2 1" color="#f59e0b" intensity="1.5"></a-light>
           </a-scene>
         `;
 
-        if (subtitleEl) subtitleEl.innerText = "[3D TABLETOP MODE] Tap Mother Luetta to hear her lore & explore freely!";
+        if (subtitleEl) subtitleEl.innerText = "[3D TABLETOP MODE] Tap Mother Luetta or ask a question below!";
       } else {
-        window.location.reload(); // Reset back to image target scanning
+        window.location.reload();
       }
     }
   </script>
