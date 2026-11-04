@@ -52,9 +52,36 @@
       text-transform: uppercase;
       font-weight: bold;
     }
+    .ar-mode-selector {
+      position: absolute;
+      bottom: 85px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+    .mode-btn {
+      background: #0f172a;
+      border: 2px solid #66fcf1;
+      color: #66fcf1;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 10px rgba(102, 252, 241, 0.2);
+    }
+    .mode-btn.active {
+      background: #66fcf1;
+      color: #04060b;
+    }
     .back-btn {
       position: absolute;
-      bottom: 30px;
+      bottom: 25px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 999;
@@ -79,26 +106,31 @@
 <body>
 
   <div class="hud-overlay">
-    <!-- Added IDs to allow dynamic updates from URL parameters -->
     <div id="portal-title" class="hud-title">Ancestral Vanguard Portal</div>
     <div id="portal-subtitle" class="hud-subtitle">"Welcome to the Vanguard Universe. Which path would you like to choose?" — Mother Luetta</div>
   </div>
 
-  <!-- Fixed CSS Class Reference -->
+  <!-- Mode Selector for Single-Phone Users -->
+  <div class="ar-mode-selector">
+    <button id="btnImageMode" onclick="setARMode('image')" class="mode-btn active">Scan Image Target</button>
+    <button id="btnWorldMode" onclick="setARMode('world')" class="mode-btn">Place on Table (1-Phone Mode)</button>
+  </div>
+
+  <!-- Return Link to Master Hub -->
   <a href="index.html" class="back-btn">← Return to Master Hub</a>
 
-  <!-- A-Frame Scene with MindAR (Fixed Target Path) -->
-  <a-scene embedded mindar-image="imageTargetSrc: targets.mind;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+  <!-- A-Frame Scene -->
+  <a-scene id="arScene" embedded mindar-image="imageTargetSrc: targets.mind; autoStart: true;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
     <a-assets>
       <img id="mother-luta-img" src="mother-luta.png" crossorigin="anonymous">
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- Target Entity for MindAR Image Index 0 -->
-    <a-entity mindar-image-target="targetIndex: 0">
+    <!-- Target Entity for MindAR Image Index 0 (Used in Image Mode) -->
+    <a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
       <!-- Golden Tree & Mother Luetta AR Gateway Entity -->
-      <a-entity position="0 0 0">
+      <a-entity id="gatewayModel" position="0 0 0">
         <!-- Outer Golden Tree Ring Gateway -->
         <a-torus radius="1.2" radius-tubular="0.04" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 0.8; roughness: 0.2" animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"></a-torus>
 
@@ -118,8 +150,8 @@
     <a-light type="directional" position="1 2 1" color="#f59e0b" intensity="1"></a-light>
   </a-scene>
 
-  <!-- DYNAMIC PARAMETER RECEIVER SCRIPT -->
   <script>
+    // 1. Dynamic Parameter Reader for Book & Card Modes
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get('mode');
 
@@ -135,6 +167,34 @@
     } else if (mode === 'card-codex') {
       if (titleEl) titleEl.innerText = "Card Codex • Vanguard Battle Index";
       if (subtitleEl) subtitleEl.innerText = `"Flipping card target... Character operational status active." — Marcus Prime`;
+    }
+
+    // 2. AR Mode Switching (Image Target Scan vs. Single-Phone Tabletop View)
+    function setARMode(arType) {
+      const sceneEl = document.getElementById('arScene');
+      const targetEl = document.getElementById('trackedTarget');
+      const gatewayEl = document.getElementById('gatewayModel');
+      const btnImage = document.getElementById('btnImageMode');
+      const btnWorld = document.getElementById('btnWorldMode');
+
+      if (arType === 'world') {
+        btnWorld.classList.add('active');
+        btnImage.classList.remove('active');
+
+        // Detach tracking so the 3D model appears right in front of the camera on screen
+        if (targetEl) {
+          targetEl.removeAttribute('mindar-image-target');
+        }
+        if (gatewayEl) {
+          gatewayEl.setAttribute('position', '0 0 -2.5'); // Places it directly in front of the user
+          gatewayEl.setAttribute('scale', '0.8 0.8 0.8');
+        }
+        if (subtitleEl) subtitleEl.innerText = "[TABLETOP MODE] Hologram active on screen. Explore in 3D!";
+      } else {
+        btnImage.classList.add('active');
+        btnWorld.classList.remove('active');
+        window.location.reload(); // Reset back to image target scanning
+      }
     }
   </script>
 
