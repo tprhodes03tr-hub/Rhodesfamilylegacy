@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Legacy Hub: Neon Tycoon, Chrono-Grid Tetris & Vanguard Tycoon</title>
+    <title>Family Legacy Hub: Neon Tycoon, Chrono-Grid Tetris, Vanguard Tycoon & Bingo Lounge</title>
     <!-- Include PeerJS for real internet P2P multiplayer -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
@@ -329,6 +329,7 @@
             <button class="tab-btn active" onclick="switchApp('tycoon', event)">🏛️ NEON TYCOON</button>
             <button class="tab-btn" onclick="switchApp('tetris', event)">🕹️ CHRONO-GRID TETRIS</button>
             <button class="tab-btn" onclick="switchApp('vanguard', event)">⚡ VANGUARD TYCOON</button>
+            <button class="tab-btn" onclick="switchApp('bingo', event)">🎯 BINGO LOUNGE</button>
         </div>
         <div style="margin-top: 6px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap;">
             <select id="city-selector" onchange="changeCityBoard(this.value)" style="background: #0b0c10; color: var(--accent-blue); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; font-family: 'Courier New', Courier, monospace;">
@@ -441,6 +442,7 @@
             <button class="ctrl-btn" onclick="tetrisRotate()">ROTATE</button>
             <button class="ctrl-btn secondary" onclick="tetrisMove(1)">RIGHT</button>
             <button class="ctrl-btn purple" onclick="tetrisDrop()">DROP</button>
+            <button class="ctrl-btn danger" id="tetris-pause-btn" onclick="toggleTetrisPause()">⏸️ PAUSE</button>
         </div>
     </div>
 
@@ -502,6 +504,38 @@
             <button class="ctrl-btn" id="v-btn-roll" style="border-color: var(--accent-magenta); color: var(--accent-magenta);" onclick="vanguardAction('roll')">🎲 ROLL VANGUARD DICE</button>
             <button class="ctrl-btn secondary" onclick="vanguardAction('buy')">🛡️ CLAIM SECTOR</button>
             <button class="ctrl-btn purple" onclick="vanguardAction('upgrade')">⚡ UPGRADE NEXUS ($60)</button>
+        </div>
+    </div>
+
+    <!-- 4. BINGO LOUNGE (TRADITIONAL, LOTERÍA MEXICANA, & VANGUARD BINGO) -->
+    <div id="bingo-view" class="app-container hidden">
+        <div class="lobby-bar">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%; justify-content: space-between;">
+                <span style="font-weight: bold; color: var(--accent-orange);">🎯 FAMILY BINGO LOUNGE</span>
+                <div style="display: flex; gap: 6px;">
+                    <button class="ctrl-btn secondary" id="bingo-mode-trad" onclick="setBingoMode('traditional')" style="font-size: 0.75rem; padding: 4px 10px;">🔢 Classic Bingo</button>
+                    <button class="ctrl-btn purple" id="bingo-mode-loteria" onclick="setBingoMode('loteria')" style="font-size: 0.75rem; padding: 4px 10px;">🇲🇽 Lotería Mexicana</button>
+                    <button class="ctrl-btn secondary" id="bingo-mode-vanguard" onclick="setBingoMode('vanguard')" style="font-size: 0.75rem; padding: 4px 10px; border-color: var(--accent-magenta); color: var(--accent-magenta);">⚡ Vanguard Bingo</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="reserves-banner" style="border-color: var(--accent-orange);">
+            <span id="bingo-status-banner" style="color: var(--accent-orange);">CALL: Press Draw to start game!</span>
+            <span id="bingo-score-banner" style="color: var(--accent-blue);">Matches: 0 / 25</span>
+        </div>
+
+        <!-- Bingo Canvas Board with Family Crest Center -->
+        <canvas id="bingoCanvas" width="900" height="500" onclick="handleBingoTouch(event)"></canvas>
+
+        <div id="log-box-b" style="margin-top: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 8px; height: 38px; overflow-y: auto; font-size: 0.78rem; color: #a0aec0;">
+            Click squares to stamp your card. Complete a row, column, or diagonal to shout BINGO / ¡LOTERÍA!
+        </div>
+
+        <div class="controls">
+            <button class="ctrl-btn" onclick="drawBingoCall()" style="background: var(--accent-orange); color: #000; border-color: var(--accent-orange);">🎲 DRAW NEXT CALL</button>
+            <button class="ctrl-btn secondary" onclick="resetBingoCard()">🔄 NEW CARD</button>
+            <button class="ctrl-btn purple" onclick="checkBingoWin()">🏆 CHECK WIN</button>
         </div>
     </div>
 
@@ -607,6 +641,9 @@
         } else if(appKey === 'vanguard') {
             document.getElementById('vanguard-view').classList.remove('hidden');
             drawVanguardBoard();
+        } else if(appKey === 'bingo') {
+            document.getElementById('bingo-view').classList.remove('hidden');
+            initBingoGame();
         }
         evt.target.classList.add('active');
     }
@@ -626,10 +663,14 @@
     treeImg.onload = function() {
         treeLoaded = true;
         drawTycoonBoard();
+        drawVanguardBoard();
+        drawBingoBoard();
     };
     treeImg.onerror = function() {
         treeLoaded = false;
         drawTycoonBoard();
+        drawVanguardBoard();
+        drawBingoBoard();
     };
     treeImg.src = 'packed-marrow-tree.png';
 
@@ -1325,6 +1366,7 @@
     let tetrisMarrow = 0;
     let tetrisLevel = 1;
     let tetrisInterval = null;
+    let isTetrisPaused = false;
 
     const SHAPES = [
         [[1,1,1,1]],
@@ -1360,6 +1402,8 @@
         tetrisScore = 0;
         tetrisMarrow = 0;
         tetrisLevel = 1;
+        isTetrisPaused = false;
+        document.getElementById('tetris-pause-btn').innerText = "⏸️ PAUSE";
         document.getElementById('tetris-score').innerText = tetrisScore;
         document.getElementById('tetris-marrow').innerText = tetrisMarrow;
         document.getElementById('tetris-level').innerText = tetrisLevel;
@@ -1373,7 +1417,49 @@
         drawNextPiece();
     }
 
+    function toggleTetrisPause() {
+        isTetrisPaused = !isTetrisPaused;
+        const pBtn = document.getElementById('tetris-pause-btn');
+        if(isTetrisPaused) {
+            clearInterval(tetrisInterval);
+            tetrisInterval = null;
+            pBtn.innerText = "▶️ RESUME";
+            pBtn.style.borderColor = "#2ecc71";
+            pBtn.style.color = "#2ecc71";
+            drawTetrisPausedOverlay();
+            speakGameEvent("Tetris paused");
+        } else {
+            tetrisInterval = setInterval(tetrisTick, 500);
+            pBtn.innerText = "⏸️ PAUSE";
+            pBtn.style.borderColor = "#e74c3c";
+            pBtn.style.color = "#e74c3c";
+            drawTetris();
+            speakGameEvent("Tetris resumed");
+        }
+    }
+
+    function drawTetrisPausedOverlay() {
+        if(!tCtxEl) return;
+        drawTetris();
+        tCtxEl.fillStyle = "rgba(2, 6, 23, 0.82)";
+        tCtxEl.fillRect(0, 0, tCanvasEl.width, tCanvasEl.height);
+
+        tCtxEl.fillStyle = "#ff7b00";
+        tCtxEl.font = "bold 20px Courier New";
+        tCtxEl.textAlign = "center";
+        tCtxEl.shadowColor = "#ff7b00";
+        tCtxEl.shadowBlur = 15;
+        tCtxEl.fillText("PAUSED", tCanvasEl.width / 2, tCanvasEl.height / 2 - 10);
+
+        tCtxEl.fillStyle = "#66fcf1";
+        tCtxEl.font = "11px Courier New";
+        tCtxEl.fillText("Press Resume to continue", tCanvasEl.width / 2, tCanvasEl.height / 2 + 20);
+        tCtxEl.shadowBlur = 0;
+        tCtxEl.textAlign = "left";
+    }
+
     function tetrisTick() {
+        if(isTetrisPaused) return;
         currentPiece.y++;
         if(checkCollision(currentPiece)) {
             currentPiece.y--;
@@ -1510,14 +1596,14 @@
     }
 
     function tetrisMove(dir) {
-        if(!currentPiece) return;
+        if(isTetrisPaused || !currentPiece) return;
         currentPiece.x += dir;
         if(checkCollision(currentPiece)) currentPiece.x -= dir;
         drawTetris();
     }
 
     function tetrisRotate() {
-        if(!currentPiece) return;
+        if(isTetrisPaused || !currentPiece) return;
         let rotated = currentPiece.shape[0].map((_, index) => currentPiece.shape.map(row => row[index]).reverse());
         let oldShape = currentPiece.shape;
         currentPiece.shape = rotated;
@@ -1526,7 +1612,7 @@
     }
 
     function tetrisDrop() {
-        if(!currentPiece) return;
+        if(isTetrisPaused || !currentPiece) return;
         while(!checkCollision(currentPiece)) { currentPiece.y++; }
         currentPiece.y--;
         mergePiece();
@@ -1909,6 +1995,220 @@
             } else {
                 logVanguard(`You must own this unmortgaged sector and have 60 VC.`);
             }
+        }
+    }
+
+
+    // --- BINGO LOUNGE (TRADITIONAL, LOTERÍA, & VANGUARD BINGO) ---
+    let bCanvas, bCtx;
+    let bingoMode = 'traditional'; // 'traditional', 'loteria', 'vanguard'
+    let bingoBoardData = []; // 5x5 grid items {label: '', stamped: false}
+    let lastCalledItem = "READY";
+
+    const loteriaDeck = [
+        "El Sol", "La Luna", "La Sirena", "El Arpa", "El Valiente", 
+        "El Melón", "El Catrín", "El Paragüas", "La Muerte", "El Alacrán", 
+        "La Botella", "El Barril", "El Árbol", "El Musico", "La Estrellita", "El Nopal"
+    ];
+
+    const vanguardBingoDeck = [
+        "Marcus Prime", "Wakan", "Amina Zazzau", "Detroit 313", "Marrow Nexus", 
+        "Chrono-Lock", "Vortex-Q", "Magma-Weaver", "Prism-Ghost", "Nexus-Zero", 
+        "Syndicate Iron", "D-Harmonic", "Solar Lion", "Ancestral Vault", "Iron Syndicate", "Vanguard Fleet"
+    ];
+
+    function initBingoGame() {
+        bCanvas = document.getElementById('bingoCanvas');
+        if (bCanvas) bCtx = bCanvas.getContext('2d');
+        resetBingoCard();
+    }
+
+    function setBingoMode(mode) {
+        bingoMode = mode;
+        document.getElementById('bingo-mode-trad').className = mode === 'traditional' ? "ctrl-btn secondary" : "tab-btn";
+        document.getElementById('bingo-mode-loteria').className = mode === 'loteria' ? "ctrl-btn purple" : "tab-btn";
+        document.getElementById('bingo-mode-vanguard').className = mode === 'vanguard' ? "ctrl-btn secondary" : "tab-btn";
+        resetBingoCard();
+        logBingo(`Switched Bingo Mode to: ${mode.toUpperCase()}`);
+    }
+
+    function resetBingoCard() {
+        bingoBoardData = [];
+        let pool = [];
+        if(bingoMode === 'traditional') {
+            for(let i=1; i<=75; i++) pool.push(i.toString());
+        } else if(bingoMode === 'loteria') {
+            pool = [...loteriaDeck];
+        } else {
+            pool = [...vanguardBingoDeck];
+        }
+
+        // Shuffle pool
+        pool.sort(() => Math.random() - 0.5);
+
+        let idx = 0;
+        for(let r=0; r<5; r++) {
+            let row = [];
+            for(let c=0; c<5; c++) {
+                if(r === 2 && c === 2) {
+                    row.push({label: "FAMILY CREST", stamped: true, isCenter: true});
+                } else {
+                    row.push({label: pool[idx++ % pool.length], stamped: false, isCenter: false});
+                }
+            }
+            bingoBoardData.push(row);
+        }
+        lastCalledItem = "READY";
+        updateBingoBanner();
+        drawBingoBoard();
+    }
+
+    function drawBingoBoard() {
+        if(!bCtx) return;
+        bCtx.clearRect(0, 0, bCanvas.width, bCanvas.height);
+
+        // Background sci-fi grid
+        bCtx.strokeStyle = 'rgba(255, 123, 0, 0.12)';
+        bCtx.lineWidth = 1;
+        let sz = 30;
+        for (let x = 0; x < bCanvas.width; x += sz) {
+            bCtx.beginPath(); bCtx.moveTo(x, 0); bCtx.lineTo(x, bCanvas.height); bCtx.stroke();
+        }
+        for (let y = 0; y < bCanvas.height; y += sz) {
+            bCtx.beginPath(); bCtx.moveTo(0, y); bCtx.lineTo(bCanvas.width, y); bCtx.stroke();
+        }
+
+        let startX = 225;
+        let startY = 35;
+        let cellW = 90;
+        let cellH = 80;
+
+        let stampedCount = 0;
+
+        for(let r=0; r<5; r++) {
+            for(let c=0; c<5; c++) {
+                let cell = bingoBoardData[r][c];
+                let x = startX + c * (cellW + 6);
+                let y = startY + r * (cellH + 6);
+
+                if(cell.stamped) stampedCount++;
+
+                bCtx.fillStyle = cell.stamped ? 'rgba(255, 123, 0, 0.25)' : '#0b0c10';
+                bCtx.strokeStyle = cell.stamped ? '#ff7b00' : '#45a29e';
+                bCtx.lineWidth = cell.stamped ? 2.5 : 1.5;
+
+                bCtx.save();
+                bCtx.shadowColor = cell.stamped ? '#ff7b00' : '#66fcf1';
+                bCtx.shadowBlur = cell.stamped ? 12 : 6;
+                bCtx.fillRect(x, y, cellW, cellH);
+                bCtx.strokeRect(x, y, cellW, cellH);
+                bCtx.restore();
+
+                if(cell.isCenter && treeLoaded) {
+                    bCtx.drawImage(treeImg, x + 15, y + 10, 60, 60);
+                } else {
+                    bCtx.fillStyle = cell.stamped ? '#ff7b00' : '#f0f2f5';
+                    bCtx.font = 'bold 11px Courier New';
+                    bCtx.textAlign = 'center';
+                    bCtx.fillText(cell.label, x + (cellW/2), y + (cellH/2) + 4);
+                }
+            }
+        }
+
+        // Draw side panel info / Family Crest Watermark in background corners
+        bCtx.textAlign = 'left';
+        bCtx.fillStyle = '#66fcf1';
+        bCtx.font = 'bold 13px Courier New';
+        bCtx.fillText("BINGO LOUNGE", 25, 50);
+
+        bCtx.fillStyle = '#ff7b00';
+        bCtx.font = '11px Courier New';
+        bCtx.fillText(`Mode: ${bingoMode.toUpperCase()}`, 25, 75);
+        bCtx.fillText(`Last Call:`, 25, 110);
+
+        bCtx.fillStyle = '#fff';
+        bCtx.font = 'bold 16px Courier New';
+        bCtx.fillText(lastCalledItem, 25, 135);
+
+        document.getElementById('bingo-score-banner').innerText = `Stamped: ${stampedCount} / 25`;
+    }
+
+    function handleBingoTouch(event) {
+        let rect = bCanvas.getBoundingClientRect();
+        let scaleX = bCanvas.width / rect.width;
+        let scaleY = bCanvas.height / rect.height;
+        let clickX = (event.clientX - rect.left) * scaleX;
+        let clickY = (event.clientY - rect.top) * scaleY;
+
+        let startX = 225;
+        let startY = 35;
+        let cellW = 90;
+        let cellH = 80;
+
+        for(let r=0; r<5; r++) {
+            for(let c=0; c<5; c++) {
+                let x = startX + c * (cellW + 6);
+                let y = startY + r * (cellH + 6);
+
+                if(clickX >= x && clickX <= x + cellW && clickY >= y && clickY <= y + cellH) {
+                    if(!bingoBoardData[r][c].isCenter) {
+                        bingoBoardData[r][c].stamped = !bingoBoardData[r][c].stamped;
+                        drawBingoBoard();
+                        speakGameEvent(bingoBoardData[r][c].stamped ? "Stamped" : "Unstamped");
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    function drawBingoCall() {
+        let options = [];
+        if(bingoMode === 'traditional') {
+            let num = Math.floor(Math.random() * 75) + 1;
+            let prefix = num <= 15 ? 'B' : (num <= 30 ? 'I' : (num <= 45 ? 'N' : (num <= 60 ? 'G' : 'O')));
+            lastCalledItem = `${prefix}-${num}`;
+        } else if(bingoMode === 'loteria') {
+            lastCalledItem = loteriaDeck[Math.floor(Math.random() * loteriaDeck.length)];
+        } else {
+            lastCalledItem = vanguardBingoDeck[Math.floor(Math.random() * vanguardBingoDeck.length)];
+        }
+
+        updateBingoBanner();
+        drawBingoBoard();
+        logBingo(`Called: ${lastCalledItem}`);
+    }
+
+    function updateBingoBanner() {
+        document.getElementById('bingo-status-banner').innerText = `CURRENT CALL: ${lastCalledItem}`;
+    }
+
+    function checkBingoWin() {
+        let hasWon = false;
+        // Check rows & cols
+        for(let i=0; i<5; i++) {
+            if(bingoBoardData[i].every(cell => cell.stamped)) hasWon = true;
+            if(bingoBoardData.every(row => row[i].stamped)) hasWon = true;
+        }
+        // Check diagonals
+        if([0,1,2,3,4].every(i => bingoBoardData[i][i].stamped)) hasWon = true;
+        if([0,1,2,3,4].every(i => bingoBoardData[i][4-i].stamped)) hasWon = true;
+
+        if(hasWon) {
+            logBingo("🎉 BINGO! ¡LOTERÍA! Family victory achieved!");
+            speakGameEvent("Bingo! Lotería! Victory!");
+            alert("🎉 BINGO / ¡LOTERÍA! You have successfully aligned the board!");
+        } else {
+            logBingo("Not yet! Keep stamping your matching squares.");
+            speakGameEvent("Not yet a bingo!");
+        }
+    }
+
+    function logBingo(msg) {
+        const box = document.getElementById('log-box-b');
+        if(box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
         }
     }
 </script>
