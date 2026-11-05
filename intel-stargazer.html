@@ -251,13 +251,13 @@
 
   <header>
     <h1>Intel & Live News Dispatch</h1>
-    <p class="subtitle">Real-World Broadcast & Stargazer Feed</p>
+    <p class="subtitle">Real-World Global & Local Broadcast Feed</p>
   </header>
 
   <!-- Navigation Tabs -->
   <div class="tab-container">
     <button class="tab-btn active" onclick="switchTab('michiganNews')">Michigan & Midwest News</button>
-    <button class="tab-btn" onclick="switchTab('nationalNews')">Global & Tech Wire</button>
+    <button class="tab-btn" onclick="switchTab('nationalNews')">Global & World Wire</button>
     <button class="tab-btn" onclick="switchTab('vanguardNews')">Vanguard & Legacy</button>
     <button class="tab-btn" onclick="switchTab('stargazer')">Stargazer AR</button>
   </div>
@@ -265,14 +265,14 @@
   <!-- Michigan & Local News Section -->
   <div id="michiganNews" class="section-content active">
     <div id="michiganNewsContainer">
-      <div class="loading-text">Loading live Michigan and Great Lakes headlines...</div>
+      <div class="loading-text">Loading live Michigan regional updates...</div>
     </div>
   </div>
 
   <!-- National & World News Section -->
   <div id="nationalNews" class="section-content">
     <div id="nationalNewsContainer">
-      <div class="loading-text">Loading live global wire feed...</div>
+      <div class="loading-text">Loading live global news headlines...</div>
     </div>
   </div>
 
@@ -371,28 +371,29 @@
       }
     }
 
-    // Fetch Live Real World News via Direct Public API Endpoints
+    // Fetch Live General News via Public RSS-to-JSON Converter
     async function loadLiveNews() {
-      // 1. Load National / Tech / Science Wire
+      // 1. Global & World News Feed (General Headlines)
       const nationalContainer = document.getElementById('nationalNewsContainer');
       try {
-        const response = await fetch('https://api.spaceflightnewsapi.net/v4/articles/?limit=5');
+        const rssUrlWorld = 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en';
+        const response = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrlWorld)}`);
         const data = await response.json();
         
-        if (data && data.results) {
+        if (data && data.items && data.items.length > 0) {
           let html = '';
-          data.results.forEach(art => {
-            const cleanTitle = art.title.replace(/'/g, "\\'");
-            const cleanSummary = (art.summary || 'Click link to read full coverage.').replace(/'/g, "\\'").substring(0, 140) + '...';
+          data.items.slice(0, 6).forEach(item => {
+            const cleanTitle = item.title.replace(/'/g, "\\'");
+            const cleanSummary = (item.description || '').replace(/<[^>]*>?/gm, '').substring(0, 140).replace(/'/g, "\\'") + '...';
             
             html += `
               <div class="news-card">
                 <div class="news-title">
-                  <a href="${art.url}" target="_blank" rel="noopener noreferrer">${art.title} ↗</a>
+                  <a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title} ↗</a>
                 </div>
                 <div class="news-snippet">${cleanSummary}</div>
                 <div class="news-footer">
-                  <div class="news-meta">Source: ${art.news_site} • Live Feed</div>
+                  <div class="news-meta">Source: Global Wire Feed • Live</div>
                   <button class="tts-btn" onclick="speakNews('${cleanTitle}', '${cleanSummary}')">🔊 Read Aloud</button>
                 </div>
               </div>
@@ -401,32 +402,30 @@
           nationalContainer.innerHTML = html;
         }
       } catch (err) {
-        nationalContainer.innerHTML = `<div class="news-card"><div class="news-title">Feed Status</div><div class="news-snippet">Unable to load live wire at this moment.</div></div>`;
+        nationalContainer.innerHTML = `<div class="news-card"><div class="news-title">Feed Status</div><div class="news-snippet">Unable to load global wire at this moment.</div></div>`;
       }
 
-      // 2. Load Michigan / Regional News via Public Open Feed
+      // 2. Michigan, Detroit, & Midwest Regional News
       const michiganContainer = document.getElementById('michiganNewsContainer');
       try {
-        // Fetching open regional news records via public data endpoint
-        const responseMi = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson');
-        // Let's use a reliable fallback public general news feed format for Michigan regional headlines
-        const fallbackResponse = await fetch('https://api.spaceflightnewsapi.net/v4/blogs/?limit=5');
-        const blogData = await fallbackResponse.json();
+        const rssUrlMi = 'https://news.google.com/rss/search?q=Michigan+Detroit+Saginaw+news&hl=en-US&gl=US&ceid=US:en';
+        const responseMi = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrlMi)}`);
+        const dataMi = await responseMi.json();
 
-        if (blogData && blogData.results) {
+        if (dataMi && dataMi.items && dataMi.items.length > 0) {
           let htmlMi = '';
-          blogData.results.forEach(art => {
-            const cleanTitle = art.title.replace(/'/g, "\\'");
-            const cleanSummary = (art.summary || 'Regional update broadcast.').replace(/'/g, "\\'").substring(0, 140) + '...';
+          dataMi.items.slice(0, 6).forEach(item => {
+            const cleanTitle = item.title.replace(/'/g, "\\'");
+            const cleanSummary = (item.description || '').replace(/<[^>]*>?/gm, '').substring(0, 140).replace(/'/g, "\\'") + '...';
 
             htmlMi += `
               <div class="news-card">
                 <div class="news-title">
-                  <a href="${art.url}" target="_blank" rel="noopener noreferrer">${art.title} ↗</a>
+                  <a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title} ↗</a>
                 </div>
                 <div class="news-snippet">${cleanSummary}</div>
                 <div class="news-footer">
-                  <div class="news-meta">Source: Great Lakes & Regional Wire • Live</div>
+                  <div class="news-meta">Source: Michigan & Regional Feed • Live</div>
                   <button class="tts-btn" onclick="speakNews('${cleanTitle}', '${cleanSummary}')">🔊 Read Aloud</button>
                 </div>
               </div>
