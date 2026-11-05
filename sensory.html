@@ -44,6 +44,8 @@
       align-items: center;
       z-index: 10;
       pointer-events: none;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
     .btn-group {
@@ -51,6 +53,7 @@
       gap: 8px;
       pointer-events: auto;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .btn {
@@ -76,6 +79,37 @@
       background: rgba(147, 197, 253, 0.3);
       border-color: rgba(147, 197, 253, 0.6);
       color: #ffffff;
+    }
+
+    /* Sensory Mode & Customization Toolbar */
+    .sensory-toolbar {
+      position: fixed;
+      top: 70px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      z-index: 10;
+      pointer-events: auto;
+      flex-wrap: wrap;
+    }
+
+    .mode-btn {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(147, 197, 253, 0.3);
+      color: #93c5fd;
+      padding: 6px 12px;
+      border-radius: 15px;
+      font-size: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+    }
+
+    .mode-btn.active {
+      background: #3b82f6;
+      color: #fff;
+      border-color: #60a5fa;
     }
 
     /* Calming Breathing Pacer */
@@ -119,7 +153,7 @@
       position: relative;
       z-index: 2;
       max-width: 800px;
-      margin: 90px auto 120px auto;
+      margin: 130px auto 120px auto;
       padding: 0 20px;
       pointer-events: none;
     }
@@ -161,6 +195,8 @@
       border-radius: 12px;
       margin-bottom: 24px;
       border: 1px solid rgba(255, 255, 255, 0.1);
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .lang-toggle-group {
@@ -298,12 +334,20 @@
   <div class="controls">
     <div class="btn-group">
       <a href="index.html" class="btn" style="text-decoration:none;">← Home</a>
-      <button id="soundToggle" class="btn">Sound: Off</button>
+      <button id="soundToggle" class="btn">Chimes: Off</button>
+      <button id="soundscapeToggle" class="btn">Soundscape: Off</button>
     </div>
     <div class="btn-group">
-      <button id="calmBtn" class="btn">Calm Reset</button>
+      <button id="calmBtn" class="btn">Clear</button>
       <button id="pacerToggle" class="btn active">Breathing</button>
     </div>
+  </div>
+
+  <!-- Sensory Room Mode Selector -->
+  <div class="sensory-toolbar">
+    <button class="mode-btn active" data-mode="drift">✨ Deep Space Drift</button>
+    <button class="mode-btn" data-mode="ripples">🌊 Liquid Light</button>
+    <button class="mode-btn" data-mode="bubbles">🔵 Fidget Bubbles</button>
   </div>
 
   <div class="breathing-guide" id="breathingGuide">
@@ -393,13 +437,16 @@
     const canvas = document.getElementById('stage');
     const ctx = canvas.getContext('2d');
     const soundToggle = document.getElementById('soundToggle');
+    const soundscapeToggle = document.getElementById('soundscapeToggle');
     const calmBtn = document.getElementById('calmBtn');
     const pacerToggle = document.getElementById('pacerToggle');
     const breathingGuide = document.getElementById('breathingGuide');
+    const modeBtns = document.querySelectorAll('.mode-btn');
 
     // E-Reader state variables
     let currentLang = 'en';
     let currentSpread = 1;
+    let sensoryMode = 'drift'; // 'drift', 'ripples', 'bubbles'
     const totalSpreads = 5;
 
     const langEnBtn = document.getElementById('langEn');
@@ -449,6 +496,15 @@
       if (currentSpread < totalSpreads) showSpread(currentSpread + 1);
     });
 
+    modeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        modeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        sensoryMode = btn.getAttribute('data-mode');
+        initSensoryObjects();
+      });
+    });
+
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
 
@@ -457,7 +513,7 @@
       height = canvas.height = window.innerHeight;
     });
 
-    // --- Web Audio (Pentatonic Scale - D Major / Calming Chimes) ---
+    // --- Web Audio (Pentatonic Scale & Soundscapes) ---
     let audioCtx = null;
     let soundEnabled = false;
     const pentatonicNotes = [293.66, 329.63, 369.99, 440.0, 493.88, 587.33, 659.25];
@@ -498,9 +554,71 @@
     soundToggle.addEventListener('click', () => {
       initAudio();
       soundEnabled = !soundEnabled;
-      soundToggle.textContent = soundEnabled ? 'Sound: On' : 'Sound: Off';
+      soundToggle.textContent = soundEnabled ? 'Chimes: On' : 'Chimes: Off';
       soundToggle.classList.toggle('active', soundEnabled);
     });
+
+    // --- Calming Background Soundscape Generator (Pink Noise) ---
+    let soundscapeNode = null;
+    let soundscapeGain = null;
+    let isSoundscapeActive = false;
+
+    function toggleSoundscape() {
+      initAudio();
+      if (!audioCtx) return;
+
+      if (isSoundscapeActive) {
+        if (soundscapeNode) {
+          soundscapeNode.stop();
+          soundscapeNode.disconnect();
+          soundscapeNode = null;
+        }
+        isSoundscapeActive = false;
+        soundscapeToggle.textContent = 'Soundscape: Off';
+        soundscapeToggle.classList.remove('active');
+      } else {
+        const bufferSize = audioCtx.sampleRate * 2;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          let white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+          output[i] *= 0.11;
+          b6 = white * 0.115926;
+        }
+
+        soundscapeNode = audioCtx.createBufferSource();
+        soundscapeNode.buffer = noiseBuffer;
+        soundscapeNode.loop = true;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(350, audioCtx.currentTime);
+
+        soundscapeGain = audioCtx.createGain();
+        soundscapeGain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        soundscapeGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 1.5);
+
+        soundscapeNode.connect(filter);
+        filter.connect(soundscapeGain);
+        soundscapeGain.connect(audioCtx.destination);
+
+        soundscapeNode.start();
+        isSoundscapeActive = true;
+        soundscapeToggle.textContent = 'Soundscape: On';
+        soundscapeToggle.classList.add('active');
+      }
+    }
+
+    soundscapeToggle.addEventListener('click', toggleSoundscape);
 
     pacerToggle.addEventListener('click', () => {
       const isVisible = breathingGuide.style.display !== 'none';
@@ -508,20 +626,42 @@
       pacerToggle.classList.toggle('active', !isVisible);
     });
 
-    // --- Calming Wave & Ripple Particle System ---
+    // --- Dynamic Multi-Mode Sensory Object Management ---
     const ripples = [];
     const particles = [];
+    const fidgetBubbles = [];
 
-    for (let i = 0; i < 45; i++) {
-      particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        r: Math.random() * 3 + 1.5,
-        speedX: (Math.random() - 0.5) * 0.4,
-        speedY: (Math.random() - 0.5) * 0.4,
-        alpha: Math.random() * 0.4 + 0.2,
-      });
+    function initSensoryObjects() {
+      particles.length = 0;
+      ripples.length = 0;
+      fidgetBubbles.length = 0;
+
+      if (sensoryMode === 'drift') {
+        for (let i = 0; i < 50; i++) {
+          particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            r: Math.random() * 3 + 1.5,
+            speedX: (Math.random() - 0.5) * 0.3,
+            speedY: (Math.random() - 0.5) * 0.3,
+            alpha: Math.random() * 0.5 + 0.2,
+          });
+        }
+      } else if (sensoryMode === 'bubbles') {
+        for (let i = 0; i < 18; i++) {
+          fidgetBubbles.push({
+            x: Math.random() * (width - 100) + 50,
+            y: Math.random() * (height - 150) + 100,
+            r: Math.random() * 25 + 25,
+            scale: 1,
+            popping: false,
+            color: `hsla(${Math.random() * 60 + 180}, 75%, 70%, 0.45)`
+          });
+        }
+      }
     }
+
+    initSensoryObjects();
 
     function addRipple(x, y) {
       ripples.push({
@@ -530,8 +670,8 @@
         radius: 5,
         maxRadius: Math.min(width, height) * 0.35,
         alpha: 0.6,
-        growth: 1.8,
-        colorHue: Math.floor(Math.random() * 40 + 190),
+        growth: 2.0,
+        colorHue: Math.floor(Math.random() * 50 + 180),
       });
       playChime(x, y);
     }
@@ -541,14 +681,30 @@
 
     function handlePointer(x, y) {
       const now = Date.now();
-      if (now - lastSpawn > 80) {
-        addRipple(x, y);
-        lastSpawn = now;
+      if (sensoryMode === 'drift' || sensoryMode === 'ripples') {
+        if (now - lastSpawn > 80) {
+          addRipple(x, y);
+          lastSpawn = now;
+        }
+      } else if (sensoryMode === 'bubbles') {
+        fidgetBubbles.forEach(b => {
+          const dist = Math.hypot(x - b.x, y - b.y);
+          if (dist < b.r && !b.popping) {
+            b.popping = true;
+            playChime(b.x, b.y);
+            setTimeout(() => {
+              b.x = Math.random() * (width - 100) + 50;
+              b.y = Math.random() * (height - 150) + 100;
+              b.scale = 1;
+              b.popping = false;
+            }, 400);
+          }
+        });
       }
     }
 
     window.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.controls') || e.target.closest('.story-reader-card')) return;
+      if (e.target.closest('.controls') || e.target.closest('.sensory-toolbar') || e.target.closest('.story-reader-card')) return;
       isTouching = true;
       initAudio();
       handlePointer(e.clientX, e.clientY);
@@ -564,28 +720,47 @@
     window.addEventListener('pointercancel', () => { isTouching = false; });
 
     calmBtn.addEventListener('click', () => {
-      ripples.length = 0;
+      initSensoryObjects();
       ctx.fillStyle = '#0a1118';
       ctx.fillRect(0, 0, width, height);
     });
 
     function animate() {
-      ctx.fillStyle = 'rgba(10, 17, 24, 0.12)';
+      ctx.fillStyle = 'rgba(10, 17, 24, 0.15)';
       ctx.fillRect(0, 0, width, height);
 
-      for (const p of particles) {
-        p.x += p.speedX;
-        p.y += p.speedY;
+      if (sensoryMode === 'drift') {
+        for (const p of particles) {
+          p.x += p.speedX;
+          p.y += p.speedY;
 
-        if (p.x < 0) p.x = width;
-        if (p.x > width) p.x = 0;
-        if (p.y < 0) p.y = height;
-        if (p.y > height) p.y = 0;
+          if (p.x < 0) p.x = width;
+          if (p.x > width) p.x = 0;
+          if (p.y < 0) p.y = height;
+          if (p.y > height) p.y = 0;
 
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(147, 197, 253, ${p.alpha})`;
-        ctx.fill();
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(147, 197, 253, ${p.alpha})`;
+          ctx.fill();
+        }
+      } else if (sensoryMode === 'bubbles') {
+        fidgetBubbles.forEach(b => {
+          if (b.popping) {
+            b.scale += 0.12;
+            if (b.scale > 1.4) b.scale = 1.4;
+          } else {
+            if (b.scale > 1) b.scale -= 0.05;
+          }
+
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, b.r * b.scale, 0, Math.PI * 2);
+          ctx.fillStyle = b.popping ? 'rgba(255, 255, 255, 0.7)' : b.color;
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        });
       }
 
       for (let i = ripples.length - 1; i >= 0; i--) {
