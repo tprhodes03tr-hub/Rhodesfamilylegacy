@@ -213,7 +213,7 @@
     <div class="stats-bar" style="border-color: #064e3b; color: #34d399;">
       <span>🛡️ Sub Hull: <strong id="sub-integrity" style="color: #10b981;">100%</strong></span>
       <span>🌊 Depth: <strong id="sub-distance" style="color: #38bdf8;">100m</strong></span>
-      <span>🚀 Torpedoes: <strong id="sub-torpedoes" style="color: #f59e0b;">15</strong></span>
+      <span>🚀 Torpedoes: <strong id="sub-torpedoes" style="color: #f59e0b;">50</strong></span>
       <span>⚡ Tier: <strong id="sub-tier-label" style="color: #34d399;">Tier 1 (Scout Sub)</strong></span>
     </div>
 
@@ -821,12 +821,12 @@
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       let subX = 120, subY = 225, subTargetX = 120, subTargetY = 225;
-      let subDistance = 100, subOrbs = 0, subTier = 1, torpedoes = 15, subHull = 100;
+      let subDistance = 100, subOrbs = 0, subTier = 1, torpedoes = 50, subHull = 100;
       let marineOrbs = [], subTorpedoes = [], trenchDrones = [], coralReefs = [], droneTorps = [], abyssJellies = [];
       let isSubTurboActive = false, subTurboTimer = 0;
       let subCheckpoint = { x: canvas.width + 1500, y: 225, active: true };
 
-      for (let i = 0; i < 9; i++) trenchDrones.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 1.4 + Math.random(), size: 18, shootTimer: 0 });
+      for (let i = 0; i < 7; i++) trenchDrones.push({ x: canvas.width * 0.3 + Math.random() * canvas.width * 0.7, y: 60 + Math.random() * (canvas.height - 120), speed: 1.2 + Math.random() * 0.8, size: 28, shootTimer: 0 });
       for (let i = 0; i < 8; i++) coralReefs.push({ x: i * 85, height: 60 + Math.random() * 90, type: i % 2 === 0 ? 'coral' : 'crystal' });
       for (let i = 0; i < 7; i++) abyssJellies.push({ x: Math.random() * canvas.width, y: Math.random() * (canvas.height - 150), speed: 0.8 + Math.random() * 0.8, pulse: Math.random() * Math.PI });
 
@@ -847,11 +847,30 @@
       };
 
       window.fireHomingTorpedo = () => {
-        if (torpedoes <= 0) return; torpedoes--;
+        if (torpedoes <= 0) {
+          torpedoes = 30; // Refill automatically if exhausted
+        }
+        torpedoes--;
         document.getElementById('sub-torpedoes').innerText = torpedoes;
         playSound('beam');
-        let target = trenchDrones.length > 0 ? trenchDrones[0] : null;
-        subTorpedoes.push({ x: subX + 40, y: subY, vx: 9, vy: 0, target: target });
+        
+        let nearestDrone = null;
+        let minDist = Infinity;
+        trenchDrones.forEach(d => {
+          let dist = Math.hypot(d.x - subX, d.y - subY);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestDrone = d;
+          }
+        });
+
+        subTorpedoes.push({
+          x: subX + 40,
+          y: subY,
+          vx: 8,
+          vy: 0,
+          target: nearestDrone
+        });
       };
 
       function subLoop() {
@@ -889,13 +908,17 @@
           }
 
           if (Math.random() < 0.06 && marineOrbs.length < 8) marineOrbs.push({ x: canvas.width + 30, y: 80 + Math.random() * (canvas.height - 160), speed: isSubTurboActive ? 5.5 : 2.8 });
-          if (Math.random() < 0.05 && trenchDrones.length < 7) trenchDrones.push({ x: canvas.width + 30, y: Math.random() * canvas.height, speed: 1.6 + Math.random() });
+          if (Math.random() < 0.05 && trenchDrones.length < 7) {
+            trenchDrones.push({ x: canvas.width + 40, y: 60 + Math.random() * (canvas.height - 120), speed: 1.4 + Math.random() * 0.8, size: 28, shootTimer: 0 });
+          }
           
           marineOrbs.forEach((o, idx) => {
             o.x -= (isSubTurboActive ? 6.0 : o.speed);
             if (Math.hypot(subX - o.x, subY - o.y) < 45) {
               playSound('transform'); subOrbs++;
               addScore(15);
+              torpedoes = Math.min(50, torpedoes + 5); // Replenish torpedoes on orb collect
+              document.getElementById('sub-torpedoes').innerText = torpedoes;
               if (subOrbs >= 15) {
                 subTier = 3;
                 document.getElementById('sub-tier-label').innerText = "Tier 3 (Abyssal Vanguard Titan Sub)";
@@ -916,7 +939,7 @@
 
           for (let i = droneTorps.length - 1; i >= 0; i--) {
             let dt = droneTorps[i]; dt.x += dt.vx;
-            if (Math.hypot(subX - dt.x, subY - dt.y) < 35) {
+            if (Math.hypot(subX - dt.x, subY - dt.y) < 40) {
               if (!isSubTurboActive) {
                 playSound('crash'); subHull = Math.max(0, subHull - 15); document.getElementById('sub-integrity').innerText = subHull + '%';
               }
@@ -925,19 +948,31 @@
           }
 
           subTorpedoes.forEach((t, idx) => {
+            // Advanced homing logic
             if (t.target && trenchDrones.includes(t.target)) {
               let angle = Math.atan2(t.target.y - t.y, t.target.x - t.x);
-              t.vx = Math.cos(angle) * 9; t.vy = Math.sin(angle) * 9;
-            } else { t.vx = 10; t.vy = 0; }
+              t.vx += (Math.cos(angle) * 11 - t.vx) * 0.25;
+              t.vy += (Math.sin(angle) * 11 - t.vy) * 0.25;
+            } else {
+              // Re-acquire nearest target if current target destroyed
+              let nearest = null;
+              let minD = Infinity;
+              trenchDrones.forEach(d => {
+                let dist = Math.hypot(d.x - t.x, d.y - t.y);
+                if (dist < minD) { minD = dist; nearest = d; }
+              });
+              if (nearest) t.target = nearest;
+              else t.vx = 11;
+            }
             t.x += t.vx; t.y += t.vy;
 
             trenchDrones.forEach((j, jIdx) => {
-              if (Math.hypot(t.x - j.x, t.y - j.y) < 28) {
+              if (Math.hypot(t.x - j.x, t.y - j.y) < 36) {
                 playSound('crash'); trenchDrones.splice(jIdx, 1); subTorpedoes.splice(idx, 1);
                 addScore(25);
               }
             });
-            if (t.x > canvas.width) subTorpedoes.splice(idx, 1);
+            if (t.x > canvas.width || t.x < 0 || t.y < 0 || t.y > canvas.height) subTorpedoes.splice(idx, 1);
           });
 
           abyssJellies.forEach(j => {
@@ -974,10 +1009,34 @@
             ctx.fillRect(c.x + 20, canvas.height - c.height + 10, 10, 18);
           });
 
+          // Enhanced, larger trench droids rendering
           trenchDrones.forEach(j => {
-            ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(j.x, j.y, 14, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = '#f43f5e'; ctx.fillRect(j.x - 3, j.y - 3, 6, 6);
+            ctx.save();
+            ctx.translate(j.x, j.y);
+            ctx.fillStyle = '#0f766e';
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 26, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Glowing core
+            ctx.fillStyle = '#38bdf8';
+            ctx.shadowColor = '#38bdf8';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(0, 0, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Mechanical fins/wings
+            ctx.fillStyle = '#042f2e';
+            ctx.fillRect(-10, -22, 6, 8);
+            ctx.fillRect(4, -22, 6, 8);
+            ctx.fillRect(-10, 14, 6, 8);
+            ctx.fillRect(4, 14, 6, 8);
+            ctx.restore();
           });
 
           if (subCheckpoint.active) {
@@ -988,8 +1047,17 @@
           }
 
           marineOrbs.forEach(o => { ctx.fillStyle = '#d4af37'; ctx.beginPath(); ctx.arc(o.x, o.y, 12, 0, Math.PI * 2); ctx.fill(); });
-          subTorpedoes.forEach(t => { ctx.fillStyle = '#ef4444'; ctx.fillRect(t.x, t.y - 3, 16, 6); });
-          droneTorps.forEach(dt => { ctx.fillStyle = '#f43f5e'; ctx.fillRect(dt.x, dt.y, 10, 4); });
+          
+          // Render homing torpedoes with glowing trails
+          subTorpedoes.forEach(t => { 
+            ctx.fillStyle = '#ef4444'; 
+            ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.ellipse(t.x, t.y, 14, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          });
+          droneTorps.forEach(dt => { ctx.fillStyle = '#f43f5e'; ctx.fillRect(dt.x, dt.y, 12, 5); });
           
           ctx.save();
           ctx.translate(subX, subY);
@@ -1466,6 +1534,67 @@
         ctx.fillText(`SHIELD: ${Math.floor(shieldEnergy)}%`, 45, 52);
       }
 
+      function renderHeroCharacter(ctx, heroObj, posX, posY) {
+        if (heroObj.name === 'Wakan') {
+          // Dedicated high-detail fallback renderer for Wakan so her sprite always appears correctly[span_3](start_span)[span_3](end_span)
+          ctx.save();
+          ctx.translate(posX, posY - 40);
+          ctx.fillStyle = '#059669';
+          ctx.beginPath();
+          ctx.roundRect(10, 0, 32, 60, [10, 10, 4, 4]);
+          ctx.fill();
+          ctx.strokeStyle = '#34d399';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          // Head / Crown helm
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(26, -10, 14, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Hydro staff
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(42, -20);
+          ctx.lineTo(42, 50);
+          ctx.stroke();
+          ctx.fillStyle = '#67e8f9';
+          ctx.beginPath();
+          ctx.arc(42, -24, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          return;
+        }
+
+        let sheetObj = heroObj.sheetKey ? sprites[heroObj.sheetKey] : null;
+        if (sheetObj && sheetObj.complete && sheetObj.naturalWidth !== 0) {
+          if (heroIsMoving) {
+            heroAnimTick++;
+            if (heroAnimTick > 8) {
+              heroFrameIndex = (heroFrameIndex + 1) % totalFrames;
+              heroAnimTick = 0;
+            }
+          } else {
+            heroFrameIndex = 0;
+          }
+
+          const sWidth = sheetObj.naturalWidth / totalFrames;
+          const sHeight = sheetObj.naturalHeight;
+          const sX = heroFrameIndex * sWidth;
+          const sY = 0;
+
+          ctx.drawImage(sheetObj, sX, sY, sWidth, sHeight, posX, posY - 50, 80, 100);
+        } else {
+          let fallbackImg = sprites[heroObj.key];
+          if (fallbackImg && fallbackImg.complete && fallbackImg.naturalWidth !== 0) {
+            ctx.drawImage(fallbackImg, posX, posY - 50, 80, 100);
+          } else {
+            ctx.fillStyle = '#1e3a8a'; ctx.fillRect(posX + 10, posY - 30, 24, 35);
+          }
+        }
+      }
+
       function brawlerLoop() {
         if (canvas.offsetParent !== null) {
           updateMarcusShield();
@@ -1740,7 +1869,6 @@
                   ctx.fillStyle = '#ef4444'; ctx.fillRect(d.x - 4, d.y - 65, 8, 8);
                   ctx.fillStyle = '#38bdf8'; ctx.fillRect(d.x - 16, d.y - 52, 32, 4);
                 } else {
-                  // SCALED UP WALKING DROIDS (Imposing combat scale: 40x60)
                   ctx.save();
                   ctx.translate(d.x, 300);
                   
@@ -1885,33 +2013,7 @@
               speakText("Xochitl lands back down smoothly next to her partner.");
             }
           } else {
-            // HERO RENDERING (Spritesheet support for Marcus/Xochitl/Kofi; static portrait fallback for Wakan & Amina)
-            let sheetObj = activeHero.sheetKey ? sprites[activeHero.sheetKey] : null;
-            if (sheetObj && sheetObj.complete && sheetObj.naturalWidth !== 0) {
-              if (heroIsMoving) {
-                heroAnimTick++;
-                if (heroAnimTick > 8) {
-                  heroFrameIndex = (heroFrameIndex + 1) % totalFrames;
-                  heroAnimTick = 0;
-                }
-              } else {
-                heroFrameIndex = 0;
-              }
-
-              const sWidth = sheetObj.naturalWidth / totalFrames;
-              const sHeight = sheetObj.naturalHeight;
-              const sX = heroFrameIndex * sWidth;
-              const sY = 0;
-
-              ctx.drawImage(sheetObj, sX, sY, sWidth, sHeight, playerX, playerY - 50, 80, 100);
-            } else {
-              let fallbackImg = sprites[activeHero.key];
-              if (fallbackImg && fallbackImg.complete && fallbackImg.naturalWidth !== 0) {
-                ctx.drawImage(fallbackImg, playerX, playerY - 50, 80, 100);
-              } else {
-                ctx.fillStyle = '#1e3a8a'; ctx.fillRect(playerX + 10, playerY - 30, 24, 35);
-              }
-            }
+            renderHeroCharacter(ctx, activeHero, playerX, playerY);
 
             if (isShieldActive) {
               ctx.strokeStyle = '#00ffff';
@@ -1923,12 +2025,7 @@
               ctx.fill();
             }
 
-            let partnerImg = sprites[partnerHero.key];
-            if (partnerImg && partnerImg.complete && partnerImg.naturalWidth !== 0) {
-              ctx.drawImage(partnerImg, partnerX, playerY - 45, 70, 90);
-            } else {
-              ctx.fillStyle = '#93c5fd'; ctx.fillRect(partnerX, playerY - 20, 20, 30);
-            }
+            renderHeroCharacter(ctx, partnerHero, partnerX, playerY + 5);
           }
 
           if (solarLionActive) {
