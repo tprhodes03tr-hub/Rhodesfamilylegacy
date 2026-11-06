@@ -1020,7 +1020,7 @@
       subLoop();
     }
 
-    // VANGUARD FLEET (FULL DOGFIGHT WITH DROID SPAWNS AND WARP DRIVE)
+    // VANGUARD FLEET (UPGRADED: MULTI-WAVES & DISTINCT ENEMY SHIPS)
     function initSpaceEngine() {
       const canvas = document.getElementById('spaceCanvas');
       if (!canvas) return;
@@ -1030,6 +1030,7 @@
       let spaceOrbs = [], spaceDroids = [], spaceTorpedoes = [], droidLasers = [], explosionDebris = [];
       let excursionBeacons = [];
       let isWarpActive = false, warpTimer = 0;
+      let currentSpaceWave = 1;
 
       window.moveSpaceShip = (dir) => { 
         playSound('beam');
@@ -1064,6 +1065,30 @@
           addScore(75);
         }
       };
+
+      function spawnSpaceWave(waveNum) {
+        let count = 5 + waveNum * 2;
+        for (let i = 0; i < count; i++) {
+          let typeRoll = Math.random();
+          let shipType = 'scout';
+          let hp = 1;
+          if (typeRoll > 0.7) { shipType = 'cruiser'; hp = 3; }
+          else if (typeRoll > 0.4) { shipType = 'interceptor'; hp = 2; }
+
+          spaceDroids.push({
+            x: 60 + Math.random() * (canvas.width - 120),
+            y: -40 - (i * 35),
+            speed: 1.5 + (waveNum * 0.3) + Math.random(),
+            shootTimer: Math.floor(Math.random() * 40),
+            hp: hp,
+            maxHp: hp,
+            type: shipType
+          });
+        }
+        document.getElementById('space-comm-banner').innerHTML = `💬 <b>Fleet Comm-Link:</b> "Wave ${waveNum} hostile fleet incoming! Engage distinct enemy classes!"`;
+      }
+
+      spawnSpaceWave(currentSpaceWave);
 
       function spaceLoop() {
         if (canvas.offsetParent !== null) {
@@ -1105,17 +1130,22 @@
             if (eb.y > canvas.height + 60) excursionBeacons.splice(idx, 1);
           });
 
-          if (Math.random() < 0.06 && spaceDroids.length < 7) {
-            spaceDroids.push({ x: 50 + Math.random() * (canvas.width - 100), y: -30, speed: 2.2 + (spaceTier * 0.4), shootTimer: 0, hp: spaceTier });
+          // Continuously spawn new waves when fleet is destroyed
+          if (spaceDroids.length === 0) {
+            currentSpaceWave++;
+            spawnSpaceWave(currentSpaceWave);
+            speakText(`Incoming reinforcements! Wave ${currentSpaceWave} approaching.`);
           }
 
           spaceDroids.forEach(d => {
             d.y += d.speed;
             d.shootTimer++;
-            if (d.shootTimer > 60) {
+            let fireThreshold = d.type === 'cruiser' ? 50 : (d.type === 'interceptor' ? 70 : 90);
+            if (d.shootTimer > fireThreshold) {
               d.shootTimer = 0;
-              droidLasers.push({ x: d.x, y: d.y, vx: 0, vy: 7.0 });
+              droidLasers.push({ x: d.x, y: d.y, vx: 0, vy: d.type === 'cruiser' ? 8.0 : 6.0, color: d.type === 'cruiser' ? '#f59e0b' : '#ef4444' });
             }
+            if (d.y > canvas.height + 50) d.y = -40; // loop back if missed
           });
 
           for (let i = droidLasers.length - 1; i >= 0; i--) {
@@ -1135,14 +1165,15 @@
             if (st.y < -20) { spaceTorpedoes.splice(i, 1); continue; }
             for (let j = spaceDroids.length - 1; j >= 0; j--) {
               let d = spaceDroids[j];
-              if (Math.hypot(st.x - d.x, st.y - d.y) < 35) {
+              let hitBox = d.type === 'cruiser' ? 45 : 30;
+              if (Math.hypot(st.x - d.x, st.y - d.y) < hitBox) {
                 playSound('crash'); d.hp--; spaceTorpedoes.splice(i, 1);
                 if (d.hp <= 0) {
                   for (let p = 0; p < 8; p++) {
                     explosionDebris.push({ x: d.x, y: d.y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 30 });
                   }
                   spaceDroids.splice(j, 1); 
-                  addScore(35);
+                  addScore(d.type === 'cruiser' ? 75 : 35);
                 }
                 break;
               }
@@ -1179,9 +1210,33 @@
             ctx.shadowBlur = 0;
           });
 
+          // DISTINCT ENEMY SHIP RENDERING (SCOUT, INTERCEPTOR, CRUISER)
           spaceDroids.forEach(d => {
-            ctx.fillStyle = '#ec4899'; ctx.beginPath(); ctx.roundRect(d.x - 16, d.y - 16, 32, 32, 6); ctx.fill();
-            ctx.fillStyle = '#38bdf8'; ctx.fillRect(d.x - 5, d.y - 5, 10, 10);
+            ctx.save();
+            ctx.translate(d.x, d.y);
+            if (d.type === 'scout') {
+              // Swift Delta Scout (Green/Cyan)
+              ctx.fillStyle = '#10b981';
+              ctx.beginPath(); ctx.moveTo(0, -16); ctx.lineTo(14, 12); ctx.lineTo(0, 8); ctx.lineTo(-14, 12); ctx.closePath(); ctx.fill();
+              ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5; ctx.stroke();
+              ctx.fillStyle = '#38bdf8'; ctx.fillRect(-2, -4, 4, 8);
+            } else if (d.type === 'interceptor') {
+              // Syndicate Interceptor (Magenta/Red Wings)
+              ctx.fillStyle = '#ec4899';
+              ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(22, 6); ctx.lineTo(10, 16); ctx.lineTo(-10, 16); ctx.lineTo(-22, 6); ctx.closePath(); ctx.fill();
+              ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 2; ctx.stroke();
+              ctx.fillStyle = '#facc15'; ctx.fillRect(-4, -6, 8, 12);
+            } else {
+              // Crimson Heavy Cruiser (Gold/Red Dreadnought)
+              ctx.fillStyle = '#7f1d1d';
+              ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(32, 10); ctx.lineTo(20, 26); ctx.lineTo(-20, 26); ctx.lineTo(-32, 10); ctx.closePath(); ctx.fill();
+              ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5; ctx.stroke();
+              ctx.fillStyle = '#ef4444'; ctx.fillRect(-6, -10, 12, 16);
+              // Mini health bar for cruiser
+              ctx.fillStyle = '#000'; ctx.fillRect(-20, -38, 40, 5);
+              ctx.fillStyle = '#10b981'; ctx.fillRect(-20, -38, 40 * (d.hp / d.maxHp), 5);
+            }
+            ctx.restore();
           });
 
           explosionDebris.forEach(deb => {
@@ -1193,7 +1248,10 @@
             ctx.shadowColor = st.type === 'plasma' ? '#38bdf8' : '#f59e0b'; ctx.shadowBlur = 12;
             ctx.fillRect(st.x - 3, st.y, 6, 16); ctx.shadowBlur = 0;
           });
-          droidLasers.forEach(dl => { ctx.fillStyle = '#ef4444'; ctx.fillRect(dl.x - 3, dl.y, 6, 12); });
+          droidLasers.forEach(dl => { 
+            ctx.fillStyle = dl.color || '#ef4444'; 
+            ctx.fillRect(dl.x - 3, dl.y, 6, 12); 
+          });
 
           ctx.save();
           ctx.translate(shipX, 350);
