@@ -452,7 +452,7 @@
     .hidden { display: none !important; }
     footer { text-align: center; font-size: 11px; color: #64748b; line-height: 1.6; padding: 24px 8px 0; max-width: 600px; }
 
-    /* EXPANDABLE CHAT TOGGLE TAB & MODAL */
+    /* EXPANDABLE CHAT TOGGLE TAB & MODAL WITH LIVE MIC */
     #luettaModalOverlay {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
@@ -641,10 +641,10 @@
           <img src="packed-marrow-tree.png" alt="Double Golden Tree Helix" class="hero-holo-img" crossorigin="anonymous" />
           <span class="hero-holo-label">Lineage Tree ⚡</span>
         </div>
-        <!-- MOTHER LUETTA PICTURE TAP: TRIGGERS VOICE GREETING & OPENS MODAL VIA EXPANDABLE TAB -->
-        <div class="hero-holo-item" onclick="triggerLuettaVoiceAndModal()" title="Tap to Converse with Mother Luetta">
+        <!-- MOTHER LUETTA PICTURE TAP: TRIGGERS VOICE CONVERSATION DIRECTLY -->
+        <div class="hero-holo-item" onclick="triggerLuettaVoiceMode()" title="Tap to Talk to Mother Luetta">
           <img src="mother-luta.png" alt="Mother Luta" class="hero-holo-img" crossorigin="anonymous" />
-          <span class="hero-holo-label">Mother Luta 🧠</span>
+          <span class="hero-holo-label">Mother Luetta 🎤</span>
         </div>
       </div>
 
@@ -657,10 +657,10 @@
         <a href="vanguard-games.html" class="teleport-btn">🕹️ Vanguard Games Arcade</a>
       </div>
 
-      <!-- EXPANDABLE CODEX CHAT TOGGLE BUTTON -->
+      <!-- EXPANDABLE CODEX CHAT TOGGLE TAB -->
       <div style="margin-top: 6px;">
         <button class="btn btn-amber" onclick="openLuettaModal()" style="padding: 10px 20px; font-size: 11px; letter-spacing: 1px;">
-          🧠 OPEN LIVING CODEX CHAT 💬
+          🧠 OPEN LIVING CODEX CHAT TERMINAL 💬
         </button>
       </div>
 
@@ -968,7 +968,7 @@
 
   </div>
 
-  <!-- MOTHER LUETTA J.A.R.V.I.S. AI MODAL OVERLAY (OPENED FROM PICTURE TAP) -->
+  <!-- MOTHER LUETTA J.A.R.V.I.S. AI MODAL OVERLAY WITH LIVE MIC -->
   <div id="luettaModalOverlay">
     <div class="luetta-chat-box">
       <div class="luetta-chat-header">
@@ -980,6 +980,7 @@
       </div>
       <div class="luetta-chat-input-row">
         <input type="text" id="luettaUserInput" class="luetta-chat-input" placeholder="Ask Mother Luetta..." onkeydown="if(event.key==='Enter') sendLuettaMessage()">
+        <button id="luettaMicBtn" onclick="toggleSpeechRecognition()" title="Voice Dictation" style="background: #1e293b; border: 1px solid #38bdf8; color: #38bdf8; padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-left: 6px; font-size: 1rem;">🎤</button>
         <button class="luetta-chat-send" onclick="sendLuettaMessage()">Send</button>
       </div>
     </div>
@@ -1111,12 +1112,14 @@
   </style>
 
   <script>
-    // MOTHER LUETTA J.A.R.V.I.S. AI LOGIC (TRIGGERED FROM PICTURE TAP OR TAB)
+    // MOTHER LUETTA J.A.R.V.I.S. AI & LIVE VOICE RECOGNITION LOGIC
     let isCreatorUnlocked = false;
+    let recognition = null;
+    let isListening = false;
 
-    function triggerLuettaVoiceAndModal() {
+    function triggerLuettaVoiceMode() {
       playMotherLutaWelcomeAudio();
-      openLuettaModal();
+      toggleSpeechRecognition(); // Instantly turns on the mic for direct voice chat when tapping her picture!
     }
 
     function openLuettaModal() {
@@ -1195,6 +1198,67 @@
 
       speakText(reply);
       appendLuettaMessage('ai', reply);
+    }
+
+    // WEB SPEECH API LIVE VOICE DICTATION
+    function toggleSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        alert("Voice dictation is not supported on this browser. Please use Chrome, Safari, or Edge.");
+        openLuettaModal();
+        return;
+      }
+
+      if (!recognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+          isListening = true;
+          const micBtn = document.getElementById('luettaMicBtn');
+          if (micBtn) {
+            micBtn.style.background = '#ef4444';
+            micBtn.style.borderColor = '#fca5a5';
+            micBtn.innerText = '🔴';
+          }
+          speakText("Listening...");
+        };
+
+        recognition.onresult = (event) => {
+          const speechToText = event.results[0][0].transcript;
+          openLuettaModal();
+          appendLuettaMessage('user', speechToText);
+          processLuettaAIResponse(speechToText);
+        };
+
+        recognition.onerror = (event) => {
+          console.warn("Speech recognition error", event.error);
+          stopListeningState();
+        };
+
+        recognition.onend = () => {
+          stopListeningState();
+        };
+      }
+
+      if (isListening) {
+        recognition.stop();
+      } else {
+        recognition.start();
+      }
+    }
+
+    function stopListeningState() {
+      isListening = false;
+      const micBtn = document.getElementById('luettaMicBtn');
+      if (micBtn) {
+        micBtn.style.background = '#1e293b';
+        micBtn.style.borderColor = '#38bdf8';
+        micBtn.innerText = '🎤';
+      }
     }
 
     // AR PORTAL ROUTING INTEGRATION
