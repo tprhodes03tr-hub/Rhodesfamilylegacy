@@ -2386,12 +2386,27 @@
     }
 
     function triggerBotTurn() {
+        // Fail-safe watchdog timer: if bot takes longer than 4 seconds, force recovery
+        let botTimerTriggered = false;
+        let failSafeTimer = setTimeout(() => {
+            if (!isPlayerTurn && !botTimerTriggered) {
+                botTimerTriggered = true;
+                logMarrowCards("Bot turn timed out. Forcing draw recovery.");
+                if(marrowDeck.length > 0) {
+                    botHand.push(marrowDeck.pop());
+                }
+                isPlayerTurn = true;
+                updateMarrowDeckUI();
+            }
+        }, 4000);
+
         // Fair AI: checks its hand for a matching card
         let matchIndex = botHand.findIndex(c => c.color === topDiscardCard.color || c.val === topDiscardCard.val);
 
         if(matchIndex !== -1) {
             let card = botHand.splice(matchIndex, 1)[0];
             topDiscardCard = card;
+            clearTimeout(failSafeTimer); // Clear fail-safe if successful
             logMarrowCards(`Bot 101 played ${card.color} ${card.val}`);
 
             if(botHand.length === 0) {
@@ -2404,12 +2419,15 @@
             if(marrowDeck.length > 0) {
                 let drawn = marrowDeck.pop();
                 botHand.push(drawn);
-                logMographicCards ? null : logMarrowCards(`Bot 101 drew a card.`);
+                logMarrowCards(`Bot 101 drew a card.`);
             }
         }
 
-        isPlayerTurn = true;
-        updateMarrowDeckUI();
+        if (!botTimerTriggered) {
+            clearTimeout(failSafeTimer);
+            isPlayerTurn = true;
+            updateMarrowDeckUI();
+        }
     }
 
     function logMarrowCards(msg) {
