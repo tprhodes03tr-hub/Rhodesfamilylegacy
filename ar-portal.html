@@ -38,6 +38,12 @@
       display: none;
     }
 
+    /* Force-hide MindAR default UI scanning overlay when in Tabletop mode */
+    body.tabletop-mode .mindar-ui-overlay,
+    body.tabletop-mode .mindar-ui-scanning {
+      display: none !important;
+    }
+
     /* Holographic Scanline Overlay on Screen */
     body::after {
       content: " ";
@@ -453,7 +459,7 @@
       }
     }
 
-    // Fully independent Tabletop Counter mode: completely replaces scene container without MindAR tracker overlay
+    // Switch between Target Scanning and Clean Tabletop Hologram Mode
     async function setARMode(arType) {
       const btnImage = document.getElementById('btnImageMode');
       const btnWorld = document.getElementById('btnWorldMode');
@@ -464,6 +470,7 @@
       if (arType === 'world') {
         btnWorld.classList.add('active');
         btnImage.classList.remove('active');
+        document.body.classList.add('tabletop-mode'); // Hides MindAR scanner UI overlay completely
 
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -473,7 +480,7 @@
           console.log("Camera passthrough initialized.");
         }
 
-        // Drop-in clean A-Frame scene with direct touch event handlers
+        // Clean standalone tabletop scene with touch event handlers active
         sceneContainer.innerHTML = `
           <a-scene embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
             <a-assets>
@@ -485,7 +492,7 @@
             <a-entity position="0 -0.4 -0.6" rotation="0 0 0" scale="0.42 0.42 0.42">
               <a-image src="#familyTreeImgWorld" width="2.6" height="2.6" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.5;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
 
-              <!-- Touch-enabled Mother Luetta Sprite for Tabletop Counter -->
+              <!-- Touch-enabled Mother Luetta Sprite -->
               <a-image id="companionSpriteWorld" class="clickable" src="#motherLuettaImgWorld" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerCompanionDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
 
               <a-torus radius="1.85" radius-tubular="0.045" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 1.2; roughness: 0.1" animation="property: rotation; to: 0 360 0; loop: true; dur: 9000"></a-torus>
@@ -499,6 +506,7 @@
 
         if (subtitleEl) subtitleEl.innerText = "[TABLETOP AR ACTIVE] Tap Mother Luetta to talk!";
       } else {
+        document.body.classList.remove('tabletop-mode');
         if (videoFeed.srcObject) {
           videoFeed.srcObject.getTracks().forEach(track => track.stop());
         }
