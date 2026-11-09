@@ -214,57 +214,8 @@
     }
   </style>
 
-  <!-- WebXR Hit-Test and Holographic Shaders -->
+  <!-- Holographic Shaders -->
   <script>
-    // Custom WebXR Hit-Test Component for Wall & Surface Placement
-    AFRAME.registerComponent('ar-hit-test-placement', {
-      schema: { target: { type: 'selector' } },
-      init: function () {
-        this.hitTestSource = null;
-        this.viewerSpace = null;
-        this.refSpace = null;
-        this.isPlaced = false;
-
-        this.el.sceneEl.renderer.xr.addEventListener('sessionstart', async () => {
-          const session = this.el.sceneEl.xrSession;
-          try {
-            this.viewerSpace = await session.requestReferenceSpace('viewer');
-            this.hitTestSource = await session.requestHitTestSource({ space: this.viewerSpace });
-            this.refSpace = await session.requestReferenceSpace('local-floor');
-          } catch (e) {
-            console.log("WebXR hit-test not available on this device:", e);
-          }
-        });
-
-        // Tap screen to drop anchor permanently on wall or floor
-        window.addEventListener('click', () => {
-          if (this.el.object3D.visible && this.data.target && !this.isPlaced) {
-            this.data.target.object3D.position.copy(this.el.object3D.position);
-            this.data.target.object3D.quaternion.copy(this.el.object3D.quaternion);
-            this.data.target.setAttribute('visible', true);
-            // Hide reticle once placed so portal stays locked in room
-            this.el.setAttribute('visible', false);
-            this.isPlaced = true;
-            const subtitleEl = document.getElementById('portal-subtitle');
-            if (subtitleEl) subtitleEl.innerText = "[WALL PROJECTION LOCKED] Walk around your projection!";
-          }
-        });
-      },
-      tick: function (timestamp, frame) {
-        if (!frame || !this.hitTestSource || this.isPlaced) return;
-        const hitTestResults = frame.getHitTestResults(this.hitTestSource);
-        if (hitTestResults.length > 0) {
-          const hit = hitTestResults[0];
-          const pose = hit.getPose(this.refSpace);
-          this.el.object3D.visible = true;
-          this.el.object3D.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
-          this.el.object3D.quaternion.copy(pose.transform.orientation);
-        } else {
-          this.el.object3D.visible = false;
-        }
-      }
-    });
-
     AFRAME.registerComponent('hologram-glow', {
       init: function () {
         this.el.addEventListener('loaded', () => {
@@ -571,37 +522,29 @@
           console.log("Camera feed active.");
         }
 
-        // WebXR Hit-Test Wall & Surface Projection Scene
+        // Direct Large Wall Projection Scene (Unrestricted and scaled up)
         sceneContainer.innerHTML = `
-          <a-scene embedded webxr="requiredFeatures: hit-test, local-floor;" vr-mode-ui="enabled: true" device-orientation-permission-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
+          <a-scene embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
             <a-assets>
               <img id="familyTreeImgWall" src="packed-marrow-tree.png" crossorigin="anonymous">
               <img id="motherLuettaImgWall" src="${activeSpriteSrc}" crossorigin="anonymous">
             </a-assets>
 
-            <a-camera position="0 1.6 0" look-controls="enabled: true" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
+            <a-camera position="0 1.6 1.5" look-controls="enabled: true" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
 
-            <!-- Reticle that tracks walls and floors before tapping -->
-            <a-entity id="reticle" ar-hit-test-placement="target: #wallAnchorEntity">
-              <a-ring radius-inner="0.12" radius-outer="0.15" rotation="-90 0 0" material="shader: flat; color: #66fcf1; transparent: true; opacity: 0.8;"></a-ring>
-              <a-circle radius="0.03" rotation="-90 0 0" material="shader: flat; color: #f59e0b;"></a-circle>
-            </a-entity>
-
-            <!-- Projected Portal Group (Initially hidden until user taps wall/floor) -->
-            <a-entity id="wallAnchorEntity" visible="false">
-              <a-entity position="0 0 0" scale="0.42 0.42 0.42">
-                <a-image src="#familyTreeImgWall" width="2.6" height="2.6" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.5;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
-                <a-image id="companionSpriteWall" class="clickable" src="#motherLuettaImgWall" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerCompanionDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
-                <a-torus radius="1.85" radius-tubular="0.045" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 1.2; roughness: 0.1" animation="property: rotation; to: 0 360 0; loop: true; dur: 9000"></a-torus>
-                <a-torus radius="2.1" radius-tubular="0.02" color="#66fcf1" rotation="45 45 0" material="emissive: #66fcf1; emissiveIntensity: 1.0; transparent: true; opacity: 0.95" animation="property: rotation; to: 360 0 360; loop: true; dur: 13000"></a-torus>
-              </a-entity>
+            <!-- Large Unrestricted Wall Projection Group -->
+            <a-entity position="0 0.3 -2.0" rotation="0 0 0" scale="0.85 0.85 0.85">
+              <a-image src="#familyTreeImgWall" width="3.2" height="3.2" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.7;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
+              <a-image id="companionSpriteWall" class="clickable" src="#motherLuettaImgWall" width="1.6" height="2.1" position="1.7 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerCompanionDialogue()" animation="property: position; to: 1.7 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
+              <a-torus radius="2.2" radius-tubular="0.05" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 1.4; roughness: 0.1" animation="property: rotation; to: 0 360 0; loop: true; dur: 9000"></a-torus>
+              <a-torus radius="2.5" radius-tubular="0.025" color="#66fcf1" rotation="45 45 0" material="emissive: #66fcf1; emissiveIntensity: 1.2; transparent: true; opacity: 0.95" animation="property: rotation; to: 360 0 360; loop: true; dur: 13000"></a-torus>
             </a-entity>
 
             <a-light type="ambient" color="#bfe9ff" intensity="1.4"></a-light>
-            <a-light type="directional" position="1 2 1" color="#f59e0b" intensity="2.2"></a-light>
+            <a-light type="directional" position="1 2 1" color="#f59e0b" intensity="2.5"></a-light>
           </a-scene>
         `;
-        if (subtitleEl) subtitleEl.innerText = "[WALL MODE] Point phone at wall/floor, then tap screen to lock projection!";
+        if (subtitleEl) subtitleEl.innerText = "[WALL PROJECTION ACTIVE] Point at wall and tap companion to talk!";
 
       } else {
         btnImage.classList.add('active');
