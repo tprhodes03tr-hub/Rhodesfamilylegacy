@@ -206,7 +206,7 @@
     }
   </style>
 
-  <!-- Custom Holographic & Glowing Material Shaders for A-Frame -->
+  <!-- Custom Holographic Material Shaders -->
   <script>
     AFRAME.registerComponent('hologram-glow', {
       init: function () {
@@ -229,18 +229,17 @@
 </head>
 <body>
 
-  <!-- Live Camera Feed Element for Room Passthrough -->
+  <!-- Live Camera Feed Element for Tabletop AR Passthrough -->
   <video id="arCameraFeed" autoplay playsinline muted></video>
 
   <!-- Collapsible Intel Toggle Button -->
   <button id="intelToggleBtn" class="intel-toggle-btn" onclick="toggleHUD()">[+] Open Codex Chat & Intel</button>
 
-  <!-- HUD Overlay Box (Collapsible Chat Terminal) -->
+  <!-- HUD Overlay Box -->
   <div id="hudOverlay" class="hud-overlay">
     <div id="portal-title" class="hud-title">Mother Luetta • Living Codex AR</div>
     <div id="portal-subtitle" class="hud-subtitle">"Welcome to Rhodes Family Legacy. Which path would you like to choose?"</div>
     
-    <!-- Q&A Hologram Interaction Bar with Live Mic -->
     <div class="qa-container">
       <input type="text" id="visitorQuery" class="qa-input" placeholder="Ask Mother Luetta in AR..." onkeypress="handleQAPress(event)">
       <button id="arMicBtn" class="qa-mic-btn" onclick="toggleARSpeechRecognition()" title="Voice Dictation">🎤</button>
@@ -268,11 +267,10 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
 
-      <!-- Target Entity for MindAR Image Index 0 -->
+      <!-- MindAR Image Target Mode (Default for Book Covers) -->
       <a-entity id="trackedTarget" mindar-image-target="targetIndex: 0">
         <a-entity id="gatewayModel" position="0 0 0" scale="0.45 0.45 0.45">
           <a-image id="centerEmblem" src="#familyTreeImg" width="2.6" height="2.6" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.4;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
-          <!-- Tapping Mother Luetta in AR triggers voice greeting and mic mode -->
           <a-image id="companionSprite" class="clickable" src="#motherLuettaImg" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerCompanionDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
           <a-torus radius="1.85" radius-tubular="0.045" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 1.0; roughness: 0.1" animation="property: rotation; to: 0 360 0; loop: true; dur: 9000"></a-torus>
           <a-torus radius="2.1" radius-tubular="0.02" color="#66fcf1" rotation="45 45 0" material="emissive: #66fcf1; emissiveIntensity: 0.8; transparent: true; opacity: 0.9" animation="property: rotation; to: 360 0 360; loop: true; dur: 13000"></a-torus>
@@ -365,8 +363,6 @@
       
       if (subtitleEl) subtitleEl.innerText = selectedLine;
       speakText(selectedLine);
-      
-      // Also instantly trigger voice recognition so user can talk right back in AR!
       toggleARSpeechRecognition();
     }
 
@@ -380,7 +376,7 @@
       } else if (qLower.includes("weather") || qLower.includes("temperature")) {
         answer = "Atmospheric sensors report calm sector conditions in AR space.";
       } else if (qLower.includes("book") || qLower.includes("marrow") || qLower.includes("read")) {
-        answer = "Packed in the Marrow explores our family history. Acquire full volumes on our Payhip storefront[span_1](start_span)[span_1](end_span)!";
+        answer = "Packed in the Marrow explores our family history. Acquire full volumes on our Payhip storefront!";
       } else if (qLower.includes("game") || qLower.includes("arcade")) {
         answer = "Launch Isaac's Sandbox, Detroit 313 Grid racer, or Wacon Sub from our master hub.";
       } else {
@@ -407,17 +403,13 @@
       }
     }
 
-    // LIVE VOICE DICTATION IN AR
     let arRecognition = null;
     let arIsListening = false;
 
     function toggleARSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       
-      if (!SpeechRecognition) {
-        alert("Voice dictation is not supported on this browser.");
-        return;
-      }
+      if (!SpeechRecognition) return;
 
       if (!arRecognition) {
         arRecognition = new SpeechRecognition();
@@ -432,7 +424,6 @@
             micBtn.style.background = '#ef4444';
             micBtn.innerText = '🔴';
           }
-          speakText("Listening...");
         };
 
         arRecognition.onresult = (event) => {
@@ -442,13 +433,8 @@
           processARAIQuery(speechToText);
         };
 
-        arRecognition.onerror = () => {
-          stopARListeningState();
-        };
-
-        arRecognition.onend = () => {
-          stopARListeningState();
-        };
+        arRecognition.onerror = () => { stopARListeningState(); };
+        arRecognition.onend = () => { stopARListeningState(); };
       }
 
       if (arIsListening) {
@@ -467,13 +453,13 @@
       }
     }
 
-    // AR Mode Switching with Flat Counter-Surface Grounding
+    // Switch between Target Scanning and Clean Tabletop Hologram Mode
     async function setARMode(arType) {
       const btnImage = document.getElementById('btnImageMode');
       const btnWorld = document.getElementById('btnWorldMode');
       const sceneContainer = document.getElementById('sceneContainer');
       const videoFeed = document.getElementById('arCameraFeed');
-      const activeSpriteSrc = (mode === 'vanguard' || mode === 'card-codex') ? '#marcusImgWorld' : '#motherLuettaImgWorld';
+      const activeSpriteSrc = (mode === 'vanguard' || mode === 'card-codex') ? 'marcus.png' : 'mother-luta.png';
 
       if (arType === 'world') {
         btnWorld.classList.add('active');
@@ -484,22 +470,22 @@
           videoFeed.srcObject = stream;
           videoFeed.style.display = 'block';
         } catch (err) {
-          console.log("Camera passthrough simulated.");
+          console.log("Camera passthrough initialized.");
         }
 
+        // Clean standalone tabletop scene without scanner lines
         sceneContainer.innerHTML = `
           <a-scene embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" style="width: 100vw; height: 100vh; background: transparent;">
             <a-assets>
               <img id="familyTreeImgWorld" src="packed-marrow-tree.png" crossorigin="anonymous">
-              <img id="motherLuettaImgWorld" src="mother-luta.png" crossorigin="anonymous">
-              <img id="marcusImgWorld" src="marcus.png" crossorigin="anonymous">
+              <img id="motherLuettaImgWorld" src="${activeSpriteSrc}" crossorigin="anonymous">
             </a-assets>
             <a-camera position="0 1.0 1.8" look-controls="enabled: true" cursor="fuse: false; rayOrigin: mouse;" raycaster="objects: [raycastable]"></a-camera>
             
             <a-entity position="0 -0.4 -0.6" rotation="0 0 0" scale="0.42 0.42 0.42">
               <a-image src="#familyTreeImgWorld" width="2.6" height="2.6" position="0 0.2 0" material="transparent: true; alphaTest: 0.1; emissive: #f59e0b; emissiveIntensity: 0.5;" animation="property: scale; to: 1.03 1.03 1.03; dir: alternate; dur: 3000; loop: true"></a-image>
 
-              <a-image id="companionSpriteWorld" class="clickable" src="${activeSpriteSrc}" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerCompanionDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
+              <a-image id="companionSpriteWorld" class="clickable" src="#motherLuettaImgWorld" width="1.3" height="1.7" position="1.4 -0.1 0.15" material="transparent: true; alphaTest: 0.1; color: #bfe9ff;" raycastable onclick="triggerCompanionDialogue()" animation="property: position; to: 1.4 0.05 0.15; dir: alternate; dur: 2200; loop: true"></a-image>
 
               <a-torus radius="1.85" radius-tubular="0.045" color="#f59e0b" rotation="0 0 0" material="emissive: #f59e0b; emissiveIntensity: 1.2; roughness: 0.1" animation="property: rotation; to: 0 360 0; loop: true; dur: 9000"></a-torus>
               <a-torus radius="2.1" radius-tubular="0.02" color="#66fcf1" rotation="45 45 0" material="emissive: #66fcf1; emissiveIntensity: 1.0; transparent: true; opacity: 0.95" animation="property: rotation; to: 360 0 360; loop: true; dur: 13000"></a-torus>
@@ -510,7 +496,7 @@
           </a-scene>
         `;
 
-        if (subtitleEl) subtitleEl.innerText = "[COUNTER PROJECTION ACTIVE] Tap Mother Luetta to talk!";
+        if (subtitleEl) subtitleEl.innerText = "[TABLETOP AR ACTIVE] Tap Mother Luetta to talk!";
       } else {
         if (videoFeed.srcObject) {
           videoFeed.srcObject.getTracks().forEach(track => track.stop());
