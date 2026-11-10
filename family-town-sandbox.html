@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhodes Family Legacy • Interactive Town Sandbox</title>
+    <title>Rhodes Family Legacy • Interactive Town Sandbox & Workshop</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #030712; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
@@ -20,7 +20,7 @@
             <h1 class="text-xl md:text-2xl font-bold text-amber-400 glow-text flex items-center gap-2">
                 🏡 Rhodes Family Town Sandbox
             </h1>
-            <p class="text-xs text-slate-400">Explore the Frontier Town • Walk to Stations & Press Space to Build!</p>
+            <p id="header-subtitle" class="text-xs text-slate-400">Explore the Frontier Town • Walk to Stations & Press Space to Work!</p>
         </div>
         
         <!-- Player Resource HUD -->
@@ -43,21 +43,21 @@
         </div>
 
         <!-- On-Screen Controls for Mobile / Tablets -->
-        <div class="flex flex-wrap justify-center gap-2 md:hidden">
-            <button onclick="movePlayer(0, -25)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold active:bg-amber-600 active:text-slate-950">⬆️ Up</button>
-            <button onclick="movePlayer(-25, 0)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold active:bg-amber-600 active:text-slate-950">⬅️ Left</button>
-            <button onclick="movePlayer(25, 0)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold active:bg-amber-600 active:text-slate-950">➡️ Right</button>
-            <button onclick="movePlayer(0, 25)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold active:bg-amber-600 active:text-slate-950">⬇️ Down</button>
-            <button onclick="interactStation()" class="bg-emerald-600 px-5 py-2 rounded-lg text-white font-bold shadow-lg active:bg-emerald-500">⚡ Interact</button>
+        <div id="mobile-controls" class="flex flex-wrap justify-center gap-2 md:hidden">
+            <button onclick="handleMobileMove(0, -25)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold active:bg-amber-600 active:text-slate-950">⬆️ Up</button>
+            <button onclick="handleMobileMove(-25, 0)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold active:bg-amber-600 active:text-slate-950">⬅️ Left</button>
+            <button onclick="handleMobileMove(25, 0)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold active:bg-amber-600 active:text-slate-950">➡️ Right</button>
+            <button onclick="handleMobileMove(0, 25)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold active:bg-amber-600 active:text-slate-950">⬇️ Down</button>
+            <button onclick="triggerAction()" class="bg-emerald-600 px-5 py-2 rounded-lg text-white font-bold shadow-lg active:bg-emerald-500">⚡ Action</button>
         </div>
 
         <!-- Instructions & Status Bar -->
         <div class="w-full bg-slate-900/90 border gold-border rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 text-xs">
             <div id="game-prompt" class="text-amber-300 font-bold text-center md:text-left">
-                💡 Walk up to <span class="text-emerald-400">Lucius's Timberland</span> or <span class="text-orange-400">Fred's Forge</span> and press <kbd class="bg-slate-800 px-2 py-1 rounded text-white border border-slate-700">SPACE</kbd>!
+                💡 Walk up to any station and press <kbd class="bg-slate-800 px-2 py-1 rounded text-white border border-slate-700">SPACE</kbd> to enter their workshop!
             </div>
             <button onclick="upgradeTown()" class="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl shadow-lg hover:scale-105 transition-transform">
-                🏗️ Expand Town (Req: 50 Wood, 20 Iron, 100 Coins)
+                🏗️ Expand Homestead (Req: 50 Wood, 20 Iron, 100 Coins)
             </button>
         </div>
 
@@ -68,10 +68,12 @@
         © 2026 Tommy Philip Rhodes • Rhodes Family Legacy. All Rights Reserved.
     </footer>
 
-    <!-- Interactive Canvas Game Script -->
+    <!-- Interactive Engine & Mini-Game Script -->
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+
+        let gameState = "OVERWORLD"; // OVERWORLD, TIMBERLAND, FORGE, FARM, HOTEL, HOMESTEAD
 
         let game = {
             coins: 150,
@@ -83,16 +85,19 @@
             speed: 20
         };
 
-        // Floating particle feedback array for visual rewards
+        // Mini-game temporary variables
+        let mgProgress = 0;
+        let mgTarget = 5;
+
         let floatTexts = [];
 
-        // Stations map coordinates
+        // Map Stations
         const stations = [
-            { name: "Lucius Hatton's Timberland", x: 130, y: 100, radius: 55, color: "#059669", icon: "🌲", role: "Timber & Logs" },
-            { name: "Fred Hatton's Blacksmith Forge", x: 670, y: 100, radius: 55, color: "#ea580c", icon: "🔥", role: "Iron Hardware" },
-            { name: "Tom Mitchell's Farmland & Store", x: 130, y: 350, radius: 55, color: "#d97706", icon: "🌾", role: "Crops & Coins" },
-            { name: "Zelma Mitchell's Yazoo Hotel", x: 670, y: 350, radius: 55, color: "#0284c7", icon: "🏨", role: "Hospitality" },
-            { name: "Homestead Build Site", x: 400, y: 225, radius: 65, color: "#f59e0b", icon: "🏡", role: "Central Hub" }
+            { name: "Lucius Hatton's Timberland", x: 130, y: 100, radius: 55, color: "#059669", icon: "🌲", role: "Timber & Logs", stateKey: "TIMBERLAND" },
+            { name: "Fred Hatton's Blacksmith Forge", x: 670, y: 100, radius: 55, color: "#ea580c", icon: "🔥", role: "Iron Hardware", stateKey: "FORGE" },
+            { name: "Tom Mitchell's Farmland & Store", x: 130, y: 350, radius: 55, color: "#d97706", icon: "🌾", role: "Crops & Goods", stateKey: "FARM" },
+            { name: "Zelma Mitchell's Yazoo Hotel", x: 670, y: 350, radius: 55, color: "#0284c7", icon: "🏨", role: "Hospitality", stateKey: "HOTEL" },
+            { name: "Uncle James & Homestead Site", x: 400, y: 225, radius: 65, color: "#f59e0b", icon: "🏡", role: "Central Hub", stateKey: "HOMESTEAD" }
         ];
 
         function updateHUD() {
@@ -102,12 +107,20 @@
         }
 
         function movePlayer(dx, dy) {
+            if (gameState !== "OVERWORLD") return;
             game.x = Math.max(50, Math.min(canvas.width - 50, game.x + dx));
             game.y = Math.max(50, Math.min(canvas.height - 50, game.y + dy));
             checkProximity();
         }
 
-        // Keyboard Controls
+        function handleMobileMove(dx, dy) {
+            if (gameState === "OVERWORLD") {
+                movePlayer(dx, dy);
+            } else {
+                triggerAction();
+            }
+        }
+
         window.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowUp' || e.key === 'w') movePlayer(0, -game.speed);
             if (e.key === 'ArrowDown' || e.key === 's') movePlayer(0, game.speed);
@@ -115,7 +128,11 @@
             if (e.key === 'ArrowRight' || e.key === 'd') movePlayer(game.speed, 0);
             if (e.key === ' ' || e.code === 'Space') {
                 e.preventDefault();
-                interactStation();
+                triggerAction();
+            }
+            if (e.key === 'Escape' && gameState !== "OVERWORLD") {
+                gameState = "OVERWORLD";
+                document.getElementById('header-subtitle').innerText = "Explore the Frontier Town • Walk to Stations & Press Space to Work!";
             }
         });
 
@@ -133,40 +150,58 @@
 
             let promptBox = document.getElementById('game-prompt');
             if (activeStation) {
-                promptBox.innerHTML = `⚡ Press <kbd class="bg-slate-800 px-2 py-1 rounded text-white border border-slate-700">SPACE</kbd> to work at <span class="text-amber-400 font-bold">${activeStation.name}</span>!`;
+                promptBox.innerHTML = `⚡ Press <kbd class="bg-slate-800 px-2 py-1 rounded text-white border border-slate-700">SPACE</kbd> to enter <span class="text-amber-400 font-bold">${activeStation.name}</span>!`;
             } else {
-                promptBox.innerHTML = `💡 Explore the map! Walk to Lucius, Fred, Tom, or Zelma's stations to gather and build.`;
+                promptBox.innerHTML = `💡 Walk to Lucius, Fred, Tom, Zelma, or Uncle James and press Space to engage in workshop tasks!`;
             }
+        }
+
+        function triggerAction() {
+            if (gameState === "OVERWORLD") {
+                if (!activeStation) {
+                    alert("Walk closer to any station to enter its workshop!");
+                    return;
+                }
+                gameState = activeStation.stateKey;
+                mgProgress = 0;
+                document.getElementById('header-subtitle').innerText = `Active Workshop: ${activeStation.name} • Tap Space or Action repeatedly to complete tasks!`;
+            } else {
+                // Mini-game active tapping action
+                mgProgress++;
+                if (mgProgress >= mgTarget) {
+                    completeWorkshopTask();
+                }
+            }
+        }
+
+        function completeWorkshopTask() {
+            if (gameState === "TIMBERLAND") {
+                game.timber += 15;
+                game.coins += 20;
+                alert("🌲 Lucius Hatton: Great timber harvest! +15 Timber, +20 Coins.");
+            } else if (gameState === "FORGE") {
+                game.iron += 8;
+                game.coins += 25;
+                alert("🔥 Fred Hatton: Excellent anvil work! +8 Iron Hardware, +25 Coins.");
+            } else if (gameState === "FARM") {
+                game.coins += 35;
+                alert("🌾 Tom Mitchell: Successful harvest trade! +35 Marrow Coins.");
+            } else if (gameState === "HOTEL") {
+                game.coins += 45;
+                alert("🏨 Zelma Mitchell: Guests checked in smoothly! +45 Hotel Tips.");
+            } else if (gameState === "HOMESTEAD") {
+                game.timber += 10;
+                game.iron += 5;
+                alert("🏡 Uncle James & Crew: Plumbing and framing progress made! +10 Timber, +5 Iron.");
+            }
+
+            updateHUD();
+            gameState = "OVERWORLD";
+            document.getElementById('header-subtitle').innerText = "Explore the Frontier Town • Walk to Stations & Press Space to Work!";
         }
 
         function spawnFloatText(text, x, y, color) {
             floatTexts.push({ text: text, x: x, y: y, alpha: 1.0, color: color });
-        }
-
-        function interactStation() {
-            if (!activeStation) {
-                alert("Walk closer to any station (Timberland, Forge, Farm, Hotel, or Homestead) to interact!");
-                return;
-            }
-
-            if (activeStation.name.includes("Timberland")) {
-                game.timber += 10;
-                game.coins += 15;
-                spawnFloatText("+10 Timber! 🪵", activeStation.x, activeStation.y - 30, "#34d399");
-            } else if (activeStation.name.includes("Forge")) {
-                game.iron += 5;
-                game.coins += 20;
-                spawnFloatText("+5 Iron! ⚒️", activeStation.x, activeStation.y - 30, "#fb923c");
-            } else if (activeStation.name.includes("Farmland")) {
-                game.coins += 30;
-                spawnFloatText("+30 Coins! 🪙", activeStation.x, activeStation.y - 30, "#fbbf24");
-            } else if (activeStation.name.includes("Hotel")) {
-                game.coins += 40;
-                spawnFloatText("+40 Hotel Tips! 🏨", activeStation.x, activeStation.y - 30, "#38bdf8");
-            } else if (activeStation.name.includes("Homestead")) {
-                spawnFloatText(`Homestead Stage ${game.townLevel} 🏡`, activeStation.x, activeStation.y - 40, "#f59e0b");
-            }
-            updateHUD();
         }
 
         function upgradeTown() {
@@ -182,87 +217,110 @@
             }
         }
 
-        // Render Game Loop
+        // Main Render Loop
         function drawGame() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Grid Lines for retro sandbox tactical feel
-            ctx.strokeStyle = "rgba(56, 189, 248, 0.04)";
-            ctx.lineWidth = 1;
-            for (let x = 0; x < canvas.width; x += 40) {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-            }
-            for (let y = 0; y < canvas.height; y += 40) {
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-            }
+            if (gameState === "OVERWORLD") {
+                // Draw Grid Lines
+                ctx.strokeStyle = "rgba(56, 189, 248, 0.04)";
+                ctx.lineWidth = 1;
+                for (let x = 0; x < canvas.width; x += 40) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                }
+                for (let y = 0; y < canvas.height; y += 40) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                }
 
-            // Draw glowing connecting pathways between stations
-            ctx.strokeStyle = "rgba(245, 158, 11, 0.2)";
-            ctx.lineWidth = 8;
-            ctx.setLineDash([6, 6]);
-            ctx.beginPath();
-            ctx.moveTo(130, 100); ctx.lineTo(400, 225); ctx.lineTo(670, 100);
-            ctx.moveTo(130, 350); ctx.lineTo(400, 225); ctx.lineTo(670, 350);
-            ctx.stroke();
-            ctx.setLineDash([]); // Reset line dash
-
-            // Draw Stations
-            for (let st of stations) {
-                let isNearby = activeStation === st;
-
+                // Draw Paths
+                ctx.strokeStyle = "rgba(245, 158, 11, 0.2)";
+                ctx.lineWidth = 8;
+                ctx.setLineDash([6, 6]);
                 ctx.beginPath();
-                ctx.arc(st.x, st.y, st.radius + (isNearby ? 6 : 0), 0, Math.PI * 2);
-                ctx.fillStyle = st.color + (isNearby ? "55" : "22");
+                ctx.moveTo(130, 100); ctx.lineTo(400, 225); ctx.lineTo(670, 100);
+                ctx.moveTo(130, 350); ctx.lineTo(400, 225); ctx.lineTo(670, 350);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Draw Stations
+                for (let st of stations) {
+                    let isNearby = activeStation === st;
+                    ctx.beginPath();
+                    ctx.arc(st.x, st.y, st.radius + (isNearby ? 6 : 0), 0, Math.PI * 2);
+                    ctx.fillStyle = st.color + (isNearby ? "55" : "22");
+                    ctx.fill();
+                    ctx.strokeStyle = isNearby ? "#fef08a" : st.color;
+                    ctx.lineWidth = isNearby ? 4 : 2;
+                    ctx.stroke();
+
+                    ctx.font = "26px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(st.icon, st.x, st.y - 10);
+
+                    ctx.font = "bold 11px sans-serif";
+                    ctx.fillStyle = "#f8fafc";
+                    ctx.fillText(st.name.split(" ")[0], st.x, st.y + 18);
+
+                    ctx.font = "9px sans-serif";
+                    ctx.fillStyle = "#94a3b8";
+                    ctx.fillText(st.role, st.x, st.y + 32);
+                }
+
+                // Homestead Stage Icon
+                ctx.font = "36px sans-serif";
+                let centerIcon = game.townLevel === 1 ? "🏕️" : game.townLevel === 2 ? "🏡" : "🏘️";
+                ctx.fillText(centerIcon, 400, 215);
+
+                // Player Avatar
+                ctx.beginPath();
+                ctx.arc(game.x, game.y, 18, 0, Math.PI * 2);
+                ctx.fillStyle = "#0284c7";
                 ctx.fill();
-                ctx.strokeStyle = isNearby ? "#fef08a" : st.color;
-                ctx.lineWidth = isNearby ? 4 : 2;
+                ctx.strokeStyle = "#38bdf8";
+                ctx.lineWidth = 3;
                 ctx.stroke();
 
-                // Station Icon & Label
-                ctx.font = "26px sans-serif";
+                ctx.font = "18px sans-serif";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.fillText(st.icon, st.x, st.y - 10);
+                ctx.fillText("🧑‍🌾", game.x, game.y);
 
-                ctx.font = "bold 11px sans-serif";
-                ctx.fillStyle = "#f8fafc";
-                ctx.fillText(st.name.split(" ")[0], st.x, st.y + 18);
+            } else {
+                // --- WORKSHOP MINI-GAME VIEWS ---
+                ctx.fillStyle = "#0f172a";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                ctx.font = "9px sans-serif";
-                ctx.fillStyle = "#94a3b8";
-                ctx.fillText(st.role, st.x, st.y + 32);
-            }
-
-            // Draw Central Homestead Visual based on Stage Level
-            ctx.font = "36px sans-serif";
-            let centerIcon = game.townLevel === 1 ? "🏕️" : game.townLevel === 2 ? "🏡" : "🏘️";
-            ctx.fillText(centerIcon, 400, 215);
-
-            // Draw Floating Particles
-            for (let i = floatTexts.length - 1; i >= 0; i--) {
-                let ft = floatTexts[i];
-                ctx.font = "bold 13px sans-serif";
-                ctx.fillStyle = ft.color;
+                ctx.font = "bold 20px sans-serif";
+                ctx.fillStyle = "#f59e0b";
                 ctx.textAlign = "center";
-                ctx.fillText(ft.text, ft.x, ft.y);
-                ft.y -= 0.8;
-                ft.alpha -= 0.02;
-                if (ft.alpha <= 0) floatTexts.splice(i, 1);
+                ctx.fillText(`🛠️ ${gameState} WORKSHOP ACTIVE`, canvas.width / 2, 60);
+
+                ctx.font = "14px sans-serif";
+                ctx.fillStyle = "#cbd5e1";
+                ctx.fillText("Repeatedly tap Spacebar or the Action button to complete your task!", canvas.width / 2, 100);
+
+                // Progress Bar Background
+                ctx.fillStyle = "#1e293b";
+                ctx.fillRect(200, 200, 400, 40);
+
+                // Progress Bar Fill
+                let fillWidth = (mgProgress / mgTarget) * 400;
+                ctx.fillStyle = gameState === "FORGE" ? "#ea580c" : gameState === "TIMBERLAND" ? "#059669" : "#f59e0b";
+                ctx.fillRect(200, 200, fillWidth, 40);
+
+                ctx.strokeStyle = "#f8fafc";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(200, 200, 400, 40);
+
+                ctx.font = "bold 16px sans-serif";
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(`Progress: ${mgProgress} / ${mgTarget}`, canvas.width / 2, 225);
+
+                ctx.font = "12px sans-serif";
+                ctx.fillStyle = "#94a3b8";
+                ctx.fillText("Press [ESC] or click Return to go back to the town map.", canvas.width / 2, 320);
             }
-
-            // Draw Player Avatar
-            ctx.beginPath();
-            ctx.arc(game.x, game.y, 18, 0, Math.PI * 2);
-            ctx.fillStyle = "#0284c7";
-            ctx.fill();
-            ctx.strokeStyle = "#38bdf8";
-            ctx.lineWidth = 3;
-            ctx.stroke();
-
-            ctx.font = "18px sans-serif";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("🧑‍🌾", game.x, game.y);
 
             requestAnimationFrame(drawGame);
         }
