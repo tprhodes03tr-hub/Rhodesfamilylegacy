@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhodes Family Legacy • Immersive Homestead & Station Workspaces</title>
+    <title>Rhodes Family Legacy • Immersive Animated Workstations</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #030712; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
@@ -20,7 +20,7 @@
             <h1 class="text-base md:text-2xl font-bold text-amber-400 glow-text flex items-center gap-2">
                 🏡 Rhodes Family Homestead Suite
             </h1>
-            <p id="header-subtitle" class="text-[10px] text-slate-400">Walk to any station to enter immersive workstations!</p>
+            <p id="header-subtitle" class="text-[10px] text-slate-400">Walk to stations for animated interactive workshops!</p>
         </div>
         
         <!-- Player Resource HUD -->
@@ -42,29 +42,24 @@
             <canvas id="gameCanvas" width="400" height="300"></canvas>
         </div>
 
-        <!-- Mobile & Tablet On-Screen Controls -->
+        <!-- Mobile & Tablet On-Screen Controls (Overworld) -->
         <div id="dpad-controls" class="flex flex-col items-center gap-1 w-full my-1">
-            <!-- Up Button -->
             <button ontouchstart="keys.up=true; event.preventDefault();" ontouchend="keys.up=false; event.preventDefault();" onmousedown="keys.up=true;" onmouseup="keys.up=false;" class="bg-slate-800 border border-amber-500/50 text-amber-400 w-16 h-11 rounded-xl font-bold text-lg active:bg-amber-600 active:text-slate-950 shadow-lg">⬆️</button>
-            
-            <!-- Left / Action / Right Row -->
             <div class="flex justify-center gap-3 w-full max-w-xs">
                 <button ontouchstart="keys.left=true; event.preventDefault();" ontouchend="keys.left=false; event.preventDefault();" onmousedown="keys.left=true;" onmouseup="keys.left=false;" class="bg-slate-800 border border-amber-500/50 text-amber-400 w-16 h-11 rounded-xl font-bold text-lg active:bg-amber-600 active:text-slate-950 shadow-lg">⬅️</button>
-                <button onclick="triggerAction()" class="bg-emerald-600 border border-emerald-400 text-white px-4 h-11 rounded-xl font-bold text-xs shadow-lg active:bg-emerald-500">🪓 Enter / Action</button>
+                <button onclick="triggerAction()" class="bg-emerald-600 border border-emerald-400 text-white px-4 h-11 rounded-xl font-bold text-xs shadow-lg active:bg-emerald-500">🪓 Enter Station</button>
                 <button ontouchstart="keys.right=true; event.preventDefault();" ontouchend="keys.right=false; event.preventDefault();" onmousedown="keys.right=true;" onmouseup="keys.right=false;" class="bg-slate-800 border border-amber-500/50 text-amber-400 w-16 h-11 rounded-xl font-bold text-lg active:bg-amber-600 active:text-slate-950 shadow-lg">➡️</button>
             </div>
-
-            <!-- Down Button -->
             <button ontouchstart="keys.down=true; event.preventDefault();" ontouchend="keys.down=false; event.preventDefault();" onmousedown="keys.down=true;" onmouseup="keys.down=false;" class="bg-slate-800 border border-amber-500/50 text-amber-400 w-16 h-11 rounded-xl font-bold text-lg active:bg-amber-600 active:text-slate-950 shadow-lg">⬇️</button>
         </div>
 
-        <!-- Mini-game active controls (Hidden during overworld) -->
+        <!-- Animated Workshop Action Controls (Inside Station) -->
         <div id="minigame-controls" class="hidden flex justify-center gap-3 w-full my-2">
-            <button onclick="performMiniGameAction()" id="minigame-action-btn" class="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold px-6 py-3 rounded-2xl shadow-xl text-sm border border-amber-400 active:scale-95 transition-all">
-                🔨 Work Station
+            <button onclick="performWorkshopAction()" id="workshop-action-btn" class="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold px-6 py-3 rounded-2xl shadow-xl text-sm border border-amber-400 active:scale-95 transition-all">
+                🔨 Pump & Work
             </button>
             <button onclick="exitToOverworld()" class="bg-slate-800 border border-slate-600 text-slate-300 px-4 py-3 rounded-2xl font-bold text-sm hover:bg-slate-700">
-                🚪 Exit Station
+                🚪 Return to Map
             </button>
         </div>
 
@@ -85,7 +80,7 @@
         © 2026 Tommy Philip Rhodes • Rhodes Family Legacy. All Rights Reserved.
     </footer>
 
-    <!-- Immersive Engine Script -->
+    <!-- Animated Canvas Workshop Engine -->
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -99,7 +94,7 @@
             y: 150,
             speed: 3.5,
             state: 'OVERWORLD', // OVERWORLD, TIMBER, FORGE, FARM, HOTEL
-            stationProgress: 0
+            animationPhase: 0
         };
 
         let keys = { up: false, down: false, left: false, right: false };
@@ -112,7 +107,7 @@
             if (e.key === ' ' || e.code === 'Space') {
                 e.preventDefault();
                 if (game.state === 'OVERWORLD') triggerAction();
-                else performMiniGameAction();
+                else performWorkshopAction();
             }
         });
 
@@ -124,11 +119,11 @@
         });
 
         const stations = [
-            { id: "timber", name: "Lucius Timberland", x: 80, y: 60, radius: 30, color: "#059669", icon: "🌲", actionText: "🪓 Enter Lucius's Timber Yard" },
-            { id: "forge", name: "Fred Forge", x: 320, y: 60, radius: 30, color: "#ea580c", icon: "🔥", actionText: "⚒️ Enter Fred's Forge Workshop" },
-            { id: "farm", name: "Tom Farmland", x: 80, y: 240, radius: 30, color: "#d97706", icon: "🌾", actionText: "🌾 Enter Tom's Farm Fields" },
-            { id: "hotel", name: "Zelma Hotel", x: 320, y: 240, radius: 30, color: "#0284c7", icon: "🏨", actionText: "🛎️ Enter Zelma's Hotel Lobby" },
-            { id: "home", name: "Homestead", x: 200, y: 150, radius: 38, color: "#f59e0b", actionText: "🏡 Central Homestead Hub" }
+            { id: "timber", name: "Lucius Timberland", x: 80, y: 60, radius: 30, color: "#059669", icon: "🌲", actionText: "Enter Lucius's Timber Yard" },
+            { id: "forge", name: "Fred Forge", x: 320, y: 60, radius: 30, color: "#ea580c", icon: "🔥", actionText: "Enter Fred's Forge Workshop" },
+            { id: "farm", name: "Tom Farmland", x: 80, y: 240, radius: 30, color: "#d97706", icon: "🌾", actionText: "Enter Tom's Farm Fields" },
+            { id: "hotel", name: "Zelma Hotel", x: 320, y: 240, radius: 30, color: "#0284c7", icon: "🏨", actionText: "Enter Zelma's Hotel Lobby" },
+            { id: "home", name: "Homestead", x: 200, y: 150, radius: 38, color: "#f59e0b", actionText: "Central Homestead Hub" }
         ];
 
         let activeStation = null;
@@ -147,23 +142,22 @@
         function triggerAction() {
             if (!activeStation) return;
             if (activeStation.id === 'home') {
-                alert("🏡 You are at the Central Homestead Hub! Collect resources from family stations to upgrade your town stage.");
+                alert("🏡 Central Homestead Hub! Collect resources from family stations to upgrade your town stage.");
                 return;
             }
 
             game.state = activeStation.id.toUpperCase();
-            game.stationProgress = 0;
             document.getElementById('dpad-controls').classList.add('hidden');
             document.getElementById('minigame-controls').classList.remove('hidden');
             document.getElementById('back-btn').classList.remove('hidden');
             
-            let btn = document.getElementById('minigame-action-btn');
+            let btn = document.getElementById('workshop-action-btn');
             if (game.state === 'TIMBER') btn.innerText = "🪓 Chop & Stack Log (+5 Timber)";
             if (game.state === 'FORGE') btn.innerText = "🔥 Pump Bellows & Strike Anvil (+3 Iron)";
             if (game.state === 'FARM') btn.innerText = "🌾 Harvest Crops & Seeds (+20 Coins)";
             if (game.state === 'HOTEL') btn.innerText = "🛎️ Welcome Guest & Manage Desk (+25 Coins)";
 
-            document.getElementById('game-prompt').innerHTML = `⚡ Welcome to <span class="text-amber-400 font-bold">${activeStation.name}</span>! Tap work button repeatedly.`;
+            document.getElementById('game-prompt').innerHTML = `⚡ Inside <span class="text-amber-400 font-bold">${activeStation.name}</span>! Watch the canvas animation as you work.`;
         }
 
         function exitToOverworld() {
@@ -171,27 +165,27 @@
             document.getElementById('dpad-controls').classList.remove('hidden');
             document.getElementById('minigame-controls').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
-            document.getElementById('game-prompt').innerHTML = `💡 Walk avatar to Lucius, Fred, Tom, or Zelma and tap Enter!`;
+            document.getElementById('game-prompt').innerHTML = `💡 Use D-pad to walk avatar to stations!`;
         }
 
-        function performMiniGameAction() {
-            game.stationProgress++;
+        function performWorkshopAction() {
+            game.animationPayoff = 15; // Trigger visual bounce/spark surge
             if (game.state === 'TIMBER') {
-                game.timber += 2;
-                spawnParticles(200, 150, '#10b981', '🪵');
-                showPopup(`🪓 Chop successful! Total Timber stacked: ${game.timber}`);
+                game.timber += 5;
+                spawnParticles(200, 140, '#10b981', '🪵');
+                showPopup(`🪓 Lucius chopped logs! +5 Timber (Total: ${game.timber})`);
             } else if (game.state === 'FORGE') {
-                game.iron += 2;
-                spawnParticles(200, 150, '#f97316', '✨');
-                showPopup(`⚒️ Iron heated & shaped! Total Iron: ${game.iron}`);
+                game.iron += 3;
+                spawnParticles(200, 140, '#f97316', '✨');
+                showPopup(`⚒️ Fred pumped bellows & struck anvil! +3 Iron (Total: ${game.iron})`);
             } else if (game.state === 'FARM') {
-                game.coins += 15;
-                spawnParticles(200, 150, '#f59e0b', '🪙');
-                showPopup(`🌾 Crops harvested! Total Coins: ${game.coins}`);
-            } else if (game.state === 'HOTEL') {
                 game.coins += 20;
-                spawnParticles(200, 150, '#38bdf8', '🪙');
-                showPopup(`🛎️ Guest checked in! Total Coins: ${game.coins}`);
+                spawnParticles(200, 140, '#f59e0b', '🪙');
+                showPopup(`🌾 Tom harvested crops! +20 Coins (Total: ${game.coins})`);
+            } else if (game.state === 'HOTEL') {
+                game.coins += 25;
+                spawnParticles(200, 140, '#38bdf8', '🪙');
+                showPopup(`🛎️ Zelma welcomed guest! +25 Coins (Total: ${game.coins})`);
             }
             updateHUD();
         }
@@ -201,11 +195,11 @@
         }
 
         function spawnParticles(x, y, color, symbol) {
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 6; i++) {
                 particles.push({
-                    x: x + (Math.random() - 0.5) * 60, y: y + (Math.random() - 0.5) * 40,
-                    vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4 - 2,
-                    life: 30, symbol: symbol, color: color
+                    x: x + (Math.random() - 0.5) * 80, y: y + (Math.random() - 0.5) * 40,
+                    vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5 - 2,
+                    life: 35, symbol: symbol, color: color
                 });
             }
         }
@@ -241,7 +235,7 @@
             }
         }
 
-        // Main Render Loop
+        // Main Render Loop with Animated Workshop Scenes
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -327,45 +321,53 @@
                 ctx.fillText("🧑‍🌾", game.x, game.y);
 
             } else {
-                // RENDER IMMERSIVE STATION WORKSPACES INSIDE CANVAS
+                // RENDER LIVE ANIMATED WORKSHOP CANVAS SCENE
+                game.animationPhase += 0.08;
+                let bounce = Math.sin(game.animationPhase) * 6;
+
+                // Workshop background frame
                 ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
                 ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
                 ctx.strokeStyle = "#f59e0b";
                 ctx.lineWidth = 2;
                 ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-                ctx.font = "bold 16px sans-serif";
+                ctx.font = "bold 15px sans-serif";
                 ctx.fillStyle = "#fef08a";
                 ctx.textAlign = "center";
-                
+
                 if (game.state === 'TIMBER') {
-                    ctx.fillText("🌲 Lucius Timberland - Woodyard", canvas.width / 2, 50);
-                    ctx.font = "40px sans-serif";
-                    ctx.fillText("🪓🪵", canvas.width / 2, 110);
+                    ctx.fillText("🌲 Lucius Timberland - Woodyard Workshop", canvas.width / 2, 50);
+                    ctx.font = "45px sans-serif";
+                    ctx.fillText("🪵", canvas.width / 2, 110 + (bounce * 0.5));
+                    ctx.font = "30px sans-serif";
+                    ctx.fillText("🪓", canvas.width / 2 - 35, 115 - bounce);
                 } else if (game.state === 'FORGE') {
-                    ctx.fillText("🔥 Fred's Forge Workshop", canvas.width / 2, 50);
-                    ctx.font = "40px sans-serif";
-                    ctx.fillText("🔨🔥", canvas.width / 2, 110);
+                    ctx.fillText("🔥 Fred's Forge - Anvil & Bellows", canvas.width / 2, 50);
+                    ctx.font = "45px sans-serif";
+                    ctx.fillText("🔥", canvas.width / 2, 110 + bounce);
+                    ctx.font = "30px sans-serif";
+                    ctx.fillText("🔨", canvas.width / 2 + 35, 105 - (bounce * 1.5));
                 } else if (game.state === 'FARM') {
-                    ctx.fillText("🌾 Tom's Farmland & Harvest", canvas.width / 2, 50);
-                    ctx.font = "40px sans-serif";
-                    ctx.fillText("🌽🚜", canvas.width / 2, 110);
+                    ctx.fillText("🌾 Tom's Farmland - Harvest & Crops", canvas.width / 2, 50);
+                    ctx.font = "45px sans-serif";
+                    ctx.fillText("🌾", canvas.width / 2, 110 + bounce);
+                    ctx.font = "30px sans-serif";
+                    ctx.fillText("🚜", canvas.width / 2 - 40, 115);
                 } else if (game.state === 'HOTEL') {
-                    ctx.fillText("🏨 Aunt Zelma's Hotel Desk", canvas.width / 2, 50);
-                    ctx.font = "40px sans-serif";
-                    ctx.fillText("🛎️🔑", canvas.width / 2, 110);
+                    ctx.fillText("🏨 Aunt Zelma's Hotel - Guest Lobby", canvas.width / 2, 50);
+                    ctx.font = "45px sans-serif";
+                    ctx.fillText("🏨", canvas.width / 2, 110 + bounce);
+                    ctx.font = "30px sans-serif";
+                    ctx.fillText("🔑", canvas.width / 2 + 35, 115);
                 }
 
-                ctx.font = "11px sans-serif";
-                ctx.fillStyle = "#94a3b8";
-                ctx.fillText(`Work Actions Performed: ${game.stationProgress}`, canvas.width / 2, 155);
-
-                ctx.font = "bold 12px sans-serif";
+                ctx.font = "bold 11px sans-serif";
                 ctx.fillStyle = "#38bdf8";
-                ctx.fillText("Tap button below to actively produce materials!", canvas.width / 2, 185);
+                ctx.fillText("Tap button below to actively animate work & gather resources!", canvas.width / 2, 185);
             }
 
-            // Draw Particles across states
+            // Draw Particles across all states
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx;
