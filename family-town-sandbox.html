@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhodes Family Legacy • Immersive Animated Workstations</title>
+    <title>Rhodes Family Homestead • Immersive Animated Workstations</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #030712; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
@@ -20,7 +20,7 @@
             <h1 class="text-base md:text-2xl font-bold text-amber-400 glow-text flex items-center gap-2">
                 🏡 Rhodes Family Homestead Suite
             </h1>
-            <p id="header-subtitle" class="text-[10px] text-slate-400">Walk to stations for animated interactive workshops!</p>
+            <p id="header-subtitle" class="text-[10px] text-slate-400">Walk to stations, gather resources, and expand your family estate!</p>
         </div>
         
         <!-- Player Resource HUD -->
@@ -28,6 +28,7 @@
             <div>🪙 <span id="hud-coins" class="font-bold text-amber-400">585</span></div>
             <div>🪵 <span id="hud-timber" class="font-bold text-emerald-400">35</span></div>
             <div>⚒️ <span id="hud-iron" class="font-bold text-orange-400">60</span></div>
+            <div>🏰 Stage <span id="hud-level" class="font-bold text-sky-400">1</span></div>
         </div>
 
         <button onclick="exitToOverworld()" id="back-btn" class="hidden text-xs border border-amber-500/40 text-amber-400 px-2.5 py-1 rounded-xl hover:bg-amber-500/10 transition-colors">
@@ -80,10 +81,53 @@
         © 2026 Tommy Philip Rhodes • Rhodes Family Legacy. All Rights Reserved.
     </footer>
 
-    <!-- Animated Canvas Workshop Engine -->
+    <!-- Audio & Canvas Workshop Engine -->
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+
+        // Synthesized Web Audio Sound Effects
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            let now = audioCtx.currentTime;
+            if (type === 'chop') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'forge') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(320, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'coin') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                osc.start(now); osc.stop(now + 0.25);
+            } else if (type === 'upgrade') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554.37, now + 0.1);
+                osc.frequency.setValueAtTime(659.25, now + 0.2);
+                osc.frequency.setValueAtTime(880, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+                osc.start(now); osc.stop(now + 0.6);
+            }
+        }
 
         let game = {
             coins: parseInt(localStorage.getItem('rhodes_coins') || '585'),
@@ -93,7 +137,7 @@
             x: 200,
             y: 150,
             speed: 3.5,
-            state: 'OVERWORLD', // OVERWORLD, TIMBER, FORGE, FARM, HOTEL
+            state: 'OVERWORLD',
             animationPhase: 0
         };
 
@@ -133,6 +177,7 @@
             document.getElementById('hud-coins').innerText = game.coins;
             document.getElementById('hud-timber').innerText = game.timber;
             document.getElementById('hud-iron').innerText = game.iron;
+            document.getElementById('hud-level').innerText = game.townLevel;
             localStorage.setItem('rhodes_coins', game.coins);
             localStorage.setItem('rhodes_timber', game.timber);
             localStorage.setItem('rhodes_iron', game.iron);
@@ -142,7 +187,7 @@
         function triggerAction() {
             if (!activeStation) return;
             if (activeStation.id === 'home') {
-                alert("🏡 Central Homestead Hub! Collect resources from family stations to upgrade your town stage.");
+                alert(`🏡 Central Homestead (Stage ${game.townLevel}! Gather 50 Wood, 20 Iron, and 100 Coins to expand your family estate.`);
                 return;
             }
 
@@ -157,7 +202,7 @@
             if (game.state === 'FARM') btn.innerText = "🌾 Harvest Crops & Seeds (+20 Coins)";
             if (game.state === 'HOTEL') btn.innerText = "🛎️ Welcome Guest & Manage Desk (+25 Coins)";
 
-            document.getElementById('game-prompt').innerHTML = `⚡ Inside <span class="text-amber-400 font-bold">${activeStation.name}</span>! Watch the canvas animation as you work.`;
+            document.getElementById('game-prompt').innerHTML = `⚡ Inside <span class="text-amber-400 font-bold">${activeStation.name}</span>! Tap action to work.`;
         }
 
         function exitToOverworld() {
@@ -169,21 +214,24 @@
         }
 
         function performWorkshopAction() {
-            game.animationPayoff = 15; // Trigger visual bounce/spark surge
             if (game.state === 'TIMBER') {
                 game.timber += 5;
+                playSound('chop');
                 spawnParticles(200, 140, '#10b981', '🪵');
                 showPopup(`🪓 Lucius chopped logs! +5 Timber (Total: ${game.timber})`);
             } else if (game.state === 'FORGE') {
                 game.iron += 3;
+                playSound('forge');
                 spawnParticles(200, 140, '#f97316', '✨');
                 showPopup(`⚒️ Fred pumped bellows & struck anvil! +3 Iron (Total: ${game.iron})`);
             } else if (game.state === 'FARM') {
                 game.coins += 20;
+                playSound('coin');
                 spawnParticles(200, 140, '#f59e0b', '🪙');
                 showPopup(`🌾 Tom harvested crops! +20 Coins (Total: ${game.coins})`);
             } else if (game.state === 'HOTEL') {
                 game.coins += 25;
+                playSound('coin');
                 spawnParticles(200, 140, '#38bdf8', '🪙');
                 showPopup(`🛎️ Zelma welcomed guest! +25 Coins (Total: ${game.coins})`);
             }
@@ -216,7 +264,7 @@
 
             let promptBox = document.getElementById('game-prompt');
             if (activeStation) {
-                promptBox.innerHTML = `⚡ Press <span class="text-emerald-400 font-bold">Enter / Action</span> to <span class="text-amber-400 font-bold">${activeStation.actionText}</span>!`;
+                promptBox.innerHTML = `⚡ Press <span class="text-emerald-400 font-bold">Action</span> to <span class="text-amber-400 font-bold">${activeStation.actionText}</span>!`;
             } else {
                 promptBox.innerHTML = `💡 Use D-pad to walk avatar to Timber, Forge, Farm, or Hotel!`;
             }
@@ -229,13 +277,14 @@
                 game.coins -= 100;
                 game.townLevel++;
                 updateHUD();
-                alert(`🎉 Congratulations! Homestead expanded to Stage ${game.townLevel}! New family story chapters unlocked.`);
+                playSound('upgrade');
+                alert(`🎉 CONGRATULATIONS! Homestead expanded to Stage ${game.townLevel}! New expansive family estate chapters unlocked for Little Fannie May & Little Luetta!`);
             } else {
-                alert(`❌ Not enough resources! You have ${game.timber}/50 Wood, ${game.iron}/20 Iron, ${game.coins}/100 Coins.`);
+                alert(`❌ Not enough resources! Required: 50 Wood (You have ${game.timber}), 20 Iron (You have ${game.iron}), 100 Coins (You have ${game.coins}). Keep playing the workstations!`);
             }
         }
 
-        // Main Render Loop with Animated Workshop Scenes
+        // Main Render Loop with Visual Homestead Evolution & Animations
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -273,7 +322,7 @@
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // Draw Stations
+                // Draw Stations (Dynamic Homestead Evolution Sprites based on Town Level)
                 for (let st of stations) {
                     let isNearby = activeStation === st;
                     ctx.beginPath();
@@ -285,15 +334,16 @@
                     ctx.stroke();
 
                     if (st.id === 'home') {
+                        // Visual Town Level Upgrade Sprites
                         let homeIcon = game.townLevel === 1 ? "🏡" : game.townLevel === 2 ? "🏘️" : "🏰";
-                        ctx.font = "20px sans-serif";
+                        ctx.font = "22px sans-serif";
                         ctx.textAlign = "center";
                         ctx.textBaseline = "middle";
                         ctx.fillText(homeIcon, st.x, st.y - 7);
 
                         ctx.font = "bold 8px sans-serif";
                         ctx.fillStyle = "#fef08a";
-                        ctx.fillText("Stage " + game.townLevel, st.x, st.y + 12);
+                        ctx.fillText("Stage " + game.townLevel, st.x, st.y + 13);
                     } else {
                         ctx.font = "18px sans-serif";
                         ctx.textAlign = "center";
@@ -325,7 +375,6 @@
                 game.animationPhase += 0.08;
                 let bounce = Math.sin(game.animationPhase) * 6;
 
-                // Workshop background frame
                 ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
                 ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
                 ctx.strokeStyle = "#f59e0b";
@@ -364,10 +413,10 @@
 
                 ctx.font = "bold 11px sans-serif";
                 ctx.fillStyle = "#38bdf8";
-                ctx.fillText("Tap button below to actively animate work & gather resources!", canvas.width / 2, 185);
+                ctx.fillText("Tap button below to actively work and gather resources!", canvas.width / 2, 185);
             }
 
-            // Draw Particles across all states
+            // Draw Particles
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx;
