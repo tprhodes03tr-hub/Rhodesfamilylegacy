@@ -9,7 +9,9 @@
         body { background-color: #030712; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
         .gold-border { border-color: rgba(245, 158, 11, 0.5); }
         .glow-text { text-shadow: 0 0 15px rgba(245, 158, 11, 0.7); }
-        .anvil-glow { box-shadow: 0 0 50px rgba(234, 88, 12, 0.4); }
+        .anvil-glow { box-shadow: 0 0 40px rgba(234, 88, 12, 0.3); }
+        /* Smooth character movement transition */
+        #avatar-sprite { transition: left 0.25s ease-in-out; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between p-4 md:p-8">
@@ -20,12 +22,13 @@
             <h1 class="text-xl md:text-2xl font-bold text-orange-400 glow-text flex items-center gap-2">
                 🔥 Fred Hatton's Blacksmith Forge
             </h1>
-            <p class="text-xs text-slate-400">Master Craftsmanship • Heat, Hammer, and Shape Historical Ironwork</p>
+            <p class="text-xs text-slate-400">Master Craftsmanship • Walk, Heat, Hammer, and Shape Homestead Tools</p>
         </div>
 
         <div class="flex items-center gap-4 bg-slate-950 px-4 py-2 rounded-xl border border-amber-500/30 text-xs md:text-sm">
-            <div>🪙 Marrow Coins: <span id="forge-coins" class="font-bold text-amber-400">150</span></div>
-            <div>⚒️ Iron Ingots: <span id="forge-iron" class="font-bold text-orange-400">10</span></div>
+            <div>🪙 Coins: <span id="forge-coins" class="font-bold text-amber-400">150</span></div>
+            <div>🪵 Wood: <span id="forge-wood" class="font-bold text-emerald-400">10</span></div>
+            <div>⚒️ Iron: <span id="forge-iron" class="font-bold text-orange-400">10</span></div>
         </div>
 
         <a href="family-town-sandbox.html" class="text-xs border border-amber-500/40 text-amber-400 px-4 py-2 rounded-xl hover:bg-amber-500/10 transition-colors">
@@ -33,36 +36,66 @@
         </a>
     </header>
 
-    <!-- Workshop Main Stage -->
-    <main class="max-w-4xl mx-auto w-full my-6 bg-slate-900/9oj border gold-border rounded-2xl p-6 md:p-8 shadow-2xl flex flex-col items-center text-center">
+    <!-- Workshop Interactive Side-Scroller Stage -->
+    <main class="max-w-4xl mx-auto w-full my-6 bg-slate-900/95 border gold-border rounded-2xl p-6 md:p-8 shadow-2xl flex flex-col items-center text-center">
         
-        <div class="w-full max-w-xl bg-slate-950 border border-orange-500/40 rounded-2xl p-6 mb-6 anvil-glow relative overflow-hidden">
+        <div class="w-full max-w-2xl bg-slate-950 border border-orange-500/40 rounded-2xl p-5 mb-6 anvil-glow relative overflow-hidden">
             <div class="absolute inset-0 bg-orange-600/5 pointer-events-none"></div>
             
-            <div id="forge-stage-icon" class="text-6xl mb-3 animate-pulse">🔥</div>
-            <h2 id="forge-status-title" class="text-lg md:text-xl font-bold text-orange-300 mb-2">The Hearth is Burning Hot</h2>
-            <p id="forge-status-desc" class="text-xs md:text-sm text-slate-300 mb-6">
-                Pump the bellows to heat the iron, then strike the anvil at the right moment to shape door hinges and horseshoes!
-            </p>
+            <div class="flex justify-between items-center mb-3">
+                <span id="comms-banner" class="text-xs text-orange-300 bg-slate-900 px-3 py-1 rounded-lg border border-orange-500/30">
+                    💬 Fred Hatton: "Walk over to the forge and anvil, pump the fire, and let's craft tools for the homestead!"
+                </span>
+                <span class="text-xs text-amber-400 font-bold">Tool Recipe: <span id="current-recipe">Homestead Horseshoe (+5 Iron)</span></span>
+            </div>
 
-            <!-- Progress & Timing Bar -->
-            <div class="w-full bg-slate-900 rounded-full h-5 border border-slate-700 overflow-hidden mb-6 p-0.5">
+            <!-- Side-Scroller Viewport Window -->
+            <div class="w-full h-44 bg-slate-900 border border-slate-700 rounded-xl relative overflow-hidden mb-4 flex items-end px-6 pb-3">
+                <!-- Background Workshop Elements -->
+                <div class="absolute top-4 left-6 text-slate-700 text-xs font-mono">--- FRED HATTON WORKSHOP BAY ---</div>
+                <div class="absolute bottom-10 right-16 flex flex-col items-center">
+                    <span id="forge-object-icon" class="text-4xl animate-pulse">🔥⚒️</span>
+                    <span class="text-[10px] text-orange-400 font-bold bg-slate-950 px-2 py-0.5 rounded border border-orange-500/30">HEARTH & ANVIL</span>
+                </div>
+
+                <!-- Walking Avatar Sprite -->
+                <div id="avatar-sprite" class="absolute bottom-3 left-10 w-12 h-16 bg-amber-500 border-2 border-white rounded-lg flex flex-col items-center justify-center shadow-lg" style="left: 40px;">
+                    <span class="text-xs">🧒</span>
+                    <span class="text-[9px] font-bold text-slate-950">TOM</span>
+                </div>
+
+                <!-- Ground Line -->
+                <div class="absolute bottom-0 left-0 w-full h-3 bg-slate-800 border-t border-orange-500/30"></div>
+            </div>
+
+            <!-- Heat Progress Bar -->
+            <div class="w-full bg-slate-900 rounded-full h-4 border border-slate-700 overflow-hidden mb-4 p-0.5">
                 <div id="forge-progress-bar" class="bg-gradient-to-r from-orange-600 to-amber-500 h-full rounded-full transition-all duration-300" style="width: 0%;"></div>
             </div>
 
-            <!-- Action Controls -->
-            <div class="flex flex-wrap justify-center gap-4">
-                <button onclick="pumpBellows()" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-6 py-3 rounded-xl shadow-lg transition-transform active:scale-95 text-sm">
-                    💨 Pump Bellows (Heat)
+            <!-- Interactive Control Deck (Walking + Crafting) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="flex justify-center gap-2">
+                    <button onclick="movePlayer(-30)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-4 py-2 rounded-xl text-xs border border-slate-600">
+                        ⬅️ Walk Left
+                    </button>
+                    <button onclick="movePlayer(30)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-4 py-2 rounded-xl text-xs border border-slate-600">
+                        Walk Right ➡️
+                    </button>
+                </div>
+
+                <button onclick="pumpBellows()" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-lg transition-transform active:scale-95 text-xs">
+                    💨 Pump Bellows (Heat Up)
                 </button>
-                <button onclick="strikeAnvil()" class="bg-orange-600 hover:bg-orange-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg transition-transform active:scale-95 text-sm">
-                    🔨 Strike Anvil (Shape)
+
+                <button onclick="strikeAnvil()" class="bg-orange-600 hover:bg-orange-500 text-white font-bold px-4 py-2 rounded-xl shadow-lg transition-transform active:scale-95 text-xs">
+                    🔨 Strike Anvil (Forge Tool)
                 </button>
             </div>
         </div>
 
-        <div class="text-xs text-slate-400 max-w-md">
-            💡 <span class="text-orange-400 font-bold">Fred Hatton Legacy Note:</span> Traditional craftsmanship built the hardware that held the family homestead together for generations. Every piece forged here contributes materials back to your main town sandbox!
+        <div class="text-xs text-slate-400 max-w-lg">
+            💡 <span class="text-orange-400 font-bold">Children's Lore Sandbox:</span> Walk Tom close to the anvil on the right, stoke the flame with the bellows, and strike to craft vital homestead tools for Little Fannie May & Little Luetta's expanding world!
         </div>
 
     </main>
@@ -72,58 +105,78 @@
         © 2026 Tommy Philip Rhodes • Rhodes Family Legacy. All Rights Reserved.
     </footer>
 
-    <!-- Forge Mini-Game Logic -->
+    <!-- Forge Side-Scroller & Crafting Logic -->
     <script>
         let forgeData = {
+            playerX: 40,
             heat: 0,
-            forgedPieces: 0,
+            forgedToolsCount: 0,
             coins: parseInt(localStorage.getItem('rhodes_coins') || '150'),
+            wood: parseInt(localStorage.getItem('rhodes_wood') || '10'),
             iron: parseInt(localStorage.getItem('rhodes_iron') || '10')
         };
 
-        function updateForgeHUD() {
+        function updateHUD() {
             document.getElementById('forge-coins').innerText = forgeData.coins;
+            document.getElementById('forge-wood').innerText = forgeData.wood;
             document.getElementById('forge-iron').innerText = forgeData.iron;
             
-            // Save back to localStorage so the main town sandbox updates automatically
             localStorage.setItem('rhodes_coins', forgeData.coins);
+            localStorage.setItem('rhodes_wood', forgeData.wood);
             localStorage.setItem('rhodes_iron', forgeData.iron);
         }
 
+        function movePlayer(delta) {
+            forgeData.playerX = Math.max(20, Math.min(420, forgeData.playerX + delta));
+            document.getElementById('avatar-sprite').style.left = forgeData.playerX + 'px';
+            
+            const comms = document.getElementById('comms-banner');
+            if (forgeData.playerX > 250) {
+                comms.innerHTML = "🔥 <strong>In position at Fred's Forge!</strong> Pump the bellows until the heat is 100%, then strike the anvil.";
+            } else {
+                comms.innerHTML = "🚶 Walking across the workshop bay towards the anvil station...";
+            }
+        }
+
         function pumpBellows() {
+            if (forgeData.playerX < 200) {
+                movePlayer(220); // Auto-step closer to the anvil if too far
+            }
+
             forgeData.heat = Math.min(100, forgeData.heat + 25);
             document.getElementById('forge-progress-bar').style.width = forgeData.heat + '%';
             
             if (forgeData.heat >= 100) {
-                document.getElementById('forge-status-title').innerText = "🔥 Iron is White-Hot & Ready!";
-                document.getElementById('forge-status-desc').innerText = "The metal is at peak temperature! Click 'Strike Anvil' to shape your hardware.";
-                document.getElementById('forge-stage-icon').innerText = "✨⚒️";
+                document.getElementById('comms-banner').innerHTML = "✨ <strong>Iron is White-Hot!</strong> Click 'Strike Anvil' to shape your homestead tool.";
+                document.getElementById('forge-object-icon').innerText = "✨⚒️🔥";
             } else {
-                document.getElementById('forge-status-title').innerText = "Stoking the Coals...";
-                document.getElementById('forge-status-desc').innerText = `Current Heat: ${forgeData.heat}%. Keep pumping the bellows!`;
+                document.getElementById('comms-banner').innerHTML = `🔥 Stoking coals... Current Heat: ${forgeData.heat}%. Keep pumping!`;
             }
         }
 
         function strikeAnvil() {
+            if (forgeData.playerX < 200) {
+                movePlayer(220);
+            }
+
             if (forgeData.heat < 100) {
-                alert("The iron isn't hot enough yet! Pump the bellows first to heat the metal.");
+                alert("The iron isn't hot enough yet! Pump the bellows to reach 100% heat.");
                 return;
             }
 
-            forgeData.forgedPieces++;
-            forgeData.iron += 5;
-            forgeData.coins += 25;
-            forgeData.heat = 0; // Reset heat for next piece
+            forgeData.forgedToolsCount++;
+            forgeData.iron += 8;
+            forgeData.coins += 35;
+            forgeData.heat = 0;
 
             document.getElementById('forge-progress-bar').style.width = '0%';
-            document.getElementById('forge-status-title').innerText = "🎉 Hardware Successfully Forged!";
-            document.getElementById('forge-status-desc').innerText = `You crafted a custom iron hinge/horseshoe! Total forged: ${forgeData.forgedPieces}. (+5 Iron, +25 Coins)`;
-            document.getElementById('forge-stage-icon').innerText = "🔥";
+            document.getElementById('comms-banner').innerHTML = `🎉 <strong>Tool Forged Successfully!</strong> Crafted custom homestead hardware (#${forgeData.forgedToolsCount}). (+8 Iron, +35 Coins added to Town Sandbox)`;
+            document.getElementById('forge-object-icon').innerText = "🔥⚒️";
 
-            updateForgeHUD();
+            updateHUD();
         }
 
-        updateForgeHUD();
+        updateHUD();
     </script>
 </body>
 </html>
