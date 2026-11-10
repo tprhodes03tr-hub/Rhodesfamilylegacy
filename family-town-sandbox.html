@@ -3,130 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhodes Family Legacy • Ancestral Town Sandbox</title>
+    <title>Rhodes Family Legacy • Interactive Town Sandbox</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #030712; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: #030712; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
         .gold-border { border-color: rgba(245, 158, 11, 0.4); }
         .glow-text { text-shadow: 0 0 10px rgba(245, 158, 11, 0.6); }
+        canvas { background: #0b1329; border: 2px solid #f59e0b; border-radius: 12px; box-shadow: 0 0 30px rgba(245, 158, 11, 0.2); display: block; margin: 0 auto; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between p-4 md:p-8">
+<body class="min-h-screen flex flex-col justify-between p-4 md:p-6">
 
     <!-- Top Navigation Header -->
-    <header class="max-w-6xl mx-auto w-full bg-slate-900/90 border gold-border rounded-2xl p-4 mb-6 shadow-2xl flex flex-wrap justify-between items-center gap-4">
+    <header class="max-w-5xl mx-auto w-full bg-slate-900/90 border gold-border rounded-2xl p-4 mb-4 shadow-2xl flex flex-wrap justify-between items-center gap-4">
         <div>
             <h1 class="text-xl md:text-2xl font-bold text-amber-400 glow-text flex items-center gap-2">
-                ⚡ Rhodes Family Town Sandbox
+                🏡 Rhodes Family Town Sandbox
             </h1>
-            <p class="text-xs text-slate-400">Build, Farm, Forge, and Expand the Homestead & Yazoo City Legacy</p>
+            <p class="text-xs text-slate-400">Use Arrow Keys / D-Pad to Walk Around. Visit Stations to Gather & Build!</p>
         </div>
         
         <!-- Player Resource HUD -->
-        <div class="flex items-center gap-6 bg-slate-950 px-5 py-2.5 rounded-xl border border-amber-500/30 text-sm">
-            <div>🪙 Marrow Coins: <span id="hud-coins" class="font-bold text-amber-400">150</span></div>
+        <div class="flex items-center gap-4 bg-slate-950 px-4 py-2 rounded-xl border border-amber-500/30 text-xs md:text-sm">
+            <div>🪙 Coins: <span id="hud-coins" class="font-bold text-amber-400">150</span></div>
             <div>🪵 Timber: <span id="hud-timber" class="font-bold text-emerald-400">25</span></div>
-            <div>⚒️ Iron Ingots: <span id="hud-iron" class="font-bold text-orange-400">10</span></div>
+            <div>⚒️ Iron: <span id="hud-iron" class="font-bold text-orange-400">10</span></div>
         </div>
 
         <a href="index.html" class="text-xs border border-amber-500/40 text-amber-400 px-4 py-2 rounded-xl hover:bg-amber-500/10 transition-colors">
-            ← Return to Main Hub
+            ← Return to Hub
         </a>
     </header>
 
-    <!-- Main Sandbox Layout -->
-    <main class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Main Game Canvas Container -->
+    <main class="max-w-5xl mx-auto w-full flex flex-col items-center gap-4 mb-4">
         
-        <!-- Left Column: Town Workstations (Gathering & Crafting) -->
-        <div class="space-y-6">
-            <div class="bg-slate-900/80 border gold-border rounded-2xl p-5 shadow-lg">
-                <h2 class="text-lg font-bold text-amber-400 mb-2">🌲 Lucius Hatton's Timberland</h2>
-                <p class="text-xs text-slate-300 mb-4">Harvest raw logs from the ridge to supply the town builders.</p>
-                <button onclick="workTimber()" class="w-full bg-emerald-700 hover:bg-emerald-600 font-bold py-2.5 rounded-xl text-sm transition-all shadow-md">
-                    Chop Timber (+10 Wood, +15 Coins)
-                </button>
-            </div>
-
-            <div class="bg-slate-900/80 border gold-border rounded-2xl p-5 shadow-lg">
-                <h2 class="text-lg font-bold text-amber-400 mb-2">🔥 Fred Hatton's Blacksmith Forge</h2>
-                <p class="text-xs text-slate-300 mb-4">Heat iron on the anvil to craft hinges, nails, and tools.</p>
-                <button onclick="workForge()" class="w-full bg-orange-700 hover:bg-orange-600 font-bold py-2.5 rounded-xl text-sm transition-all shadow-md">
-                    Forge Iron Hardware (+5 Iron, +20 Coins)
-                </button>
-            </div>
-
-            <div class="bg-slate-900/80 border gold-border rounded-2xl p-5 shadow-lg">
-                <h2 class="text-lg font-bold text-amber-400 mb-2">🌾 Tom Mitchell's Farmland</h2>
-                <p class="text-xs text-slate-300 mb-4">Harvest crops and trade fresh goods at the family store.</p>
-                <button onclick="workFarm()" class="w-full bg-amber-700 hover:bg-amber-600 font-bold py-2.5 rounded-xl text-sm transition-all shadow-md">
-                    Harvest Crops (+30 Coins)
-                </button>
-            </div>
+        <div class="relative w-full flex justify-center">
+            <canvas id="gameCanvas" width="800" height="450"></canvas>
         </div>
 
-        <!-- Center Column: Town & Homestead Expansion View -->
-        <div class="bg-slate-900/80 border gold-border rounded-2xl p-6 shadow-lg flex flex-col justify-between">
-            <div>
-                <h2 class="text-xl font-bold text-amber-400 mb-2 text-center">🏡 The Growing Homestead & Town</h2>
-                <p class="text-xs text-slate-400 text-center mb-6">Work with Uncle Aaron, Uncle James, Nena, and Faris to expand the community!</p>
-                
-                <!-- Town Visual Status Box -->
-                <div id="town-status-box" class="bg-slate-950 border border-slate-800 rounded-xl p-5 text-center space-y-3 mb-6">
-                    <div class="text-3xl">🏘️</div>
-                    <div id="town-level-name" class="font-bold text-amber-300 text-base">Stage 1: Pioneer Cabin & Clearing</div>
-                    <p id="town-level-desc" class="text-xs text-slate-400">The foundation is laid. Fred's forge and Lucius's timber camp are active.</p>
-                </div>
-            </div>
+        <!-- On-Screen Controls for Mobile / Tablets -->
+        <div class="flex gap-2 md:hidden">
+            <button onclick="movePlayer(0, -20)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold">⬆️ Up</button>
+            <button onclick="movePlayer(-20, 0)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold">⬅️ Left</button>
+            <button onclick="movePlayer(20, 0)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold">➡️ Right</button>
+            <button onclick="movePlayer(0, 20)" class="bg-slate-800 border border-amber-500/40 px-4 py-2 rounded-lg text-amber-400 font-bold">⬇️ Down</button>
+            <button onclick="interactStation()" class="bg-emerald-600 px-4 py-2 rounded-lg text-white font-bold">⚡ Interact</button>
+        </div>
 
-            <!-- Build / Expand Action Button -->
-            <button onclick="upgradeTown()" id="upgrade-btn" class="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-slate-950 font-bold py-3 rounded-xl shadow-lg hover:scale-[1.02] transition-transform text-sm">
-                Expand Town (Cost: 50 Wood, 20 Iron, 100 Coins)
+        <!-- Instructions & Status Bar -->
+        <div class="w-full bg-slate-900/80 border gold-border rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 text-xs">
+            <div id="game-prompt" class="text-amber-300 font-bold">
+                💡 Walk up to <span class="text-emerald-400">Lucius's Timberland</span> (Top Left) or <span class="text-orange-400">Fred's Forge</span> (Top Right) and press <kbd class="bg-slate-800 px-2 py-1 rounded text-white">SPACE</kbd> or click interact!
+            </div>
+            <button onclick="upgradeTown()" class="bg-gradient-to-r from-amber-600 to-amber-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl shadow-lg hover:scale-105 transition-transform">
+                🏗️ Expand Town (Req: 50 Wood, 20 Iron, 100 Coins)
             </button>
-        </div>
-
-        <!-- Right Column: Family General Store & Bookcase Showcase -->
-        <div class="space-y-6">
-            <!-- Family General Store & Wardrobe -->
-            <div class="bg-slate-900/80 border gold-border rounded-2xl p-5 shadow-lg">
-                <h2 class="text-lg font-bold text-amber-400 mb-2">🛍️ Tom Mitchell's General Store</h2>
-                <p class="text-xs text-slate-300 mb-4">Spend Marrow Coins on vintage outfits and grand-mother wardrobes.</p>
-                <div class="space-y-2.5">
-                    <button onclick="buyItem('Sunday Best Dress', 75)" class="w-full bg-slate-800 hover:bg-slate-700 border border-amber-500/30 text-amber-300 text-xs py-2 px-3 rounded-lg flex justify-between items-center">
-                        <span>👗 Sunday Best Dress</span>
-                        <span class="font-bold text-amber-400">75 Coins</span>
-                    </button>
-                    <button onclick="buyItem('Pioneer Newsboy Cap', 50)" class="w-full bg-slate-800 hover:bg-slate-700 border border-amber-500/30 text-amber-300 text-xs py-2 px-3 rounded-lg flex justify-between items-center">
-                        <span>🧢 Pioneer Newsboy Cap</span>
-                        <span class="font-bold text-amber-400">50 Coins</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Storybook Learning Kiosk -->
-            <div class="bg-slate-900/80 border gold-border rounded-2xl p-5 shadow-lg">
-                <h2 class="text-lg font-bold text-amber-400 mb-2">📚 Historical Bookcase Kiosk</h2>
-                <p class="text-xs text-slate-300 mb-3">Unlock illustrated heritage chapters and lore as your town expands.</p>
-                <div id="unlocked-books" class="text-xs text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-800">
-                    📖 Unlocked: *The Adventures of Little Fannie May & Her Brothers* (Intro Chapter)
-                </div>
-            </div>
         </div>
 
     </main>
 
     <!-- Footer -->
-    <footer class="max-w-6xl mx-auto w-full text-center text-xs text-slate-500 border-t border-slate-800 pt-4">
+    <footer class="max-w-5xl mx-auto w-full text-center text-xs text-slate-500 border-t border-slate-800 pt-3">
         © 2026 Tommy Philip Rhodes • Rhodes Family Legacy. All Rights Reserved.
     </footer>
 
-    <!-- Game Logic Script -->
+    <!-- Interactive Canvas Game Script -->
     <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
         let game = {
             coins: 150,
             timber: 25,
             iron: 10,
-            townLevel: 1
+            townLevel: 1,
+            x: 400,
+            y: 225,
+            speed: 15
         };
+
+        // Stations map coordinates
+        const stations = [
+            { name: "Lucius Hatton's Timberland", x: 120, y: 100, radius: 50, color: "#059669", icon: "🌲" },
+            { name: "Fred Hatton's Blacksmith Forge", x: 680, y: 100, radius: 50, color: "#ea580c", icon: "🔥" },
+            { name: "Tom Mitchell's Farmland", x: 120, y: 350, radius: 50, color: "#d97706", icon: "🌾" },
+            { name: "Zelma Mitchell's Hotel", x: 680, y: 350, radius: 50, color: "#0284c7", icon: "🏨" },
+            { name: "Homestead Build Site", x: 400, y: 225, radius: 60, color: "#f59e0b", icon: "🏡" }
+        ];
 
         function updateHUD() {
             document.getElementById('hud-coins').innerText = game.coins;
@@ -134,31 +98,65 @@
             document.getElementById('hud-iron').innerText = game.iron;
         }
 
-        function workTimber() {
-            game.timber += 10;
-            game.coins += 15;
-            updateHUD();
+        function movePlayer(dx, dy) {
+            game.x = Math.max(40, Math.min(canvas.width - 40, game.x + dx));
+            game.y = Math.max(40, Math.min(canvas.height - 40, game.y + dy));
+            checkProximity();
         }
 
-        function workForge() {
-            game.iron += 5;
-            game.coins += 20;
-            updateHUD();
-        }
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w') movePlayer(0, -game.speed);
+            if (e.key === 'ArrowDown' || e.key === 's') movePlayer(0, game.speed);
+            if (e.key === 'ArrowLeft' || e.key === 'a') movePlayer(-game.speed, 0);
+            if (e.key === 'ArrowRight' || e.key === 'd') movePlayer(game.speed, 0);
+            if (e.key === ' ' || e.code === 'Space') interactStation();
+        });
 
-        function workFarm() {
-            game.coins += 30;
-            updateHUD();
-        }
+        let activeStation = null;
 
-        function buyItem(itemName, cost) {
-            if (game.coins >= cost) {
-                game.coins -= cost;
-                updateHUD();
-                alert(`Successfully acquired: ${itemName}! Added to your family wardrobe collection.`);
-            } else {
-                alert("Not enough Marrow Coins! Complete more chores around the town to earn coins.");
+        function checkProximity() {
+            activeStation = null;
+            for (let st of stations) {
+                let dist = Math.hypot(game.x - st.x, game.y - st.y);
+                if (dist < st.radius + 20) {
+                    activeStation = st;
+                    break;
+                }
             }
+
+            let promptBox = document.getElementById('game-prompt');
+            if (activeStation) {
+                promptBox.innerHTML = `⚡ Press <kbd class="bg-slate-800 px-2 py-1 rounded text-white">SPACE</kbd> to work or interact with <span class="text-amber-400 font-bold">${activeStation.name}</span>!`;
+            } else {
+                promptBox.innerHTML = `💡 Walk to any station (Timberland, Forge, Farm, Hotel, or Homestead) to gather & build!`;
+            }
+        }
+
+        function interactStation() {
+            if (!activeStation) {
+                alert("Walk closer to a station (Timberland, Forge, Farm, Hotel, or Homestead) to interact!");
+                return;
+            }
+
+            if (activeStation.name.includes("Timberland")) {
+                game.timber += 10;
+                game.coins += 15;
+                alert("🌲 Lucius Hatton helped you harvest 10 logs from the ridge!");
+            } else if (activeStation.name.includes("Forge")) {
+                game.iron += 5;
+                game.coins += 20;
+                alert("🔥 Fred Hatton helped you forge 5 iron hardware pieces!");
+            } else if (activeStation.name.includes("Farmland")) {
+                game.coins += 30;
+                alert("🌾 Tom Mitchell's store trade brought in 30 Marrow Coins!");
+            } else if (activeStation.name.includes("Hotel")) {
+                game.coins += 40;
+                alert("🏨 Zelma Mitchell's Yazoo City Hotel welcomed guests (+40 Coins)!");
+            } else if (activeStation.name.includes("Homestead")) {
+                alert(`🏡 Homestead Status: Stage ${game.townLevel} active. Expand town below when you have enough materials!`);
+            }
+            updateHUD();
         }
 
         function upgradeTown() {
@@ -167,28 +165,71 @@
                 game.iron -= 20;
                 game.coins -= 100;
                 game.townLevel++;
-
-                let statusBox = document.getElementById('town-level-name');
-                let descBox = document.getElementById('town-level-desc');
-                let booksBox = document.getElementById('unlocked-books');
-
-                if (game.townLevel === 2) {
-                    statusBox.innerText = "Stage 2: Uncle James's Plumbing & Workshop Added";
-                    descBox.innerText = "Running water lines are installed across the homestead.";
-                    booksBox.innerHTML += "<br>📖 Unlocked: *Little Luetta and the Magic Mill*";
-                } else if (game.townLevel === 3) {
-                    statusBox.innerText = "Stage 3: Zelma Mitchell's Yazoo City Hotel Open!";
-                    descBox.innerText = "A bustling community center welcoming travelers and family.";
-                    booksBox.innerHTML += "<br>📖 Unlocked: *The Colbert Legacy & Marrow Codex Chapter*";
-                } else {
-                    statusBox.innerText = "Stage 4: Grand Family Metropolis & Farmland Hub";
-                    descBox.innerText = "The ultimate historic sanctuary of heritage and learning.";
-                }
+                alert(`🎉 Congratulations! Town expanded to Stage ${game.townLevel}! New archival story chapters unlocked.`);
                 updateHUD();
             } else {
-                alert("Need more resources! Required: 50 Wood, 20 Iron, 100 Marrow Coins.");
+                alert("❌ Not enough resources! Required: 50 Wood, 20 Iron, 100 Marrow Coins.");
             }
         }
+
+        // Render Game Loop
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Background Grass & Pathways
+            ctx.fillStyle = "#0f172a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw paths between stations
+            ctx.strokeStyle = "#1e293b";
+            ctx.lineWidth = 12;
+            ctx.beginPath();
+            ctx.moveTo(120, 100); ctx.lineTo(400, 225); ctx.lineTo(680, 100);
+            ctx.moveTo(120, 350); ctx.lineTo(400, 225); ctx.lineTo(680, 350);
+            ctx.stroke();
+
+            // Draw Stations
+            for (let st of stations) {
+                ctx.beginPath();
+                ctx.arc(st.x, st.y, st.radius, 0, Math.PI * 2);
+                ctx.fillStyle = st.color + "33";
+                ctx.fill();
+                ctx.strokeStyle = st.color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.font = "24px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(st.icon, st.x, st.y - 8);
+
+                ctx.font = "bold 10px sans-serif";
+                ctx.fillStyle = "#f8fafc";
+                ctx.fillText(st.name.split(" ")[0], st.x, st.y + 22);
+            }
+
+            // Draw Homestead Center Visual based on Level
+            ctx.font = "32px sans-serif";
+            let centerIcon = game.townLevel === 1 ? "🏕️" : game.townLevel === 2 ? "🏡" : "🏘️";
+            ctx.fillText(centerIcon, 400, 215);
+
+            // Draw Player Avatar
+            ctx.beginPath();
+            ctx.arc(game.x, game.y, 16, 0, Math.PI * 2);
+            ctx.fillStyle = "#38bdf8";
+            ctx.fill();
+            ctx.strokeStyle = "#f8fafc";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.font = "16px sans-serif";
+            ctx.fillText("🧑‍🌾", game.x, game.y - 2);
+
+            requestAnimationFrame(drawGame);
+        }
+
+        updateHUD();
+        drawGame();
     </script>
 </body>
 </html>
