@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhodes Family Homestead • Immersive Animated Workstations</title>
+    <title>Rhodes Family Homestead • Immersive Portal Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #030712; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
@@ -20,7 +20,7 @@
             <h1 class="text-base md:text-2xl font-bold text-amber-400 glow-text flex items-center gap-2">
                 🏡 Rhodes Family Homestead Suite
             </h1>
-            <p id="header-subtitle" class="text-[10px] text-slate-400">Walk to stations, gather resources, and expand your family estate!</p>
+            <p id="header-subtitle" class="text-[10px] text-slate-400">Step into portal stations: top-down garden harvesting, side-scrolling workshops, and estate expansion!</p>
         </div>
         
         <!-- Player Resource HUD -->
@@ -39,11 +39,16 @@
     <!-- Main Game Canvas Container -->
     <main class="max-w-4xl mx-auto w-full flex flex-col items-center gap-2 mb-2">
         
+        <!-- Story / Action Dialogue Box -->
+        <div id="story-dialogue" class="w-full bg-slate-900/90 border border-amber-500/40 rounded-xl p-2.5 text-xs text-amber-300 text-center font-medium shadow-lg">
+            💡 Walk avatar to stations on the map and press Enter Station!
+        </div>
+
         <div class="relative w-full flex justify-center px-1">
             <canvas id="gameCanvas" width="400" height="300"></canvas>
         </div>
 
-        <!-- Mobile & Tablet On-Screen Controls (Overworld) -->
+        <!-- Mobile & Tablet On-Screen Controls (Overworld & Top-Down Garden) -->
         <div id="dpad-controls" class="flex flex-col items-center gap-1 w-full my-1">
             <button ontouchstart="keys.up=true; event.preventDefault();" ontouchend="keys.up=false; event.preventDefault();" onmousedown="keys.up=true;" onmouseup="keys.up=false;" class="bg-slate-800 border border-amber-500/50 text-amber-400 w-16 h-11 rounded-xl font-bold text-lg active:bg-amber-600 active:text-slate-950 shadow-lg">⬆️</button>
             <div class="flex justify-center gap-3 w-full max-w-xs">
@@ -54,20 +59,20 @@
             <button ontouchstart="keys.down=true; event.preventDefault();" ontouchend="keys.down=false; event.preventDefault();" onmousedown="keys.down=true;" onmouseup="keys.down=false;" class="bg-slate-800 border border-amber-500/50 text-amber-400 w-16 h-11 rounded-xl font-bold text-lg active:bg-amber-600 active:text-slate-950 shadow-lg">⬇️</button>
         </div>
 
-        <!-- Animated Workshop Action Controls (Inside Station) -->
+        <!-- Station Action Controls (Side-Scrollers / Hotel) -->
         <div id="minigame-controls" class="hidden flex justify-center gap-3 w-full my-2">
-            <button onclick="performWorkshopAction()" id="workshop-action-btn" class="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold px-6 py-3 rounded-2xl shadow-xl text-sm border border-amber-400 active:scale-95 transition-all">
-                🔨 Pump & Work
+            <button onclick="performStationAction()" id="station-action-btn" class="bg-gradient-to-r from-emerald-600 to-amber-600 hover:from-emerald-500 hover:to-amber-500 text-white font-bold px-6 py-3 rounded-2xl shadow-xl text-sm border border-amber-400 active:scale-95 transition-all">
+                🌿 Work Station
             </button>
             <button onclick="exitToOverworld()" class="bg-slate-800 border border-slate-600 text-slate-300 px-4 py-3 rounded-2xl font-bold text-sm hover:bg-slate-700">
                 🚪 Return to Map
             </button>
         </div>
 
-        <!-- Instructions & Status Bar -->
+        <!-- Homestead Upgrade Bar -->
         <div class="w-full bg-slate-900/90 border gold-border rounded-xl p-2.5 flex flex-col md:flex-row justify-between items-center gap-2 text-xs">
-            <div id="game-prompt" class="text-amber-300 font-bold text-center md:text-left">
-                💡 Walk avatar to Lucius, Fred, Tom, or Zelma and tap Enter!
+            <div class="text-amber-300 font-bold">
+                🏛️ Rhodes Family Legacy Homestead Expansion
             </div>
             <button onclick="upgradeTown()" class="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold px-3 py-2 rounded-xl shadow-lg transition-transform text-[11px]">
                 🏗️ Expand Homestead (50 Wood, 20 Iron, 100 Coins)
@@ -81,7 +86,7 @@
         © 2026 Tommy Philip Rhodes • Rhodes Family Legacy. All Rights Reserved.
     </footer>
 
-    <!-- Audio & Canvas Workshop Engine -->
+    <!-- Audio & Multi-Genre Game Engine -->
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -117,6 +122,13 @@
                 gain.gain.setValueAtTime(0.2, now);
                 gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
                 osc.start(now); osc.stop(now + 0.25);
+            } else if (type === 'water') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
             } else if (type === 'upgrade') {
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(440, now);
@@ -137,9 +149,27 @@
             x: 200,
             y: 150,
             speed: 3.5,
-            state: 'OVERWORLD',
-            animationPhase: 0
+            state: 'OVERWORLD', // OVERWORLD, TIMBER, FORGE, FARM, HOTEL
+            
+            // Side-scroller variables
+            scrollX: 0,
+            avatarX: 100,
+            avatarY: 205,
+
+            // Top-down Garden variables
+            gardenX: 200,
+            gardenY: 150
         };
+
+        // Garden crop patches data
+        let gardenPlots = [
+            { x: 100, y: 90, type: "corn", stage: 2, label: "🌽 Corn" },
+            { x: 200, y: 90, type: "tomato", stage: 2, label: "🍅 Tomato" },
+            { x: 300, y: 90, type: "corn", stage: 1, label: "🌱 Sprout" },
+            { x: 100, y: 210, type: "tomato", stage: 2, label: "🍅 Tomato" },
+            { x: 200, y: 210, type: "corn", stage: 2, label: "🌽 Corn" },
+            { x: 300, y: 210, type: "tomato", stage: 1, label: "🌱 Sprout" }
+        ];
 
         let keys = { up: false, down: false, left: false, right: false };
 
@@ -151,7 +181,8 @@
             if (e.key === ' ' || e.code === 'Space') {
                 e.preventDefault();
                 if (game.state === 'OVERWORLD') triggerAction();
-                else performWorkshopAction();
+                else if (game.state === 'FARM') waterOrHarvestGarden();
+                else performStationAction();
             }
         });
 
@@ -165,7 +196,7 @@
         const stations = [
             { id: "timber", name: "Lucius Timberland", x: 80, y: 60, radius: 30, color: "#059669", icon: "🌲", actionText: "Enter Lucius's Timber Yard" },
             { id: "forge", name: "Fred Forge", x: 320, y: 60, radius: 30, color: "#ea580c", icon: "🔥", actionText: "Enter Fred's Forge Workshop" },
-            { id: "farm", name: "Tom Farmland", x: 80, y: 240, radius: 30, color: "#d97706", icon: "🌾", actionText: "Enter Tom's Farm Fields" },
+            { id: "farm", name: "Tom Farmland", x: 80, y: 240, radius: 30, color: "#d97706", icon: "🌾", actionText: "Enter Tom's Farmland Gardens" },
             { id: "hotel", name: "Zelma Hotel", x: 320, y: 240, radius: 30, color: "#0284c7", icon: "🏨", actionText: "Enter Zelma's Hotel Lobby" },
             { id: "home", name: "Homestead", x: 200, y: 150, radius: 38, color: "#f59e0b", actionText: "Central Homestead Hub" }
         ];
@@ -185,24 +216,48 @@
         }
 
         function triggerAction() {
-            if (!activeStation) return;
+            if (!activeStation) {
+                let closest = stations[0];
+                let minDist = Math.hypot(game.x - closest.x, game.y - closest.y);
+                for (let st of stations) {
+                    let d = Math.hypot(game.x - st.x, game.y - st.y);
+                    if (d < minDist) { minDist = d; closest = st; }
+                }
+                activeStation = closest;
+            }
+
             if (activeStation.id === 'home') {
-                alert(`🏡 Central Homestead (Stage ${game.townLevel}! Gather 50 Wood, 20 Iron, and 100 Coins to expand your family estate.`);
+                alert(`🏡 Central Homestead (Stage ${game.townLevel})! Gather 50 Wood, 20 Iron, and 100 Coins to expand your family estate.`);
                 return;
             }
 
             game.state = activeStation.id.toUpperCase();
-            document.getElementById('dpad-controls').classList.add('hidden');
-            document.getElementById('minigame-controls').classList.remove('hidden');
-            document.getElementById('back-btn').classList.remove('hidden');
-            
-            let btn = document.getElementById('workshop-action-btn');
-            if (game.state === 'TIMBER') btn.innerText = "🪓 Chop & Stack Log (+5 Timber)";
-            if (game.state === 'FORGE') btn.innerText = "🔥 Pump Bellows & Strike Anvil (+3 Iron)";
-            if (game.state === 'FARM') btn.innerText = "🌾 Harvest Crops & Seeds (+20 Coins)";
-            if (game.state === 'HOTEL') btn.innerText = "🛎️ Welcome Guest & Manage Desk (+25 Coins)";
+            game.avatarX = 100;
+            game.scrollX = 0;
+            game.gardenX = 200;
+            game.gardenY = 150;
 
-            document.getElementById('game-prompt').innerHTML = `⚡ Inside <span class="text-amber-400 font-bold">${activeStation.name}</span>! Tap action to work.`;
+            document.getElementById('dpad-controls').classList.remove('hidden');
+            let actionBtn = document.getElementById('station-action-btn');
+
+            if (game.state === 'FARM') {
+                document.getElementById('minigame-controls').classList.remove('hidden');
+                actionBtn.innerText = "💧 Water & Pick Corn/Tomatoes (+20 Coins)";
+                setDialogue("🌾 Tom Farmland Garden: Walk around top-down grid and tap Water/Pick to harvest corn and tomatoes!");
+            } else if (game.state === 'TIMBER') {
+                document.getElementById('minigame-controls').classList.remove('hidden');
+                actionBtn.innerText = "🪓 Chop Tree & Stack Logs (+5 Timber)";
+                setDialogue("🌲 Lucius Timberland 2D Side-Scroller: Walk left/right and chop wood!");
+            } else if (game.state === 'FORGE') {
+                document.getElementById('minigame-controls').classList.remove('hidden');
+                actionBtn.innerText = "⚒️ Pump Bellows & Forge Tools (+3 Iron)";
+                setDialogue("🔥 Fred Forge Blacksmith: Work the anvil and furnace!");
+            } else if (game.state === 'HOTEL') {
+                document.getElementById('minigame-controls').classList.remove('hidden');
+                actionBtn.innerText = "🛎️ Welcome Guest & Manage Desk (+25 Coins)";
+                setDialogue("🏨 Aunt Zelma's Hotel Lobby: Welcome family guests!");
+            }
+            document.getElementById('back-btn').classList.remove('hidden');
         }
 
         function exitToOverworld() {
@@ -210,44 +265,72 @@
             document.getElementById('dpad-controls').classList.remove('hidden');
             document.getElementById('minigame-controls').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
-            document.getElementById('game-prompt').innerHTML = `💡 Use D-pad to walk avatar to stations!`;
+            setDialogue("💡 Use D-pad to walk avatar to stations and enter portal worlds!");
         }
 
-        function performWorkshopAction() {
+        function setDialogue(msg) {
+            document.getElementById('story-dialogue').innerHTML = `<span class="text-amber-300 font-bold">${msg}</span>`;
+        }
+
+        function waterOrHarvestGarden() {
+            // Find closest garden plot to avatar
+            let nearestPlot = null;
+            let minD = 999;
+            for (let p of gardenPlots) {
+                let d = Math.hypot(game.gardenX - p.x, game.gardenY - p.y);
+                if (d < minD) { minD = d; nearestPlot = p; }
+            }
+
+            if (minD < 50 && nearestPlot) {
+                if (nearestPlot.stage < 2) {
+                    nearestPlot.stage = 2;
+                    playSound('water');
+                    setDialogue(`💧 Watered ${nearestPlot.label} patch! It's growing strong!`);
+                    spawnParticles(game.gardenX, game.gardenY, '#38bdf8', '💧');
+                } else {
+                    game.coins += 20;
+                    playSound('coin');
+                    nearestPlot.stage = 1; // reset for next growth
+                    setDialogue(`🌾 Harvested fresh ${nearestPlot.label}! +20 Coins (Total: ${game.coins})`);
+                    spawnParticles(game.gardenX, game.gardenY, '#f59e0b', '🪙');
+                    updateHUD();
+                }
+            } else {
+                // General harvest action
+                game.coins += 20;
+                playSound('coin');
+                setDialogue(`🌾 Picked garden corn & tomatoes! +20 Coins (Total: ${game.coins})`);
+                spawnParticles(200, 150, '#f59e0b', '🪙');
+                updateHUD();
+            }
+        }
+
+        function performStationAction() {
             if (game.state === 'TIMBER') {
                 game.timber += 5;
                 playSound('chop');
                 spawnParticles(200, 140, '#10b981', '🪵');
-                showPopup(`🪓 Lucius chopped logs! +5 Timber (Total: ${game.timber})`);
+                setDialogue(`🪓 Lucius chopped logs! +5 Timber (Total: ${game.timber})`);
             } else if (game.state === 'FORGE') {
                 game.iron += 3;
                 playSound('forge');
                 spawnParticles(200, 140, '#f97316', '✨');
-                showPopup(`⚒️ Fred pumped bellows & struck anvil! +3 Iron (Total: ${game.iron})`);
-            } else if (game.state === 'FARM') {
-                game.coins += 20;
-                playSound('coin');
-                spawnParticles(200, 140, '#f59e0b', '🪙');
-                showPopup(`🌾 Tom harvested crops! +20 Coins (Total: ${game.coins})`);
+                setDialogue(`⚒️ Fred forged tools! +3 Iron (Total: ${game.iron})`);
             } else if (game.state === 'HOTEL') {
                 game.coins += 25;
                 playSound('coin');
                 spawnParticles(200, 140, '#38bdf8', '🪙');
-                showPopup(`🛎️ Zelma welcomed guest! +25 Coins (Total: ${game.coins})`);
+                setDialogue(`🛎️ Zelma welcomed guest! +25 Coins (Total: ${game.coins})`);
             }
             updateHUD();
-        }
-
-        function showPopup(msg) {
-            document.getElementById('game-prompt').innerHTML = `<span class="text-emerald-400 font-bold">${msg}</span>`;
         }
 
         function spawnParticles(x, y, color, symbol) {
             for (let i = 0; i < 6; i++) {
                 particles.push({
-                    x: x + (Math.random() - 0.5) * 80, y: y + (Math.random() - 0.5) * 40,
-                    vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5 - 2,
-                    life: 35, symbol: symbol, color: color
+                    x: x + (Math.random() - 0.5) * 60, y: y + (Math.random() - 0.5) * 30,
+                    vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4 - 2,
+                    life: 30, symbol: symbol, color: color
                 });
             }
         }
@@ -256,17 +339,16 @@
             activeStation = null;
             for (let st of stations) {
                 let dist = Math.hypot(game.x - st.x, game.y - st.y);
-                if (dist < st.radius + 15) {
+                if (dist < st.radius + 18) {
                     activeStation = st;
                     break;
                 }
             }
 
-            let promptBox = document.getElementById('game-prompt');
             if (activeStation) {
-                promptBox.innerHTML = `⚡ Press <span class="text-emerald-400 font-bold">Action</span> to <span class="text-amber-400 font-bold">${activeStation.actionText}</span>!`;
+                setDialogue(`⚡ Press <span class="text-emerald-400 font-bold">Enter Station</span> to enter <span class="text-amber-400 font-bold">${activeStation.name}</span>!`);
             } else {
-                promptBox.innerHTML = `💡 Use D-pad to walk avatar to Timber, Forge, Farm, or Hotel!`;
+                setDialogue(`💡 Use D-pad to walk avatar to Timber, Forge, Farm, or Hotel!`);
             }
         }
 
@@ -280,25 +362,25 @@
                 playSound('upgrade');
                 alert(`🎉 CONGRATULATIONS! Homestead expanded to Stage ${game.townLevel}! New expansive family estate chapters unlocked for Little Fannie May & Little Luetta!`);
             } else {
-                alert(`❌ Not enough resources! Required: 50 Wood (You have ${game.timber}), 20 Iron (You have ${game.iron}), 100 Coins (You have ${game.coins}). Keep playing the workstations!`);
+                alert(`❌ Not enough resources! Required: 50 Wood (You have ${game.timber}), 20 Iron (You have ${game.iron}), 100 Coins (You have ${game.coins}).`);
             }
         }
 
-        // Main Render Loop with Visual Homestead Evolution & Animations
+        // Main Render Loop supporting Overworld, Top-Down Garden, and Side-Scroller portals
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Grid background
-            ctx.strokeStyle = "rgba(56, 189, 248, 0.04)";
-            ctx.lineWidth = 1;
-            for (let x = 0; x < canvas.width; x += 30) {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-            }
-            for (let y = 0; y < canvas.height; y += 30) {
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-            }
-
             if (game.state === 'OVERWORLD') {
+                // Grid background
+                ctx.strokeStyle = "rgba(56, 189, 248, 0.04)";
+                ctx.lineWidth = 1;
+                for (let x = 0; x < canvas.width; x += 30) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                }
+                for (let y = 0; y < canvas.height; y += 30) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                }
+
                 let dx = 0, dy = 0;
                 if (keys.up) dy -= game.speed;
                 if (keys.down) dy += game.speed;
@@ -322,7 +404,7 @@
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // Draw Stations (Dynamic Homestead Evolution Sprites based on Town Level)
+                // Draw Stations
                 for (let st of stations) {
                     let isNearby = activeStation === st;
                     ctx.beginPath();
@@ -334,7 +416,6 @@
                     ctx.stroke();
 
                     if (st.id === 'home') {
-                        // Visual Town Level Upgrade Sprites
                         let homeIcon = game.townLevel === 1 ? "🏡" : game.townLevel === 2 ? "🏘️" : "🏰";
                         ctx.font = "22px sans-serif";
                         ctx.textAlign = "center";
@@ -356,7 +437,7 @@
                     }
                 }
 
-                // Draw Player Avatar
+                // Draw Avatar
                 ctx.beginPath();
                 ctx.arc(game.x, game.y, 12, 0, Math.PI * 2);
                 ctx.fillStyle = "#0284c7";
@@ -370,50 +451,100 @@
                 ctx.textBaseline = "middle";
                 ctx.fillText("🧑‍🌾", game.x, game.y);
 
-            } else {
-                // RENDER LIVE ANIMATED WORKSHOP CANVAS SCENE
-                game.animationPhase += 0.08;
-                let bounce = Math.sin(game.animationPhase) * 6;
+            } else if (game.state === 'FARM') {
+                // TOP-DOWN GARDEN PORTAL
+                let gdx = 0, gdy = 0;
+                if (keys.up) gdy -= game.speed;
+                if (keys.down) gdy += game.speed;
+                if (keys.left) gdx -= game.speed;
+                if (keys.right) gdx += game.speed;
 
-                ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
-                ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
-                ctx.strokeStyle = "#f59e0b";
-                ctx.lineWidth = 2;
-                ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+                game.gardenX = Math.max(30, Math.min(canvas.width - 30, game.gardenX + gdx));
+                game.gardenY = Math.max(50, Math.min(canvas.height - 30, game.gardenY + gdy));
 
-                ctx.font = "bold 15px sans-serif";
-                ctx.fillStyle = "#fef08a";
-                ctx.textAlign = "center";
+                // Garden soil background
+                ctx.fillStyle = "#1e293b";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#b45309";
+                ctx.fillRect(20, 50, canvas.width - 40, canvas.height - 70);
 
-                if (game.state === 'TIMBER') {
-                    ctx.fillText("🌲 Lucius Timberland - Woodyard Workshop", canvas.width / 2, 50);
-                    ctx.font = "45px sans-serif";
-                    ctx.fillText("🪵", canvas.width / 2, 110 + (bounce * 0.5));
-                    ctx.font = "30px sans-serif";
-                    ctx.fillText("🪓", canvas.width / 2 - 35, 115 - bounce);
-                } else if (game.state === 'FORGE') {
-                    ctx.fillText("🔥 Fred's Forge - Anvil & Bellows", canvas.width / 2, 50);
-                    ctx.font = "45px sans-serif";
-                    ctx.fillText("🔥", canvas.width / 2, 110 + bounce);
-                    ctx.font = "30px sans-serif";
-                    ctx.fillText("🔨", canvas.width / 2 + 35, 105 - (bounce * 1.5));
-                } else if (game.state === 'FARM') {
-                    ctx.fillText("🌾 Tom's Farmland - Harvest & Crops", canvas.width / 2, 50);
-                    ctx.font = "45px sans-serif";
-                    ctx.fillText("🌾", canvas.width / 2, 110 + bounce);
-                    ctx.font = "30px sans-serif";
-                    ctx.fillText("🚜", canvas.width / 2 - 40, 115);
-                } else if (game.state === 'HOTEL') {
-                    ctx.fillText("🏨 Aunt Zelma's Hotel - Guest Lobby", canvas.width / 2, 50);
-                    ctx.font = "45px sans-serif";
-                    ctx.fillText("🏨", canvas.width / 2, 110 + bounce);
-                    ctx.font = "30px sans-serif";
-                    ctx.fillText("🔑", canvas.width / 2 + 35, 115);
+                // Draw garden rows & plots
+                for (let p of gardenPlots) {
+                    ctx.fillStyle = "#78350f";
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 25, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 2; ctx.stroke();
+
+                    ctx.font = "24px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    let cropIcon = p.stage === 2 ? (p.type === 'corn' ? "🌽" : "🍅") : "🌱";
+                    ctx.fillText(cropIcon, p.x, p.y - 4);
+
+                    ctx.font = "bold 8px sans-serif";
+                    ctx.fillStyle = p.stage === 2 ? "#fef08a" : "#94a3b8";
+                    ctx.fillText(p.stage === 2 ? "Ready!" : "Growing", p.x, p.y + 16);
                 }
 
-                ctx.font = "bold 11px sans-serif";
-                ctx.fillStyle = "#38bdf8";
-                ctx.fillText("Tap button below to actively work and gather resources!", canvas.width / 2, 185);
+                // Draw Top-Down Avatar
+                ctx.beginPath();
+                ctx.arc(game.gardenX, game.gardenY, 14, 0, Math.PI * 2);
+                ctx.fillStyle = "#0284c7";
+                ctx.fill();
+                ctx.strokeStyle = "#38bdf8";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.font = "14px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("🧑‍🌾", game.gardenX, game.gardenY);
+
+            } else {
+                // 2D SIDE-SCROLLER PORTAL (Timber / Forge / Hotel)
+                if (keys.left) { game.avatarX -= 4; game.scrollX -= 2; }
+                if (keys.right) { game.avatarX += 4; game.scrollX += 2; }
+                game.avatarX = Math.max(30, Math.min(370, game.avatarX));
+
+                ctx.fillStyle = "#0f172a";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = "rgba(245, 158, 11, 0.2)";
+                ctx.beginPath(); ctx.arc(320, 70, 35, 0, Math.PI * 2); ctx.fill();
+
+                ctx.fillStyle = "#065f46";
+                ctx.fillRect(0, 210, canvas.width, 90);
+                ctx.fillStyle = "#10b981";
+                ctx.fillRect(0, 210, canvas.width, 6);
+
+                if (game.state === 'TIMBER') {
+                    for (let i = 0; i < 5; i++) {
+                        let tX = (i * 120) - (game.scrollX % 600) + 50;
+                        ctx.font = "40px sans-serif";
+                        ctx.fillText("🌲", tX, 190);
+                    }
+                } else if (game.state === 'FORGE') {
+                    for (let i = 0; i < 4; i++) {
+                        let fX = (i * 140) - (game.scrollX % 560) + 60;
+                        ctx.font = "35px sans-serif";
+                        ctx.fillText("🔥", fX, 190);
+                        ctx.fillText("⚒️", fX + 40, 190);
+                    }
+                } else if (game.state === 'HOTEL') {
+                    for (let i = 0; i < 3; i++) {
+                        let hX = (i * 160) - (game.scrollX % 480) + 80;
+                        ctx.font = "35px sans-serif";
+                        ctx.fillText("🏨", hX, 185);
+                    }
+                }
+
+                ctx.font = "26px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("🧑‍🌾", game.avatarX, game.avatarY);
+
+                ctx.font = "bold 9px sans-serif";
+                ctx.fillStyle = "#fef08a";
+                ctx.fillText("Explorer", game.avatarX, game.avatarY - 22);
             }
 
             // Draw Particles
