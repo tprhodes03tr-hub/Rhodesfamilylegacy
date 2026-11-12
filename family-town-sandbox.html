@@ -26,7 +26,7 @@
                 <h1 class="text-base md:text-xl font-bold text-amber-400 glow-text flex items-center gap-2">
                     Rhodes Family Homestead • Yazoo City 1940s
                 </h1>
-                <p id="header-subtitle" class="text-[10px] text-slate-400">Packed in the Marrow Lineage • Restored Family Tree Watermark & Grounded Bank</p>
+                <p id="header-subtitle" class="text-[10px] text-slate-400">Packed in the Marrow Lineage • Dynamic Estate Growth & Vault Fixed</p>
             </div>
         </div>
         
@@ -51,7 +51,7 @@
         
         <!-- Story / Action Dialogue Box -->
         <div id="story-dialogue" class="w-full bg-slate-900/90 border border-amber-500/40 rounded-xl p-2.5 text-xs text-amber-300 text-center font-medium shadow-lg">
-            🔔 Explore Yazoo City: Family DNA tree watermark restored on all screens, bank grounded, and timber chopping active!
+            🔔 Explore Yazoo City: Vault building relocated to dedicated station side, and homestead expands with Chronicle Stage!
         </div>
 
         <div class="relative w-full flex justify-center px-1">
@@ -272,9 +272,12 @@
             }
 
             if (activeStation.id === 'home') {
-                game.timeOfDay = (game.timeOfDay + 1) % 3;
-                let times = ["🌞 Bright Day", "🌅 Twilight", "🌙 Starry Night"];
-                setDialogue(`🏡 Central Homestead time changed to ${times[game.timeOfDay]}!`);
+                game.state = 'HOME';
+                document.getElementById('dpad-controls').classList.remove('hidden');
+                document.getElementById('minigame-controls').classList.remove('hidden');
+                document.getElementById('station-action-btn').innerText = "🏡 Upgrade Homestead Estate Stage";
+                document.getElementById('back-btn').classList.remove('hidden');
+                setDialogue(`🏡 Central Homestead (Stage ${game.chronicleLevel} Grand Estate): Inspecting expanded family legacy rooms!`);
                 playSound('bell');
                 return;
             }
@@ -329,7 +332,13 @@
         }
 
         function performStationAction() {
-            if (game.state === 'FARM') {
+            if (game.state === 'HOME') {
+                game.chronicleLevel = Math.min(10, game.chronicleLevel + 1);
+                game.moralPoints += 20;
+                updateHUD();
+                playSound('bell');
+                setDialogue(`🏡 Expanded Central Homestead to Stage ${game.chronicleLevel}! Estate grows grander with every chapter.`);
+            } else if (game.state === 'FARM') {
                 let dist = Math.abs(game.avatarX - game.tractorX);
                 if (!game.isBoarded && dist < 60) {
                     game.isBoarded = true;
@@ -412,15 +421,15 @@
         function buildProperty(type) {
             let title = type === 'cabin' ? "🏡 Family Homestead" : type === 'barn' ? "🛖 Deacon Store & Barn" : "🌉 Valley Bridge";
             game.moralPoints += 15;
-            game.chronicleLevel = Math.min(8, game.chronicleLevel + 1);
+            game.chronicleLevel = Math.min(10, game.chronicleLevel + 1);
             updateHUD();
             playSound('bell');
-            alert(`🎉 SUCCESS! Built ${title}! Packed in the Marrow Chronicle Chapter Unlocked.`);
-            setDialogue(`📖 Legacy expanded in Yazoo City! +15 Moral Points.`);
+            alert(`🎉 SUCCESS! Built ${title}! Packed in the Marrow Chronicle Chapter Unlocked and Homestead Expanded.`);
+            setDialogue(`📖 Legacy expanded in Yazoo City! Homestead size upgraded.`);
         }
 
         function upgradeTown() {
-            game.chronicleLevel++;
+            game.chronicleLevel = Math.min(10, game.chronicleLevel + 1);
             game.moralPoints += 25;
             updateHUD();
             playSound('bell');
@@ -542,13 +551,19 @@
                 let homeSt = stations.find(s => s.id === 'home');
                 ctx.save();
                 ctx.translate(homeSt.x, homeSt.y);
+                
+                // Dynamic scale based on Chronicle Stage (Stage 1 to 10)
+                let estateScale = 1 + (game.chronicleLevel - 5) * 0.08;
+                estateScale = Math.max(0.85, Math.min(1.4, estateScale));
+                ctx.scale(estateScale, estateScale);
+
                 ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 3;
                 ctx.fillStyle = "rgba(20, 83, 45, 0.9)";
-                ctx.beginPath(); ctx.arc(0, 0, 48, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(0, 0, 42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-                ctx.font = "32px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.fillText("🏡", 0, -4);
-                ctx.font = "bold 9px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.fillText("Yazoo Legacy", 0, 24);
+                ctx.font = "28px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(game.chronicleLevel >= 8 ? "🏰" : "🏡", 0, -4);
+                ctx.font = "bold 9px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.fillText(`Stage ${game.chronicleLevel} Estate`, 0, 24);
                 ctx.restore();
 
                 for (let st of stations) {
@@ -570,7 +585,26 @@
                 if (keys.left) { game.avatarX = Math.max(30, game.avatarX - 4); sideMoving = true; }
                 if (keys.right) { game.avatarX = Math.min(450, game.avatarX + 4); sideMoving = true; }
 
-                if (game.state === 'TIMBER') {
+                if (game.state === 'HOME') {
+                    ctx.fillStyle = "#166534"; ctx.fillRect(0, 220, canvas.width, 120);
+                    ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
+                    
+                    // Render expanded estate buildings based on stage
+                    ctx.fillStyle = "#78350f"; ctx.fillRect(150, 110, 180, 110);
+                    ctx.fillStyle = "#92400e"; ctx.beginPath(); ctx.moveTo(135, 110); ctx.lineTo(240, 50); ctx.lineTo(345, 110); ctx.fill();
+                    ctx.fillStyle = "#38bdf8"; ctx.fillRect(170, 130, 28, 35); ctx.fillRect(280, 130, 28, 35);
+                    ctx.fillStyle = "#f59e0b"; ctx.fillRect(215, 160, 50, 60);
+
+                    if (game.chronicleLevel >= 8) {
+                        ctx.fillStyle = "#0284c7"; ctx.fillRect(90, 140, 50, 80);
+                        ctx.fillStyle = "#0284c7"; ctx.fillRect(340, 140, 50, 80);
+                    }
+
+                    ctx.font = "bold 12px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
+                    ctx.fillText(`🏡 Central Homestead • Grand Stage ${game.chronicleLevel} Estate`, 240, 35);
+                    drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
+
+                } else if (game.state === 'TIMBER') {
                     ctx.fillStyle = "#064e3b"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
                     for (let i = 0; i < game.trees.length; i++) {
@@ -679,13 +713,16 @@
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
 
                 } else if (game.state === 'BANK') {
+                    // FIXED: Dedicated bank building on the right side instead of overlapping the left tree watermark
                     ctx.fillStyle = "#166534"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
-                    ctx.font = "36px sans-serif"; ctx.textAlign = "center";
-                    ctx.fillStyle = "#fef08a";
-                    ctx.fillText("🏦 Patience Johnson Vault", 240, 155);
-                    ctx.font = "12px sans-serif"; ctx.fillStyle = "#cbd5e1";
-                    ctx.fillText(`Secure Vault Balance: ${game.bankBalance}🪙`, 240, 195);
+                    
+                    ctx.fillStyle = "#94a3b8"; ctx.fillRect(180, 110, 120, 110);
+                    ctx.fillStyle = "#475569"; ctx.beginPath(); ctx.moveTo(170, 110); ctx.lineTo(240, 50); ctx.lineTo(310, 110); ctx.fill();
+                    ctx.fillStyle = "#eab308"; ctx.fillRect(215, 165, 50, 55);
+
+                    ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
+                    ctx.fillText(`🏦 Patience Johnson Vault • Balance: ${game.bankBalance}🪙`, 240, 35);
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
                 }
             }
