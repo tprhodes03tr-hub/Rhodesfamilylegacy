@@ -26,7 +26,7 @@
                 <h1 class="text-base md:text-xl font-bold text-amber-400 glow-text flex items-center gap-2">
                     Rhodes Family Homestead • Yazoo City 1940s
                 </h1>
-                <p id="header-subtitle" class="text-[10px] text-slate-400">Packed in the Marrow Lineage • Interactive Walking, Timber Chopping & Church Steps</p>
+                <p id="header-subtitle" class="text-[10px] text-slate-400">Packed in the Marrow Lineage • Rooted Family Tree, Ride-On Tractor & Distinct Architecture</p>
             </div>
         </div>
         
@@ -51,7 +51,7 @@
         
         <!-- Story / Action Dialogue Box -->
         <div id="story-dialogue" class="w-full bg-slate-900/90 border border-amber-500/40 rounded-xl p-2.5 text-xs text-amber-300 text-center font-medium shadow-lg">
-            🔔 Use the D-pad to walk your avatar across the town map, enter stations, walk up church steps, and chop timber side-by-side!
+            🔔 Explore Yazoo City: Board and drive the tractor, walk up distinct church steps with bell sound, and chop timber side-by-side!
         </div>
 
         <div class="relative w-full flex justify-center px-1">
@@ -133,10 +133,10 @@
             if (type === 'bell') {
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(880, now);
-                osc.frequency.exponentialRampToValueAtTime(440, now + 0.8);
-                gain.gain.setValueAtTime(0.5, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.8);
-                osc.start(now); osc.stop(now + 0.8);
+                osc.frequency.exponentialRampToValueAtTime(440, now + 1.2);
+                gain.gain.setValueAtTime(0.6, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 1.2);
+                osc.start(now); osc.stop(now + 1.2);
             } else if (type === 'coin') {
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(523.25, now);
@@ -146,11 +146,11 @@
                 osc.start(now); osc.stop(now + 0.25);
             } else if (type === 'tractor') {
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(80, now);
-                osc.frequency.linearRampToValueAtTime(120, now + 0.15);
-                gain.gain.setValueAtTime(0.25, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
-                osc.start(now); osc.stop(now + 0.18);
+                osc.frequency.setValueAtTime(85, now);
+                osc.frequency.linearRampToValueAtTime(130, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
+                osc.start(now); osc.stop(now + 0.22);
             } else if (type === 'forge') {
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(220, now);
@@ -188,7 +188,8 @@
             screenShake: 0,
             timeOfDay: 0,
             
-            tractorX: 100,
+            tractorX: 120,
+            isBoarded: false,
             bellowsPumped: 0,
             activeTreeIndex: 0,
             trees: [
@@ -275,23 +276,24 @@
             game.state = activeStation.id.toUpperCase();
             document.getElementById('dpad-controls').classList.remove('hidden');
             let actionBtn = document.getElementById('station-action-btn');
-            game.avatarX = 80; // Reset side-scroller position
+            game.avatarX = 80;
+            game.isBoarded = false;
 
             if (game.state === 'FARM') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🚜 Drive Tractor & Tend Barn Animals";
-                setDialogue("🚜 Tom Mitchell Farmland: Use D-pad to walk up to and board the tractor!");
+                actionBtn.innerText = "🚜 Board Tractor & Drive Fields";
+                setDialogue("🚜 Tom Mitchell Farmland: Walk up to the tractor and press Action to board it!");
             } else if (game.state === 'TIMBER') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🪓 Walk Up & Chop Tree Side-by-Side";
-                setDialogue("🌲 Lucius Timberland: Walk your avatar side-by-side next to the tree and swing axe!");
+                actionBtn.innerText = "🪓 Swing Axe & Chop Tree Side-by-Side";
+                setDialogue("🌲 Lucius Timberland: Walk your avatar side-by-side next to Tree #1 and chop!");
             } else if (game.state === 'FORGE') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
                 actionBtn.innerText = "🔥 Pump Bellows & Strike Anvil";
-                setDialogue("🔥 Fred Hatton Forge: Pump bellows and strike anvil with spark showers.");
+                setDialogue("🔥 Fred Hatton Forge: Pump bellows and strike anvil with sparks.");
             } else if (game.state === 'HOTEL') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🏨 Walk Up Steps & Enter Hotel";
+                actionBtn.innerText = "🏨 Enter Hotel & Host Travelers";
                 setDialogue("🏨 Aunt Zelma Hotel: Walk up the porch steps to enter guest rooms.");
             } else if (game.state === 'BANK') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
@@ -299,8 +301,9 @@
                 setDialogue(`🏦 Patience Johnson Vault: Vault Balance: ${game.bankBalance}🪙.`);
             } else if (game.state === 'SCHOOL') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🔔 Walk Up Church Steps & Enter Door";
-                setDialogue("🔔 Zelma's Schoolhouse: Walk up the church steps and enter the double doors!");
+                actionBtn.innerText = "🔔 Ring School Bell & Enter Church";
+                playSound('bell');
+                setDialogue("🔔 Zelma's Schoolhouse & Church: *DING-DONG!* Walk up church steps and enter!");
             }
             document.getElementById('back-btn').classList.remove('hidden');
         }
@@ -319,12 +322,20 @@
 
         function performStationAction() {
             if (game.state === 'FARM') {
-                game.crops += 15;
-                game.moralPoints += 5;
-                playSound('tractor');
-                spawnParticles(game.avatarX, 230, '#f59e0b', '🌾');
-                setDialogue(`🚜 Harvested crops & tended barn animals! +15 Crops, +5 Moral Points ❤️.`);
-                updateHUD();
+                let dist = Math.abs(game.avatarX - game.tractorX);
+                if (!game.isBoarded && dist < 50) {
+                    game.isBoarded = true;
+                    setDialogue(`🚜 Boarded tractor! Now use D-pad left/right to drive across the fields and harvest!`);
+                } else if (game.isBoarded) {
+                    game.crops += 15;
+                    game.moralPoints += 5;
+                    playSound('tractor');
+                    spawnParticles(game.tractorX, 230, '#f59e0b', '🌾');
+                    setDialogue(`🚜 Driving tractor & harvesting crops! +15 Crops, +5 Moral Points ❤️.`);
+                    updateHUD();
+                } else {
+                    setDialogue(`🚜 Walk closer to the tractor to board it!`);
+                }
             } else if (game.state === 'TIMBER') {
                 let tree = game.trees[game.activeTreeIndex];
                 let dist = Math.abs(game.avatarX - tree.x);
@@ -427,15 +438,14 @@
             }
         }
 
-        // Render True Golden DNA Tree Emblem Sprite (`packed-marrow-tree.png`)
-        function drawGoldenDNAEmblem(x, y, width, height) {
+        // Render Grounded Golden DNA Tree Emblem Sprite (`packed-marrow-tree.png`) on the Side
+        function drawGroundedDNAEmblem(x, y, width, height) {
             ctx.save();
             if (dnaTreeImg.complete && dnaTreeImg.naturalWidth !== 0) {
-                ctx.drawImage(dnaTreeImg, x - width/2, y - height/2, width, height);
+                ctx.drawImage(dnaTreeImg, x, y - height, width, height);
             } else {
-                // Fallback vector drawing if image is loading
                 ctx.fillStyle = "#d97706";
-                ctx.beginPath(); ctx.arc(x, y, width/3, 0, Math.PI * 2); ctx.fill();
+                ctx.fillRect(x, y - height, width, height);
             }
             ctx.restore();
         }
@@ -458,7 +468,7 @@
             ctx.restore();
         }
 
-        // AAA Render Loop with Day/Night Cycle, Walking Side-Scroller & True Sprite Watermark
+        // AAA Render Loop with Day/Night Cycle, Grounded Tree Sprite & Ride-On Tractor
         function gameLoop() {
             ctx.save();
             if (game.screenShake > 0) {
@@ -483,14 +493,14 @@
             ctx.fillStyle = skyGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Sun / Moon & True Golden DNA Emblem Sprite Watermark in Background
+            // Sun / Moon & Grounded Family Tree Sprite Watermark on Left Side
             if (game.timeOfDay === 2) {
                 ctx.fillStyle = "#fef08a"; ctx.beginPath(); ctx.arc(440, 45, 18, 0, Math.PI * 2); ctx.fill();
             } else {
                 ctx.fillStyle = game.timeOfDay === 1 ? "#fb923c" : "#fef08a";
                 ctx.beginPath(); ctx.arc(440, 45, 24, 0, Math.PI * 2); ctx.fill();
             }
-            drawGoldenDNAEmblem(240, 95, 90, 90); // True Family Sprite Watermark
+            drawGroundedDNAEmblem(15, 230, 85, 110); // Rooted firmly on ground
 
             if (game.state === 'OVERWORLD') {
                 let dx = 0, dy = 0;
@@ -548,13 +558,11 @@
                 ctx.fillRect(0, 220, canvas.width, 120);
                 ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
 
-                // D-Pad movement for side-scrollers
                 let sideMoving = false;
                 if (keys.left) { game.avatarX = Math.max(30, game.avatarX - 4); sideMoving = true; }
                 if (keys.right) { game.avatarX = Math.min(450, game.avatarX + 4); sideMoving = true; }
 
                 if (game.state === 'TIMBER') {
-                    // Render Trees side-by-side
                     for (let i = 0; i < game.trees.length; i++) {
                         let t = game.trees[i];
                         ctx.font = "38px sans-serif"; ctx.textAlign = "center";
@@ -571,35 +579,40 @@
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
 
                 } else if (game.state === 'SCHOOL') {
-                    // Church / Schoolhouse with Walkable Steps & Door
-                    ctx.fillStyle = "#78350f"; ctx.fillRect(190, 130, 100, 90);
-                    ctx.fillStyle = "#92400e"; ctx.beginPath(); ctx.moveTo(180, 130); ctx.lineTo(240, 75); ctx.lineTo(300, 130); ctx.fill();
-                    ctx.fillStyle = "#f59e0b"; ctx.fillRect(225, 170, 30, 50); // Door
-                    ctx.fillStyle = "#d97706"; ctx.fillRect(210, 210, 60, 10); ctx.fillRect(215, 200, 50, 10); // Steps
+                    // Distinct Church / Schoolhouse Architecture with Stained Glass Windows & Steps
+                    ctx.fillStyle = "#78350f"; ctx.fillRect(180, 120, 120, 100); // Main building
+                    ctx.fillStyle = "#92400e"; ctx.beginPath(); ctx.moveTo(170, 120); ctx.lineTo(240, 65); ctx.lineTo(310, 120); ctx.fill(); // Roof
+                    ctx.fillStyle = "#38bdf8"; ctx.fillRect(200, 140, 22, 30); ctx.fillRect(258, 140, 22, 30); // Windows
+                    ctx.fillStyle = "#f59e0b"; ctx.fillRect(225, 170, 30, 50); // Double Door
+                    ctx.fillStyle = "#d97706"; ctx.fillRect(210, 210, 60, 10); ctx.fillRect(215, 200, 50, 10); // Wooden Steps
                     
                     ctx.font = "11px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
-                    ctx.fillText("Zelma's Schoolhouse & Church Steps", 240, 60);
+                    ctx.fillText("Zelma's Schoolhouse & Church", 240, 50);
                     
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
 
                 } else if (game.state === 'FARM') {
-                    // Walk up to and board/drive tractor across fields
-                    ctx.font = "38px sans-serif"; ctx.textAlign = "center";
-                    ctx.fillText("🚜", game.tractorX, 230);
-                    ctx.font = "14px sans-serif"; ctx.fillStyle = "#fef08a";
-                    ctx.fillText("🛖 Barn: 🐄 Milking | 🐎 Feeding", 240, 185);
-
-                    if (keys.right && game.avatarX >= game.tractorX - 25) {
-                        game.tractorX = game.avatarX + 10; // Drive tractor with avatar
+                    // Ride-On Tractor Mechanic
+                    if (game.isBoarded) {
+                        game.tractorX = game.avatarX;
+                        ctx.font = "38px sans-serif"; ctx.textAlign = "center";
+                        ctx.fillText("🚜", game.tractorX, 230);
+                        drawAfricanAmericanAvatar(game.tractorX, 215, sideMoving); // Seated on tractor
+                    } else {
+                        ctx.font = "38px sans-serif"; ctx.textAlign = "center";
+                        ctx.fillText("🚜", game.tractorX, 230);
+                        drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
                     }
-                    drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
+                    ctx.font = "14px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
+                    ctx.fillText(game.isBoarded ? "🚜 Driving Tractor across fields!" : "🛖 Walk up to tractor & press Action to board!", 240, 185);
 
                 } else if (game.state === 'HOTEL') {
-                    ctx.fillStyle = "#0369a1"; ctx.fillRect(190, 130, 100, 90);
-                    ctx.fillStyle = "#075985"; ctx.beginPath(); ctx.moveTo(180, 130); ctx.lineTo(240, 75); ctx.lineTo(300, 130); ctx.fill();
+                    ctx.fillStyle = "#0369a1"; ctx.fillRect(180, 120, 120, 100);
+                    ctx.fillStyle = "#075985"; ctx.beginPath(); ctx.moveTo(170, 120); ctx.lineTo(240, 65); ctx.lineTo(310, 120); ctx.fill();
+                    ctx.fillStyle = "#7dd3fc"; ctx.fillRect(200, 140, 22, 30); ctx.fillRect(258, 140, 22, 30);
                     ctx.fillStyle = "#38bdf8"; ctx.fillRect(225, 170, 30, 50);
                     ctx.font = "11px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
-                    ctx.fillText("Aunt Zelma Hotel Porch & Guest Rooms", 240, 60);
+                    ctx.fillText("Aunt Zelma Hotel & Guest Inn", 240, 50);
 
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
 
