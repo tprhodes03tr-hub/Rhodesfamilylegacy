@@ -26,7 +26,7 @@
                 <h1 class="text-base md:text-xl font-bold text-amber-400 glow-text flex items-center gap-2">
                     Rhodes Family Homestead • Yazoo City 1940s
                 </h1>
-                <p id="header-subtitle" class="text-[10px] text-slate-400">Packed in the Marrow Lineage • Clean Tree Watermark & Interior Room Transitions</p>
+                <p id="header-subtitle" class="text-[10px] text-slate-400">Packed in the Marrow Lineage • True Doorway Interior Transitions</p>
             </div>
         </div>
         
@@ -38,7 +38,7 @@
             <div>🔥 <span id="hud-iron" class="font-bold text-orange-400">5</span></div>
             <div>❤️ <span id="hud-moral" class="font-bold text-rose-400">50</span></div>
             <div>📚 <span id="hud-knowledge" class="font-bold text-indigo-400">20</span></div>
-            <div>🏰 Stage <span id="hud-level" class="font-bold text-sky-400">2</span></div>
+            <div>🏰 Stage <span id="hud-level" class="font-bold text-sky-400">5</span></div>
         </div>
 
         <button onclick="exitToOverworld()" id="back-btn" class="hidden text-xs border border-amber-500/50 text-amber-400 px-3 py-1.5 rounded-xl hover:bg-amber-500/10 transition-colors font-bold">
@@ -51,7 +51,7 @@
         
         <!-- Story / Action Dialogue Box -->
         <div id="story-dialogue" class="w-full bg-slate-900/90 border border-amber-500/40 rounded-xl p-2.5 text-xs text-amber-300 text-center font-medium shadow-lg">
-            🔔 Explore Yazoo City: Clean tree watermark separation, tractor harvesting, and schoolhouse/hotel interior rooms!
+            🔔 Walk up to building doorways and press Action to transition directly inside the schoolroom and hotel!
         </div>
 
         <div class="relative w-full flex justify-center px-1">
@@ -83,7 +83,7 @@
         <div class="w-full bg-slate-900/90 border gold-border rounded-xl p-3 flex flex-col gap-2 text-xs">
             <div class="flex justify-between items-center text-amber-300 font-bold">
                 <span>🏛️ Rhodes Family Legacy & Chronicle Builder</span>
-                <span id="estate-count" class="text-sky-400">Chronicle Chapters: 2</span>
+                <span id="estate-count" class="text-sky-400">Chronicle Chapters: 5</span>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <button onclick="buildProperty('cabin')" class="bg-slate-800 border border-amber-500/40 hover:bg-slate-700 p-2 rounded-xl text-left transition-all">
@@ -174,7 +174,7 @@
             iron: parseInt(localStorage.getItem('rhodes_iron') || '5'),
             moralPoints: parseInt(localStorage.getItem('rhodes_moral') || '50'),
             knowledge: parseInt(localStorage.getItem('rhodes_knowledge') || '20'),
-            chronicleLevel: parseInt(localStorage.getItem('rhodes_chronicle') || '2'),
+            chronicleLevel: parseInt(localStorage.getItem('rhodes_chronicle') || '5'),
             bankBalance: parseInt(localStorage.getItem('rhodes_bank') || '120'),
             
             x: 240,
@@ -189,6 +189,7 @@
             
             tractorX: 120,
             isBoarded: false,
+            insideBuilding: false, // True interior room toggle
             bellowsPumped: 0,
             activeTreeIndex: 0,
             trees: [
@@ -197,10 +198,10 @@
                 { x: 340, y: 190, chopped: false }
             ],
             cropsList: [
-                { x: 160, y: 220, harvested: false },
-                { x: 220, y: 220, harvested: false },
-                { x: 280, y: 220, harvested: false },
-                { x: 340, y: 220, harvested: false }
+                { x: 160, y: 220, harvested: false, symbol: "🌾" },
+                { x: 220, y: 220, harvested: false, symbol: "🍅" },
+                { x: 280, y: 220, harvested: false, symbol: "🍓" },
+                { x: 340, y: 220, harvested: false, symbol: "🌽" }
             ],
             schoolStudents: 8
         };
@@ -283,6 +284,7 @@
             let actionBtn = document.getElementById('station-action-btn');
             game.avatarX = 80;
             game.isBoarded = false;
+            game.insideBuilding = false;
 
             if (game.state === 'FARM') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
@@ -298,23 +300,24 @@
                 setDialogue("🔥 Fred Hatton Forge: Pump bellows and strike anvil with sparks.");
             } else if (game.state === 'HOTEL') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🏨 Step Inside Aunt Zelma Hotel";
-                setDialogue("🏨 Aunt Zelma Hotel: Stepped inside cozy guest rooms and serving warm meals.");
+                actionBtn.innerText = "🚪 Walk Up & Enter Hotel Door";
+                setDialogue("🏨 Aunt Zelma Hotel: Walk up to the front doorway and press Action to go inside!");
             } else if (game.state === 'BANK') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
                 actionBtn.innerText = "🏦 Deposit Coins in Vault";
                 setDialogue(`🏦 Patience Johnson Vault: Vault Balance: ${game.bankBalance}🪙.`);
             } else if (game.state === 'SCHOOL') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🔔 Ring School Bell & Enter Classroom";
+                actionBtn.innerText = "🚪 Walk Up & Enter Church Door";
                 playSound('bell');
-                setDialogue(`🔔 Inside Zelma's Classroom: *DING-DONG!* Teaching ${game.schoolStudents} children lessons.`);
+                setDialogue("🔔 Zelma's Schoolhouse: *DING-DONG!* Walk up to the double doors and press Action to enter classroom!");
             }
             document.getElementById('back-btn').classList.remove('hidden');
         }
 
         function exitToOverworld() {
             game.state = 'OVERWORLD';
+            game.insideBuilding = false;
             document.getElementById('dpad-controls').classList.remove('hidden');
             document.getElementById('minigame-controls').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
@@ -330,7 +333,7 @@
                 let dist = Math.abs(game.avatarX - game.tractorX);
                 if (!game.isBoarded && dist < 60) {
                     game.isBoarded = true;
-                    setDialogue(`🚜 Boarded tractor! Now drive over the golden wheat/corn crops to harvest!`);
+                    setDialogue(`🚜 Boarded tractor! Now drive over the rotating crops to harvest!`);
                 } else if (game.isBoarded) {
                     game.crops += 15;
                     game.moralPoints += 5;
@@ -370,17 +373,29 @@
                 setDialogue(`🔥 Pumping bellows & hammering anvil! Bellows: ${game.bellowsPumped}. +5 Iron forged!`);
                 updateHUD();
             } else if (game.state === 'HOTEL') {
-                game.coins += 45;
-                game.moralPoints += 10;
-                playSound('coin');
-                setDialogue(`🏨 Inside Aunt Zelma Hotel Lobby! Cash register operated, guest rooms hosted. +45 Coins!`);
-                updateHUD();
+                if (!game.insideBuilding) {
+                    game.insideBuilding = true;
+                    document.getElementById('station-action-btn').innerText = "🛎️ Operate Hotel Cash Register";
+                    setDialogue(`🏨 Stepped inside Aunt Zelma Hotel! Operating lobby register and hosting guest rooms.`);
+                } else {
+                    game.coins += 45;
+                    game.moralPoints += 10;
+                    playSound('coin');
+                    setDialogue(`🏨 Operated hotel cash register! +45 Coins, +10 Moral Points ❤️.`);
+                    updateHUD();
+                }
             } else if (game.state === 'SCHOOL') {
-                game.knowledge += 15;
-                game.moralPoints += 10;
-                playSound('bell');
-                setDialogue(`🔔 Inside Zelma's Classroom & Church Hall! Teaching ${game.schoolStudents} children at chalkboard. +15 Knowledge.`);
-                updateHUD();
+                if (!game.insideBuilding) {
+                    game.insideBuilding = true;
+                    document.getElementById('station-action-btn').innerText = "📚 Teach Children at Chalkboard";
+                    setDialogue(`🏫 Stepped inside Zelma's Classroom! Standing at chalkboard with ${game.schoolStudents} children.`);
+                } else {
+                    game.knowledge += 15;
+                    game.moralPoints += 10;
+                    playSound('bell');
+                    setDialogue(`🏫 Taught history lesson at chalkboard! +15 Knowledge Points 📚.`);
+                    updateHUD();
+                }
             } else if (game.state === 'BANK') {
                 if (game.coins >= 50) {
                     game.coins -= 50;
@@ -496,7 +511,10 @@
                 ctx.fillStyle = game.timeOfDay === 1 ? "#fb923c" : "#fef08a";
                 ctx.beginPath(); ctx.arc(440, 45, 24, 0, Math.PI * 2); ctx.fill();
             }
-            drawGroundedDNAEmblem(15, 230, 75, 95); // Tree anchored cleanly on left corner
+
+            if (game.state !== 'BANK') {
+                drawGroundedDNAEmblem(15, 230, 65, 85);
+            }
 
             if (game.state === 'OVERWORLD') {
                 let dx = 0, dy = 0;
@@ -549,17 +567,13 @@
                 drawAfricanAmericanAvatar(game.x, game.y, isMoving);
 
             } else {
-                ctx.fillStyle = game.state === 'TIMBER' ? "#064e3b" : game.state === 'FORGE' ? "#451a03" : game.state === 'SCHOOL' || game.state === 'HOTEL' ? "#1e293b" : "#166534";
-                ctx.fillRect(0, 220, canvas.width, 120);
-                if (game.state !== 'SCHOOL' && game.state !== 'HOTEL') {
-                    ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
-                }
-
                 let sideMoving = false;
                 if (keys.left) { game.avatarX = Math.max(30, game.avatarX - 4); sideMoving = true; }
                 if (keys.right) { game.avatarX = Math.min(450, game.avatarX + 4); sideMoving = true; }
 
                 if (game.state === 'TIMBER') {
+                    ctx.fillStyle = "#064e3b"; ctx.fillRect(0, 220, canvas.width, 120);
+                    ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
                     for (let i = 0; i < game.trees.length; i++) {
                         let t = game.trees[i];
                         ctx.font = "38px sans-serif"; ctx.textAlign = "center";
@@ -576,18 +590,35 @@
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
 
                 } else if (game.state === 'SCHOOL') {
-                    ctx.fillStyle = "#334155"; ctx.fillRect(0, 60, canvas.width, 160);
-                    ctx.fillStyle = "#1e293b"; ctx.fillRect(40, 80, 400, 100);
-                    ctx.font = "14px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
-                    ctx.fillText("🏫 Inside Zelma's Classroom — Yazoo City History", 240, 105);
-                    ctx.font = "26px sans-serif";
-                    ctx.fillText("📚 🎒 ✏️ 📝", 240, 150);
-                    ctx.font = "11px sans-serif"; ctx.fillStyle = "#cbd5e1";
-                    ctx.fillText(`8 Children Present | Knowledge Points: ${game.knowledge}`, 240, 180);
-
-                    drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
+                    if (!game.insideBuilding) {
+                        // Exterior Church/School view with door
+                        ctx.fillStyle = "#166534"; ctx.fillRect(0, 220, canvas.width, 120);
+                        ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
+                        ctx.fillStyle = "#78350f"; ctx.fillRect(180, 120, 120, 100);
+                        ctx.fillStyle = "#92400e"; ctx.beginPath(); ctx.moveTo(170, 120); ctx.lineTo(240, 65); ctx.lineTo(310, 120); ctx.fill();
+                        ctx.fillStyle = "#38bdf8"; ctx.fillRect(200, 140, 22, 30); ctx.fillRect(258, 140, 22, 30);
+                        ctx.fillStyle = "#f59e0b"; ctx.fillRect(225, 170, 30, 50); // Door
+                        ctx.fillStyle = "#d97706"; ctx.fillRect(210, 210, 60, 10); ctx.fillRect(215, 200, 50, 10);
+                        ctx.font = "11px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
+                        ctx.fillText("Zelma's Schoolhouse — Walk to Door & Press Action", 240, 50);
+                        drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
+                    } else {
+                        // True Interior Classroom view
+                        ctx.fillStyle = "#1e293b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = "#0f172a"; ctx.fillRect(40, 40, 400, 150);
+                        ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.strokeRect(40, 40, 400, 150);
+                        ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
+                        ctx.fillText("🏫 Inside Zelma's Classroom — Yazoo City History", 240, 70);
+                        ctx.font = "28px sans-serif";
+                        ctx.fillText("📚 🎒 ✏️ 📝", 240, 120);
+                        ctx.font = "11px sans-serif"; ctx.fillStyle = "#cbd5e1";
+                        ctx.fillText(`8 Children Present | Knowledge Points: ${game.knowledge}`, 240, 160);
+                        drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
+                    }
 
                 } else if (game.state === 'FARM') {
+                    ctx.fillStyle = "#166534"; ctx.fillRect(0, 220, canvas.width, 120);
+                    ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
                     if (game.isBoarded) {
                         game.tractorX = game.avatarX;
                         ctx.font = "38px sans-serif"; ctx.textAlign = "center";
@@ -601,29 +632,51 @@
                     for (let c of game.cropsList) {
                         if (!c.harvested) {
                             ctx.font = "24px sans-serif"; ctx.textAlign = "center";
-                            ctx.fillText("🌾", c.x, c.y);
+                            ctx.fillText(c.symbol, c.x, c.y);
                             if (game.isBoarded && Math.abs(game.tractorX - c.x) < 25) {
                                 c.harvested = true;
                                 game.crops += 10;
                                 playSound('coin');
+                                setTimeout(() => {
+                                    c.symbol = ["🌾", "🍅", "🍓", "🌽"][Math.floor(Math.random() * 4)];
+                                    c.x = 120 + Math.random() * 260;
+                                    c.harvested = false;
+                                }, 1200);
                             }
                         }
                     }
                     ctx.font = "12px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
-                    ctx.fillText(game.isBoarded ? "🚜 Driving Tractor over crops to harvest!" : "🛖 Walk up to tractor & press Action to board!", 240, 185);
+                    ctx.fillText(game.isBoarded ? "🚜 Driving Tractor over rotating crops to harvest!" : "🛖 Walk up to tractor & press Action to board!", 240, 185);
 
                 } else if (game.state === 'HOTEL') {
-                    ctx.fillStyle = "#0f172a"; ctx.fillRect(0, 60, canvas.width, 160);
-                    ctx.font = "14px sans-serif"; ctx.fillStyle = "#38bdf8"; ctx.textAlign = "center";
-                    ctx.fillText("🏨 Inside Aunt Zelma Hotel & Guest Inn", 240, 105);
-                    ctx.font = "28px sans-serif";
-                    ctx.fillText("🛏️ ☕ 🥧 🛋️", 240, 150);
-                    ctx.font = "11px sans-serif"; ctx.fillStyle = "#cbd5e1";
-                    ctx.fillText("Warm Southern Hospitality for Travelers", 240, 180);
-
-                    drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
+                    if (!game.insideBuilding) {
+                        // Exterior Hotel view with door
+                        ctx.fillStyle = "#166534"; ctx.fillRect(0, 220, canvas.width, 120);
+                        ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
+                        ctx.fillStyle = "#0369a1"; ctx.fillRect(180, 120, 120, 100);
+                        ctx.fillStyle = "#075985"; ctx.beginPath(); ctx.moveTo(170, 120); ctx.lineTo(240, 65); ctx.lineTo(310, 120); ctx.fill();
+                        ctx.fillStyle = "#7dd3fc"; ctx.fillRect(200, 140, 22, 30); ctx.fillRect(258, 140, 22, 30);
+                        ctx.fillStyle = "#38bdf8"; ctx.fillRect(225, 170, 30, 50);
+                        ctx.font = "11px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
+                        ctx.fillText("Aunt Zelma Hotel — Walk to Door & Press Action", 240, 50);
+                        drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
+                    } else {
+                        // True Interior Hotel lobby/room view
+                        ctx.fillStyle = "#0f172a"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = "#1e293b"; ctx.fillRect(40, 40, 400, 150);
+                        ctx.strokeStyle = "#0284c7"; ctx.lineWidth = 2; ctx.strokeRect(40, 40, 400, 150);
+                        ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#38bdf8"; ctx.textAlign = "center";
+                        ctx.fillText("🏨 Inside Aunt Zelma Hotel Lobby & Guest Inn", 240, 70);
+                        ctx.font = "30px sans-serif";
+                        ctx.fillText("🛏️ ☕ 🥧 🛋️", 240, 120);
+                        ctx.font = "11px sans-serif"; ctx.fillStyle = "#cbd5e1";
+                        ctx.fillText("Warm Southern Hospitality for Travelers", 240, 160);
+                        drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
+                    }
 
                 } else if (game.state === 'FORGE') {
+                    ctx.fillStyle = "#451a03"; ctx.fillRect(0, 220, canvas.width, 120);
+                    ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
                     ctx.font = "38px sans-serif"; ctx.textAlign = "center";
                     ctx.fillText("🔥 ⚒️ Anvil & Bellows", 240, 165);
                     ctx.font = "13px sans-serif"; ctx.fillStyle = "#fef08a";
@@ -631,8 +684,13 @@
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
 
                 } else if (game.state === 'BANK') {
+                    ctx.fillStyle = "#166534"; ctx.fillRect(0, 220, canvas.width, 120);
+                    ctx.fillStyle = "#22c55e"; ctx.fillRect(0, 220, canvas.width, 8);
                     ctx.font = "36px sans-serif"; ctx.textAlign = "center";
-                    ctx.fillText("🏦 Patience Johnson Vault", 240, 165);
+                    ctx.fillStyle = "#fef08a";
+                    ctx.fillText("🏦 Patience Johnson Vault", 240, 135);
+                    ctx.font = "12px sans-serif"; ctx.fillStyle = "#cbd5e1";
+                    ctx.fillText(`Secure Vault Balance: ${game.bankBalance}🪙`, 240, 175);
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
                 }
             }
