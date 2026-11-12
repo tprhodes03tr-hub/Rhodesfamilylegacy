@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhodes Family Homestead • Immersive 2D Estate & Vanguard Suite</title>
+    <title>Rhodes Family Homestead • AAA Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #030712; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
@@ -22,7 +22,7 @@
             <h1 class="text-base md:text-xl font-bold text-amber-400 glow-text flex items-center gap-2">
                 🏡 Rhodes Family Homestead • AAA Edition
             </h1>
-            <p id="header-subtitle" class="text-[10px] text-slate-400">Tractor farming, sequential timber harvesting & blacksmith tool forging!</p>
+            <p id="header-subtitle" class="text-[10px] text-slate-400">Farmland, Timber, Forge, Hotel, Bank & Schoolyard Legacy Suite!</p>
         </div>
         
         <!-- Player Resource HUD -->
@@ -31,6 +31,7 @@
             <div>🪵 <span id="hud-timber" class="font-bold text-emerald-400">35</span></div>
             <div>⚒️ <span id="hud-iron" class="font-bold text-orange-400">60</span></div>
             <div>🌾 <span id="hud-crops" class="font-bold text-yellow-400">10</span></div>
+            <div>📚 <span id="hud-knowledge" class="font-bold text-indigo-400">0</span></div>
             <div>🏰 Stage <span id="hud-level" class="font-bold text-sky-400">1</span></div>
         </div>
 
@@ -48,7 +49,7 @@
         </div>
 
         <div class="relative w-full flex justify-center px-1">
-            <canvas id="gameCanvas" width="450" height="320"></canvas>
+            <canvas id="gameCanvas" width="480" height="340"></canvas>
         </div>
 
         <!-- Mobile & Tablet On-Screen Controls -->
@@ -177,43 +178,42 @@
             timber: parseInt(localStorage.getItem('rhodes_timber') || '35'),
             iron: parseInt(localStorage.getItem('rhodes_iron') || '60'),
             crops: parseInt(localStorage.getItem('rhodes_crops') || '10'),
+            knowledge: parseInt(localStorage.getItem('rhodes_knowledge') || '0'),
             townLevel: parseInt(localStorage.getItem('rhodes_town_level') || '1'),
+            hotelLevel: parseInt(localStorage.getItem('rhodes_hotel_level') || '1'),
+            bankBalance: parseInt(localStorage.getItem('rhodes_bank') || '100'),
             structuresCount: parseInt(localStorage.getItem('rhodes_structures') || '0'),
-            x: 225,
-            y: 160,
+            x: 240,
+            y: 170,
             speed: 4,
             state: 'OVERWORLD',
             
             avatarX: 120,
-            avatarY: 215,
-            walkCycle: 0,
+            avatarY: 230,
             isWorking: false,
             workTimer: 0,
             screenShake: 0,
             equippedTool: 'none',
 
-            // Sequential timber progression: requires wood stack collection before hitting the next tree.
             activeTreeIndex: 0,
             trees: [
-                { x: 120, health: 3, maxHealth: 3, angle: 0, state: 'standing' },
-                { x: 230, health: 3, maxHealth: 3, angle: 0, state: 'standing' },
-                { x: 340, health: 3, maxHealth: 3, angle: 0, state: 'standing' }
+                { x: 130, health: 3, maxHealth: 3, angle: 0, state: 'standing' },
+                { x: 240, health: 3, maxHealth: 3, angle: 0, state: 'standing' },
+                { x: 350, health: 3, maxHealth: 3, angle: 0, state: 'standing' }
             ],
 
-            // Forge bellows cycle & collection hardware.
             forgeBellowsCount: 0,
             forgedToolReady: false,
 
-            // Interactive Tractor physics & row navigation.
             tractorX: 100,
-            tractorY: 160,
-            farmRows: [
-                { x: 100, y: 100, harvested: false, type: 'corn' },
-                { x: 225, y: 100, harvested: false, type: 'tomato' },
-                { x: 350, y: 100, harvested: false, type: 'corn' },
-                { x: 100, y: 220, harvested: false, type: 'tomato' },
-                { x: 225, y: 220, harvested: false, type: 'corn' },
-                { x: 350, y: 220, harvested: false, type: 'tomato' }
+            tractorY: 170,
+            farmCrops: [
+                { x: 120, y: 100, harvested: false, type: 'corn' },
+                { x: 240, y: 100, harvested: false, type: 'tomato' },
+                { x: 360, y: 100, harvested: false, type: 'corn' },
+                { x: 120, y: 240, harvested: false, type: 'tomato' },
+                { x: 240, y: 240, harvested: false, type: 'corn' },
+                { x: 360, y: 240, harvested: false, type: 'tomato' }
             ]
         };
 
@@ -239,11 +239,13 @@
         });
 
         const stations = [
-            { id: "timber", name: "Lucius Timberland", x: 90, y: 70, radius: 34, color: "#059669", icon: "🌲", tool: "axe" },
-            { id: "forge", name: "Fred Forge", x: 360, y: 70, radius: 34, color: "#ea580c", icon: "🔥", tool: "hammer" },
-            { id: "farm", name: "Tom Farmland", x: 90, y: 250, radius: 34, color: "#d97706", icon: "🚜", tool: "tractor" },
-            { id: "hotel", name: "Zelma Hotel", x: 360, y: 250, radius: 34, color: "#0284c7", icon: "🏨", tool: "none" },
-            { id: "home", name: "Homestead", x: 225, y: 160, radius: 42, color: "#f59e0b", tool: "none" }
+            { id: "timber", name: "Lucius Timberland", x: 75, y: 70, radius: 28, color: "#059669", icon: "🌲", tool: "axe" },
+            { id: "forge", name: "Fred Forge", x: 405, y: 70, radius: 28, color: "#ea580c", icon: "🔥", tool: "hammer" },
+            { id: "farm", name: "Tom Farmland", x: 75, y: 270, radius: 28, color: "#d97706", icon: "🚜", tool: "tractor" },
+            { id: "hotel", name: "Zelma Hotel", x: 405, y: 270, radius: 28, color: "#0284c7", icon: "🏨", tool: "none" },
+            { id: "bank", name: "Estate Bank", x: 240, y: 55, radius: 28, color: "#eab308", icon: "🏦", tool: "none" },
+            { id: "school", name: "Schoolyard", x: 240, y: 285, radius: 28, color: "#6366f1", icon: "🏫", tool: "none" },
+            { id: "home", name: "Homestead", x: 240, y: 170, radius: 42, color: "#f59e0b", tool: "none" }
         ];
 
         let activeStation = null;
@@ -254,6 +256,7 @@
             document.getElementById('hud-timber').innerText = game.timber;
             document.getElementById('hud-iron').innerText = game.iron;
             document.getElementById('hud-crops').innerText = game.crops;
+            document.getElementById('hud-knowledge').innerText = game.knowledge;
             document.getElementById('hud-level').innerText = game.townLevel;
             document.getElementById('estate-count').innerText = `Structures Built: ${game.structuresCount}`;
             
@@ -261,7 +264,10 @@
             localStorage.setItem('rhodes_timber', game.timber);
             localStorage.setItem('rhodes_iron', game.iron);
             localStorage.setItem('rhodes_crops', game.crops);
+            localStorage.setItem('rhodes_knowledge', game.knowledge);
             localStorage.setItem('rhodes_town_level', game.townLevel);
+            localStorage.setItem('rhodes_hotel_level', game.hotelLevel);
+            localStorage.setItem('rhodes_bank', game.bankBalance);
             localStorage.setItem('rhodes_structures', game.structuresCount);
         }
 
@@ -277,7 +283,7 @@
             }
 
             if (activeStation.id === 'home') {
-                alert(`🏡 Central Homestead (Stage ${game.townLevel})! Canvas upgraded with wider property, bigger house & estate land!`);
+                alert(`🏡 Central Homestead (Stage ${game.townLevel})! Estate canvas expanded with larger physical home & surrounding lands.`);
                 return;
             }
 
@@ -290,20 +296,28 @@
 
             if (game.state === 'FARM') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🚜 Drive Tractor Across Crops";
-                setDialogue("🚜 Tom Farmland: Tractor engaged! Drive over corn & tomato rows to harvest and earn points.");
+                actionBtn.innerText = "🚜 Harvest Crop Row";
+                setDialogue("🚜 Tom Farmland: Drive your tractor over corn & tomato crops to harvest them instantly!");
             } else if (game.state === 'TIMBER') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
                 actionBtn.innerText = "🪓 Chop Tree #" + (game.activeTreeIndex + 1);
-                setDialogue("🌲 Lucius Timberland: Chop down Tree #" + (game.activeTreeIndex + 1) + ", then collect the wood stack before moving to the next tree!");
+                setDialogue("🌲 Lucius Timberland: Chop down Tree #" + (game.activeTreeIndex + 1) + ", then collect the timber stack!");
             } else if (game.state === 'FORGE') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
                 actionBtn.innerText = "🔥 Pump Bellows & Forge Tool";
-                setDialogue("🔥 Fred Forge: Pump bellows 3 times to forge a custom horseshoe/tool, then collect it for the Homestead!");
+                setDialogue("🔥 Fred Forge: Pump bellows 3 times to forge hardware for the estate!");
             } else if (game.state === 'HOTEL') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🛎️ Feed Animals & Welcome Guests (+30 Coins)";
-                setDialogue("🏨 Aunt Zelma's Hotel: Feed livestock and manage guest rooms.");
+                actionBtn.innerText = "🏨 Manage Hotel & Collect Revenue (+50 Coins)";
+                setDialogue(`🏨 Aunt Zelma's Hotel (Tier ${game.hotelLevel}): Feed guests and harvest hotel income to fund the Homestead.`);
+            } else if (game.state === 'BANK') {
+                document.getElementById('minigame-controls').classList.remove('hidden');
+                actionBtn.innerText = "🏦 Deposit 50 Coins into Vault";
+                setDialogue(`🏦 Estate Bank: Vault Balance: ${game.bankBalance}🪙. Deposit coins to grow family wealth!`);
+            } else if (game.state === 'SCHOOL') {
+                document.getElementById('minigame-controls').classList.remove('hidden');
+                actionBtn.innerText = "📚 Complete Study Session (+10 Knowledge)";
+                setDialogue("🏫 Schoolyard: Learn trades and earn Knowledge Points to elevate the entire estate!");
             }
             document.getElementById('back-btn').classList.remove('hidden');
         }
@@ -314,7 +328,7 @@
             document.getElementById('dpad-controls').classList.remove('hidden');
             document.getElementById('minigame-controls').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
-            setDialogue("💡 Use D-pad to walk the avatar to stations and build your dream estate!");
+            setDialogue("💡 Walk the avatar to stations on the map with D-pad and press Enter Station!");
         }
 
         function setDialogue(msg) {
@@ -331,8 +345,8 @@
                     game.timber += 15;
                     game.coins += 25;
                     playSound('coin');
-                    spawnParticles(tree.x, 200, '#10b981', '🪵');
-                    setDialogue(`🪵 Collected wood stack from Tree #${game.activeTreeIndex + 1}! +15 Timber. Move to Tree #${((game.activeTreeIndex + 1) % 3) + 1}.`);
+                    spawnParticles(tree.x, 220, '#10b981', '🪵');
+                    setDialogue(`🪵 Collected timber stack from Tree #${game.activeTreeIndex + 1}! +15 Timber.`);
                     
                     tree.state = 'collected';
                     game.activeTreeIndex = (game.activeTreeIndex + 1) % game.trees.length;
@@ -346,16 +360,15 @@
 
                 tree.health--;
                 playSound('chop');
-                spawnParticles(tree.x, 150, '#10b981', '🪵');
+                spawnParticles(tree.x, 160, '#10b981', '🪵');
                 game.screenShake = 5;
 
                 if (tree.health <= 0) {
                     tree.state = 'fallen';
                     tree.angle = Math.PI / 2;
                     playSound('crash');
-                    game.screenShake = 18;
-                    setDialogue(`🌲 TIMBER! Tree #${game.activeTreeIndex + 1} crashed down! Click action again to collect the wood before moving on.`);
-                    spawnParticles(tree.x, 210, '#f59e0b', '💥');
+                    game.screenShake = 16;
+                    setDialogue(`🌲 TIMBER! Tree #${game.activeTreeIndex + 1} crashed down! Click action to collect the wood.`);
                 } else {
                     tree.angle = (tree.maxHealth - tree.health) * 0.15;
                     setDialogue(`🪓 Chop! Tree #${game.activeTreeIndex + 1} health: ${tree.health}/${tree.maxHealth}.`);
@@ -363,7 +376,7 @@
             } else if (game.state === 'FORGE') {
                 game.forgeBellowsCount++;
                 playSound('forge');
-                spawnParticles(280, 160, '#f97316', '🔥');
+                spawnParticles(340, 180, '#f97316', '🔥');
                 game.screenShake = 4;
 
                 if (game.forgeBellowsCount >= 3) {
@@ -372,38 +385,55 @@
                     game.forgeBellowsCount = 0;
                     game.forgedToolReady = true;
                     playSound('coin');
-                    setDialogue(`⚒️ Tool Forged! Horseshoe & hardware crafted and collected (+10 Iron, +30 Coins). Ready for Homestead!`);
+                    setDialogue(`⚒️ Tool Forged! Hardware crafted (+10 Iron, +30 Coins).`);
                     updateHUD();
                 } else {
-                    setDialogue(`🔥 Pumping bellows (${game.forgeBellowsCount}/3)... Keep pumping to forge the tool!`);
+                    setDialogue(`🔥 Pumping bellows (${game.forgeBellowsCount}/3)...`);
                 }
             } else if (game.state === 'FARM') {
-                let unharvested = game.farmRows.filter(r => !r.harvested);
+                let unharvested = game.farmCrops.filter(c => !c.harvested);
                 if (unharvested.length > 0) {
                     unharvested[0].harvested = true;
                     game.crops += 15;
                     game.coins += 25;
                     playSound('tractor');
                     spawnParticles(game.tractorX, game.tractorY, '#f59e0b', '🌽');
-                    setDialogue(`🚜 Tractor harvested crop row! +15 Crops, +25 Coins.`);
-                    if (game.farmRows.every(r => r.harvested)) {
-                        game.farmRows.forEach(r => r.harvested = false);
-                        setDialogue(`🚜 All crop rows harvested! Fields replanted.`);
+                    setDialogue(`🚜 Tractor harvested crop! +15 Crops, +25 Coins.`);
+                    if (game.farmCrops.every(c => c.harvested)) {
+                        game.farmCrops.forEach(c => c.harvested = false);
+                        setDialogue(`🚜 All crops harvested! Fields replanted.`);
                     }
                     updateHUD();
                 } else {
-                    setDialogue(`🚜 Fields are fully harvested! Drive tractor to reset.`);
+                    setDialogue(`🚜 Fields fully harvested! Drive tractor over crops to reset.`);
                 }
             } else if (game.state === 'HOTEL') {
                 if (game.crops >= 5) {
                     game.crops -= 5;
-                    game.coins += 35;
+                    let hotelRevenue = 50 * game.hotelLevel;
+                    game.coins += hotelRevenue;
                     playSound('coin');
-                    setDialogue(`🏨 Fed animals & welcomed guests! +35 Coins`);
+                    setDialogue(`🏨 Aunt Zelma's Hotel welcomed guests! +${hotelRevenue} Coins added to fund Homestead.`);
                     updateHUD();
                 } else {
-                    setDialogue(`🏨 Need at least 5 crops to feed hotel guests & animals! Harvest at Tom Farmland.`);
+                    setDialogue(`🏨 Need at least 5 crops to feed hotel guests! Harvest at Tom Farmland.`);
                 }
+            } else if (game.state === 'BANK') {
+                if (game.coins >= 50) {
+                    game.coins -= 50;
+                    game.bankBalance += 55; // 10% interest bonus
+                    playSound('coin');
+                    setDialogue(`🏦 Deposited 50 Coins! Vault Balance: ${game.bankBalance}🪙 (Earned 5 coin interest bonus).`);
+                    updateHUD();
+                } else {
+                    setDialogue(`🏦 Need at least 50 Coins to deposit into the Estate Bank!`);
+                }
+            } else if (game.state === 'SCHOOL') {
+                game.knowledge += 10;
+                game.coins += 20;
+                playSound('build');
+                setDialogue(`🏫 Schoolyard session complete! +10 Knowledge, +20 Coins. Building future estate leaders!`);
+                updateHUD();
             }
         }
 
@@ -419,37 +449,10 @@
                 game.townLevel = Math.min(6, game.townLevel + 1);
                 updateHUD();
                 playSound('build');
-                alert(`🎉 SUCCESS! Built ${title}! Canvas upgraded to Stage ${game.townLevel} with a bigger house and more estate land!`);
-                setDialogue(`🏗️ Built ${title}! Homestead expanded to Stage ${game.townLevel}.`);
+                alert(`🎉 SUCCESS! Built ${title}! Homestead visually upgraded to Stage ${game.townLevel}!`);
+                setDialogue(`🏗️ Built ${title}! Physical estate expanded to Stage ${game.townLevel}.`);
             } else {
                 alert(`❌ Need more materials for ${title}! Required: ${costWood} Wood, ${costIron} Iron.`);
-            }
-        }
-
-        function spawnParticles(x, y, color, symbol) {
-            for (let i = 0; i < 10; i++) {
-                particles.push({
-                    x: x + (Math.random() - 0.5) * 50, y: y + (Math.random() - 0.5) * 35,
-                    vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6 - 3,
-                    life: 35, symbol: symbol, color: color
-                });
-            }
-        }
-
-        function checkProximity() {
-            activeStation = null;
-            for (let st of stations) {
-                let dist = Math.hypot(game.x - st.x, game.y - st.y);
-                if (dist < st.radius + 20) {
-                    activeStation = st;
-                    break;
-                }
-            }
-
-            if (activeStation) {
-                setDialogue(`⚡ Press <span class="text-emerald-400 font-bold">Enter Station</span> to enter <span class="text-amber-400 font-bold">${activeStation.name}</span>!`);
-            } else {
-                setDialogue(`💡 Use D-pad to walk the avatar to stations and build your dream estate!`);
             }
         }
 
@@ -461,13 +464,40 @@
                 game.townLevel++;
                 updateHUD();
                 playSound('build');
-                alert(`🎉 CONGRATULATIONS! Homestead Land expanded to Stage ${game.townLevel} with expansive canvas area!`);
+                alert(`🎉 CONGRATULATIONS! Homestead Land expanded to Stage ${game.townLevel}!`);
             } else {
                 alert(`❌ Required for Land Expansion: 50 Wood, 20 Iron, 100 Coins.`);
             }
         }
 
-        // Dedicated African American character renderer
+        function spawnParticles(x, y, color, symbol) {
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 40, y: y + (Math.random() - 0.5) * 30,
+                    vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5 - 2,
+                    life: 30, symbol: symbol, color: color
+                });
+            }
+        }
+
+        function checkProximity() {
+            activeStation = null;
+            for (let st of stations) {
+                let dist = Math.hypot(game.x - st.x, game.y - st.y);
+                if (dist < st.radius + 15) {
+                    activeStation = st;
+                    break;
+                }
+            }
+
+            if (activeStation) {
+                setDialogue(`⚡ Press <span class="text-emerald-400 font-bold">Enter Station</span> to enter <span class="text-amber-400 font-bold">${activeStation.name}</span>!`);
+            } else {
+                setDialogue(`💡 Walk the avatar to stations on the map with D-pad and press Enter Station!`);
+            }
+        }
+
+        // African American character avatar renderer
         function drawAfricanAmericanAvatar(x, y, isMoving, tool) {
             ctx.save();
             ctx.translate(x, y);
@@ -475,8 +505,7 @@
             let bounce = isMoving ? Math.sin(Date.now() * 0.015) * 3 : 0;
             let armSwing = isMoving ? Math.sin(Date.now() * 0.015) * 8 : (game.isWorking ? Math.sin(game.workTimer * 0.6) * 12 : 0);
 
-            // Legs
-            ctx.strokeStyle = "#1e3a8a"; // Blue denim
+            ctx.strokeStyle = "#1e3a8a";
             ctx.lineWidth = 4;
             ctx.lineCap = "round";
             ctx.beginPath();
@@ -484,7 +513,6 @@
             ctx.moveTo(6, 12 + bounce); ctx.lineTo(10, 26);
             ctx.stroke();
 
-            // Torso (Blue Shirt with Gold Trim)
             ctx.fillStyle = "#0284c7";
             ctx.beginPath();
             ctx.roundRect(-10, -4 + bounce, 20, 18, 5);
@@ -493,17 +521,13 @@
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // African American Face / Head
-            ctx.fillStyle = "#5c3d2e"; // Rich natural brown tone
+            ctx.fillStyle = "#5c3d2e";
             ctx.beginPath(); ctx.arc(0, -12 + bounce, 9, 0, Math.PI * 2); ctx.fill();
 
-            // Hat
-            ctx.fillStyle = "#d97706"; // Straw hat
-            ctx.beginPath(); ctx.ellipse(0, -18 + bounce, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "#d97706";
+            ctx.beginPath(); ctx.ellipse(0, -18 + bounce, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillRect(-8, -26 + bounce, 16, 9);
 
-            // Arms
             ctx.strokeStyle = "#0284c7";
             ctx.lineWidth = 4;
             ctx.beginPath();
@@ -511,7 +535,6 @@
             ctx.moveTo(10, -2 + bounce); ctx.lineTo(20, 6 - armSwing);
             ctx.stroke();
 
-            // Tools
             if (tool === 'axe') { ctx.font = "18px sans-serif"; ctx.fillText("🪓", 18, 12 - armSwing); }
             else if (tool === 'hammer') { ctx.font = "18px sans-serif"; ctx.fillText("⚒️", 18, 12 - armSwing); }
 
@@ -534,10 +557,10 @@
             if (game.state === 'OVERWORLD') {
                 ctx.strokeStyle = "rgba(56, 189, 248, 0.05)";
                 ctx.lineWidth = 1;
-                for (let x = 0; x < canvas.width; x += 35) {
+                for (let x = 0; x < canvas.width; x += 40) {
                     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
                 }
-                for (let y = 0; y < canvas.height; y += 35) {
+                for (let y = 0; y < canvas.height; y += 40) {
                     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
                 }
 
@@ -555,45 +578,72 @@
 
                 if (isMoving) checkProximity();
 
-                ctx.strokeStyle = "rgba(245, 158, 11, 0.35)";
+                // Connective pathways
+                ctx.strokeStyle = "rgba(245, 158, 11, 0.4)";
                 ctx.lineWidth = 4;
-                ctx.setLineDash([4, 4]);
+                ctx.setLineDash([5, 5]);
                 ctx.beginPath();
-                ctx.moveTo(90, 70); ctx.lineTo(225, 160); ctx.lineTo(360, 70);
-                ctx.moveTo(90, 250); ctx.lineTo(225, 160); ctx.lineTo(360, 250);
+                ctx.moveTo(75, 70); ctx.lineTo(240, 170); ctx.lineTo(405, 70);
+                ctx.moveTo(75, 270); ctx.lineTo(240, 170); ctx.lineTo(405, 270);
+                ctx.moveTo(240, 55); ctx.lineTo(240, 170); ctx.lineTo(240, 285);
                 ctx.stroke();
                 ctx.setLineDash([]);
 
+                // Homestead Visual Expansion
+                let homeSt = stations.find(s => s.id === 'home');
+                ctx.save();
+                ctx.translate(homeSt.x, homeSt.y);
+
+                let estateRadius = 38 + (game.townLevel * 5);
+                ctx.strokeStyle = game.townLevel >= 4 ? "#10b981" : "#f59e0b";
+                ctx.lineWidth = 2.5;
+                ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+                ctx.beginPath(); ctx.arc(0, 0, estateRadius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+                if (game.townLevel >= 2 || game.structuresCount > 0) {
+                    ctx.font = "18px sans-serif";
+                    ctx.fillText("🛖", -30, -20);
+                }
+                if (game.townLevel >= 3 || game.structuresCount > 1) {
+                    ctx.font = "18px sans-serif";
+                    ctx.fillText("🛖", 14, -20);
+                }
+                if (game.townLevel >= 4 || game.structuresCount > 2) {
+                    ctx.font = "16px sans-serif";
+                    ctx.fillText("🌉", -26, 18);
+                }
+
+                let homeIcon = game.townLevel <= 2 ? "🏡" : game.townLevel <= 4 ? "🏘️" : "🏰";
+                ctx.font = "30px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(homeIcon, 0, -4);
+
+                ctx.font = "bold 9px sans-serif";
+                ctx.fillStyle = "#fef08a";
+                ctx.fillText("Stage " + game.townLevel, 0, 22);
+                ctx.restore();
+
+                // Draw all stations including Bank & Schoolyard
                 for (let st of stations) {
+                    if (st.id === 'home') continue;
                     let isNearby = activeStation === st;
                     ctx.beginPath();
-                    ctx.arc(st.x, st.y, st.radius + (isNearby ? 6 : 0), 0, Math.PI * 2);
+                    ctx.arc(st.x, st.y, st.radius + (isNearby ? 5 : 0), 0, Math.PI * 2);
                     ctx.fillStyle = st.color + (isNearby ? "aa" : "44");
                     ctx.fill();
                     ctx.strokeStyle = isNearby ? "#fef08a" : st.color;
-                    ctx.lineWidth = isNearby ? 3.5 : 2;
+                    ctx.lineWidth = isNearby ? 3 : 2;
                     ctx.stroke();
 
-                    if (st.id === 'home') {
-                        let homeIcon = game.townLevel <= 2 ? "🏡" : game.townLevel <= 4 ? "🏘️" : "🏰";
-                        ctx.font = "28px sans-serif";
-                        ctx.textAlign = "center";
-                        ctx.textBaseline = "middle";
-                        ctx.fillText(homeIcon, st.x, st.y - 8);
+                    ctx.font = "20px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(st.icon, st.x, st.y - 6);
 
-                        ctx.font = "bold 9px sans-serif";
-                        ctx.fillStyle = "#fef08a";
-                        ctx.fillText("Stage " + game.townLevel, st.x, st.y + 16);
-                    } else {
-                        ctx.font = "24px sans-serif";
-                        ctx.textAlign = "center";
-                        ctx.textBaseline = "middle";
-                        ctx.fillText(st.icon, st.x, st.y - 8);
-
-                        ctx.font = "bold 9px sans-serif";
-                        ctx.fillStyle = "#f8fafc";
-                        ctx.fillText(st.name.split(" ")[0], st.x, st.y + 14);
-                    }
+                    ctx.font = "bold 8px sans-serif";
+                    ctx.fillStyle = "#f8fafc";
+                    ctx.fillText(st.name.split(" ")[0], st.x, st.y + 13);
                 }
 
                 drawAfricanAmericanAvatar(game.x, game.y, isMoving, 'none');
@@ -607,27 +657,39 @@
                 if (keys.right) { fdx += game.speed; isMoving = true; }
 
                 game.tractorX = Math.max(35, Math.min(canvas.width - 35, game.tractorX + fdx));
-                game.tractorY = Math.max(50, Math.min(canvas.height - 35, game.tractorY + fdy));
+                game.tractorY = Math.max(45, Math.min(canvas.height - 35, game.tractorY + fdy));
 
                 ctx.fillStyle = "#1e293b";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = "#b45309";
-                ctx.fillRect(25, 45, canvas.width - 50, canvas.height - 65);
+                ctx.fillRect(20, 35, canvas.width - 40, canvas.height - 50);
 
-                for (let r of game.farmRows) {
-                    ctx.fillStyle = r.harvested ? "#451a03" : "#78350f";
-                    ctx.beginPath(); ctx.arc(r.x, r.y, 28, 0, Math.PI * 2); ctx.fill();
-                    ctx.strokeStyle = r.harvested ? "#10b981" : "#f59e0b";
-                    ctx.lineWidth = 2.5;
+                for (let c of game.farmCrops) {
+                    if (!c.harvested) {
+                        let dist = Math.hypot(game.tractorX - c.x, game.tractorY - c.y);
+                        if (dist < 32) {
+                            c.harvested = true;
+                            game.crops += 10;
+                            game.coins += 15;
+                            playSound('tractor');
+                            spawnParticles(c.x, c.y, '#f59e0b', '🌽');
+                            setDialogue(`🚜 Harvested ${c.type}! +10 Crops, +15 Coins.`);
+                            updateHUD();
+                        }
+                    }
+
+                    ctx.fillStyle = c.harvested ? "#451a03" : "#78350f";
+                    ctx.beginPath(); ctx.arc(c.x, c.y, 24, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = c.harvested ? "#10b981" : "#f59e0b";
+                    ctx.lineWidth = 2;
                     ctx.stroke();
 
-                    ctx.font = "26px sans-serif";
+                    ctx.font = "22px sans-serif";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
-                    ctx.fillText(r.harvested ? "✨" : (r.type === 'corn' ? "🌽" : "🍅"), r.x, r.y);
+                    ctx.fillText(c.harvested ? "✨" : (c.type === 'corn' ? "🌽" : "🍅"), c.x, c.y);
                 }
 
-                // Render Tractor
                 ctx.save();
                 ctx.translate(game.tractorX, game.tractorY);
                 ctx.font = "32px sans-serif";
@@ -639,20 +701,20 @@
             } else {
                 let isMoving = false;
                 if (keys.left) { game.avatarX = Math.max(35, game.avatarX - 4.5); isMoving = true; }
-                if (keys.right) { game.avatarX = Math.min(415, game.avatarX + 4.5); isMoving = true; }
+                if (keys.right) { game.avatarX = Math.min(445, game.avatarX + 4.5); isMoving = true; }
 
                 ctx.fillStyle = "#0f172a";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 ctx.fillStyle = "#065f46";
-                ctx.fillRect(0, 230, canvas.width, 90);
+                ctx.fillRect(0, 240, canvas.width, 100);
                 ctx.fillStyle = "#10b981";
-                ctx.fillRect(0, 230, canvas.width, 6);
+                ctx.fillRect(0, 240, canvas.width, 6);
 
                 if (game.state === 'TIMBER') {
                     game.trees.forEach((tree, idx) => {
                         ctx.save();
-                        ctx.translate(tree.x, 230);
+                        ctx.translate(tree.x, 240);
                         ctx.rotate(tree.angle);
 
                         if (tree.state === 'standing' || tree.state === 'fallen') {
@@ -661,38 +723,52 @@
                             ctx.fillStyle = idx === game.activeTreeIndex ? "#059669" : "#047857";
                             ctx.beginPath(); ctx.arc(0, -130, 48, 0, Math.PI * 2); ctx.fill();
                         }
-                        if (tree.state === 'fallen') {
-                            ctx.fillStyle = "#f59e0b";
-                            ctx.font = "22px sans-serif";
-                            ctx.fillText("🪵🪵🪵 Wood Stack (Click Action to Collect!)", -120, -40);
-                        }
                         ctx.restore();
+
+                        if (tree.state === 'fallen') {
+                            ctx.save();
+                            ctx.translate(tree.x + 15, 215);
+                            ctx.font = "bold 13px sans-serif";
+                            ctx.fillStyle = "#f59e0b";
+                            ctx.fillText("🪵 Wood Stack Ready!", -50, -35);
+                            ctx.restore();
+                        }
 
                         ctx.font = "bold 10px sans-serif";
                         ctx.fillStyle = idx === game.activeTreeIndex ? "#fef08a" : "#94a3b8";
                         ctx.textAlign = "center";
-                        ctx.fillText(`Tree #${idx + 1} (${tree.state})`, tree.x, 255);
+                        ctx.fillText(`Tree #${idx + 1} (${tree.state})`, tree.x, 265);
                     });
 
                 } else if (game.state === 'FORGE') {
                     ctx.fillStyle = "#334155";
-                    ctx.fillRect(230, 170, 100, 60);
+                    ctx.fillRect(240, 180, 100, 60);
                     ctx.fillStyle = "#f97316";
-                    ctx.beginPath(); ctx.arc(280, 175, 25, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(290, 185, 25, 0, Math.PI * 2); ctx.fill();
 
                     ctx.font = "45px sans-serif";
                     ctx.textAlign = "center";
-                    ctx.fillText("🔥", 280, 170);
-                    ctx.fillText("⚒️", 340, 200);
+                    ctx.fillText("🔥", 290, 180);
+                    ctx.fillText("⚒️", 350, 210);
 
                     ctx.font = "bold 11px sans-serif";
                     ctx.fillStyle = "#fef08a";
-                    ctx.fillText(`Fred's Forge (Bellows: ${game.forgeBellowsCount}/3)`, 280, 130);
+                    ctx.fillText(`Fred's Forge (Bellows: ${game.forgeBellowsCount}/3)`, 290, 140);
                 } else if (game.state === 'HOTEL') {
                     ctx.font = "50px sans-serif";
                     ctx.textAlign = "center";
-                    ctx.fillText("🏨", 220, 185);
-                    ctx.fillText("🦆", 290, 195);
+                    ctx.fillText("🏨", 240, 195);
+                    ctx.fillText("🦆", 310, 205);
+                } else if (game.state === 'BANK') {
+                    ctx.font = "50px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText("🏦", 240, 185);
+                    ctx.fillText("🪙", 310, 195);
+                } else if (game.state === 'SCHOOL') {
+                    ctx.font = "50px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText("🏫", 240, 185);
+                    ctx.fillText("📚", 310, 195);
                 }
 
                 if (game.isWorking) {
