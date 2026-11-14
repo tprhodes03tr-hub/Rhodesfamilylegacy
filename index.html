@@ -1980,26 +1980,39 @@
       window.speechSynthesis.speak(utterance);
     }
 
+    // --- UPGRADED ROBUST AUDIO GREETING INITIALIZATION ---
     let hasGreeted = false;
     function triggerAudioGreeting() {
       if (!hasGreeted && 'speechSynthesis' in window) {
         hasGreeted = true;
         window.speechSynthesis.cancel();
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+
         let utterance = new SpeechSynthesisUtterance("Welcome to Rhodes Family Legacy.");
         utterance.rate = 0.95;
         utterance.pitch = 1.0;
+        
+        utterance.onerror = (e) => {
+          console.warn("Speech synthesis error or blocked:", e);
+        };
+
         window.speechSynthesis.speak(utterance);
       }
     }
 
-    window.addEventListener('click', triggerAudioGreeting, { once: true });
-    window.addEventListener('touchstart', triggerAudioGreeting, { once: true });
+    // Bind to the first natural interaction anywhere on the screen
+    ['pointerdown', 'touchstart', 'keydown'].forEach(eventType => {
+      window.addEventListener(eventType, triggerAudioGreeting, { once: true });
+    });
 
     window.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         triggerAudioGreeting();
-      }, 1000);
+      }, 800);
     });
+    // ----------------------------------------------------
 
     function teleportTo(destination, destName) {
       const overlay = document.getElementById('warp-portal-overlay');
