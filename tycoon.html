@@ -1932,78 +1932,94 @@
 
     function vanguardAction(action) {
         if(action === 'roll') {
-            let roll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
-            
-            if (vanguardGame.myRole === 'p1') {
-                let oldPos = vanguardGame.position;
-                vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
-                if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
+            let die1 = Math.floor(Math.random() * 6) + 1;
+            let die2 = Math.floor(Math.random() * 6) + 1;
+            let roll = die1 + die2;
 
-                let tile = vanguardGame.tiles[vanguardGame.position];
-                logVanguard(`${vanguardGame.hero} advanced ${roll} steps to ${tile.name}.`);
+            // Trigger the 3D Dice Modal popup for Vanguard Tycoon!
+            document.getElementById('dice-1').innerText = die1;
+            document.getElementById('dice-2').innerText = die2;
+            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${roll}) across cosmic sectors!`;
+            document.getElementById('dice-modal').classList.remove('hidden');
 
-                if(tile.type === 'event') {
-                    let surge = Math.random() > 0.5 ? 120 : -60;
-                    vanguardGame.funds += surge;
-                    logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
-                } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero && !tile.isMortgaged) {
-                    let success = checkVanguardBankruptcy(true, tile.rent, tile.owner);
-                    if (success) {
-                        if (tile.owner === vanguardGame.rival) vanguardGame.rivalFunds += tile.rent;
-                        logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
-                    }
-                }
-            } else {
-                let oldRivalPos = vanguardGame.rivalPosition;
-                vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
-                if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
-
-                let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
-                logVanguard(`${vanguardGame.rival} advanced ${roll} steps to ${rivalTile.name}.`);
+            setTimeout(() => {
+                document.getElementById('dice-modal').classList.add('hidden');
                 
-                if(rivalTile.type === 'event') {
-                    let surge = Math.random() > 0.5 ? 120 : -60;
-                    vanguardGame.rivalFunds += surge;
-                    logVanguard(`Syndicate anomaly triggered! Credit adjustment: ${surge} VC.`);
-                } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
-                    let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
-                    if (success) {
-                        vanguardGame.funds += rivalTile.rent;
-                        logVanguard(`Paid sector toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                if (vanguardGame.myRole === 'p1') {
+                    let oldPos = vanguardGame.position;
+                    vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
+                    if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
+
+                    let tile = vanguardGame.tiles[vanguardGame.position];
+                    logVanguard(`${vanguardGame.hero} advanced ${roll} steps to ${tile.name}.`);
+
+                    if(tile.type === 'event') {
+                        let surge = Math.random() > 0.5 ? 120 : -60;
+                        vanguardGame.funds += surge;
+                        logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
+                    } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero && !tile.isMortgaged) {
+                        let success = checkVanguardBankruptcy(true, tile.rent, tile.owner);
+                        if (success) {
+                            if (tile.owner === vanguardGame.rival) vanguardGame.rivalFunds += tile.rent;
+                            logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
+                        }
                     }
-                }
-            }
-
-            updateVanguardUI();
-            drawVanguardBoard();
-            broadcastState();
-
-            if(vanguardGame.gameMode === 'ai' && vanguardGame.myRole === 'p1') {
-                setTimeout(() => {
-                    let rivalRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
+                } else {
                     let oldRivalPos = vanguardGame.rivalPosition;
-                    vanguardGame.rivalPosition = (vanguardGame.rivalPosition + rivalRoll) % vanguardGame.tiles.length;
+                    vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
                     if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
 
                     let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
-                    logVanguard(`Bot (Barons Rust) rolled ${rivalRoll} and landed on ${rivalTile.name}.`);
+                    logVanguard(`${vanguardGame.rival} advanced ${roll} steps to ${rivalTile.name}.`);
                     
-                    if(rivalTile.owner === "None" && rivalTile.cost > 0 && vanguardGame.rivalFunds >= rivalTile.cost) {
-                        rivalTile.owner = vanguardGame.rival;
-                        vanguardGame.rivalFunds -= rivalTile.cost;
-                        logVanguard(`Bot claimed ${rivalTile.name}!`);
+                    if(rivalTile.type === 'event') {
+                        let surge = Math.random() > 0.5 ? 120 : -60;
+                        vanguardGame.rivalFunds += surge;
+                        logVanguard(`Syndicate anomaly triggered! Credit adjustment: ${surge} VC.`);
                     } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
                         let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
                         if (success) {
                             vanguardGame.funds += rivalTile.rent;
-                            logVanguard(`Bot paid toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                            logVanguard(`Paid sector toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
                         }
                     }
+                }
 
-                    updateVanguardUI();
-                    drawVanguardBoard();
-                }, 1000);
-            }
+                updateVanguardUI();
+                drawVanguardBoard();
+                broadcastState();
+
+                if(vanguardGame.gameMode === 'ai' && vanguardGame.myRole === 'p1') {
+                    setTimeout(() => {
+                        let rivalDie1 = Math.floor(Math.random() * 6) + 1;
+                        let rivalDie2 = Math.floor(Math.random() * 6) + 1;
+                        let rivalRoll = rivalDie1 + rivalDie2;
+                        
+                        let oldRivalPos = vanguardGame.rivalPosition;
+                        vanguardGame.rivalPosition = (vanguardGame.rivalPosition + rivalRoll) % vanguardGame.tiles.length;
+                        if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+
+                        let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
+                        logVanguard(`Bot (Barons Rust) rolled ${rivalRoll} and landed on ${rivalTile.name}.`);
+                        
+                        if(rivalTile.owner === "None" && rivalTile.cost > 0 && vanguardGame.rivalFunds >= rivalTile.cost) {
+                            rivalTile.owner = vanguardGame.rival;
+                            vanguardGame.rivalFunds -= rivalTile.cost;
+                            logVanguard(`Bot claimed ${rivalTile.name}!`);
+                        } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
+                            let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
+                            if (success) {
+                                vanguardGame.funds += rivalTile.rent;
+                                logVanguard(`Bot paid toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                            }
+                        }
+
+                        updateVanguardUI();
+                        drawVanguardBoard();
+                    }, 1000);
+                }
+
+            }, 1200);
 
         } else if(action === 'buy') {
             let activePos = (vanguardGame.myRole === 'p1') ? vanguardGame.position : vanguardGame.rivalPosition;
@@ -2160,7 +2176,6 @@
                 if(cell.isCenter && treeLoaded) {
                     bCtx.drawImage(treeImg, x + 15, y + 10, 60, 60);
                 } else {
-                    // UPGRADED LEGIBILITY: High-contrast large font for bingo numbers/labels
                     bCtx.fillStyle = cell.stamped ? '#ff7b00' : '#f0f2f5';
                     bCtx.font = bingoMode === 'traditional' ? 'bold 20px Courier New' : 'bold 11px Courier New';
                     bCtx.textAlign = 'center';
@@ -2279,24 +2294,20 @@
         playerHand = [];
         botHand = [];
 
-        // Build fair, truly random deck
         cardColors.forEach(color => {
             cardValues.forEach(val => {
                 marrowDeck.push({color: color, val: val});
-                if(val !== "1") marrowDeck.push({color: color, val: val}); // Double set for standard deck size
+                if(val !== "1") marrowDeck.push({color: color, val: val});
             });
         });
 
-        // Shuffle deck
         marrowDeck.sort(() => Math.random() - 0.5);
 
-        // Deal 7 cards each
         for(let i=0; i<7; i++) {
             if(marrowDeck.length > 0) playerHand.push(marrowDeck.pop());
             if(marrowDeck.length > 0) botHand.push(marrowDeck.pop());
         }
 
-        // Set initial discard (ensure it's a number card for clean start)
         topDiscardCard = marrowDeck.pop();
         while(topDiscardCard.val === "Skip" || topDiscardCard.val === "Reverse" || topDiscardCard.val === "+2") {
             marrowDeck.unshift(topDiscardCard);
@@ -2310,15 +2321,12 @@
     }
 
     function updateMarrowDeckUI() {
-        // Discard pile
         document.getElementById('discard-color').innerText = topDiscardCard.color;
         document.getElementById('discard-val').innerText = topDiscardCard.val;
 
-        // Score info
         document.getElementById('card-score-info').innerText = `Your Hand: ${playerHand.length} Cards | Bot: ${botHand.length} Cards`;
         document.getElementById('card-game-status').innerText = isPlayerTurn ? "Your Turn - Match Color or Number!" : "Bot 101 Thinking...";
 
-        // Render player hand
         let pArea = document.getElementById('player-hand-area');
         pArea.innerHTML = "";
         playerHand.forEach((card, index) => {
@@ -2332,7 +2340,6 @@
             pArea.appendChild(cardDiv);
         });
 
-        // Render bot hand (hidden backs)
         let bArea = document.getElementById('bot-hand-area');
         bArea.innerHTML = "";
         botHand.forEach(() => {
@@ -2346,7 +2353,6 @@
         if(!isPlayerTurn) return;
         let card = playerHand[index];
 
-        // Check if move is valid
         if(card.color === topDiscardCard.color || card.val === topDiscardCard.val) {
             playerHand.splice(index, 1);
             topDiscardCard = card;
@@ -2373,7 +2379,7 @@
     function drawCardFromDeck() {
         if(!isPlayerTurn) return;
         if(marrowDeck.length === 0) {
-            marrowDeck.push({color: "Detroit Blue", val: "5"}); // safety fallback
+            marrowDeck.push({color: "Detroit Blue", val: "5"});
         }
         let drawn = marrowDeck.pop();
         playerHand.push(drawn);
@@ -2386,7 +2392,6 @@
     }
 
     function triggerBotTurn() {
-        // Fail-safe watchdog timer: if bot takes longer than 4 seconds, force recovery
         let botTimerTriggered = false;
         let failSafeTimer = setTimeout(() => {
             if (!isPlayerTurn && !botTimerTriggered) {
@@ -2400,13 +2405,12 @@
             }
         }, 4000);
 
-        // Fair AI: checks its hand for a matching card
         let matchIndex = botHand.findIndex(c => c.color === topDiscardCard.color || c.val === topDiscardCard.val);
 
         if(matchIndex !== -1) {
             let card = botHand.splice(matchIndex, 1)[0];
             topDiscardCard = card;
-            clearTimeout(failSafeTimer); // Clear fail-safe if successful
+            clearTimeout(failSafeTimer);
             logMarrowCards(`Bot 101 played ${card.color} ${card.val}`);
 
             if(botHand.length === 0) {
