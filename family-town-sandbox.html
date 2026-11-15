@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rhodes Family Homestead • Yazoo City 1940s (Polished Edition)</title>
+    <title>Rhodes Family Homestead • Yazoo City 1940s (AAA Immersive Edition)</title>
     <style>
         :root {
             --bg-dark: #0b0f19;
@@ -46,23 +46,36 @@
             border-radius: 12px;
             padding: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Watermark Crest Emblem */
+        .header-card::after {
+            content: "🧬🌳";
+            position: absolute;
+            right: 12px;
+            top: 12px;
+            font-size: 1.5rem;
+            opacity: 0.25;
+            pointer-events: none;
         }
 
         .title-row {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
         .title-row h1 {
-            font-size: 1rem;
+            font-size: 0.95rem;
             color: var(--accent-gold);
             font-weight: 700;
         }
 
         .subtitle {
-            font-size: 0.72rem;
+            font-size: 0.7rem;
             color: var(--text-muted);
             margin-bottom: 8px;
         }
@@ -223,12 +236,13 @@
 <body>
 
     <div class="container">
+        <!-- Header with Family Crest Watermark -->
         <div class="header-card">
             <div class="title-row">
-                <span>🧬</span>
+                <span>🧬🌳</span>
                 <h1>Rhodes Family Homestead • Yazoo City 1940s</h1>
             </div>
-            <div class="subtitle">Packed in the Marrow Lineage • Immersive Town & Land Economy</div>
+            <div class="subtitle">Packed in the Marrow Lineage • Rhodes Family Legacy Suite</div>
             <div class="counters-grid">
                 <div class="counter-item">🟡 <span id="stat-gold">12330</span></div>
                 <div class="counter-item">🌾 <span id="stat-crops">6830</span></div>
@@ -239,10 +253,12 @@
             </div>
         </div>
 
+        <!-- Banner -->
         <div class="notice-banner" id="banner-text">
-            🔔 Explore Yazoo City: Select portals or walk up to stations!
+            🔔 Explore Yazoo City: Select portals or drive tractor & chop timber!
         </div>
 
+        <!-- Canvas Viewport -->
         <div class="viewport-card">
             <div class="viewport-header">
                 <span id="location-title">🏰 Yazoo City 1940s Town Map & Homestead Nexus</span>
@@ -251,6 +267,7 @@
             <canvas id="gameCanvas" width="460" height="240"></canvas>
         </div>
 
+        <!-- Controls -->
         <div class="controls-area">
             <div class="d-pad">
                 <button class="btn btn-up" onclick="movePlayer('up')">⬆️</button>
@@ -293,6 +310,9 @@
             hearts: 6949,
             knowledge: 345,
             stage: 20,
+            shakeTimer: 0,
+            treeFallAngle: 0,
+            isChopping: false,
             particles: []
         };
 
@@ -308,36 +328,38 @@
 
         function setStation(stationId) {
             state.station = stationId;
+            state.treeFallAngle = 0;
+            state.isChopping = false;
             let title = "", banner = "", btnText = "";
             switch(stationId) {
                 case 'town':
                     title = "🏰 Yazoo City 1940s Town Map & Homestead Nexus";
-                    banner = "🔔 Explore Yazoo City: Select portals or walk up to stations!";
+                    banner = "🔔 Explore Yazoo City: Select portals or visit stations!";
                     btnText = "Enter Selected Station";
                     break;
                 case 'farm':
-                    title = "🚜 Tom Mitchell Farmland: Tractor Tier 3 Active";
-                    banner = "🔔 Tom Mitchell Farmland: Tap Action to harvest crops and plow fields!";
+                    title = "🚜 Tom Mitchell Farmland: Drive Tractor & Harvest";
+                    banner = "🔔 Tom Mitchell Farmland: Use D-pad to drive tractor & collect crops!";
                     btnText = "Harvest & Plow Crops";
                     break;
                 case 'timber':
                     title = "🪵 Lucius Hatton Timberland: Giant Timber Chopping";
-                    banner = "🔔 Lucius Timberland: Tap Action to chop timber logs for firewood!";
-                    btnText = "Chop Timber Logs";
+                    banner = "🔔 Lucius Timberland: Tap Action to chop tree, trigger screen-shake & collect logs!";
+                    btnText = "Chop Down Giant Tree";
                     break;
                 case 'forge':
                     title = "🔥 Fred Hatton Blacksmith Forge: Iron & Tool Upgrades";
-                    banner = "🔔 Fred's Forge: Tap Action to stoke the flames and forge tools!";
+                    banner = "🔔 Fred's Forge: Tap Action to pump bellows & stoke flames!";
                     btnText = "Stoke Forge & Upgrade";
                     break;
                 case 'hotel':
                     title = "🏨 Aunt Zelma's Hotel & Family Guest House";
-                    banner = "🔔 Zelma's Hotel: Tap Action to welcome family visitors & earn hearts!";
+                    banner = "🔔 Zelma's Hotel: Welcome family visitors from Packed in the Marrow!";
                     btnText = "Manage Guest House";
                     break;
                 case 'school':
                     title = "📚 Zelma's Schoolhouse: Marrow Science & History Curriculum";
-                    banner = "🔔 Zelma's Schoolhouse: Tap Action to study curriculum & gain knowledge!";
+                    banner = "🔔 Zelma's Schoolhouse: Study curriculum to teach children & gain knowledge!";
                     btnText = "Advance School Curriculum";
                     break;
             }
@@ -348,256 +370,211 @@
 
         function movePlayer(dir) {
             state.isWalking = true;
-            if(dir === 'up') state.playerY = Math.max(90, state.playerY - 15);
-            if(dir === 'down') state.playerY = Math.min(200, state.playerY + 15);
+            if(dir === 'up') {
+                state.playerY = Math.max(90, state.playerY - 15);
+                if(state.station === 'farm') state.playerX = Math.min(380, state.playerX + 15); // Drive tractor right/forward
+            }
+            if(dir === 'down') {
+                state.playerY = Math.min(200, state.playerY + 15);
+                if(state.station === 'farm') state.playerX = Math.max(60, state.playerX - 15); // Drive tractor back
+            }
             if(dir === 'left') state.playerX = Math.max(40, state.playerX - 15);
             if(dir === 'right') state.playerX = Math.min(420, state.playerX + 15);
             setTimeout(() => { state.isWalking = false; }, 200);
         }
 
         function triggerAction() {
-            if(state.station === 'farm') state.crops += 50;
-            else if(state.station === 'timber') state.wood += 25;
-            else if(state.station === 'forge') state.heat += 40;
-            else if(state.station === 'hotel') state.hearts += 30;
-            else if(state.station === 'school') state.knowledge += 15;
-            else state.gold += 100;
-
-            document.getElementById('stat-crops').innerText = state.crops;
-            document.getElementById('stat-wood').innerText = state.wood;
-            document.getElementById('stat-heat').innerText = state.heat;
-            document.getElementById('stat-heart').innerText = state.hearts;
-            document.getElementById('stat-knowledge').innerText = state.knowledge;
-            document.getElementById('stat-gold').innerText = state.gold;
-        }
-
-        // Helper functions for polished drawing
-        function drawPineTree(ctx, x, y) {
-            ctx.fillStyle = '#451a03'; // Trunk
-            ctx.fillRect(x - 3, y - 10, 6, 15);
-            ctx.fillStyle = '#064e3b'; // Foliage tiers
-            ctx.beginPath();
-            ctx.moveTo(x, y - 35); ctx.lineTo(x - 15, y - 10); ctx.lineTo(x + 15, y - 10); ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(x, y - 25); ctx.lineTo(x - 18, y - 2); ctx.lineTo(x + 18, y - 2); ctx.fill();
+            if(state.station === 'farm') {
+                state.crops += 75;
+                document.getElementById('stat-crops').innerText = state.crops;
+            } else if(state.station === 'timber') {
+                // Trigger Screen Shake and Tree Fall Animation
+                state.isChopping = true;
+                state.shakeTimer = 15; // 15 frames of screen shake
+                let fallInterval = setInterval(() => {
+                    state.treeFallAngle += 0.2;
+                    if(state.treeFallAngle >= Math.PI / 2) {
+                        clearInterval(fallInterval);
+                        state.wood += 50;
+                        document.getElementById('stat-wood').innerText = state.wood;
+                        setTimeout(() => { state.treeFallAngle = 0; state.isChopping = false; }, 800);
+                    }
+                }, 50);
+            } else if(state.station === 'forge') {
+                state.heat += 40;
+                document.getElementById('stat-heat').innerText = state.heat;
+            } else if(state.station === 'hotel') {
+                state.hearts += 30;
+                document.getElementById('stat-heart').innerText = state.hearts;
+            } else if(state.station === 'school') {
+                state.knowledge += 15;
+                document.getElementById('stat-knowledge').innerText = state.knowledge;
+            } else {
+                state.gold += 100;
+                document.getElementById('stat-gold').innerText = state.gold;
+            }
         }
 
         function render() {
+            ctx.save();
+            // Apply Screen Shake Offset if active
+            if(state.shakeTimer > 0) {
+                let shakeX = (Math.random() - 0.5) * 8;
+                let shakeY = (Math.random() - 0.5) * 8;
+                ctx.translate(shakeX, shakeY);
+                state.shakeTimer--;
+            }
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Sky
+            // Sky Background
             let sky = ctx.createLinearGradient(0, 0, 0, 130);
             sky.addColorStop(0, '#090d16');
             sky.addColorStop(1, '#1b2a4a');
             ctx.fillStyle = sky;
             ctx.fillRect(0, 0, canvas.width, 130);
 
-            // Sun / Moon Glow
+            // Moon / Sun
             ctx.beginPath();
-            ctx.arc(415, 30, 15, 0, Math.PI * 2);
-            ctx.fillStyle = '#fbbf24';
+            ctx.arc(415, 30, 16, 0, Math.PI * 2);
+            ctx.fillStyle = '#fde68a';
             ctx.shadowColor = '#f59e0b';
             ctx.shadowBlur = 15;
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            // Rolling Hills / Horizon
-            ctx.fillStyle = '#064e3b';
-            ctx.beginPath();
-            ctx.moveTo(0, 130);
-            ctx.lineTo(0, 100);
-            ctx.quadraticCurveTo(120, 80, 240, 100);
-            ctx.quadraticCurveTo(360, 120, 460, 95);
-            ctx.lineTo(460, 130);
-            ctx.fill();
-
             // Ground
             let ground = ctx.createLinearGradient(0, 130, 0, canvas.height);
             ground.addColorStop(0, '#047857');
-            ground.addColorStop(1, '#064e3b');
+            ground.addColorStop(1, '#022c22');
             ctx.fillStyle = ground;
             ctx.fillRect(0, 130, canvas.width, canvas.height - 130);
 
-            // Dirt road / pathway
-            ctx.fillStyle = '#78350f';
-            ctx.beginPath();
-            ctx.moveTo(180, canvas.height);
-            ctx.lineTo(230, 130);
-            ctx.lineTo(280, canvas.height);
-            ctx.fill();
-
             let spriteName = "Tommy Rhodes";
 
-            // Station-Specific Detailed Graphics
             if(state.station === 'town') {
                 spriteName = "Homestead Nexus";
                 ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.moveTo(230, 95); ctx.lineTo(80, 70);
-                ctx.moveTo(230, 95); ctx.lineTo(380, 70);
-                ctx.moveTo(230, 95); ctx.lineTo(80, 170);
-                ctx.moveTo(230, 95); ctx.lineTo(380, 170);
-                ctx.moveTo(230, 95); ctx.lineTo(230, 35);
+                ctx.moveTo(230, 95); ctx.lineTo(70, 65);
+                ctx.moveTo(230, 95); ctx.lineTo(390, 65);
                 ctx.stroke();
 
-                // Town Hall / Castle Center
+                // Town Hall / Church / School Portals
                 ctx.fillStyle = '#92400e';
-                ctx.fillRect(205, 65, 50, 50);
+                ctx.fillRect(190, 60, 80, 55);
                 ctx.fillStyle = '#b45309';
-                ctx.beginPath(); ctx.moveTo(200, 65); ctx.lineTo(230, 35); ctx.lineTo(260, 65); ctx.fill();
-                ctx.fillStyle = '#f59e0b';
-                ctx.fillRect(222, 90, 16, 25); // Door
+                ctx.beginPath(); ctx.moveTo(180, 60); ctx.lineTo(230, 30); ctx.lineTo(280, 60); ctx.fill();
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 8px sans-serif';
-                ctx.fillText('STAGE 20', 213, 58);
+                ctx.font = 'bold 9px sans-serif';
+                ctx.fillText('STAGE 20 HOMESTEAD', 178, 90);
 
             } else if(state.station === 'farm') {
                 spriteName = "Tom Mitchell";
-                // Farmhouse with Windows & Roof
+                // Farmhouse Backdrop
                 ctx.fillStyle = '#7c2d12';
-                ctx.fillRect(40, 60, 90, 70);
-                ctx.fillStyle = '#dc2626';
-                ctx.beginPath(); ctx.moveTo(30, 60); ctx.lineTo(85, 25); ctx.lineTo(140, 60); ctx.fill();
-                ctx.fillStyle = '#fef08a';
-                ctx.fillRect(55, 75, 18, 18); ctx.fillRect(95, 75, 18, 18); // Windows
-                ctx.fillStyle = '#451a03';
-                ctx.fillRect(75, 95, 20, 35); // Door
+                ctx.fillRect(30, 55, 80, 65);
+                ctx.fillStyle = '#991b1b';
+                ctx.beginPath(); ctx.moveTo(20, 55); ctx.lineTo(70, 25); ctx.lineTo(120, 55); ctx.fill();
 
-                // Polished Tractor Graphic
-                ctx.fillStyle = '#15803d';
-                ctx.fillRect(280, 90, 50, 25); // Body
-                ctx.fillRect(320, 75, 25, 25); // Cab
-                ctx.fillStyle = '#1e293b';
-                ctx.beginPath(); ctx.arc(295, 118, 10, 0, Math.PI*2); ctx.fill(); // Small front wheel
-                ctx.beginPath(); ctx.arc(330, 118, 14, 0, Math.PI*2); ctx.fill(); // Large rear wheel
-
-                // Growing Crop Rows
-                ctx.fillStyle = '#ca8a04';
-                for(let i=0; i<4; i++) {
-                    ctx.beginPath(); ctx.arc(170 + (i*22), 150, 6, 0, Math.PI*2); ctx.fill();
-                    ctx.beginPath(); ctx.arc(170 + (i*22), 175, 6, 0, Math.PI*2); ctx.fill();
+                // Growing Corn & Wheat Stalks across Farmland
+                for(let i=0; i<5; i++) {
+                    ctx.fillStyle = '#eab308';
+                    ctx.fillRect(140 + (i * 35), 140, 8, 22);
+                    ctx.fillStyle = '#ca8a04';
+                    ctx.beginPath(); ctx.arc(144 + (i * 35), 140, 7, 0, Math.PI*2); ctx.fill();
                 }
+
+                // Interactive Driving Tractor Sprite
+                let tx = state.playerX;
+                let ty = state.playerY - 20;
+                ctx.fillStyle = '#15803d'; // Tractor body
+                ctx.fillRect(tx - 25, ty, 50, 24);
+                ctx.fillStyle = '#1e293b'; // Wheels
+                ctx.beginPath(); ctx.arc(tx - 15, ty + 24, 9, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(tx + 15, ty + 24, 12, 0, Math.PI*2); ctx.fill();
 
             } else if(state.station === 'timber') {
                 spriteName = "Lucius Hatton";
-                // Timber Cabin
+                // Lucius Timberland Cabin
                 ctx.fillStyle = '#581c87';
-                ctx.fillRect(40, 65, 80, 65);
-                ctx.fillStyle = '#3b0764';
-                ctx.beginPath(); ctx.moveTo(30, 65); ctx.lineTo(80, 30); ctx.lineTo(130, 65); ctx.fill();
-                
-                // Detailed Pine Trees in Timberland
-                drawPineTree(ctx, 290, 110);
-                drawPineTree(ctx, 330, 120);
-                drawPineTree(ctx, 370, 105);
+                ctx.fillRect(30, 60, 80, 60);
 
-                // Chopped Log Stacks
+                // Giant Tree with Physics Fall Animation
+                ctx.save();
+                ctx.translate(320, 120);
+                ctx.rotate(state.treeFallAngle);
+                ctx.fillStyle = '#451a03'; // Trunk
+                ctx.fillRect(-10, -60, 20, 60);
+                ctx.fillStyle = '#064e3b'; // Leaves crown
+                ctx.beginPath(); ctx.arc(0, -70, 28, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+
+                // Log Stacked Pile
                 ctx.fillStyle = '#78350f';
-                ctx.fillRect(170, 105, 55, 25);
-                ctx.fillStyle = '#d97706';
-                ctx.beginPath(); ctx.arc(225, 117, 12, 0, Math.PI*2); ctx.fill();
+                ctx.fillRect(160, 105, 70, 25);
 
             } else if(state.station === 'forge') {
                 spriteName = "Fred Hatton";
-                // Blacksmith Stone Forge
                 ctx.fillStyle = '#334155';
-                ctx.fillRect(45, 65, 85, 65);
-                ctx.fillStyle = '#1e293b';
-                ctx.fillRect(75, 90, 25, 40); // Wooden double doors
-
-                // Anvil & Bright Fire Pit
-                ctx.fillStyle = '#475569';
-                ctx.fillRect(270, 95, 70, 30);
-                ctx.fillStyle = '#1e293b'; // Anvil top
-                ctx.fillRect(290, 85, 30, 10);
-                ctx.fillStyle = '#ef4444'; // Glowing flames
-                ctx.beginPath(); ctx.arc(325, 80, 10, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#f59e0b';
-                ctx.beginPath(); ctx.arc(325, 77, 6, 0, Math.PI*2); ctx.fill();
+                ctx.fillRect(40, 60, 80, 60);
+                ctx.fillStyle = '#ef4444'; // Forge fire
+                ctx.beginPath(); ctx.arc(310, 85, 12, 0, Math.PI*2); ctx.fill();
 
             } else if(state.station === 'hotel') {
                 spriteName = "Aunt Zelma";
-                // Grand Hotel Building with Balcony and Porch
                 ctx.fillStyle = '#1e3a8a';
-                ctx.fillRect(90, 50, 280, 80);
-                ctx.fillStyle = '#1d4ed8'; // Roof trim
-                ctx.fillRect(80, 45, 300, 12);
-                ctx.fillStyle = '#fef08a'; // Windows
-                for(let w=0; w<4; w++) {
-                    ctx.fillRect(110 + (w*60), 65, 25, 35);
-                }
-                ctx.fillStyle = '#92400e'; // Double front doors
-                ctx.fillRect(215, 90, 30, 40);
+                ctx.fillRect(80, 45, 300, 75);
+                ctx.fillStyle = '#fef08a';
+                ctx.fillRect(110, 60, 25, 35);
+                ctx.fillRect(325, 60, 25, 35);
 
             } else if(state.station === 'school') {
                 spriteName = "Zelma Schoolhouse";
-                // Historic Schoolhouse with Bell Tower
                 ctx.fillStyle = '#065f46';
-                ctx.fillRect(90, 55, 280, 75);
-                ctx.fillStyle = '#047857'; // Roof
-                ctx.beginPath(); ctx.moveTo(80, 55); ctx.lineTo(230, 20); ctx.lineTo(380, 55); ctx.fill();
-                // Bell Tower
-                ctx.fillStyle = '#022c22';
-                ctx.fillRect(215, 10, 30, 25);
-                ctx.fillStyle = '#f59e0b'; // Gold Bell
+                ctx.fillRect(80, 45, 300, 75);
+                ctx.fillStyle = '#f59e0b'; // Bell tower
+                ctx.fillRect(220, 15, 20, 30);
                 ctx.beginPath(); ctx.arc(230, 25, 6, 0, Math.PI*2); ctx.fill();
-                // School windows
-                ctx.fillStyle = '#fef08a';
-                ctx.fillRect(115, 75, 30, 40);
-                ctx.fillRect(315, 75, 30, 40);
             }
 
-            // Particles
-            state.particles.forEach((p) => {
-                p.y += p.speedY;
-                p.alpha -= 0.003;
-                if(p.alpha <= 0 || p.y < 0) {
-                    p.y = canvas.height + 10;
-                    p.x = Math.random() * canvas.width;
-                    p.alpha = Math.random() * 0.4 + 0.1;
-                }
+            // Render Family Sprite Character with Name Badge (except when driving tractor on farm)
+            if(state.station !== 'farm') {
+                state.frameAnim += 0.1;
+                let bounce = state.isWalking ? Math.sin(state.frameAnim * 4) * 3 : 0;
+                let px = state.playerX;
+                let py = state.playerY + bounce;
+
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+                ctx.ellipse(px, py + 16, 10, 3, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 ctx.fill();
-            });
 
-            // Detailed Character Sprite with Name Badge
-            state.frameAnim += 0.1;
-            let bounce = state.isWalking ? Math.sin(state.frameAnim * 4) * 3 : 0;
-            let px = state.playerX;
-            let py = state.playerY + bounce;
+                // Overalls & Shirt
+                ctx.fillStyle = '#1e3a8a';
+                ctx.fillRect(px - 6, py - 2, 12, 16);
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(px - 5, py - 12, 10, 12);
 
-            // Shadow
-            ctx.beginPath();
-            ctx.ellipse(px, py + 16, 10, 3, 0, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fill();
+                // Head & Straw Hat
+                ctx.fillStyle = '#b45309';
+                ctx.beginPath(); ctx.arc(px, py - 16, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(px - 10, py - 22, 20, 3);
 
-            // Overalls & Shirt
-            ctx.fillStyle = '#1e3a8a';
-            ctx.fillRect(px - 6, py - 2, 12, 16);
-            ctx.fillStyle = '#dc2626';
-            ctx.fillRect(px - 5, py - 12, 10, 12);
+                // Name Tag Badge
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 1;
+                ctx.fillRect(px - 38, py - 42, 76, 14);
+                ctx.strokeRect(px - 38, py - 42, 76, 14);
+                ctx.fillStyle = '#f59e0b';
+                ctx.font = 'bold 9px sans-serif';
+                ctx.fillText(spriteName, px - 32, py - 32);
+            }
 
-            // Head & Hat
-            ctx.fillStyle = '#b45309';
-            ctx.beginPath(); ctx.arc(px, py - 16, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#f59e0b';
-            ctx.fillRect(px - 10, py - 22, 20, 3);
-            ctx.fillRect(px - 5, py - 26, 10, 4);
-
-            // Name Tag Badge
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-            ctx.strokeStyle = '#f59e0b';
-            ctx.lineWidth = 1;
-            ctx.fillRect(px - 38, py - 42, 76, 14);
-            ctx.strokeRect(px - 38, py - 42, 76, 14);
-            ctx.fillStyle = '#f59e0b';
-            ctx.font = 'bold 9px sans-serif';
-            ctx.fillText(spriteName, px - 32, py - 32);
-
+            ctx.restore();
             requestAnimationFrame(render);
         }
 
