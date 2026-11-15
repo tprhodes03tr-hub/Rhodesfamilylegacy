@@ -1000,7 +1000,7 @@
         });
         peer.on('connection', (incomingConn) => {
             conn = incomingConn;
-            setupConnectionEvents();
+            setupVanguardConnectionEvents();
             logVanguard(`Rival successfully connected to Vanguard Hub!`);
             broadcastState();
         });
@@ -1017,7 +1017,7 @@
         peer.on('open', (id) => {
             logVanguard(`Connecting to Vanguard Host [${targetCode}]...`);
             conn = peer.connect(targetCode);
-            setupConnectionEvents();
+            setupVanguardConnectionEvents();
         });
         peer.on('error', (err) => {
             logVanguard(`Failed to connect. Make sure Host clicked HOST first.`);
@@ -1032,11 +1032,6 @@
                 updateUIFunds();
                 drawTycoonBoard();
             }
-            if (incomingData.vanguardGame) {
-                vanguardGame = incomingData.vanguardGame;
-                updateVanguardUI();
-                drawVanguardBoard();
-            }
             if(incomingData.tiles && !incomingData.tycoonGame) tycoonGame.tiles = incomingData.tiles;
             if(incomingData.position !== undefined) tycoonGame.position = incomingData.position;
             if(incomingData.p2Position !== undefined) tycoonGame.p2Position = incomingData.p2Position;
@@ -1047,6 +1042,34 @@
             logTycoon(`P2P Connection Established Successfully! Game Synced.`);
             broadcastState();
         });
+    }
+
+    // --- FIXED VANGUARD P2P CONNECTION & ACTION DISPATCHERS ---
+    function setupVanguardConnectionEvents() {
+        if(!conn) return;
+        conn.on('data', (incomingData) => {
+            if (incomingData.vanguardGame) {
+                vanguardGame = incomingData.vanguardGame;
+                updateVanguardUI();
+                drawVanguardBoard();
+            }
+            if (incomingData.action === 'remoteRoll') {
+                executeRemoteVanguardRoll(incomingData.roll, incomingData.rollerRole);
+            }
+        });
+        conn.on('open', () => {
+            logVanguard(`Vanguard P2P Connection Established & Synced!`);
+            broadcastState();
+        });
+    }
+
+    function sendRemoteAction(actionType, payload) {
+        if(conn && conn.open) {
+            conn.send({
+                action: actionType,
+                ...payload
+            });
+        }
     }
 
     function broadcastState() {
@@ -1945,79 +1968,11 @@
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
                 
-                if (vanguardGame.myRole === 'p1') {
-                    let oldPos = vanguardGame.position;
-                    vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
-                    if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
-
-                    let tile = vanguardGame.tiles[vanguardGame.position];
-                    logVanguard(`${vanguardGame.hero} advanced ${roll} steps to ${tile.name}.`);
-
-                    if(tile.type === 'event') {
-                        let surge = Math.random() > 0.5 ? 120 : -60;
-                        vanguardGame.funds += surge;
-                        logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
-                    } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero && !tile.isMortgaged) {
-                        let success = checkVanguardBankruptcy(true, tile.rent, tile.owner);
-                        if (success) {
-                            if (tile.owner === vanguardGame.rival) vanguardGame.rivalFunds += tile.rent;
-                            logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
-                        }
-                    }
-                } else {
-                    let oldRivalPos = vanguardGame.rivalPosition;
-                    vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
-                    if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
-
-                    let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
-                    logVanguard(`${vanguardGame.rival} advanced ${roll} steps to ${rivalTile.name}.`);
-                    
-                    if(rivalTile.type === 'event') {
-                        let surge = Math.random() > 0.5 ? 120 : -60;
-                        vanguardGame.rivalFunds += surge;
-                        logVanguard(`Syndicate anomaly triggered! Credit adjustment: ${surge} VC.`);
-                    } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
-                        let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
-                        if (success) {
-                            vanguardGame.funds += rivalTile.rent;
-                            logVanguard(`Paid sector toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
-                        }
-                    }
-                }
-
-                updateVanguardUI();
-                drawVanguardBoard();
-                broadcastState();
-
-                if(vanguardGame.gameMode === 'ai' && vanguardGame.myRole === 'p1') {
-                    setTimeout(() => {
-                        let rivalDie1 = Math.floor(Math.random() * 6) + 1;
-                        let rivalDie2 = Math.floor(Math.random() * 6) + 1;
-                        let rivalRoll = rivalDie1 + rivalDie2;
-                        
-                        let oldRivalPos = vanguardGame.rivalPosition;
-                        vanguardGame.rivalPosition = (vanguardGame.rivalPosition + rivalRoll) % vanguardGame.tiles.length;
-                        if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
-
-                        let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
-                        logVanguard(`Bot (Barons Rust) rolled ${rivalRoll} and landed on ${rivalTile.name}.`);
-                        
-                        if(rivalTile.owner === "None" && rivalTile.cost > 0 && vanguardGame.rivalFunds >= rivalTile.cost) {
-                            rivalTile.owner = vanguardGame.rival;
-                            vanguardGame.rivalFunds -= rivalTile.cost;
-                            logVanguard(`Bot claimed ${rivalTile.name}!`);
-                        } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
-                            let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
-                            if (success) {
-                                vanguardGame.funds += rivalTile.rent;
-                                logVanguard(`Bot paid toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
-                            }
-                        }
-
-                        updateVanguardUI();
-                        drawVanguardBoard();
-                    }, 1000);
-                }
+                // Broadcast the roll payload to connected peer over P2P
+                sendRemoteAction('remoteRoll', { roll: roll, rollerRole: vanguardGame.myRole });
+                
+                // Process local execution
+                processVanguardRoll(roll, vanguardGame.myRole);
 
             }, 1200);
 
@@ -2069,11 +2024,62 @@
         }
     }
 
+    function processVanguardRoll(roll, rollerRole) {
+        if (rollerRole === 'p1') {
+            let oldPos = vanguardGame.position;
+            vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
+            if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
+
+            let tile = vanguardGame.tiles[vanguardGame.position];
+            logVanguard(`${vanguardGame.hero} advanced ${roll} steps to ${tile.name}.`);
+
+            if(tile.type === 'event') {
+                let surge = Math.random() > 0.5 ? 120 : -60;
+                vanguardGame.funds += surge;
+                logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
+            } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero && !tile.isMortgaged) {
+                let success = checkVanguardBankruptcy(true, tile.rent, tile.owner);
+                if (success) {
+                    if (tile.owner === vanguardGame.rival) vanguardGame.rivalFunds += tile.rent;
+                    logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
+                }
+            }
+        } else {
+            let oldRivalPos = vanguardGame.rivalPosition;
+            vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
+            if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+
+            let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
+            logVanguard(`${vanguardGame.rival} advanced ${roll} steps to ${rivalTile.name}.`);
+            
+            if(rivalTile.type === 'event') {
+                let surge = Math.random() > 0.5 ? 120 : -60;
+                vanguardGame.rivalFunds += surge;
+                logVanguard(`Syndicate anomaly triggered! Credit adjustment: ${surge} VC.`);
+            } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
+                let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
+                if (success) {
+                    vanguardGame.funds += rivalTile.rent;
+                    logVanguard(`Paid sector toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                }
+            }
+        }
+
+        updateVanguardUI();
+        drawVanguardBoard();
+        broadcastState();
+    }
+
+    function executeRemoteVanguardRoll(roll, rollerRole) {
+        logVanguard(`Received remote roll (${roll}) from peer role [${rollerRole}]`);
+        processVanguardRoll(roll, rollerRole);
+    }
+
 
     // --- BINGO LOUNGE (TRADITIONAL, LOTERÍA, & VANGUARD BINGO) ---
     let bCanvas, bCtx;
-    let bingoMode = 'traditional'; // 'traditional', 'loteria', 'vanguard'
-    let bingoBoardData = []; // 5x5 grid items {label: '', stamped: false}
+    let bingoMode = 'traditional';
+    let bingoBoardData = [];
     let lastCalledItem = "READY";
 
     const loteriaDeck = [
@@ -2279,7 +2285,7 @@
     }
 
 
-    // --- 5. MARROW DECK CARD LOUNGE (FAIR-PLAY FAMILY CARD GAME) ---
+    // --- MARROW DECK CARD LOUNGE ---
     let marrowDeck = [];
     let playerHand = [];
     let botHand = [];
