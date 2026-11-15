@@ -117,6 +117,9 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        const dnaTreeImg = new Image();
+        dnaTreeImg.src = 'packed-marrow-tree.png';
+
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -188,11 +191,15 @@
             isBoarded: false,
             insideBuilding: false,
             bellowsPumped: 0,
-            activeTreeIndex: 0,
             hasPorch: true,
             hasStreetlights: true,
             hasFreeway: true,
             
+            // Lucius Timberland Physics State
+            treeFallAngle: 0,
+            isChopping: false,
+            treeChoppedState: false,
+
             trees: [
                 { x: 120, y: 190, chopped: false, type: 'Oak' },
                 { x: 200, y: 190, chopped: false, type: 'Pine' },
@@ -300,8 +307,8 @@
                 setDialogue("🚜 Tom Mitchell Farmland: Drive tractor & harvest high-yield crops!");
             } else if (game.state === 'TIMBER') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🪓 Swing Axe & Harvest Lumber";
-                setDialogue("🌲 Lucius Timberland: Harvest quality timber for town construction!");
+                actionBtn.innerText = "🪓 Swing Axe & Chop Down Tree";
+                setDialogue("🌲 Lucius Timberland: Tap action to swing axe, watch tree fall & trigger screen-shake!");
             } else if (game.state === 'FORGE') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
                 actionBtn.innerText = "🔥 Pump Bellows & Forge Iron";
@@ -331,6 +338,8 @@
         function exitToOverworld() {
             game.state = 'OVERWORLD';
             game.insideBuilding = false;
+            game.treeFallAngle = 0;
+            game.isChopping = false;
             document.getElementById('dpad-controls').classList.remove('hidden');
             document.getElementById('minigame-controls').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
@@ -400,26 +409,31 @@
                     setDialogue(`🚜 Walk closer to the tractor to board it!`);
                 }
             } else if (game.state === 'TIMBER') {
-                let tree = game.trees[game.activeTreeIndex];
-                let dist = Math.abs(game.avatarX - tree.x);
-                if (dist < 60) {
-                    if (!tree.chopped) {
-                        tree.chopped = true;
-                        game.wood += 25;
-                        game.screenShake = 20;
-                        playSound('chop');
-                        spawnParticles(tree.x, 190, '#059669', '🪵');
-                        setDialogue(`🌲 TIMBER! Harvested ${tree.type} tree for +25 Wood.`);
-                        game.activeTreeIndex = (game.activeTreeIndex + 1) % game.trees.length;
-                        if (game.trees.every(t => t.chopped)) {
-                            game.trees.forEach(t => t.chopped = false);
-                            setDialogue(`🌲 Forest regenerated with rich timber!`);
+                // Lucius Timberland Physics Felling & Screen Shake
+                if (!game.isChopping) {
+                    game.isChopping = true;
+                    playSound('chop');
+                    setDialogue(`🪓 Chopping giant timber... Watch it fall!`);
+                    
+                    let fallInterval = setInterval(() => {
+                        game.treeFallAngle += 0.15;
+                        if (game.treeFallAngle >= Math.PI / 2) {
+                            clearInterval(fallInterval);
+                            // CRASH & SCREEN SHAKE
+                            game.screenShake = 25;
+                            game.wood += 50;
+                            playSound('chop');
+                            spawnParticles(320, 180, '#059669', '🪵');
+                            setDialogue(`🪵 CRASH! Tree hit the ground with screen shake! +50 Wood collected.`);
+                            updateHUD();
+                            
+                            setTimeout(() => {
+                                game.treeFallAngle = 0;
+                                game.isChopping = false;
+                            }, 1000);
                         }
-                    }
-                } else {
-                    setDialogue(`🪓 Walk closer next to ${tree.type} Tree #${game.activeTreeIndex + 1} to swing axe!`);
+                    }, 50);
                 }
-                updateHUD();
             } else if (game.state === 'FORGE') {
                 game.bellowsPumped++;
                 game.iron += 15;
@@ -501,7 +515,6 @@
             }
         }
 
-        // Procedural Textured Wood Siding
         function drawWoodTexture(ctx, x, y, w, h) {
             ctx.fillStyle = '#5c2c16';
             ctx.fillRect(x, y, w, h);
@@ -511,7 +524,6 @@
             }
         }
 
-        // Procedural Brick Siding
         function drawBrickTexture(ctx, x, y, w, h) {
             ctx.fillStyle = '#4a3525';
             ctx.fillRect(x, y, w, h);
@@ -522,25 +534,29 @@
             }
         }
 
+        // Draw Real Family Tree Golden DNA Emblem Asset (`packed-marrow-tree.png`)[span_1](start_span)[span_1](end_span)
         function drawGroundedDNAEmblem(x, y, width, height) {
             ctx.save();
-            // Polished Golden Tree of Life & DNA double helix emblem badge
-            ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+            ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
             ctx.strokeStyle = "#f59e0b";
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.roundRect(x - 5, y - height - 5, width + 10, height + 10, 8);
+            ctx.roundRect(x - 6, y - height - 18, width + 12, height + 24, 10);
             ctx.fill();
             ctx.stroke();
 
-            ctx.font = "24px sans-serif";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("🌳", x + width / 2, y - height / 2 - 12);
-            ctx.fillText("🧬", x + width / 2, y - height / 2 + 12);
+            if (dnaTreeImg.complete && dnaTreeImg.naturalWidth !== 0) {
+                ctx.drawImage(dnaTreeImg, x, y - height - 10, width, height);
+            } else {
+                ctx.font = "28px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("🌳🧬", x + width / 2, y - height / 2);
+            }
 
             ctx.font = "bold 8px sans-serif";
             ctx.fillStyle = "#fef08a";
+            ctx.textAlign = "center";
             ctx.fillText("Rhodes Legacy", x + width / 2, y - 6);
             ctx.restore();
         }
@@ -550,26 +566,21 @@
             ctx.translate(x, y);
             let bounce = isMoving ? Math.sin(Date.now() * 0.015) * 3 : 0;
 
-            // Shadow
             ctx.beginPath();
             ctx.ellipse(0, 26, 8, 3, 0, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.fill();
 
-            // Legs / Overalls
             ctx.strokeStyle = "#1e3a8a"; ctx.lineWidth = 4; ctx.lineCap = "round";
             ctx.beginPath(); ctx.moveTo(-5, 12 + bounce); ctx.lineTo(-8, 26); ctx.moveTo(5, 12 + bounce); ctx.lineTo(8, 26); ctx.stroke();
 
-            // Shirt / Overalls body
             ctx.fillStyle = "#1e3a8a"; ctx.beginPath(); ctx.roundRect(-8, -4 + bounce, 16, 18, 4); ctx.fill();
-            ctx.fillStyle = "#dc2626"; ctx.fillRect(-6, -2 + bounce, 12, 10); // Red shirt
+            ctx.fillStyle = "#dc2626"; ctx.fillRect(-6, -2 + bounce, 12, 10);
 
-            // Head & Hat
             ctx.fillStyle = "#8d5b4c"; ctx.beginPath(); ctx.arc(0, -12 + bounce, 7, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#f59e0b"; ctx.fillRect(-10, -18 + bounce, 20, 3); // Straw hat brim
-            ctx.fillRect(-5, -22 + bounce, 10, 5); // Crown
+            ctx.fillStyle = "#f59e0b"; ctx.fillRect(-10, -18 + bounce, 20, 3);
+            ctx.fillRect(-5, -22 + bounce, 10, 5);
 
-            // Name Tag Badge
             ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
             ctx.strokeStyle = '#f59e0b';
             ctx.lineWidth = 1;
@@ -592,7 +603,6 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Rich Night/Evening Sky Gradient
             let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             skyGrad.addColorStop(0, '#090d16');
             skyGrad.addColorStop(0.4, '#1b2a4a');
@@ -601,7 +611,6 @@
             ctx.fillStyle = skyGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Glowing Moon
             ctx.fillStyle = "#fef08a";
             ctx.shadowColor = '#f59e0b';
             ctx.shadowBlur = 15;
@@ -624,7 +633,6 @@
 
                 if (isMoving) checkProximity();
 
-                // Upgraded Town Freeway & Road Grid
                 ctx.strokeStyle = game.hasFreeway ? "#475569" : "rgba(251, 191, 36, 0.6)";
                 ctx.lineWidth = game.hasFreeway ? 10 : 6;
                 ctx.setLineDash(game.hasFreeway ? [] : [8, 6]);
@@ -636,7 +644,6 @@
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // Streetlights glowing if unlocked
                 if (game.hasStreetlights) {
                     ctx.fillStyle = "#fde047";
                     ctx.fillRect(235, 160, 10, 20);
@@ -647,15 +654,11 @@
                 let homeSt = stations.find(s => s.id === 'home');
                 ctx.save();
                 ctx.translate(homeSt.x, homeSt.y);
-                
-                let estateScale = 1 + (game.chronicleLevel - 15) * 0.08;
-                estateScale = Math.max(0.9, Math.min(1.7, estateScale));
+                let estateScale = Math.max(0.9, Math.min(1.7, 1 + (game.chronicleLevel - 15) * 0.08));
                 ctx.scale(estateScale, estateScale);
-
                 ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 3;
                 ctx.fillStyle = "rgba(20, 83, 45, 0.95)";
                 ctx.beginPath(); ctx.arc(0, 0, 42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
                 ctx.font = "28px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText("🏰", 0, -4);
                 ctx.font = "bold 8px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.fillText(`Stage ${Math.floor(game.chronicleLevel)} Porch`, 0, 24);
@@ -667,7 +670,6 @@
                     ctx.beginPath(); ctx.arc(st.x, st.y, st.radius + (isNearby ? 5 : 0), 0, Math.PI * 2);
                     ctx.fillStyle = st.color + (isNearby ? "ee" : "cc"); ctx.fill();
                     ctx.strokeStyle = isNearby ? "#fef08a" : "#ffffff"; ctx.lineWidth = isNearby ? 3.5 : 2; ctx.stroke();
-
                     ctx.font = "20px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                     ctx.fillText(st.icon, st.x, st.y - 7);
                     ctx.font = "bold 8px sans-serif"; ctx.fillStyle = "#ffffff"; ctx.fillText(st.name.split(" ")[0], st.x, st.y + 13);
@@ -683,32 +685,12 @@
                 if (game.state === 'HOME') {
                     ctx.fillStyle = "#064e3b"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#047857"; ctx.fillRect(0, 220, canvas.width, 8);
-                    
-                    let mansionWidth = 200;
-                    let mansionHeight = 120;
-                    let mansionX = 240 - mansionWidth / 2;
-                    let mansionY = 210 - mansionHeight;
-
-                    // Textured Wood Siding & Roof
-                    drawWoodTexture(ctx, mansionX, mansionY, mansionWidth, mansionHeight);
-                    ctx.fillStyle = '#7c2d12'; // Rich red roof
-                    ctx.beginPath(); ctx.moveTo(mansionX - 15, mansionY); ctx.lineTo(240, mansionY - 55); ctx.lineTo(mansionX + mansionWidth + 15, mansionY); ctx.fill();
-                    
-                    // Windows with warm glow
+                    drawWoodTexture(ctx, 140, 90, 200, 120);
+                    ctx.fillStyle = '#7c2d12';
+                    ctx.beginPath(); ctx.moveTo(125, 90); ctx.lineTo(240, 35); ctx.lineTo(355, 90); ctx.fill();
                     ctx.fillStyle = "#fef08a"; 
-                    ctx.fillRect(mansionX + 25, mansionY + 30, 26, 35); 
-                    ctx.fillRect(mansionX + mansionWidth - 51, mansionY + 30, 26, 35);
-                    ctx.fillRect(mansionX + mansionWidth / 2 - 13, mansionY + 30, 26, 35);
-
-                    // Wraparound Porch
-                    if (game.hasPorch) {
-                        ctx.fillStyle = "#78350f";
-                        ctx.fillRect(mansionX - 20, mansionY + mansionHeight - 15, mansionWidth + 40, 18);
-                    }
-
-                    // Door
-                    ctx.fillStyle = "#b45309"; ctx.fillRect(240 - 18, mansionY + mansionHeight - 55, 36, 55);
-
+                    ctx.fillRect(165, 120, 26, 35); ctx.fillRect(289, 120, 26, 35);
+                    ctx.fillStyle = "#b45309"; ctx.fillRect(222, 155, 36, 55);
                     ctx.font = "bold 11px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
                     ctx.fillText(`🏡 Rhodes Homestead • Wraparound Porch (Stage ${Math.floor(game.chronicleLevel)})`, 240, 30);
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
@@ -716,6 +698,7 @@
                 } else if (game.state === 'KITCHEN') {
                     ctx.fillStyle = "#064e3b"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#047857"; ctx.fillRect(0, 220, canvas.width, 8);
+                    drawWoodTexture(ctx, 60, 40, 360, 150);
                     ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#fb923c"; ctx.textAlign = "center";
                     ctx.fillText("🍳 Inside Rhodes Family Kitchen & Air Fryer Station", 240, 70);
                     ctx.font = "32px sans-serif"; ctx.fillText("🍲 🍳 🍗 🔥 🥐", 240, 120);
@@ -737,19 +720,24 @@
                 } else if (game.state === 'TIMBER') {
                     ctx.fillStyle = "#064e3b"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#047857"; ctx.fillRect(0, 220, canvas.width, 8);
-                    for (let i = 0; i < game.trees.length; i++) {
-                        let t = game.trees[i];
-                        ctx.font = "38px sans-serif"; ctx.textAlign = "center";
-                        if (!t.chopped) {
-                            ctx.fillText("🌲", t.x, t.y);
-                            ctx.font = "bold 9px sans-serif"; ctx.fillStyle = "#fef08a";
-                            ctx.fillText(`${t.type} #${i+1}`, t.x, t.y + 20);
-                        } else {
-                            ctx.fillText("🪵🪵", t.x, t.y + 10);
-                            ctx.font = "bold 9px sans-serif"; ctx.fillStyle = "#86efac";
-                            ctx.fillText(`Harvested`, t.x, t.y + 28);
-                        }
-                    }
+                    
+                    // Lucius Timberland Physics Felling Animation
+                    ctx.save();
+                    ctx.translate(320, 180);
+                    ctx.rotate(game.treeFallAngle);
+                    ctx.fillStyle = '#451a03'; // Trunk
+                    ctx.fillRect(-12, -70, 24, 70);
+                    ctx.fillStyle = '#064e3b'; // Leaves crown
+                    ctx.beginPath(); ctx.arc(0, -85, 32, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+
+                    // Stacked Logs Pile
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(140, 175, 80, 25);
+
+                    ctx.font = "12px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
+                    ctx.fillText("🪓 Tap 'Perform Action' to swing axe, chop tree & trigger screen shake!", 240, 45);
+
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
 
                 } else if (game.state === 'SCHOOL') {
@@ -768,16 +756,18 @@
                 } else if (game.state === 'FARM') {
                     ctx.fillStyle = "#064e3b"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#047857"; ctx.fillRect(0, 220, canvas.width, 8);
+                    
                     if (game.isBoarded) {
                         game.tractorX = game.avatarX;
                         ctx.font = "38px sans-serif"; ctx.textAlign = "center";
                         ctx.fillText("🚜", game.tractorX, 230);
-                        drawAfricanAmericanAvatar(game.tractorX, 215, sideMoving);
+                        drawAfricanAmericanAvatar(game.tractorX, 225, sideMoving);
                     } else {
                         ctx.font = "38px sans-serif"; ctx.textAlign = "center";
                         ctx.fillText("🚜", game.tractorX, 230);
                         drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
                     }
+
                     for (let c of game.cropsList) {
                         if (!c.harvested) {
                             ctx.font = "26px sans-serif"; ctx.textAlign = "center";
@@ -820,6 +810,8 @@
                     ctx.fillText(`Bellows Pumped: ${game.bellowsPumped} | Iron Forged: ${game.iron}`, 240, 205);
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
                 }
+
+                drawGroundedDNAEmblem(15, 230, 65, 85);
             }
 
             for (let i = particles.length - 1; i >= 0; i--) {
