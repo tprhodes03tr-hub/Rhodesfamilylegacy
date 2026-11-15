@@ -197,12 +197,13 @@
             
             treeFallAngle: 0,
             isChopping: false,
+            selectedTreeIndex: 0,
 
             trees: [
-                { x: 120, y: 190, chopped: false, type: 'Oak' },
-                { x: 200, y: 190, chopped: false, type: 'Pine' },
-                { x: 280, y: 190, chopped: false, type: 'Cedar' },
-                { x: 360, y: 190, chopped: false, type: 'Walnut' }
+                { x: 100, y: 180, health: 3, maxHealth: 3, fallAngle: 0, chopped: false, type: 'Oak' },
+                { x: 200, y: 175, health: 3, maxHealth: 3, fallAngle: 0, chopped: false, type: 'Pine' },
+                { x: 300, y: 185, health: 3, maxHealth: 3, fallAngle: 0, chopped: false, type: 'Cedar' },
+                { x: 390, y: 175, health: 3, maxHealth: 3, fallAngle: 0, chopped: false, type: 'Walnut' }
             ],
             cropsList: [
                 { x: 140, y: 220, harvested: false, symbol: "🌾" },
@@ -305,12 +306,12 @@
                 setDialogue("🚜 Tom Mitchell Farmland: Drive tractor & harvest high-yield crops!");
             } else if (game.state === 'TIMBER') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🪓 Swing Axe & Chop Down Tree";
-                setDialogue("🌲 Lucius Timberland: Tap action to swing axe, watch tree fall & trigger screen-shake!");
+                actionBtn.innerText = "🪓 Swing Axe & Chop Down Trees";
+                setDialogue("🌲 Lucius Timberland: Walk to trees and swing axe 3 times to chop them down!");
             } else if (game.state === 'FORGE') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🔥 Pump Bellows & Forge Iron";
-                setDialogue("🔥 Fred Hatton Forge: Forge iron for streetlights and town freeway!");
+                actionBtn.innerText = "⚒️ Strike Anvil & Forge Iron";
+                setDialogue("🔥 Fred Hatton Forge: Pump bellows and strike the anvil with a hammer!");
             } else if (game.state === 'HOTEL') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
                 actionBtn.innerText = "🚪 Walk Up & Enter Hotel Door";
@@ -321,9 +322,9 @@
                 setDialogue("🏦 Patience Johnson Vault: Manage treasury and town economy!");
             } else if (game.state === 'SCHOOL') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
-                actionBtn.innerText = "🚪 Walk Up & Enter Church Door";
+                actionBtn.innerText = "🚪 Toggle School & Church Sanctuary";
                 playSound('bell');
-                setDialogue("🔔 Zelma's Schoolhouse: *DING-DONG!* Teach history to the children!");
+                setDialogue("🔔 Zelma's Schoolhouse & Church: Visit the classroom or the sacred church altar!");
             } else if (game.state === 'KITCHEN') {
                 document.getElementById('minigame-controls').classList.remove('hidden');
                 actionBtn.innerText = "🚪 Walk Up & Enter Kitchen Door";
@@ -336,8 +337,6 @@
         function exitToOverworld() {
             game.state = 'OVERWORLD';
             game.insideBuilding = false;
-            game.treeFallAngle = 0;
-            game.isChopping = false;
             document.getElementById('dpad-controls').classList.remove('hidden');
             document.getElementById('minigame-controls').classList.add('hidden');
             document.getElementById('back-btn').classList.add('hidden');
@@ -407,35 +406,38 @@
                     setDialogue(`🚜 Walk closer to the tractor to board it!`);
                 }
             } else if (game.state === 'TIMBER') {
-                if (!game.isChopping) {
-                    game.isChopping = true;
+                // Find nearest tree to avatar
+                let targetTree = game.trees.find(t => !t.chopped && Math.abs(game.avatarX - t.x) < 50);
+                if (targetTree) {
+                    targetTree.health--;
                     playSound('chop');
-                    setDialogue(`🪓 Chopping giant timber... Watch it fall!`);
+                    spawnParticles(targetTree.x, 180, '#059669', '🪓');
                     
-                    let fallInterval = setInterval(() => {
-                        game.treeFallAngle += 0.15;
-                        if (game.treeFallAngle >= Math.PI / 2) {
-                            clearInterval(fallInterval);
-                            game.screenShake = 25;
-                            game.wood += 50;
-                            playSound('chop');
-                            spawnParticles(320, 180, '#059669', '🪵');
-                            setDialogue(`🪵 CRASH! Tree hit the ground with screen shake! +50 Wood collected.`);
-                            updateHUD();
-                            
-                            setTimeout(() => {
-                                game.treeFallAngle = 0;
-                                game.isChopping = false;
-                            }, 1000);
-                        }
-                    }, 50);
+                    if (targetTree.health > 0) {
+                        setDialogue(`🪓 Chop! Tree health: ${targetTree.health}/3. Keep swinging!`);
+                    } else {
+                        targetTree.chopped = true;
+                        game.screenShake = 22;
+                        game.wood += 45;
+                        playSound('chop');
+                        setDialogue(`🪵 Timber! Tree crashed down! +45 Wood collected.`);
+                        updateHUD();
+                        
+                        // Respawn tree after delay
+                        setTimeout(() => {
+                            targetTree.health = 3;
+                            targetTree.chopped = false;
+                        }, 5000);
+                    }
+                } else {
+                    setDialogue(`🪓 Walk closer to a standing tree in Lucius Timberland to chop it!`);
                 }
             } else if (game.state === 'FORGE') {
                 game.bellowsPumped++;
-                game.iron += 15;
+                game.iron += 20;
                 playSound('forge');
-                spawnParticles(240, 180, '#ea580c', '🔥');
-                setDialogue(`🔥 Forged iron for town streetlights & freeway! Bellows: ${game.bellowsPumped}. +15 Iron!`);
+                spawnParticles(240, 180, '#ea580c', '⚒️');
+                setDialogue(`⚒️ Hammer struck anvil! Sparks fly. Bellows: ${game.bellowsPumped}. +20 Iron!`);
                 updateHUD();
             } else if (game.state === 'HOTEL') {
                 if (!game.insideBuilding) {
@@ -450,17 +452,19 @@
                     updateHUD();
                 }
             } else if (game.state === 'SCHOOL') {
-                if (!game.insideBuilding) {
-                    game.insideBuilding = true;
-                    document.getElementById('station-action-btn').innerText = "📚 Lead Advanced History Lecture";
-                    setDialogue(`🏫 Stepped inside Zelma's Classroom!`);
-                } else {
-                    game.knowledge += 40;
-                    game.moralPoints += 20;
+                game.insideBuilding = !game.insideBuilding;
+                if (game.insideBuilding) {
+                    document.getElementById('station-action-btn').innerText = "⛪ Switch to School Classroom";
+                    game.moralPoints += 25;
                     playSound('bell');
-                    setDialogue(`🏫 Led Advanced History Lecture! +40 Knowledge Points 📚.`);
-                    updateHUD();
+                    setDialogue(`⛪ Entered Church Sanctuary! Pews filled with prayer & song. +25 Moral ❤️.`);
+                } else {
+                    document.getElementById('station-action-btn').innerText = "🔔 Switch to Church Sanctuary";
+                    game.knowledge += 35;
+                    playSound('bell');
+                    setDialogue(`🏫 Entered Zelma's Classroom! History lesson in session. +35 Knowledge 📚.`);
                 }
+                updateHUD();
             }
         }
 
@@ -530,7 +534,6 @@
             }
         }
 
-        // Clean Golden Tree Sprite rendered by itself without any card box
         function drawGroundedDNAEmblem(x, y, width, height) {
             ctx.save();
             if (dnaTreeImg.complete && dnaTreeImg.naturalWidth !== 0) {
@@ -704,32 +707,55 @@
                     ctx.fillStyle = "#064e3b"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#047857"; ctx.fillRect(0, 220, canvas.width, 8);
                     
-                    ctx.save();
-                    ctx.translate(320, 180);
-                    ctx.rotate(game.treeFallAngle);
-                    ctx.fillStyle = '#451a03';
-                    ctx.fillRect(-12, -70, 24, 70);
-                    ctx.fillStyle = '#064e3b';
-                    ctx.beginPath(); ctx.arc(0, -85, 32, 0, Math.PI*2); ctx.fill();
-                    ctx.restore();
-
-                    ctx.fillStyle = '#78350f';
-                    ctx.fillRect(140, 175, 80, 25);
+                    // Draw Forest Grove with multiple trees and health indicators
+                    for (let t of game.trees) {
+                        ctx.save();
+                        ctx.translate(t.x, t.y);
+                        if (t.chopped) {
+                            // Fallen log
+                            ctx.fillStyle = '#451a03';
+                            ctx.fillRect(-25, 5, 50, 15);
+                        } else {
+                            ctx.fillStyle = '#451a03';
+                            ctx.fillRect(-10, -50, 20, 50);
+                            ctx.fillStyle = '#065f46';
+                            ctx.beginPath(); ctx.arc(0, -65, 28, 0, Math.PI*2); ctx.fill();
+                            
+                            // Health bar above tree
+                            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                            ctx.fillRect(-15, -105, 30, 6);
+                            ctx.fillStyle = '#34d399';
+                            ctx.fillRect(-15, -105, (30 * (t.health / t.maxHealth)), 6);
+                        }
+                        ctx.restore();
+                    }
 
                     ctx.font = "12px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
-                    ctx.fillText("🪓 Tap 'Perform Action' to swing axe, chop tree & trigger screen shake!", 240, 45);
+                    ctx.fillText("🪓 Walk up to trees and press 'Swing Axe' 3 times to fell them!", 240, 45);
 
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
 
                 } else if (game.state === 'SCHOOL') {
                     ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    drawWoodTexture(ctx, 40, 40, 400, 150);
-                    ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.strokeRect(40, 40, 400, 150);
-                    ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
-                    ctx.fillText("🏫 Inside Zelma's Classroom — Yazoo City History", 240, 70);
-                    ctx.font = "32px sans-serif"; ctx.fillText("📚 🎒 ✏️ 📝", 240, 120);
-                    ctx.font = "11px sans-serif"; ctx.fillStyle = "#cbd5e1";
-                    ctx.fillText(`${game.schoolStudents} Children Present | Knowledge Points: ${game.knowledge}`, 240, 160);
+                    if (!game.insideBuilding) {
+                        // School Classroom Interior
+                        drawWoodTexture(ctx, 40, 40, 400, 150);
+                        ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.strokeRect(40, 40, 400, 150);
+                        ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
+                        ctx.fillText("🏫 Inside Zelma's Classroom — Yazoo City History", 240, 70);
+                        ctx.font = "28px sans-serif"; ctx.fillText("📚 🎒 ✏️ 📝 🪑", 240, 120);
+                        ctx.font = "11px sans-serif"; ctx.fillStyle = "#cbd5e1";
+                        ctx.fillText(`${game.schoolStudents} Children Present | Knowledge Points: ${game.knowledge}`, 240, 160);
+                    } else {
+                        // Church Sanctuary Interior
+                        drawBrickTexture(ctx, 40, 40, 400, 150);
+                        ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 2; ctx.strokeRect(40, 40, 400, 150);
+                        ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
+                        ctx.fillText("⛪ Inside Yazoo City Memorial Church Sanctuary", 240, 70);
+                        ctx.font = "28px sans-serif"; ctx.fillText("⛪ 🕯️ 📖 🪑 🎶", 240, 120);
+                        ctx.font = "11px sans-serif"; ctx.fillStyle = "#cbd5e1";
+                        ctx.fillText("Sacred Altar & Wooden Pews | Moral Points: " + game.moralPoints, 240, 160);
+                    }
                     ctx.fillStyle = "#064e3b"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#047857"; ctx.fillRect(0, 220, canvas.width, 8);
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
@@ -738,14 +764,20 @@
                     ctx.fillStyle = "#064e3b"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#047857"; ctx.fillRect(0, 220, canvas.width, 8);
                     
+                    // Properly scaled tractor (larger, clear driver compartment)
+                    ctx.save();
+                    let tDrawX = game.isBoarded ? game.avatarX : game.tractorX;
+                    ctx.translate(tDrawX, 215);
+                    // Tractor body & wheels
+                    ctx.fillStyle = "#dc2626"; ctx.fillRect(-35, -25, 70, 35);
+                    ctx.fillStyle = "#1e293b"; ctx.fillRect(-25, -45, 50, 25); // Cab
+                    ctx.fillStyle = "#0f172a"; ctx.beginPath(); ctx.arc(-22, 12, 14, 0, Math.PI*2); ctx.arc(22, 12, 18, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+
                     if (game.isBoarded) {
                         game.tractorX = game.avatarX;
-                        ctx.font = "38px sans-serif"; ctx.textAlign = "center";
-                        ctx.fillText("🚜", game.tractorX, 230);
-                        drawAfricanAmericanAvatar(game.tractorX, 225, sideMoving);
+                        drawAfricanAmericanAvatar(game.tractorX, 195, sideMoving);
                     } else {
-                        ctx.font = "38px sans-serif"; ctx.textAlign = "center";
-                        ctx.fillText("🚜", game.tractorX, 230);
                         drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
                     }
 
@@ -753,7 +785,7 @@
                         if (!c.harvested) {
                             ctx.font = "26px sans-serif"; ctx.textAlign = "center";
                             ctx.fillText(c.symbol, c.x, c.y);
-                            if (game.isBoarded && Math.abs(game.tractorX - c.x) < 25) {
+                            if (game.isBoarded && Math.abs(game.tractorX - c.x) < 35) {
                                 c.harvested = true;
                                 game.crops += 15;
                                 game.chronicleLevel = Math.min(20, game.chronicleLevel + 0.1);
@@ -767,7 +799,7 @@
                         }
                     }
                     ctx.font = "12px sans-serif"; ctx.fillStyle = "#fef08a"; ctx.textAlign = "center";
-                    ctx.fillText(game.isBoarded ? "🚜 Driving Tractor over rotating crops!" : "🛖 Walk up to tractor & press Action to board!", 240, 185);
+                    ctx.fillText(game.isBoarded ? "🚜 Driving Upgraded Tractor over crops!" : "🛖 Walk up to tractor & press Action to board!", 240, 185);
 
                 } else if (game.state === 'HOTEL') {
                     ctx.fillStyle = "#090d16"; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -783,12 +815,17 @@
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
 
                 } else if (game.state === 'FORGE') {
+                    ctx.fillStyle = "#1e293b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    drawBrickTexture(ctx, 40, 40, 400, 150);
+                    ctx.strokeStyle = "#ea580c"; ctx.lineWidth = 2; ctx.strokeRect(40, 40, 400, 150);
+                    ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#fb923c"; ctx.textAlign = "center";
+                    ctx.fillText("🔥 Fred Hatton Blacksmith Forge & Anvil", 240, 70);
+                    ctx.font = "36px sans-serif"; ctx.fillText("⚒️ 🔥 🧱 🧰", 240, 120);
+                    ctx.font = "11px sans-serif"; ctx.fillStyle = "#cbd5e1";
+                    ctx.fillText(`Bellows Pumped: ${game.bellowsPumped} | Iron Forged: ${game.iron}`, 240, 160);
+                    
                     ctx.fillStyle = "#334155"; ctx.fillRect(0, 220, canvas.width, 120);
                     ctx.fillStyle = "#1e293b"; ctx.fillRect(0, 220, canvas.width, 8);
-                    ctx.font = "38px sans-serif"; ctx.textAlign = "center";
-                    ctx.fillText("🔥 ⚒️ Anvil & Bellows", 240, 165);
-                    ctx.font = "13px sans-serif"; ctx.fillStyle = "#fef08a";
-                    ctx.fillText(`Bellows Pumped: ${game.bellowsPumped} | Iron Forged: ${game.iron}`, 240, 205);
                     drawAfricanAmericanAvatar(game.avatarX, 235, sideMoving);
                 }
 
