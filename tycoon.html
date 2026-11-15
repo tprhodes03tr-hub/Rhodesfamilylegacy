@@ -710,30 +710,266 @@
         speakGameEvent(msg);
     }
 
-    // --- TYCOON CANVAS SETUP & ROBUST IMAGE LOAD FALLBACK ---
+    // --- ROBUST CANVAS SETUP (BUILT-IN NEON CREST, NO BROKEN IMAGE DEPENDENCY) ---
     let tCanvas, tCtx;
-    const treeImg = new Image();
-    let treeLoaded = false;
+    let treeLoaded = true;
 
-    treeImg.onload = function() {
-        treeLoaded = true;
-        drawTycoonBoard();
-        drawVanguardBoard();
-        drawBingoBoard();
-    };
-    treeImg.onerror = function() {
-        treeLoaded = false;
-        drawTycoonBoard();
-        drawVanguardBoard();
-        drawBingoBoard();
-    };
-    treeImg.src = 'packed-marrow-tree.png';
+    window.addEventListener('DOMContentLoaded', () => {
+        tCanvas = document.getElementById('tycoonCanvas');
+        if (tCanvas) tCtx = tCanvas.getContext('2d');
 
-    setTimeout(() => {
-        if (!treeLoaded) {
-            drawTycoonBoard();
+        let savedRole = localStorage.getItem('rhodes_my_role');
+        let savedName = localStorage.getItem('rhodes_my_name');
+        let savedToken = localStorage.getItem('rhodes_my_token');
+        let savedRoom = localStorage.getItem('rhodes_room_code');
+        let savedMode = localStorage.getItem('rhodes_game_mode');
+
+        if(savedRole) document.getElementById('player-role-select').value = savedRole;
+        if(savedName) document.getElementById('player-name-input').value = savedName;
+        if(savedToken) document.getElementById('player-color-select').value = savedToken;
+        if(savedRoom) document.getElementById('room-code-input').value = savedRoom;
+        if(savedMode) document.getElementById('game-mode-select').value = savedMode;
+
+        applyProfileSettings();
+        drawTycoonBoard();
+    });
+
+    // --- COMPOUND WORD-CODE GENERATOR ---
+    function generateCompoundRoom() {
+        const prefixes = ["DETROIT", "SAGINAW", "VANGUARD", "MARROW", "ROADS", "WRIGHT", "MITCHELL", "ATWATER"];
+        const suffixes = ["313", "517", "HUB", "VAULT", "GRID", "REUNION", "ESTATE", "CORRIDOR"];
+        let p = prefixes[Math.floor(Math.random() * prefixes.length)];
+        let s = suffixes[Math.floor(Math.random() * suffixes.length)];
+        let code = `${p}-${s}`;
+        document.getElementById('room-code-input').value = code;
+        logTycoon(`Generated compound room code: [${code}]`);
+    }
+
+    function generateVanguardRoomCode() {
+        const prefixes = ["VANGUARD", "MARROW", "DETROIT", "SAGINAW", "CHRONO", "NEXUS", "SYNDICATE"];
+        const suffixes = ["313", "517", "GRID", "VAULT", "STATION", "CORE", "BASTION"];
+        let p = prefixes[Math.floor(Math.random() * prefixes.length)];
+        let s = suffixes[Math.floor(Math.random() * suffixes.length)];
+        let code = `${p}-${s}`;
+        document.getElementById('v-room-code-input').value = code;
+        logVanguard(`Generated Vanguard compound code: [${code}]`);
+    }
+
+    function applyProfileSettings() {
+        let nameVal = document.getElementById('player-name-input').value || "Tommy";
+        let roleVal = document.getElementById('player-role-select').value;
+        let tokenVal = document.getElementById('player-color-select').value;
+        let modeVal = document.getElementById('game-mode-select').value;
+        
+        tycoonGame.myRole = roleVal;
+        tycoonGame.gameMode = modeVal;
+
+        if(modeVal === 'ai') {
+            tycoonGame.p2Name = "Bot 101";
+            tycoonGame.p2Token = "🤖";
         }
-    }, 400);
+
+        if(roleVal === 'p1') {
+            tycoonGame.p1Name = nameVal;
+            tycoonGame.p1Token = tokenVal;
+            if(tycoonGame.p2Token === tokenVal && modeVal !== 'ai') tycoonGame.p2Token = "🟠";
+        } else {
+            tycoonGame.p2Name = nameVal;
+            tycoonGame.p2Token = tokenVal;
+            if(tycoonGame.p1Token === tokenVal) tycoonGame.p1Token = "🔵";
+        }
+
+        updateUIFunds();
+    }
+
+    function updateUIFunds() {
+        document.getElementById('tycoon-funds').innerText = `${tycoonGame.myRole === 'p1' ? tycoonGame.funds : tycoonGame.p2Funds} ME`;
+        document.getElementById('p1-bal').innerText = tycoonGame.funds;
+        document.getElementById('p2-bal').innerText = tycoonGame.p2Funds;
+        document.getElementById('p1-label-name').innerText = tycoonGame.p1Name;
+        document.getElementById('p1-label-token').innerText = tycoonGame.p1Token;
+        document.getElementById('p2-label-name').innerText = tycoonGame.p2Name;
+        document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
+    }
+
+    function hostP2PSession() {
+        if(peer) peer.destroy();
+        let customCode = document.getElementById('room-code-input').value.trim() || "DETROIT-313";
+        
+        peer = new Peer(customCode);
+        peer.on('open', (id) => {
+            logTycoon(`Hosting room [${customCode}]! Waiting for Player 2 to join with this code.`);
+        });
+        peer.on('connection', (incomingConn) => {
+            conn = incomingConn;
+            setupConnectionEvents();
+            logTycoon(`Player 2 successfully connected to your session!`);
+            broadcastState();
+        });
+        peer.on('error', (err) => {
+            logTycoon(`Host error: Code [${customCode}] may already be active. Click ⚡ CODE to generate a new one.`);
+        });
+    }
+
+    function joinP2PSession() {
+        if(peer) peer.destroy();
+        let targetCode = document.getElementById('room-code-input').value.trim() || "DETROIT-313";
+
+        peer = new Peer();
+        peer.on('open', (id) => {
+            logTycoon(`Connecting to Host code [${targetCode}]...`);
+            conn = peer.connect(targetCode);
+            setupConnectionEvents();
+        });
+        peer.on('error', (err) => {
+            logTycoon(`Failed to connect. Make sure Host clicked HOST first and code matches.`);
+        });
+    }
+
+    function hostVanguardP2P() {
+        if(peer) peer.destroy();
+        let customCode = document.getElementById('v-room-code-input').value.trim() || "VANGUARD-313";
+        
+        peer = new Peer(customCode);
+        peer.on('open', (id) => {
+            logVanguard(`Hosting Vanguard room [${customCode}]! Waiting for Rival to join.`);
+        });
+        peer.on('connection', (incomingConn) => {
+            conn = incomingConn;
+            setupConnectionEvents();
+            logVanguard(`Rival successfully connected to Vanguard Hub!`);
+            broadcastState();
+        });
+        peer.on('error', (err) => {
+            logVanguard(`Host error: Code [${customCode}] may already be active. Click ⚡ CODE.`);
+        });
+    }
+
+    function joinVanguardP2P() {
+        if(peer) peer.destroy();
+        let targetCode = document.getElementById('v-room-code-input').value.trim() || "VANGUARD-313";
+
+        peer = new Peer();
+        peer.on('open', (id) => {
+            logVanguard(`Connecting to Vanguard Host [${targetCode}]...`);
+            conn = peer.connect(targetCode);
+            setupConnectionEvents();
+        });
+        peer.on('error', (err) => {
+            logVanguard(`Failed to connect. Make sure Host clicked HOST first.`);
+        });
+    }
+
+    function setupConnectionEvents() {
+        if(!conn) return;
+        conn.on('data', (incomingData) => {
+            if (incomingData.tycoonGame) {
+                let incoming = incomingData.tycoonGame;
+                tycoonGame.funds = incoming.funds !== undefined ? incoming.funds : tycoonGame.funds;
+                tycoonGame.p2Funds = incoming.p2Funds !== undefined ? incoming.p2Funds : tycoonGame.p2Funds;
+                tycoonGame.position = incoming.position !== undefined ? incoming.position : tycoonGame.position;
+                tycoonGame.p2Position = incoming.p2Position !== undefined ? incoming.p2Position : tycoonGame.p2Position;
+                if(incoming.tiles && incoming.tiles.length > 0) {
+                    tycoonGame.tiles = incoming.tiles;
+                }
+                if(incoming.p1Name) tycoonGame.p1Name = incoming.p1Name;
+                if(incoming.p2Name) tycoonGame.p2Name = incoming.p2Name;
+                if(incoming.p1Token) tycoonGame.p1Token = incoming.p1Token;
+                if(incoming.p2Token) tycoonGame.p2Token = incoming.p2Token;
+
+                updateUIFunds();
+                drawTycoonBoard();
+            }
+            if (incomingData.vanguardGame) {
+                vanguardGame = incomingData.vanguardGame;
+                updateVanguardUI();
+                drawVanguardBoard();
+            }
+        });
+        conn.on('open', () => {
+            logTycoon(`P2P Connection Established Successfully! Game Synced.`);
+            broadcastState();
+        });
+    }
+
+    function broadcastState() {
+        if(conn && conn.open) {
+            conn.send({
+                tycoonGame: tycoonGame,
+                vanguardGame: vanguardGame
+            });
+        }
+    }
+
+    function resetTycoonGame() {
+        tycoonGame.funds = 625;
+        tycoonGame.p2Funds = 625;
+        tycoonGame.position = 0;
+        tycoonGame.p2Position = 0;
+        tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[currentCityKey].tiles));
+        updateUIFunds();
+        drawTycoonBoard();
+        logTycoon(`Board reset for all connected players!`);
+        broadcastState();
+    }
+
+    function changeCityBoard(cityKey) {
+        currentCityKey = cityKey;
+        tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[cityKey].tiles));
+        tycoonGame.position = 0;
+        tycoonGame.p2Position = 0;
+        logTycoon(`Switched board map to ${cityBoards[cityKey].title}!`);
+        drawTycoonBoard();
+        broadcastState();
+    }
+
+    function hasColorMonopoly(playerName, colorHex) {
+        let sameColorTiles = tycoonGame.tiles.filter(t => t.color === colorHex && t.cost > 0);
+        if(sameColorTiles.length === 0) return false;
+        return sameColorTiles.every(t => t.owner === playerName);
+    }
+
+    function checkTycoonBankruptcy(isPlayer1, debtAmount, creditorName) {
+        let currentFunds = isPlayer1 ? tycoonGame.funds : tycoonGame.p2Funds;
+        let playerName = isPlayer1 ? tycoonGame.p1Name : tycoonGame.p2Name;
+
+        if (currentFunds >= debtAmount) {
+            if (isPlayer1) tycoonGame.funds -= debtAmount;
+            else tycoonGame.p2Funds -= debtAmount;
+            return true;
+        }
+
+        logTycoon(`⚠️ ${playerName} is in debt! Deficit of ${debtAmount - currentFunds} ME. Liquidating assets...`);
+        
+        let playerTiles = tycoonGame.tiles.filter(t => t.owner === playerName && !t.isMortgaged);
+        for (let tile of playerTiles) {
+            let mortgageVal = Math.floor(tile.cost * 0.5);
+            tile.isMortgaged = true;
+            currentFunds += mortgageVal;
+            logTycoon(`Auto-mortgaged ${tile.name} for +${mortgageVal} ME to cover debt.`);
+            if (currentFunds >= debtAmount) break;
+        }
+
+        if (isPlayer1) tycoonGame.funds = currentFunds;
+        else tycoonGame.p2Funds = currentFunds;
+
+        if (currentFunds >= debtAmount) {
+            if (isPlayer1) tycoonGame.funds -= debtAmount;
+            else tycoonGame.p2Funds -= debtAmount;
+            return true;
+        }
+
+        logTycoon(`🚨 BANKRUPTCY: ${playerName} cannot cover the debt! Surrendering sectors to ${creditorName}.`);
+        tycoonGame.tiles.forEach(t => {
+            if (t.owner === playerName) {
+                t.owner = creditorName;
+                t.isMortgaged = false;
+            }
+        });
+        if (isPlayer1) tycoonGame.funds = 200;
+        else tycoonGame.p2Funds = 200;
+        return false;
+    }
 
     const cityBoards = {
         detroit: {
@@ -872,10 +1108,10 @@
         p2Position: 0,
         p1Name: "Tommy",
         p1Token: "🔵",
-        p2Name: "Guest",
-        p2Token: "🟠",
+        p2Name: "Bot 101",
+        p2Token: "🤖",
         myRole: "p1",
-        gameMode: "p2p",
+        gameMode: "ai",
         tiles: JSON.parse(JSON.stringify(cityBoards.detroit.tiles))
     };
 
@@ -883,246 +1119,6 @@
     let activeInspectedTileIndex = null;
     let peer = null;
     let conn = null;
-
-    window.addEventListener('DOMContentLoaded', () => {
-        tCanvas = document.getElementById('tycoonCanvas');
-        if (tCanvas) tCtx = tCanvas.getContext('2d');
-
-        let savedRole = localStorage.getItem('rhodes_my_role');
-        let savedName = localStorage.getItem('rhodes_my_name');
-        let savedToken = localStorage.getItem('rhodes_my_token');
-        let savedRoom = localStorage.getItem('rhodes_room_code');
-
-        if(savedRole) document.getElementById('player-role-select').value = savedRole;
-        if(savedName) document.getElementById('player-name-input').value = savedName;
-        if(savedToken) document.getElementById('player-color-select').value = savedToken;
-        if(savedRoom) document.getElementById('room-code-input').value = savedRoom;
-        
-        // Default mode to P2P when using the lobby
-        document.getElementById('game-mode-select').value = "p2p";
-
-        applyProfileSettings();
-        drawTycoonBoard();
-    });
-
-    function generateCompoundRoom() {
-        const prefixes = ["DETROIT", "SAGINAW", "VANGUARD", "MARROW", "ROADS", "WRIGHT", "MITCHELL", "ATWATER"];
-        const suffixes = ["313", "517", "HUB", "VAULT", "GRID", "REUNION", "ESTATE", "CORRIDOR"];
-        let p = prefixes[Math.floor(Math.random() * prefixes.length)];
-        let s = suffixes[Math.floor(Math.random() * suffixes.length)];
-        let code = `${p}-${s}`;
-        document.getElementById('room-code-input').value = code;
-        logTycoon(`Generated compound room code: [${code}]`);
-    }
-
-    function generateVanguardRoomCode() {
-        const prefixes = ["VANGUARD", "MARROW", "DETROIT", "SAGINAW", "CHRONO", "NEXUS", "SYNDICATE"];
-        const suffixes = ["313", "517", "GRID", "VAULT", "STATION", "CORE", "BASTION"];
-        let p = prefixes[Math.floor(Math.random() * prefixes.length)];
-        let s = suffixes[Math.floor(Math.random() * suffixes.length)];
-        let code = `${p}-${s}`;
-        document.getElementById('v-room-code-input').value = code;
-        logVanguard(`Generated Vanguard compound code: [${code}]`);
-    }
-
-    function applyProfileSettings() {
-        let nameVal = document.getElementById('player-name-input').value || "Tommy";
-        let roleVal = document.getElementById('player-role-select').value;
-        let tokenVal = document.getElementById('player-color-select').value;
-        
-        tycoonGame.myRole = roleVal;
-        tycoonGame.gameMode = "p2p";
-
-        if(roleVal === 'p1') {
-            tycoonGame.p1Name = nameVal;
-            tycoonGame.p1Token = tokenVal;
-        } else {
-            tycoonGame.p2Name = nameVal;
-            tycoonGame.p2Token = tokenVal;
-        }
-
-        updateUIFunds();
-        broadcastState();
-    }
-
-    function updateUIFunds() {
-        document.getElementById('tycoon-funds').innerText = `${tycoonGame.myRole === 'p1' ? tycoonGame.funds : tycoonGame.p2Funds} ME`;
-        document.getElementById('p1-bal').innerText = tycoonGame.funds;
-        document.getElementById('p2-bal').innerText = tycoonGame.p2Funds;
-        document.getElementById('p1-label-name').innerText = tycoonGame.p1Name;
-        document.getElementById('p1-label-token').innerText = tycoonGame.p1Token;
-        document.getElementById('p2-label-name').innerText = tycoonGame.p2Name;
-        document.getElementById('p2-label-token').innerText = tycoonGame.p2Token;
-    }
-
-    function hostP2PSession() {
-        if(peer) peer.destroy();
-        let customCode = document.getElementById('room-code-input').value.trim() || "DETROIT-313";
-        
-        peer = new Peer(customCode);
-        peer.on('open', (id) => {
-            logTycoon(`Hosting room [${customCode}]! Waiting for Player 2 to join.`);
-        });
-        peer.on('connection', (incomingConn) => {
-            conn = incomingConn;
-            setupConnectionEvents();
-            logTycoon(`Player 2 successfully connected!`);
-            broadcastState();
-        });
-        peer.on('error', (err) => {
-            logTycoon(`Host error: Code [${customCode}] active. Click ⚡ CODE for new one.`);
-        });
-    }
-
-    function joinP2PSession() {
-        if(peer) peer.destroy();
-        let targetCode = document.getElementById('room-code-input').value.trim() || "DETROIT-313";
-
-        peer = new Peer();
-        peer.on('open', (id) => {
-            logTycoon(`Connecting to Host [${targetCode}]...`);
-            conn = peer.connect(targetCode);
-            setupConnectionEvents();
-        });
-        peer.on('error', (err) => {
-            logTycoon(`Failed to connect. Ensure Host clicked HOST first.`);
-        });
-    }
-
-    function hostVanguardP2P() {
-        if(peer) peer.destroy();
-        let customCode = document.getElementById('v-room-code-input').value.trim() || "VANGUARD-313";
-        
-        peer = new Peer(customCode);
-        peer.on('open', (id) => {
-            logVanguard(`Hosting Vanguard room [${customCode}]!`);
-        });
-        peer.on('connection', (incomingConn) => {
-            conn = incomingConn;
-            setupConnectionEvents();
-            logVanguard(`Rival connected to Vanguard Hub!`);
-            broadcastState();
-        });
-    }
-
-    function joinVanguardP2P() {
-        if(peer) peer.destroy();
-        let targetCode = document.getElementById('v-room-code-input').value.trim() || "VANGUARD-313";
-
-        peer = new Peer();
-        peer.on('open', (id) => {
-            logVanguard(`Connecting to Vanguard Host [${targetCode}]...`);
-            conn = peer.connect(targetCode);
-            setupConnectionEvents();
-        });
-    }
-
-    function setupConnectionEvents() {
-        if(!conn) return;
-        conn.on('data', (incomingData) => {
-            if (incomingData.tycoonGame) {
-                let incoming = incomingData.tycoonGame;
-                tycoonGame.funds = incoming.funds !== undefined ? incoming.funds : tycoonGame.funds;
-                tycoonGame.p2Funds = incoming.p2Funds !== undefined ? incoming.p2Funds : tycoonGame.p2Funds;
-                tycoonGame.position = incoming.position !== undefined ? incoming.position : tycoonGame.position;
-                tycoonGame.p2Position = incoming.p2Position !== undefined ? incoming.p2Position : tycoonGame.p2Position;
-                if(incoming.tiles && incoming.tiles.length > 0) {
-                    tycoonGame.tiles = incoming.tiles;
-                }
-                if(incoming.p1Name) tycoonGame.p1Name = incoming.p1Name;
-                if(incoming.p2Name) tycoonGame.p2Name = incoming.p2Name;
-                if(incoming.p1Token) tycoonGame.p1Token = incoming.p1Token;
-                if(incoming.p2Token) tycoonGame.p2Token = incoming.p2Token;
-
-                updateUIFunds();
-                drawTycoonBoard();
-            }
-            if (incomingData.vanguardGame) {
-                vanguardGame = incomingData.vanguardGame;
-                updateVanguardUI();
-                drawVanguardBoard();
-            }
-        });
-        conn.on('open', () => {
-            logTycoon(`P2P Live Sync Established!`);
-            broadcastState();
-        });
-    }
-
-    function broadcastState() {
-        if(conn && conn.open) {
-            conn.send({
-                tycoonGame: tycoonGame,
-                vanguardGame: vanguardGame
-            });
-        }
-    }
-
-    function resetTycoonGame() {
-        tycoonGame.funds = 625;
-        tycoonGame.p2Funds = 625;
-        tycoonGame.position = 0;
-        tycoonGame.p2Position = 0;
-        tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[currentCityKey].tiles));
-        updateUIFunds();
-        drawTycoonBoard();
-        logTycoon(`Board reset across P2P!`);
-        broadcastState();
-    }
-
-    function changeCityBoard(cityKey) {
-        currentCityKey = cityKey;
-        tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[cityKey].tiles));
-        tycoonGame.position = 0;
-        tycoonGame.p2Position = 0;
-        logTycoon(`Map switched to ${cityBoards[cityKey].title}!`);
-        drawTycoonBoard();
-        broadcastState();
-    }
-
-    function hasColorMonopoly(playerName, colorHex) {
-        let sameColorTiles = tycoonGame.tiles.filter(t => t.color === colorHex && t.cost > 0);
-        if(sameColorTiles.length === 0) return false;
-        return sameColorTiles.every(t => t.owner === playerName);
-    }
-
-    function checkTycoonBankruptcy(isPlayer1, debtAmount, creditorName) {
-        let currentFunds = isPlayer1 ? tycoonGame.funds : tycoonGame.p2Funds;
-        let playerName = isPlayer1 ? tycoonGame.p1Name : tycoonGame.p2Name;
-
-        if (currentFunds >= debtAmount) {
-            if (isPlayer1) tycoonGame.funds -= debtAmount;
-            else tycoonGame.p2Funds -= debtAmount;
-            return true;
-        }
-
-        let playerTiles = tycoonGame.tiles.filter(t => t.owner === playerName && !t.isMortgaged);
-        for (let tile of playerTiles) {
-            let mortgageVal = Math.floor(tile.cost * 0.5);
-            tile.isMortgaged = true;
-            currentFunds += mortgageVal;
-            if (currentFunds >= debtAmount) break;
-        }
-
-        if (isPlayer1) tycoonGame.funds = currentFunds;
-        else tycoonGame.p2Funds = currentFunds;
-
-        if (currentFunds >= debtAmount) {
-            if (isPlayer1) tycoonGame.funds -= debtAmount;
-            else tycoonGame.p2Funds -= debtAmount;
-            return true;
-        }
-
-        tycoonGame.tiles.forEach(t => {
-            if (t.owner === playerName) {
-                t.owner = creditorName;
-                t.isMortgaged = false;
-            }
-        });
-        if (isPlayer1) tycoonGame.funds = 200;
-        else tycoonGame.p2Funds = 200;
-        return false;
-    }
 
     function drawTycoonBoard() {
         if (!tCtx) return;
@@ -1203,25 +1199,29 @@
         let cx = tCanvas.width / 2;
         let cy = tCanvas.height / 2;
 
-        if (treeLoaded) {
-            tCtx.save();
-            tCtx.shadowColor = '#66fcf1';
-            tCtx.shadowBlur = 20;
-            let imgSize = 135;
-            tCtx.drawImage(treeImg, cx - (imgSize / 2), cy - (imgSize / 2) - 25, imgSize, imgSize);
-            tCtx.restore();
-        }
+        tCtx.save();
+        tCtx.shadowColor = '#ff7b00';
+        tCtx.shadowBlur = 20;
+        tCtx.fillStyle = '#ff7b00';
+        tCtx.beginPath();
+        tCtx.arc(cx, cy - 35, 38, 0, Math.PI * 2);
+        tCtx.fill();
+        tCtx.fillStyle = '#66fcf1';
+        tCtx.font = 'bold 22px Courier New';
+        tCtx.textAlign = 'center';
+        tCtx.fillText("🌳", cx, cy - 27);
+        tCtx.restore();
 
         tCtx.font = "bold 14px Courier New";
         tCtx.fillStyle = "#66fcf1";
         tCtx.textAlign = "center";
         tCtx.shadowColor = "#66fcf1";
         tCtx.shadowBlur = 10;
-        tCtx.fillText("RHODES FAMILY LEGACY", cx, cy + 52);
+        tCtx.fillText("RHODES FAMILY LEGACY", cx, cy + 22);
         
         tCtx.font = "11px Courier New";
         tCtx.fillStyle = "#ff7b00";
-        tCtx.fillText(cityBoards[currentCityKey].title, cx, cy + 70);
+        tCtx.fillText(cityBoards[currentCityKey].title, cx, cy + 40);
         tCtx.textAlign = "left";
         tCtx.shadowBlur = 0;
     }
@@ -1266,14 +1266,19 @@
 
         if(!tile.isMortgaged) {
             tile.isMortgaged = true;
-            if(tycoonGame.myRole === 'p1') tycoonGame.funds += mortgageValue;
-            else tycoonGame.p2Funds += mortgageValue;
+            if(tile.owner === tycoonGame.p1Name && tycoonGame.myRole === 'p1') {
+                tycoonGame.funds += mortgageValue;
+            } else {
+                tycoonGame.p2Funds += mortgageValue;
+            }
+            logTycoon(`${tile.name} was mortgaged for +$${mortgageValue} ME.`);
         } else {
-            let myFunds = tycoonGame.myRole === 'p1' ? tycoonGame.funds : tycoonGame.p2Funds;
-            if(myFunds >= mortgageValue) {
+            if(tycoonGame.funds >= mortgageValue) {
                 tile.isMortgaged = false;
-                if(tycoonGame.myRole === 'p1') tycoonGame.funds -= mortgageValue;
-                else tycoonGame.p2Funds -= mortgageValue;
+                tycoonGame.funds -= mortgageValue;
+                logTycoon(`${tile.name} was unmortgaged for -$${mortgageValue} ME.`);
+            } else {
+                logTycoon(`Insufficient funds to unmortgage ${tile.name}.`);
             }
         }
         updateUIFunds();
@@ -1285,6 +1290,7 @@
     function closeArModal() { document.getElementById('ar-modal').classList.add('hidden'); }
     function closeEventModal() { document.getElementById('event-modal').classList.add('hidden'); }
 
+    // --- FULLY SYNCHRONIZED P2P TYCOON ACTION ---
     function tycoonAction(action) {
         applyProfileSettings();
 
@@ -1295,7 +1301,7 @@
 
             document.getElementById('dice-1').innerText = die1;
             document.getElementById('dice-2').innerText = die2;
-            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${rollSum})!`;
+            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${rollSum}) across board!`;
             document.getElementById('dice-modal').classList.remove('hidden');
 
             setTimeout(() => {
@@ -1316,12 +1322,15 @@
                         let payableRent = tile.rent;
                         if(hasColorMonopoly(tile.owner, tile.color)) payableRent *= 2;
                         let success = checkTycoonBankruptcy(true, payableRent, tile.owner);
-                        if (success && tile.owner === tycoonGame.p2Name) tycoonGame.p2Funds += payableRent;
+                        if (success) {
+                            if (tile.owner === tycoonGame.p2Name) tycoonGame.p2Funds += payableRent;
+                            logTycoon(`${tycoonGame.p1Name} paid rent of ${payableRent} ME to ${tile.owner}!`);
+                        }
                     }
                 } else {
-                    let oldPos = tycoonGame.p2Position;
+                    let oldP2Pos = tycoonGame.p2Position;
                     tycoonGame.p2Position = (tycoonGame.p2Position + rollSum) % tycoonGame.tiles.length;
-                    if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
+                    if(tycoonGame.p2Position < oldP2Pos) tycoonGame.p2Funds += 200;
                     
                     let tile = tycoonGame.tiles[tycoonGame.p2Position];
                     logTycoon(`${tycoonGame.p2Name} rolled ${rollSum}. Landed on ${tile.name}.`);
@@ -1333,7 +1342,10 @@
                         let payableRent = tile.rent;
                         if(hasColorMonopoly(tile.owner, tile.color)) payableRent *= 2;
                         let success = checkTycoonBankruptcy(false, payableRent, tile.owner);
-                        if (success && tile.owner === tycoonGame.p1Name) tycoonGame.funds += payableRent;
+                        if (success) {
+                            if (tile.owner === tycoonGame.p1Name) tycoonGame.funds += payableRent;
+                            logTycoon(`${tycoonGame.p2Name} paid rent of ${payableRent} ME to ${tile.owner}!`);
+                        }
                     }
                 }
 
@@ -1398,6 +1410,34 @@
                 logTycoon(`You must own the unmortgaged tile and have 50 ME.`);
             }
         }
+    }
+
+    function triggerAiTurn() {
+        let aiRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
+        let oldPos = tycoonGame.p2Position;
+        tycoonGame.p2Position = (tycoonGame.p2Position + aiRoll) % tycoonGame.tiles.length;
+        if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
+
+        let tile = tycoonGame.tiles[tycoonGame.p2Position];
+        logTycoon(`Bot 101 rolled ${aiRoll} and landed on ${tile.name}.`);
+
+        if(tile.owner === "None" && tile.cost > 0 && tycoonGame.p2Funds >= tile.cost) {
+            tycoonGame.p2Funds -= tile.cost;
+            tile.owner = tycoonGame.p2Name;
+            logTycoon(`Bot 101 purchased ${tile.name}!`);
+        } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name && !tile.isMortgaged) {
+            let payableRent = tile.rent;
+            if(hasColorMonopoly(tile.owner, tile.color)) payableRent *= 2;
+
+            let success = checkTycoonBankruptcy(false, payableRent, tile.owner);
+            if (success) {
+                if (tile.owner === tycoonGame.p1Name) tycoonGame.funds += payableRent;
+                logTycoon(`Bot 101 paid rent of ${payableRent} ME to ${tile.owner}!`);
+            }
+        }
+
+        updateUIFunds();
+        drawTycoonBoard();
     }
 
 
@@ -1762,11 +1802,14 @@
             return true;
         }
 
+        logVanguard(`⚠️ ${participantName} is in debt! Deficit of ${debtAmount - currentFunds} VC. Liquidating sectors...`);
+        
         let ownedTiles = vanguardGame.tiles.filter(t => t.owner === participantName && !t.isMortgaged);
         for (let tile of ownedTiles) {
             let mortgageVal = Math.floor(tile.cost * 0.5);
             tile.isMortgaged = true;
             currentFunds += mortgageVal;
+            logVanguard(`Auto-mortgaged ${tile.name} for +${mortgageVal} VC to cover toll.`);
             if (currentFunds >= debtAmount) break;
         }
 
@@ -1779,6 +1822,7 @@
             return true;
         }
 
+        logVanguard(`🚨 FACTION BANKRUPTCY: ${participantName} cannot pay! Transferring sectors to ${creditorName}.`);
         vanguardGame.tiles.forEach(t => {
             if (t.owner === participantName) {
                 t.owner = creditorName;
@@ -1873,25 +1917,29 @@
         let cx = vCanvas.width / 2;
         let cy = vCanvas.height / 2;
 
-        if (treeLoaded) {
-            vCtx.save();
-            vCtx.shadowColor = '#ff0055';
-            vCtx.shadowBlur = 25;
-            let imgSize = 135;
-            vCtx.drawImage(treeImg, cx - (imgSize / 2), cy - (imgSize / 2) - 25, imgSize, imgSize);
-            vCtx.restore();
-        }
+        vCtx.save();
+        vCtx.shadowColor = '#ff0055';
+        vCtx.shadowBlur = 20;
+        vCtx.fillStyle = '#ff0055';
+        vCtx.beginPath();
+        vCtx.arc(cx, cy - 35, 38, 0, Math.PI * 2);
+        vCtx.fill();
+        vCtx.fillStyle = '#66fcf1';
+        vCtx.font = 'bold 22px Courier New';
+        vCtx.textAlign = 'center';
+        vCtx.fillText("⚡", cx, cy - 27);
+        vCtx.restore();
 
         vCtx.font = "bold 14px Courier New";
         vCtx.fillStyle = "#ff0055";
         vCtx.textAlign = "center";
         vCtx.shadowColor = "#ff0055";
         vCtx.shadowBlur = 12;
-        vCtx.fillText("ANCESTRAL VANGUARD & SYNDICATE", cx, cy + 52);
+        vCtx.fillText("ANCESTRAL VANGUARD & SYNDICATE", cx, cy + 22);
         
         vCtx.font = "11px Courier New";
         vCtx.fillStyle = "#66fcf1";
-        vCtx.fillText("32-Character Cosmic Matrix", cx, cy + 70);
+        vCtx.fillText("32-Character Cosmic Matrix", cx, cy + 40);
         vCtx.textAlign = "left";
         vCtx.shadowBlur = 0;
     }
@@ -1924,7 +1972,7 @@
 
             document.getElementById('dice-1').innerText = die1;
             document.getElementById('dice-2').innerText = die2;
-            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${roll})!`;
+            document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${roll}) across cosmic sectors!`;
             document.getElementById('dice-modal').classList.remove('hidden');
 
             setTimeout(() => {
@@ -1941,14 +1989,18 @@
                     if(tile.type === 'event') {
                         let surge = Math.random() > 0.5 ? 120 : -60;
                         vanguardGame.funds += surge;
+                        logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
                     } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero && !tile.isMortgaged) {
                         let success = checkVanguardBankruptcy(true, tile.rent, tile.owner);
-                        if (success && tile.owner === vanguardGame.rival) vanguardGame.rivalFunds += tile.rent;
+                        if (success) {
+                            if (tile.owner === vanguardGame.rival) vanguardGame.rivalFunds += tile.rent;
+                            logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
+                        }
                     }
                 } else {
-                    let oldPos = vanguardGame.rivalPosition;
+                    let oldRivalPos = vanguardGame.rivalPosition;
                     vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
-                    if(vanguardGame.rivalPosition < oldPos) vanguardGame.rivalFunds += 250;
+                    if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
 
                     let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
                     logVanguard(`${vanguardGame.rival} advanced ${roll} steps to ${rivalTile.name}.`);
@@ -1956,9 +2008,13 @@
                     if(rivalTile.type === 'event') {
                         let surge = Math.random() > 0.5 ? 120 : -60;
                         vanguardGame.rivalFunds += surge;
+                        logVanguard(`Syndicate anomaly triggered! Credit adjustment: ${surge} VC.`);
                     } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
                         let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
-                        if (success && rivalTile.owner === vanguardGame.hero) vanguardGame.funds += rivalTile.rent;
+                        if (success) {
+                            vanguardGame.funds += rivalTile.rent;
+                            logVanguard(`Paid sector toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                        }
                     }
                 }
 
@@ -1986,9 +2042,11 @@
                 }
                 tile.owner = activeOwner;
                 updateVanguardUI();
-                logVanguard(`${activeOwner} claimed ${tile.name}!`);
+                logVanguard(`${activeOwner} claimed ${tile.name} for ${tile.cost} VC!`);
                 drawVanguardBoard();
                 broadcastState();
+            } else {
+                logVanguard(`Insufficient War Credits.`);
             }
         } else if(action === 'upgrade') {
             let activePos = (vanguardGame.myRole === 'p1') ? vanguardGame.position : vanguardGame.rivalPosition;
@@ -2005,15 +2063,17 @@
                 tile.rent += 35;
                 tile.hasHotel = true;
                 updateVanguardUI();
-                logVanguard(`Nexus Tower constructed on ${tile.name}!`);
+                logVanguard(`Nexus Tower constructed on ${tile.name}! Toll surged to ${tile.rent} VC.`);
                 drawVanguardBoard();
                 broadcastState();
+            } else {
+                logVanguard(`You must own this unmortgaged sector and have 60 VC.`);
             }
         }
     }
 
 
-    // --- BINGO LOUNGE (TRADITIONAL, LOTERÍA, & VANGUARD BINGO) ---
+    // --- BINGO LOUNGE ---
     let bCanvas, bCtx;
     let bingoMode = 'traditional';
     let bingoBoardData = [];
@@ -2116,8 +2176,15 @@
                 bCtx.strokeRect(x, y, cellW, cellH);
                 bCtx.restore();
 
-                if(cell.isCenter && treeLoaded) {
-                    bCtx.drawImage(treeImg, x + 15, y + 10, 60, 60);
+                if(cell.isCenter) {
+                    bCtx.fillStyle = '#ff7b00';
+                    bCtx.beginPath();
+                    bCtx.arc(x + cellW/2, y + cellH/2 - 5, 22, 0, Math.PI * 2);
+                    bCtx.fill();
+                    bCtx.fillStyle = '#66fcf1';
+                    bCtx.font = 'bold 18px Courier New';
+                    bCtx.textAlign = 'center';
+                    bCtx.fillText("🌳", x + cellW/2, y + cellH/2 + 3);
                 } else {
                     bCtx.fillStyle = cell.stamped ? '#ff7b00' : '#f0f2f5';
                     bCtx.font = bingoMode === 'traditional' ? 'bold 20px Courier New' : 'bold 11px Courier New';
@@ -2222,7 +2289,7 @@
     }
 
 
-    // --- 5. MARROW DECK CARD LOUNGE (FAIR-PLAY FAMILY CARD GAME) ---
+    // --- 5. MARROW DECK CARD LOUNGE ---
     let marrowDeck = [];
     let playerHand = [];
     let botHand = [];
@@ -2252,4 +2319,138 @@
         }
 
         topDiscardCard = marrowDeck.pop();
-        while(topDiscardCard.
+        while(topDiscardCard.val === "Skip" || topDiscardCard.val === "Reverse" || topDiscardCard.val === "+2") {
+            marrowDeck.unshift(topDiscardCard);
+            topDiscardCard = marrowDeck.pop();
+        }
+
+        isPlayerTurn = true;
+        updateMarrowDeckUI();
+        logMarrowCards("New Marrow Deck match dealt! Match the top color or value.");
+        speakGameEvent("New card game started");
+    }
+
+    function updateMarrowDeckUI() {
+        document.getElementById('discard-color').innerText = topDiscardCard.color;
+        document.getElementById('discard-val').innerText = topDiscardCard.val;
+
+        document.getElementById('card-score-info').innerText = `Your Hand: ${playerHand.length} Cards | Bot: ${botHand.length} Cards`;
+        document.getElementById('card-game-status').innerText = isPlayerTurn ? "Your Turn - Match Color or Number!" : "Bot 101 Thinking...";
+
+        let pArea = document.getElementById('player-hand-area');
+        pArea.innerHTML = "";
+        playerHand.forEach((card, index) => {
+            let cardDiv = document.createElement('div');
+            cardDiv.style.cssText = "width: 65px; height: 95px; background: #1f2833; border: 2px solid #66fcf1; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; box-shadow: 0 0 8px rgba(102,252,241,0.3); transition: transform 0.1s;";
+            cardDiv.innerHTML = `<span style="font-size:0.6rem; color:#94a3b8;">${card.color.split(' ')[0]}</span><span style="font-size:1.1rem; color:#ff7b00;">${card.val}</span><span style="font-size:0.6rem; color:#66fcf1;">MARROW</span>`;
+            
+            cardDiv.onmouseover = () => cardDiv.style.transform = "translateY(-6px)";
+            cardDiv.onmouseout = () => cardDiv.style.transform = "translateY(0)";
+            cardDiv.onclick = () => playPlayerCard(index);
+            pArea.appendChild(cardDiv);
+        });
+
+        let bArea = document.getElementById('bot-hand-area');
+        bArea.innerHTML = "";
+        botHand.forEach(() => {
+            let cardBack = document.createElement('div');
+            cardBack.style.cssText = "width: 45px; height: 65px; background: #9b59b6; border: 1px solid #ff0055; border-radius: 6px; box-shadow: 0 0 5px rgba(155,89,182,0.5);";
+            bArea.appendChild(cardBack);
+        });
+    }
+
+    function playPlayerCard(index) {
+        if(!isPlayerTurn) return;
+        let card = playerHand[index];
+
+        if(card.color === topDiscardCard.color || card.val === topDiscardCard.val) {
+            playerHand.splice(index, 1);
+            topDiscardCard = card;
+            logMarrowCards(`You played ${card.color} ${card.val}`);
+            speakGameEvent(`Played ${card.val}`);
+
+            if(playerHand.length === 0) {
+                alert("🎉 Victory! You cleared your Marrow Deck hand first!");
+                speakGameEvent("You win the card game!");
+                initMarrowDeckGame();
+                return;
+            }
+
+            isPlayerTurn = false;
+            updateMarrowDeckUI();
+
+            setTimeout(() => triggerBotTurn(), 1200);
+        } else {
+            logMarrowCards(`Cannot play ${card.color} ${card.val}. Must match color (${topDiscardCard.color}) or value (${topDiscardCard.val}).`);
+            speakGameEvent("Invalid move");
+        }
+    }
+
+    function drawCardFromDeck() {
+        if(!isPlayerTurn) return;
+        if(marrowDeck.length === 0) {
+            marrowDeck.push({color: "Detroit Blue", val: "5"});
+        }
+        let drawn = marrowDeck.pop();
+        playerHand.push(drawn);
+        logMarrowCards(`Drew a card: ${drawn.color} ${drawn.val}`);
+        speakGameEvent("Card drawn");
+        isPlayerTurn = false;
+        updateMarrowDeckUI();
+
+        setTimeout(() => triggerBotTurn(), 1200);
+    }
+
+    function triggerBotTurn() {
+        let botTimerTriggered = false;
+        let failSafeTimer = setTimeout(() => {
+            if (!isPlayerTurn && !botTimerTriggered) {
+                botTimerTriggered = true;
+                logMarrowCards("Bot turn timed out. Forcing draw recovery.");
+                if(marrowDeck.length > 0) {
+                    botHand.push(marrowDeck.pop());
+                }
+                isPlayerTurn = true;
+                updateMarrowDeckUI();
+            }
+        }, 4000);
+
+        let matchIndex = botHand.findIndex(c => c.color === topDiscardCard.color || c.val === topDiscardCard.val);
+
+        if(matchIndex !== -1) {
+            let card = botHand.splice(matchIndex, 1)[0];
+            topDiscardCard = card;
+            clearTimeout(failSafeTimer);
+            logMarrowCards(`Bot 101 played ${card.color} ${card.val}`);
+
+            if(botHand.length === 0) {
+                alert("🤖 Bot 101 cleared its hand and won! Try again!");
+                speakGameEvent("Bot wins");
+                initMarrowDeckGame();
+                return;
+            }
+        } else {
+            if(marrowDeck.length > 0) {
+                let drawn = marrowDeck.pop();
+                botHand.push(drawn);
+                logMarrowCards(`Bot 101 drew a card.`);
+            }
+        }
+
+        if (!botTimerTriggered) {
+            clearTimeout(failSafeTimer);
+            isPlayerTurn = true;
+            updateMarrowDeckUI();
+        }
+    }
+
+    function logMarrowCards(msg) {
+        const box = document.getElementById('log-box-cards');
+        if(box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
+    }
+</script>
+</body>
+</html>
