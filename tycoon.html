@@ -686,13 +686,13 @@
 
         if(appKey === 'tycoon') {
             document.getElementById('tycoon-view').classList.remove('hidden');
-            setTimeout(() => { drawTycoonBoard(); }, 50);
+            drawTycoonBoard();
         } else if(appKey === 'tetris') {
             document.getElementById('tetris-view').classList.remove('hidden');
             initTetris();
         } else if(appKey === 'vanguard') {
             document.getElementById('vanguard-view').classList.remove('hidden');
-            setTimeout(() => { drawVanguardBoard(); }, 50);
+            drawVanguardBoard();
         } else if(appKey === 'bingo') {
             document.getElementById('bingo-view').classList.remove('hidden');
             initBingoGame();
@@ -705,10 +705,8 @@
 
     function logTycoon(msg) {
         const box = document.getElementById('log-box');
-        if(box) {
-            box.innerHTML += `<br>&gt; ${msg}`;
-            box.scrollTop = box.scrollHeight;
-        }
+        box.innerHTML += `<br>&gt; ${msg}`;
+        box.scrollTop = box.scrollHeight;
         speakGameEvent(msg);
     }
 
@@ -1002,7 +1000,7 @@
         });
         peer.on('connection', (incomingConn) => {
             conn = incomingConn;
-            setupVanguardConnectionEvents();
+            setupConnectionEvents();
             logVanguard(`Rival successfully connected to Vanguard Hub!`);
             broadcastState();
         });
@@ -1019,7 +1017,7 @@
         peer.on('open', (id) => {
             logVanguard(`Connecting to Vanguard Host [${targetCode}]...`);
             conn = peer.connect(targetCode);
-            setupVanguardConnectionEvents();
+            setupConnectionEvents();
         });
         peer.on('error', (err) => {
             logVanguard(`Failed to connect. Make sure Host clicked HOST first.`);
@@ -1034,6 +1032,11 @@
                 updateUIFunds();
                 drawTycoonBoard();
             }
+            if (incomingData.vanguardGame) {
+                vanguardGame = incomingData.vanguardGame;
+                updateVanguardUI();
+                drawVanguardBoard();
+            }
             if(incomingData.tiles && !incomingData.tycoonGame) tycoonGame.tiles = incomingData.tiles;
             if(incomingData.position !== undefined) tycoonGame.position = incomingData.position;
             if(incomingData.p2Position !== undefined) tycoonGame.p2Position = incomingData.p2Position;
@@ -1044,34 +1047,6 @@
             logTycoon(`P2P Connection Established Successfully! Game Synced.`);
             broadcastState();
         });
-    }
-
-    // --- FIXED VANGUARD P2P CONNECTION & ACTION DISPATCHERS ---
-    function setupVanguardConnectionEvents() {
-        if(!conn) return;
-        conn.on('data', (incomingData) => {
-            if (incomingData.vanguardGame) {
-                vanguardGame = incomingData.vanguardGame;
-                updateVanguardUI();
-                drawVanguardBoard();
-            }
-            if (incomingData.action === 'remoteRoll') {
-                executeRemoteVanguardRoll(incomingData.roll, incomingData.rollerRole);
-            }
-        });
-        conn.on('open', () => {
-            logVanguard(`Vanguard P2P Connection Established & Synced!`);
-            broadcastState();
-        });
-    }
-
-    function sendRemoteAction(actionType, payload) {
-        if(conn && conn.open) {
-            conn.send({
-                action: actionType,
-                ...payload
-            });
-        }
     }
 
     function broadcastState() {
@@ -1748,10 +1723,8 @@
 
     function logVanguard(msg) {
         const box = document.getElementById('log-box-v');
-        if(box) {
-            box.innerHTML += `<br>&gt; ${msg}`;
-            box.scrollTop = box.scrollHeight;
-        }
+        box.innerHTML += `<br>&gt; ${msg}`;
+        box.scrollTop = box.scrollHeight;
         speakGameEvent(msg);
     }
 
@@ -1963,7 +1936,6 @@
             let die2 = Math.floor(Math.random() * 6) + 1;
             let roll = die1 + die2;
 
-            // Trigger the 3D Dice Modal popup for Vanguard Tycoon!
             document.getElementById('dice-1').innerText = die1;
             document.getElementById('dice-2').innerText = die2;
             document.getElementById('dice-card-desc').innerText = `Rolled ${die1} and ${die2} (Total: ${roll}) across cosmic sectors!`;
@@ -1972,11 +1944,79 @@
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
                 
-                // Broadcast the roll payload to connected peer over P2P
-                sendRemoteAction('remoteRoll', { roll: roll, rollerRole: vanguardGame.myRole });
-                
-                // Process local execution
-                processVanguardRoll(roll, vanguardGame.myRole);
+                if (vanguardGame.myRole === 'p1') {
+                    let oldPos = vanguardGame.position;
+                    vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
+                    if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
+
+                    let tile = vanguardGame.tiles[vanguardGame.position];
+                    logVanguard(`${vanguardGame.hero} advanced ${roll} steps to ${tile.name}.`);
+
+                    if(tile.type === 'event') {
+                        let surge = Math.random() > 0.5 ? 120 : -60;
+                        vanguardGame.funds += surge;
+                        logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
+                    } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero && !tile.isMortgaged) {
+                        let success = checkVanguardBankruptcy(true, tile.rent, tile.owner);
+                        if (success) {
+                            if (tile.owner === vanguardGame.rival) vanguardGame.rivalFunds += tile.rent;
+                            logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
+                        }
+                    }
+                } else {
+                    let oldRivalPos = vanguardGame.rivalPosition;
+                    vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
+                    if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+
+                    let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
+                    logVanguard(`${vanguardGame.rival} advanced ${roll} steps to ${rivalTile.name}.`);
+                    
+                    if(rivalTile.type === 'event') {
+                        let surge = Math.random() > 0.5 ? 120 : -60;
+                        vanguardGame.rivalFunds += surge;
+                        logVanguard(`Syndicate anomaly triggered! Credit adjustment: ${surge} VC.`);
+                    } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
+                        let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
+                        if (success) {
+                            vanguardGame.funds += rivalTile.rent;
+                            logVanguard(`Paid sector toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                        }
+                    }
+                }
+
+                updateVanguardUI();
+                drawVanguardBoard();
+                broadcastState();
+
+                if(vanguardGame.gameMode === 'ai' && vanguardGame.myRole === 'p1') {
+                    setTimeout(() => {
+                        let rivalDie1 = Math.floor(Math.random() * 6) + 1;
+                        let rivalDie2 = Math.floor(Math.random() * 6) + 1;
+                        let rivalRoll = rivalDie1 + rivalDie2;
+                        
+                        let oldRivalPos = vanguardGame.rivalPosition;
+                        vanguardGame.rivalPosition = (vanguardGame.rivalPosition + rivalRoll) % vanguardGame.tiles.length;
+                        if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+
+                        let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
+                        logVanguard(`Bot (Barons Rust) rolled ${rivalRoll} and landed on ${rivalTile.name}.`);
+                        
+                        if(rivalTile.owner === "None" && rivalTile.cost > 0 && vanguardGame.rivalFunds >= rivalTile.cost) {
+                            rivalTile.owner = vanguardGame.rival;
+                            vanguardGame.rivalFunds -= rivalTile.cost;
+                            logVanguard(`Bot claimed ${rivalTile.name}!`);
+                        } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
+                            let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
+                            if (success) {
+                                vanguardGame.funds += rivalTile.rent;
+                                logVanguard(`Bot paid toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                            }
+                        }
+
+                        updateVanguardUI();
+                        drawVanguardBoard();
+                    }, 1000);
+                }
 
             }, 1200);
 
@@ -2028,29 +2068,378 @@
         }
     }
 
-    function processVanguardRoll(roll, rollerRole) {
-        if (rollerRole === 'p1') {
-            let oldPos = vanguardGame.position;
-            vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
-            if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
 
-            let tile = vanguardGame.tiles[vanguardGame.position];
-            logVanguard(`${vanguardGame.hero} advanced ${roll} steps to ${tile.name}.`);
+    // --- BINGO LOUNGE (TRADITIONAL, LOTERÍA, & VANGUARD BINGO) ---
+    let bCanvas, bCtx;
+    let bingoMode = 'traditional'; // 'traditional', 'loteria', 'vanguard'
+    let bingoBoardData = []; // 5x5 grid items {label: '', stamped: false}
+    let lastCalledItem = "READY";
 
-            if(tile.type === 'event') {
-                let surge = Math.random() > 0.5 ? 120 : -60;
-                vanguardGame.funds += surge;
-                logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
-            } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero && !tile.isMortgaged) {
-                let success = checkVanguardBankruptcy(true, tile.rent, tile.owner);
-                if (success) {
-                    if (tile.owner === vanguardGame.rival) vanguardGame.rivalFunds += tile.rent;
-                    logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
+    const loteriaDeck = [
+        "El Sol", "La Luna", "La Sirena", "El Arpa", "El Valiente", 
+        "El Melón", "El Catrín", "El Paragüas", "La Muerte", "El Alacrán", 
+        "La Botella", "El Barril", "El Árbol", "El Musico", "La Estrellita", "El Nopal"
+    ];
+
+    const vanguardBingoDeck = [
+        "Marcus Prime", "Wakan", "Amina Zazzau", "Detroit 313", "Marrow Nexus", 
+        "Chrono-Lock", "Vortex-Q", "Magma-Weaver", "Prism-Ghost", "Nexus-Zero", 
+        "Syndicate Iron", "D-Harmonic", "Solar Lion", "Ancestral Vault", "Iron Syndicate", "Vanguard Fleet"
+    ];
+
+    function initBingoGame() {
+        bCanvas = document.getElementById('bingoCanvas');
+        if (bCanvas) bCtx = bCanvas.getContext('2d');
+        resetBingoCard();
+    }
+
+    function setBingoMode(mode) {
+        bingoMode = mode;
+        document.getElementById('bingo-mode-trad').className = mode === 'traditional' ? "ctrl-btn secondary" : "tab-btn";
+        document.getElementById('bingo-mode-loteria').className = mode === 'loteria' ? "ctrl-btn purple" : "tab-btn";
+        document.getElementById('bingo-mode-vanguard').className = mode === 'vanguard' ? "ctrl-btn secondary" : "tab-btn";
+        resetBingoCard();
+        logBingo(`Switched Bingo Mode to: ${mode.toUpperCase()}`);
+    }
+
+    function resetBingoCard() {
+        bingoBoardData = [];
+        let pool = [];
+        if(bingoMode === 'traditional') {
+            for(let i=1; i<=75; i++) pool.push(i.toString());
+        } else if(bingoMode === 'loteria') {
+            pool = [...loteriaDeck];
+        } else {
+            pool = [...vanguardBingoDeck];
+        }
+
+        pool.sort(() => Math.random() - 0.5);
+
+        let idx = 0;
+        for(let r=0; r<5; r++) {
+            let row = [];
+            for(let c=0; c<5; c++) {
+                if(r === 2 && c === 2) {
+                    row.push({label: "FAMILY CREST", stamped: true, isCenter: true});
+                } else {
+                    row.push({label: pool[idx++ % pool.length], stamped: false, isCenter: false});
                 }
             }
-        } else {
-            let oldRivalPos = vanguardGame.rivalPosition;
-            vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
-            if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+            bingoBoardData.push(row);
+        }
+        lastCalledItem = "READY";
+        updateBingoBanner();
+        drawBingoBoard();
+    }
 
-            let rivalTile = vanguardGame.tiles
+    function drawBingoBoard() {
+        if(!bCtx) return;
+        bCtx.clearRect(0, 0, bCanvas.width, bCanvas.height);
+
+        bCtx.strokeStyle = 'rgba(255, 123, 0, 0.12)';
+        bCtx.lineWidth = 1;
+        let sz = 30;
+        for (let x = 0; x < bCanvas.width; x += sz) {
+            bCtx.beginPath(); bCtx.moveTo(x, 0); bCtx.lineTo(x, bCanvas.height); bCtx.stroke();
+        }
+        for (let y = 0; y < bCanvas.height; y += sz) {
+            bCtx.beginPath(); bCtx.moveTo(0, y); bCtx.lineTo(bCanvas.width, y); bCtx.stroke();
+        }
+
+        let startX = 225;
+        let startY = 35;
+        let cellW = 90;
+        let cellH = 80;
+
+        let stampedCount = 0;
+
+        for(let r=0; r<5; r++) {
+            for(let c=0; c<5; c++) {
+                let cell = bingoBoardData[r][c];
+                let x = startX + c * (cellW + 6);
+                let y = startY + r * (cellH + 6);
+
+                if(cell.stamped) stampedCount++;
+
+                bCtx.fillStyle = cell.stamped ? 'rgba(255, 123, 0, 0.25)' : '#0b0c10';
+                bCtx.strokeStyle = cell.stamped ? '#ff7b00' : '#45a29e';
+                bCtx.lineWidth = cell.stamped ? 2.5 : 1.5;
+
+                bCtx.save();
+                bCtx.shadowColor = cell.stamped ? '#ff7b00' : '#66fcf1';
+                bCtx.shadowBlur = cell.stamped ? 12 : 6;
+                bCtx.fillRect(x, y, cellW, cellH);
+                bCtx.strokeRect(x, y, cellW, cellH);
+                bCtx.restore();
+
+                if(cell.isCenter && treeLoaded) {
+                    bCtx.drawImage(treeImg, x + 15, y + 10, 60, 60);
+                } else {
+                    bCtx.fillStyle = cell.stamped ? '#ff7b00' : '#f0f2f5';
+                    bCtx.font = bingoMode === 'traditional' ? 'bold 20px Courier New' : 'bold 11px Courier New';
+                    bCtx.textAlign = 'center';
+                    bCtx.fillText(cell.label, x + (cellW/2), y + (cellH/2) + 7);
+                }
+            }
+        }
+
+        bCtx.textAlign = 'left';
+        bCtx.fillStyle = '#66fcf1';
+        bCtx.font = 'bold 13px Courier New';
+        bCtx.fillText("BINGO LOUNGE", 25, 50);
+
+        bCtx.fillStyle = '#ff7b00';
+        bCtx.font = '11px Courier New';
+        bCtx.fillText(`Mode: ${bingoMode.toUpperCase()}`, 25, 75);
+        bCtx.fillText(`Last Call:`, 25, 110);
+
+        bCtx.fillStyle = '#fff';
+        bCtx.font = 'bold 16px Courier New';
+        bCtx.fillText(lastCalledItem, 25, 135);
+
+        document.getElementById('bingo-score-banner').innerText = `Stamped: ${stampedCount} / 25`;
+    }
+
+    function handleBingoTouch(event) {
+        let rect = bCanvas.getBoundingClientRect();
+        let scaleX = bCanvas.width / rect.width;
+        let scaleY = bCanvas.height / rect.height;
+        let clickX = (event.clientX - rect.left) * scaleX;
+        let clickY = (event.clientY - rect.top) * scaleY;
+
+        let startX = 225;
+        let startY = 35;
+        let cellW = 90;
+        let cellH = 80;
+
+        for(let r=0; r<5; r++) {
+            for(let c=0; c<5; c++) {
+                let x = startX + c * (cellW + 6);
+                let y = startY + r * (cellH + 6);
+
+                if(clickX >= x && clickX <= x + cellW && clickY >= y && clickY <= y + cellH) {
+                    if(!bingoBoardData[r][c].isCenter) {
+                        bingoBoardData[r][c].stamped = !bingoBoardData[r][c].stamped;
+                        drawBingoBoard();
+                        speakGameEvent(bingoBoardData[r][c].stamped ? "Stamped" : "Unstamped");
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    function drawBingoCall() {
+        if(bingoMode === 'traditional') {
+            let num = Math.floor(Math.random() * 75) + 1;
+            let prefix = num <= 15 ? 'B' : (num <= 30 ? 'I' : (num <= 45 ? 'N' : (num <= 60 ? 'G' : 'O')));
+            lastCalledItem = `${prefix}-${num}`;
+        } else if(bingoMode === 'loteria') {
+            lastCalledItem = loteriaDeck[Math.floor(Math.random() * loteriaDeck.length)];
+        } else {
+            lastCalledItem = vanguardBingoDeck[Math.floor(Math.random() * vanguardBingoDeck.length)];
+        }
+
+        updateBingoBanner();
+        drawBingoBoard();
+        logBingo(`Called: ${lastCalledItem}`);
+        speakGameEvent(lastCalledItem);
+    }
+
+    function updateBingoBanner() {
+        document.getElementById('bingo-status-banner').innerText = `CURRENT CALL: ${lastCalledItem}`;
+    }
+
+    function checkBingoWin() {
+        let hasWon = false;
+        for(let i=0; i<5; i++) {
+            if(bingoBoardData[i].every(cell => cell.stamped)) hasWon = true;
+            if(bingoBoardData.every(row => row[i].stamped)) hasWon = true;
+        }
+        if([0,1,2,3,4].every(i => bingoBoardData[i][i].stamped)) hasWon = true;
+        if([0,1,2,3,4].every(i => bingoBoardData[i][4-i].stamped)) hasWon = true;
+
+        if(hasWon) {
+            logBingo("🎉 BINGO! ¡LOTERÍA! Family victory achieved!");
+            speakGameEvent("Bingo! Lotería! Victory!");
+            alert("🎉 BINGO / ¡LOTERÍA! You have successfully aligned the board!");
+        } else {
+            logBingo("Not yet! Keep stamping your matching squares.");
+            speakGameEvent("Not yet a bingo!");
+        }
+    }
+
+    function logBingo(msg) {
+        const box = document.getElementById('log-box-b');
+        if(box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
+    }
+
+
+    // --- 5. MARROW DECK CARD LOUNGE (FAIR-PLAY FAMILY CARD GAME) ---
+    let marrowDeck = [];
+    let playerHand = [];
+    let botHand = [];
+    let topDiscardCard = null;
+    let isPlayerTurn = true;
+
+    const cardColors = ["Detroit Blue", "Vanguard Gold", "Syndicate Crimson", "Marrow Green"];
+    const cardValues = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Skip", "Reverse", "+2"];
+
+    function initMarrowDeckGame() {
+        marrowDeck = [];
+        playerHand = [];
+        botHand = [];
+
+        cardColors.forEach(color => {
+            cardValues.forEach(val => {
+                marrowDeck.push({color: color, val: val});
+                if(val !== "1") marrowDeck.push({color: color, val: val});
+            });
+        });
+
+        marrowDeck.sort(() => Math.random() - 0.5);
+
+        for(let i=0; i<7; i++) {
+            if(marrowDeck.length > 0) playerHand.push(marrowDeck.pop());
+            if(marrowDeck.length > 0) botHand.push(marrowDeck.pop());
+        }
+
+        topDiscardCard = marrowDeck.pop();
+        while(topDiscardCard.val === "Skip" || topDiscardCard.val === "Reverse" || topDiscardCard.val === "+2") {
+            marrowDeck.unshift(topDiscardCard);
+            topDiscardCard = marrowDeck.pop();
+        }
+
+        isPlayerTurn = true;
+        updateMarrowDeckUI();
+        logMarrowCards("New Marrow Deck match dealt! Match the top color or value.");
+        speakGameEvent("New card game started");
+    }
+
+    function updateMarrowDeckUI() {
+        document.getElementById('discard-color').innerText = topDiscardCard.color;
+        document.getElementById('discard-val').innerText = topDiscardCard.val;
+
+        document.getElementById('card-score-info').innerText = `Your Hand: ${playerHand.length} Cards | Bot: ${botHand.length} Cards`;
+        document.getElementById('card-game-status').innerText = isPlayerTurn ? "Your Turn - Match Color or Number!" : "Bot 101 Thinking...";
+
+        let pArea = document.getElementById('player-hand-area');
+        pArea.innerHTML = "";
+        playerHand.forEach((card, index) => {
+            let cardDiv = document.createElement('div');
+            cardDiv.style.cssText = "width: 65px; height: 95px; background: #1f2833; border: 2px solid #66fcf1; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; box-shadow: 0 0 8px rgba(102,252,241,0.3); transition: transform 0.1s;";
+            cardDiv.innerHTML = `<span style="font-size:0.6rem; color:#94a3b8;">${card.color.split(' ')[0]}</span><span style="font-size:1.1rem; color:#ff7b00;">${card.val}</span><span style="font-size:0.6rem; color:#66fcf1;">MARROW</span>`;
+            
+            cardDiv.onmouseover = () => cardDiv.style.transform = "translateY(-6px)";
+            cardDiv.onmouseout = () => cardDiv.style.transform = "translateY(0)";
+            cardDiv.onclick = () => playPlayerCard(index);
+            pArea.appendChild(cardDiv);
+        });
+
+        let bArea = document.getElementById('bot-hand-area');
+        bArea.innerHTML = "";
+        botHand.forEach(() => {
+            let cardBack = document.createElement('div');
+            cardBack.style.cssText = "width: 45px; height: 65px; background: #9b59b6; border: 1px solid #ff0055; border-radius: 6px; box-shadow: 0 0 5px rgba(155,89,182,0.5);";
+            bArea.appendChild(cardBack);
+        });
+    }
+
+    function playPlayerCard(index) {
+        if(!isPlayerTurn) return;
+        let card = playerHand[index];
+
+        if(card.color === topDiscardCard.color || card.val === topDiscardCard.val) {
+            playerHand.splice(index, 1);
+            topDiscardCard = card;
+            logMarrowCards(`You played ${card.color} ${card.val}`);
+            speakGameEvent(`Played ${card.val}`);
+
+            if(playerHand.length === 0) {
+                alert("🎉 Victory! You cleared your Marrow Deck hand first!");
+                speakGameEvent("You win the card game!");
+                initMarrowDeckGame();
+                return;
+            }
+
+            isPlayerTurn = false;
+            updateMarrowDeckUI();
+
+            setTimeout(() => triggerBotTurn(), 1200);
+        } else {
+            logMarrowCards(`Cannot play ${card.color} ${card.val}. Must match color (${topDiscardCard.color}) or value (${topDiscardCard.val}).`);
+            speakGameEvent("Invalid move");
+        }
+    }
+
+    function drawCardFromDeck() {
+        if(!isPlayerTurn) return;
+        if(marrowDeck.length === 0) {
+            marrowDeck.push({color: "Detroit Blue", val: "5"});
+        }
+        let drawn = marrowDeck.pop();
+        playerHand.push(drawn);
+        logMarrowCards(`Drew a card: ${drawn.color} ${drawn.val}`);
+        speakGameEvent("Card drawn");
+        isPlayerTurn = false;
+        updateMarrowDeckUI();
+
+        setTimeout(() => triggerBotTurn(), 1200);
+    }
+
+    function triggerBotTurn() {
+        let botTimerTriggered = false;
+        let failSafeTimer = setTimeout(() => {
+            if (!isPlayerTurn && !botTimerTriggered) {
+                botTimerTriggered = true;
+                logMarrowCards("Bot turn timed out. Forcing draw recovery.");
+                if(marrowDeck.length > 0) {
+                    botHand.push(marrowDeck.pop());
+                }
+                isPlayerTurn = true;
+                updateMarrowDeckUI();
+            }
+        }, 4000);
+
+        let matchIndex = botHand.findIndex(c => c.color === topDiscardCard.color || c.val === topDiscardCard.val);
+
+        if(matchIndex !== -1) {
+            let card = botHand.splice(matchIndex, 1)[0];
+            topDiscardCard = card;
+            clearTimeout(failSafeTimer);
+            logMarrowCards(`Bot 101 played ${card.color} ${card.val}`);
+
+            if(botHand.length === 0) {
+                alert("🤖 Bot 101 cleared its hand and won! Try again!");
+                speakGameEvent("Bot wins");
+                initMarrowDeckGame();
+                return;
+            }
+        } else {
+            if(marrowDeck.length > 0) {
+                let drawn = marrowDeck.pop();
+                botHand.push(drawn);
+                logMarrowCards(`Bot 101 drew a card.`);
+            }
+        }
+
+        if (!botTimerTriggered) {
+            clearTimeout(failSafeTimer);
+            isPlayerTurn = true;
+            updateMarrowDeckUI();
+        }
+    }
+
+    function logMarrowCards(msg) {
+        const box = document.getElementById('log-box-cards');
+        if(box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
+    }
+</script>
+</body>
+</html>
