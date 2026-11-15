@@ -1765,8 +1765,10 @@
 
     function logVanguard(msg) {
         const box = document.getElementById('log-box-v');
-        box.innerHTML += `<br>&gt; ${msg}`;
-        box.scrollTop = box.scrollHeight;
+        if(box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
         speakGameEvent(msg);
     }
 
@@ -1994,7 +1996,8 @@
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
                 
-                if (vanguardGame.myRole === 'p1') {
+                // 1. HERO TURN
+                if (vanguardGame.myRole === 'p1' || vanguardGame.gameMode === 'ai') {
                     let oldPos = vanguardGame.position;
                     vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
                     if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
@@ -2013,25 +2016,33 @@
                             logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
                         }
                     }
-                } else {
-                    let oldRivalPos = vanguardGame.rivalPosition;
-                    vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
-                    if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+                }
 
-                    let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
-                    logVanguard(`${vanguardGame.rival} advanced ${roll} steps to ${rivalTile.name}.`);
-                    
-                    if(rivalTile.type === 'event') {
-                        let surge = Math.random() > 0.5 ? 120 : -60;
-                        vanguardGame.rivalFunds += surge;
-                        logVanguard(`Syndicate anomaly triggered! Credit adjustment: ${surge} VC.`);
-                    } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
-                        let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
-                        if (success) {
-                            vanguardGame.funds += rivalTile.rent;
-                            logVanguard(`Paid sector toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                // 2. AUTOMATED AI RIVAL TURN (if in AI mode)
+                if(vanguardGame.gameMode === 'ai') {
+                    setTimeout(() => {
+                        let aiRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
+                        let oldRivalPos = vanguardGame.rivalPosition;
+                        vanguardGame.rivalPosition = (vanguardGame.rivalPosition + aiRoll) % vanguardGame.tiles.length;
+                        if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+
+                        let rivalTile = vanguardGame.tiles[vanguardGame.rivalPosition];
+                        logVanguard(`${vanguardGame.rival} rolled ${aiRoll} and advanced to ${rivalTile.name}.`);
+
+                        if(rivalTile.owner === "None" && rivalTile.cost > 0 && vanguardGame.rivalFunds >= rivalTile.cost) {
+                            vanguardGame.rivalFunds -= rivalTile.cost;
+                            rivalTile.owner = vanguardGame.rival;
+                            logVanguard(`${vanguardGame.rival} claimed ${rivalTile.name}!`);
+                        } else if(rivalTile.owner !== "None" && rivalTile.owner !== vanguardGame.rival && !rivalTile.isMortgaged) {
+                            let success = checkVanguardBankruptcy(false, rivalTile.rent, vanguardGame.hero);
+                            if (success) {
+                                vanguardGame.funds += rivalTile.rent;
+                                logVanguard(`${vanguardGame.rival} paid toll of ${rivalTile.rent} VC to ${vanguardGame.hero}!`);
+                            }
                         }
-                    }
+                        updateVanguardUI();
+                        drawVanguardBoard();
+                    }, 1000);
                 }
 
                 updateVanguardUI();
