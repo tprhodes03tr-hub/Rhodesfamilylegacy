@@ -705,8 +705,10 @@
 
     function logTycoon(msg) {
         const box = document.getElementById('log-box');
-        box.innerHTML += `<br>&gt; ${msg}`;
-        box.scrollTop = box.scrollHeight;
+        if(box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
         speakGameEvent(msg);
     }
 
@@ -977,7 +979,7 @@
 
     function joinP2PSession() {
         if(peer) peer.destroy();
-        let targetCode = document.getElementById('room-code-input'].value.trim() || "DETROIT-313";
+        let targetCode = document.getElementById('room-code-input').value.trim() || "DETROIT-313";
 
         peer = new Peer();
         peer.on('open', (id) => {
@@ -1044,7 +1046,7 @@
         });
     }
 
-    // --- VANGUARD P2P CONNECTION & ACTION DISPATCHERS ---
+    // --- FIXED VANGUARD P2P CONNECTION & ACTION DISPATCHERS ---
     function setupVanguardConnectionEvents() {
         if(!conn) return;
         conn.on('data', (incomingData) => {
@@ -1746,8 +1748,10 @@
 
     function logVanguard(msg) {
         const box = document.getElementById('log-box-v');
-        box.innerHTML += `<br>&gt; ${msg}`;
-        box.scrollTop = box.scrollHeight;
+        if(box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
         speakGameEvent(msg);
     }
 
@@ -2010,3 +2014,43 @@
                 if(vanguardGame.myRole === 'p1') {
                     vanguardGame.funds -= 60;
                 } else {
+                    vanguardGame.rivalFunds -= 60;
+                }
+                tile.rent += 35;
+                tile.hasHotel = true;
+                updateVanguardUI();
+                logVanguard(`Nexus Tower constructed on ${tile.name}! Toll surged to ${tile.rent} VC.`);
+                drawVanguardBoard();
+                broadcastState();
+            } else {
+                logVanguard(`You must own this unmortgaged sector and have 60 VC.`);
+            }
+        }
+    }
+
+    function processVanguardRoll(roll, rollerRole) {
+        if (rollerRole === 'p1') {
+            let oldPos = vanguardGame.position;
+            vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
+            if(vanguardGame.position < oldPos) vanguardGame.funds += 250;
+
+            let tile = vanguardGame.tiles[vanguardGame.position];
+            logVanguard(`${vanguardGame.hero} advanced ${roll} steps to ${tile.name}.`);
+
+            if(tile.type === 'event') {
+                let surge = Math.random() > 0.5 ? 120 : -60;
+                vanguardGame.funds += surge;
+                logVanguard(`Quantum anomaly triggered! Credit adjustment: ${surge} VC.`);
+            } else if(tile.owner !== "None" && tile.owner !== vanguardGame.hero && !tile.isMortgaged) {
+                let success = checkVanguardBankruptcy(true, tile.rent, tile.owner);
+                if (success) {
+                    if (tile.owner === vanguardGame.rival) vanguardGame.rivalFunds += tile.rent;
+                    logVanguard(`Paid sector toll of ${tile.rent} VC to ${tile.owner}!`);
+                }
+            }
+        } else {
+            let oldRivalPos = vanguardGame.rivalPosition;
+            vanguardGame.rivalPosition = (vanguardGame.rivalPosition + roll) % vanguardGame.tiles.length;
+            if(vanguardGame.rivalPosition < oldRivalPos) vanguardGame.rivalFunds += 250;
+
+            let rivalTile = vanguardGame.tiles
