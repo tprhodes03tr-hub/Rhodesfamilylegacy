@@ -1665,12 +1665,75 @@
         }
       }
 
+      // --- 1. Independent Character P2 Spacing Fix ---
+      function updatePartnerSpacing(leadX, pX, minSpacing = 70) {
+        let distance = Math.abs(leadX - pX);
+        if (distance < minSpacing) {
+          let overlap = (minSpacing - distance) / 2;
+          if (leadX < pX) {
+            leadX -= overlap;
+            pX += overlap;
+          } else {
+            leadX += overlap;
+            pX -= overlap;
+          }
+        }
+        return { leadX, partnerX: pX };
+      }
+
+      // --- 2. Diverse Botanical Flora Rendering ---
+      function drawDiverseFlora(ctx, cameraX, canvasWidth, groundY = 300) {
+        const floraTypes = [
+          { stemHeight: 32, petals: 6, color: '#f39c12', centerColor: '#f1c40f' },
+          { stemHeight: 48, petals: 5, color: '#9b59b6', centerColor: '#8e44ad' },
+          { stemHeight: 24, petals: 8, color: '#e74c3c', centerColor: '#c0392b' },
+          { stemHeight: 38, petals: 5, color: '#3498db', centerColor: '#2980b9' },
+          { stemHeight: 44, petals: 7, color: '#2ecc71', centerColor: '#27ae60' }
+        ];
+
+        const patchPositions = [90, 210, 360, 490, 620, 780, 940, 1100];
+
+        patchPositions.forEach((posX, index) => {
+          let flora = floraTypes[index % floraTypes.length];
+          let renderX = (posX - (cameraX * 0.6)) % (canvasWidth + 100);
+          if (renderX < -50) renderX += canvasWidth + 150;
+          
+          let stemTopY = groundY - flora.stemHeight;
+
+          ctx.strokeStyle = '#27ae60';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(renderX, groundY);
+          ctx.quadraticCurveTo(renderX + 3, groundY - (flora.stemHeight / 2), renderX, stemTopY);
+          ctx.stroke();
+
+          ctx.fillStyle = flora.color;
+          for (let i = 0; i < flora.petals; i++) {
+            let angle = (i * 2 * Math.PI) / flora.petals;
+            let petalX = renderX + Math.cos(angle) * 5;
+            let petalY = stemTopY + Math.sin(angle) * 5;
+            ctx.beginPath();
+            ctx.arc(petalX, petalY, 4.5, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+
+          ctx.fillStyle = flora.centerColor;
+          ctx.beginPath();
+          ctx.arc(renderX, stemTopY, 3.5, 0, 2 * Math.PI);
+          ctx.fill();
+        });
+      }
+
       function brawlerLoop() {
         if (canvas.offsetParent !== null) {
           updateMarcusShield();
 
-          let targetPartnerX = playerX - 65;
+          let targetPartnerX = playerX - 70;
           partnerX += (targetPartnerX - partnerX) * 0.08;
+
+          let spacingResult = updatePartnerSpacing(playerX, partnerX, 70);
+          playerX = spacingResult.leadX;
+          partnerX = spacingResult.partnerX;
 
           if (isJumping) { playerY += jumpVel; jumpVel += 0.8; if (playerY >= 250) { playerY = 250; isJumping = false; } }
           
@@ -1868,6 +1931,9 @@
           for (let gx = (groundScrollX % 40) - 40; gx < canvas.width; gx += 40) {
             ctx.beginPath(); ctx.moveTo(gx, 300); ctx.lineTo(gx - 20, canvas.height); ctx.stroke();
           }
+
+          // Render Diverse Flora along the terrain baseline
+          drawDiverseFlora(ctx, groundScrollX, canvas.width, 300);
 
           drawShieldHUD(ctx);
 
