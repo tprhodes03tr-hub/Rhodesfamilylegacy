@@ -424,7 +424,6 @@
       marcus: './marcus.png',
       marcusSpriteSheet: './marcus_prime_spritesheet.png',
       nenambi: './nenambi.png',
-      nenambiSpriteSheet: './nenambi_spritesheet.png',
       xochitl: './xochitl.png',
       xochitlSpriteSheet: './xochitl_spritesheet.png',
       kofi: './kofi.png',
@@ -472,6 +471,20 @@
           osc.frequency.exponentialRampToValueAtTime(180, now + 0.2);
           gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
           osc.start(now); osc.stop(now + 0.2);
+        } else if (type === 'acoustic') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+          osc.start(now); osc.stop(now + 0.35);
+        } else if (type === 'shield-up') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.linearRampToValueAtTime(600, now + 0.25);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now); osc.stop(now + 0.25);
         } else if (type === 'transform' || type === 'heal') {
           osc.type = 'sine'; osc.frequency.setValueAtTime(400, now);
           osc.frequency.exponentialRampToValueAtTime(900, now + 0.4);
@@ -526,7 +539,7 @@
     let heroIndex = 0;
     const heroes = [
       { name: "Marcus", key: "marcus", sheetKey: "marcusSpriteSheet", tag: "TAG: NÉNAMBI", s1: "⚡ Volt Beam", s2: "✨ Plasma Orb", s3: "🛡️ Shield", dialogue: "Co-op: Marcus leads the Vanguard tactical front!" },
-      { name: "Nénambi", key: "nenambi", sheetKey: "nenambiSpriteSheet", tag: "TAG: XOCHITL", s1: "🔊 Acoustic Sonic Wave", s2: "🌀 Mineral Deflection", s3: "🛡️ Acoustic Barrier", dialogue: "Co-op: Nénambi Prime tunes frequency fields for acoustic tactical dominance!" },
+      { name: "Nénambi", key: "nenambi", sheetKey: null, tag: "TAG: XOCHITL", s1: "🔊 Acoustic Sonic Wave", s2: "🌀 Mineral Deflection", s3: "🛡️ Acoustic Barrier", dialogue: "Co-op: Nénambi Prime tunes frequency fields for acoustic tactical dominance!" },
       { name: "Xochitl", key: "xochitl", sheetKey: "xochitlSpriteSheet", tag: "TAG: KOFI", s1: "🕊️ Fire Wings Glide", s2: "✨ Solar Strafe", s3: "🛡️ Wing Shield", dialogue: "Co-op: Xochitl ascends with blazing fire wings!" },
       { name: "Kofi", key: "kofi", sheetKey: "kofiSpriteSheet", tag: "TAG: WAKAN", s1: "🦁 Solar Lion Roar", s2: "🔨 Anvil Sledge", s3: "🛡️ Crucible Bastion", dialogue: "Co-op: Kofi unleashes the solar lion!" },
       { name: "Wakan", key: "wakan", sheetKey: "guacan", tag: "TAG: MARCUS", s1: "🌊 Abyssal Tsunami", s2: "💧 Hydro Burst", s3: "🛡️ Trench Shell", dialogue: "Co-op: Wakan summons the roaring tides!" }
@@ -1469,16 +1482,11 @@
       let shieldDepletedLockout = false;
       let isShieldButtonHeld = false;
 
-      let heroAnimTick = 0;
-      let heroFrameIndex = 0;
-      let heroIsMoving = false;
-      const totalFrames = 4;
-
       const shieldBtn = document.getElementById('btn-shield');
       if (shieldBtn) {
-        shieldBtn.onmousedown = () => { isShieldButtonHeld = true; };
+        shieldBtn.onmousedown = () => { isShieldButtonHeld = true; playSound('shield-up'); };
         shieldBtn.onmouseup = () => { isShieldButtonHeld = false; };
-        shieldBtn.ontouchstart = () => { isShieldButtonHeld = true; };
+        shieldBtn.ontouchstart = () => { isShieldButtonHeld = true; playSound('shield-up'); };
         shieldBtn.ontouchend = () => { isShieldButtonHeld = false; };
       }
 
@@ -1531,7 +1539,6 @@
       window.brawlerMove = (dir) => {
         playSound('beam');
         let moveDist = 25 * playerSpeedMult;
-        heroIsMoving = true;
         if (dir === 'left') { playerX = Math.max(30, playerX - moveDist); groundScrollX += 4; }
         if (dir === 'right') { playerX = Math.min(canvas.width - 120, playerX + moveDist); groundScrollX -= 4; }
       };
@@ -1541,13 +1548,14 @@
       };
 
       window.brawlerSkill1 = () => {
-        playSound('beam');
+        playSound('acoustic');
         playerHasFired = true;
         let activeName = heroes[heroIndex].name;
         let currentShieldPowerBonus = (shieldEnergy > 50) ? 1.5 : 1.0;
         
         if (activeName === 'Nénambi') {
           brawlerProjectiles.push({ x: playerX + 45, y: playerY, vx: 18, color: '#f59e0b', type: 'acoustic-wave', width: 95, height: 45, damage: 2 });
+          speakText("Nénambi Prime: Acoustic Sonic Wave deployed!");
         } else if (activeName === 'Marcus') {
           brawlerProjectiles.push({ x: playerX + 50, y: playerY, vx: 22 * currentShieldPowerBonus, color: '#38bdf8', type: 'electric-arc', width: 85 * currentShieldPowerBonus, height: 16, damage: 1 });
           if (shieldEnergy > 50) shieldEnergy -= 20;
@@ -1568,11 +1576,12 @@
       };
 
       window.brawlerSkill2 = () => {
-        playSound('transform');
+        playSound('shield-up');
         playerHasFired = true;
         let activeName = heroes[heroIndex].name;
         if (activeName === 'Nénambi') {
           brawlerProjectiles.push({ x: playerX + 40, y: playerY - 10, vx: 16, color: '#38bdf8', type: 'mineral-pulse', width: 45, height: 35, damage: 2 });
+          speakText("Nénambi Prime: Mineral frequency deflection active!");
         } else {
           brawlerProjectiles.push({ x: playerX + 40, y: playerY + 10, vx: 14, color: '#f59e0b', type: 'orb', width: 28, height: 28, damage: 1 });
         }
@@ -1643,28 +1652,13 @@
       }
 
       function renderHeroCharacter(ctx, heroObj, posX, posY) {
-        let sheetObj = heroObj.sheetKey ? sprites[heroObj.sheetKey] : null;
-        if (sheetObj && sheetObj.complete && sheetObj.naturalWidth !== 0) {
-          if (heroIsMoving) {
-            heroAnimTick++;
-            if (heroAnimTick > 8) {
-              heroFrameIndex = (heroFrameIndex + 1) % totalFrames;
-              heroAnimTick = 0;
-            }
-          } else {
-            heroFrameIndex = 0;
-          }
-
-          const sWidth = sheetObj.naturalWidth / totalFrames;
-          const sHeight = sheetObj.naturalHeight;
-          const sX = heroFrameIndex * sWidth;
-          const sY = 0;
-
-          ctx.drawImage(sheetObj, sX, sY, sWidth, sHeight, posX, posY - 50, 80, 100);
+        let singleImg = sprites[heroObj.key];
+        if (singleImg && singleImg.complete && singleImg.naturalWidth !== 0) {
+          ctx.drawImage(singleImg, posX - 10, posY - 55, 90, 110);
         } else {
-          let fallbackImg = sprites[heroObj.key];
-          if (fallbackImg && fallbackImg.complete && fallbackImg.naturalWidth !== 0) {
-            ctx.drawImage(fallbackImg, posX, posY - 50, 80, 100);
+          let fallbackSheet = heroObj.sheetKey ? sprites[heroObj.sheetKey] : null;
+          if (fallbackSheet && fallbackSheet.complete && fallbackSheet.naturalWidth !== 0) {
+            ctx.drawImage(fallbackSheet, posX, posY - 50, 80, 100);
           } else {
             ctx.fillStyle = '#1e3a8a'; ctx.fillRect(posX + 10, posY - 30, 24, 35);
           }
@@ -1674,8 +1668,6 @@
       function brawlerLoop() {
         if (canvas.offsetParent !== null) {
           updateMarcusShield();
-
-          heroIsMoving = false;
 
           let targetPartnerX = playerX - 55;
           partnerX += (targetPartnerX - partnerX) * 0.08;
