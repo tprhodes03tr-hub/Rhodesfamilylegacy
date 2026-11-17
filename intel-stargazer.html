@@ -216,19 +216,26 @@
       color: #ffffff;
     }
 
-    /* Fix AR.js Video Viewport & Stacking Context */
+    /* Video Feed and Canvas Layering */
+    .stargazer-container video, 
+    body > video {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      z-index: 0 !important;
+    }
+    .stargazer-container .a-canvas,
     .a-canvas {
       position: absolute !important;
-      top: 0;
-      left: 0;
-      z-index: 1;
-    }
-    video.a-webcam {
-      position: absolute !important;
-      top: 0;
-      left: 0;
-      z-index: 0 !important;
-      object-fit: cover;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      z-index: 2 !important;
+      background: transparent !important;
     }
 
     /* Telemetry & Ley Line HUD Card Inside Stargazer View */
@@ -289,8 +296,9 @@
     .hud-actions {
       display: flex;
       gap: 8px;
+      flex-wrap: wrap;
     }
-    .speak-telemetry-btn {
+    .speak-telemetry-btn, .scan-sector-btn {
       background: rgba(245, 158, 11, 0.2);
       border: 1px solid #f59e0b;
       color: #f59e0b;
@@ -302,7 +310,7 @@
       cursor: pointer;
       text-transform: uppercase;
     }
-    .speak-telemetry-btn:hover {
+    .speak-telemetry-btn:hover, .scan-sector-btn:hover {
       background: #f59e0b;
       color: #030712;
     }
@@ -320,12 +328,17 @@
       text-align: center;
       width: 90%;
       max-width: 420px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
     }
     .stargazer-text {
       font-size: 9px;
       color: #f59e0b;
       font-weight: bold;
       text-transform: uppercase;
+      text-align: left;
     }
 
     /* Return Button */
@@ -430,6 +443,7 @@
         <div class="hud-lore" id="hudLoreText">Lore & Ley Line Alignment: ---</div>
         <div class="hud-actions">
           <button class="speak-telemetry-btn" onclick="speakCurrentTelemetry()">🔊 Tell Me More (Audio)</button>
+          <button class="scan-sector-btn" onclick="triggerSectorRadarScan()">📡 Radar Ping Sector</button>
         </div>
       </div>
 
@@ -454,8 +468,16 @@
       event.currentTarget.classList.add('active');
     }
 
-    // Comprehensive Telemetry & Ley Line Database
+    // Fully Customized Planetary & Ley Line Database
     const planetaryDatabase = {
+      polaris: {
+        name: "Polaris • Vanguard Waypoint Alpha",
+        distance: "433 Light Years",
+        diameter: "37.5 Million km (Supergiant)",
+        gravity: "Stellar Core Equilibrium",
+        orbit: "Binary System Center",
+        lore: "The steadfast navigational anchor used across generations to chart true north, ancestral migration paths, and celestial ley line orientation."
+      },
       mars: {
         name: "Mars • Red Planet & Marrow Node",
         distance: "1.52 AU (227.9M km)",
@@ -472,13 +494,29 @@
         orbit: "11.8 Earth Years",
         lore: "The magnetic anchor of the solar system. Its massive gravitational resonance serves as a primary hub for deep-space ley line triangulation."
       },
-      polaris: {
-        name: "Polaris • Vanguard Waypoint Alpha",
-        distance: "433 Light Years",
-        diameter: "37.5 Million km (Supergiant)",
-        gravity: "Stellar Core Equilibrium",
-        orbit: "Binary System Center",
-        lore: "The steadfast navigational anchor used across generations to chart true north, ancestral migration paths, and celestial ley line orientation."
+      saturn: {
+        name: "Saturn • Ringed Sentinel Node",
+        distance: "9.58 AU (1.43B km)",
+        diameter: "116,460 km (9.1x Earth)",
+        gravity: "10.44 m/s² (1.06G)",
+        orbit: "29.4 Earth Years",
+        lore: "Custom Vanguard Node: Its crystalline ice rings act as a natural harmonic prism, stabilizing multi-sector frequency transmissions across the command network."
+      },
+      venus: {
+        name: "Venus • Morning Star Beacon",
+        distance: "0.72 AU (108.2M km)",
+        diameter: "12,104 km (0.95x Earth)",
+        gravity: "8.87 m/s² (0.90G)",
+        orbit: "225 Earth Days",
+        lore: "Custom Vanguard Node: A radiant atmospheric reflector utilized across generations to chart twilight passage and pivotal legacy milestones."
+      },
+      moon: {
+        name: "Luna • Terrestrial Tide Anchor",
+        distance: "384,400 km",
+        diameter: "3,474 km (0.27x Earth)",
+        gravity: "1.62 m/s² (0.165G)",
+        orbit: "27.3 Earth Days",
+        lore: "Custom Vanguard Node: Earth's direct orbital companion. Its gravitational rhythm anchors global tides and primary terrestrial telemetry feeds."
       }
     };
 
@@ -512,12 +550,23 @@
       speakNews("Telemetry Report", speechText);
     }
 
+    function triggerSectorRadarScan() {
+      if (!activeBodyKey) return;
+      const data = planetaryDatabase[activeBodyKey];
+      speakNews("Radar Scan Initialized", `Scanning ley line frequencies for ${data.name}. Signal lock secured across sector grid.`);
+      
+      const hud = document.getElementById('telemetryHud');
+      hud.style.borderColor = '#f59e0b';
+      setTimeout(() => {
+        hud.style.borderColor = '#66fcf1';
+      }, 1000);
+    }
+
     function launchStargazer(useCamera) {
       document.getElementById('stargazerLaunchArea').style.display = 'none';
       const container = document.getElementById('stargazerActiveContainer');
       container.style.display = 'block';
 
-      // Configure arjs and background based on mode selection with explicit alpha transparency
       const arjsConfig = useCamera ? 'sourceType: webcam; debugUIEnabled: false;' : 'debugUIEnabled: false;';
       const sceneStyle = useCamera 
         ? 'width: 100%; height: 100%; background: transparent;' 
@@ -547,15 +596,36 @@
             <a-text value="Jupiter (Tap)" position="0.3 0 0" scale="0.5 0.5 0.5" color="#66fcf1"></a-text>
           </a-entity>
 
-          <!-- Glowing Ley Line Grid Vectors Connecting Nodes -->
+          <!-- Saturn Node (Customized Position & Appearance) -->
+          <a-entity id="nodeSaturn" position="3.2 -0.8 -4.2" class="clickable" onclick="showTelemetry('saturn')">
+            <a-sphere radius="0.21" color="#eab308" material="emissive: #eab308; emissiveIntensity: 0.95"></a-sphere>
+            <a-text value="Saturn [Sentinel] (Tap)" position="0.3 0 0" scale="0.5 0.5 0.5" color="#eab308"></a-text>
+          </a-entity>
+
+          <!-- Venus Node (Customized Position & Appearance) -->
+          <a-entity id="nodeVenus" position="-2.8 -0.8 -3.5" class="clickable" onclick="showTelemetry('venus')">
+            <a-sphere radius="0.17" color="#f43f5e" material="emissive: #f43f5e; emissiveIntensity: 0.95"></a-sphere>
+            <a-text value="Venus [Beacon] (Tap)" position="0.3 0 0" scale="0.5 0.5 0.5" color="#f43f5e"></a-text>
+          </a-entity>
+
+          <!-- Moon Node (Customized Position & Appearance) -->
+          <a-entity id="nodeMoon" position="0.5 -1.8 -2.8" class="clickable" onclick="showTelemetry('moon')">
+            <a-sphere radius="0.16" color="#94a3b8" material="emissive: #94a3b8; emissiveIntensity: 0.95"></a-sphere>
+            <a-text value="Luna [Tide] (Tap)" position="0.3 0 0" scale="0.5 0.5 0.5" color="#94a3b8"></a-text>
+          </a-entity>
+
+          <!-- Interlinked Glowing Ley Line Grid Vectors -->
           <a-entity line="start: 0 2.5 -4; end: 2 1 -3; color: #66fcf1; opacity: 0.8"></a-entity>
-          <a-entity line="start: 2 1 -3; end: -2 1.5 -3.5; color: #f59e0b; opacity: 0.8"></a-entity>
-          <a-entity line="start: -2 1.5 -3.5; end: 0 2.5 -4; color: #66fcf1; opacity: 0.8"></a-entity>
+          <a-entity line="start: 2 1 -3; end: 3.2 -0.8 -4.2; color: #f59e0b; opacity: 0.8"></a-entity>
+          <a-entity line="start: 0 2.5 -4; end: -2 1.5 -3.5; color: #66fcf1; opacity: 0.8"></a-entity>
+          <a-entity line="start: -2 1.5 -3.5; end: -2.8 -0.8 -3.5; color: #f43f5e; opacity: 0.8"></a-entity>
+          <a-entity line="start: -2.8 -0.8 -3.5; end: 0.5 -1.8 -2.8; color: #94a3b8; opacity: 0.8"></a-entity>
 
           <a-light type="ambient" color="#bfe9ff" intensity="1.2"></a-light>
         </a-scene>
         <div class="stargazer-overlay-ui">
-          <div class="stargazer-text">Mode: ${useCamera ? 'AR Camera Feed' : 'Deep Space Star Map'} — Tap any node for audio telemetry</div>
+          <div class="stargazer-text">Mode: ${useCamera ? 'AR Camera Feed' : 'Deep Space Map'} — Tap any node</div>
+          <button class="speak-telemetry-btn" onclick="if(activeBodyKey) { triggerSectorRadarScan(); } else { alert('Select a celestial node first.'); }">📡 Ping</button>
         </div>
       `;
     }
