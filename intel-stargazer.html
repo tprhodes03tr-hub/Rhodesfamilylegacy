@@ -197,9 +197,23 @@
       text-transform: uppercase;
       box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
       margin-top: 15px;
+      display: block;
+      width: 100%;
+      max-width: 320px;
+      margin-left: auto;
+      margin-right: auto;
     }
     .launch-ar-btn:hover {
       background: #a50000;
+    }
+    .launch-space-btn {
+      background: #0f172a;
+      border: 2px solid #66fcf1;
+      color: #66fcf1;
+    }
+    .launch-space-btn:hover {
+      background: rgba(102, 252, 241, 0.15);
+      color: #ffffff;
     }
 
     /* Telemetry & Ley Line HUD Card Inside Stargazer View */
@@ -375,9 +389,12 @@
   <!-- Stargazer AR Section -->
   <div id="stargazer" class="section-content">
     <div id="stargazerLaunchArea" class="stargazer-launch-box">
-      <h3 style="color: #66fcf1; font-size: 14px; margin-bottom: 8px; text-transform: uppercase;">Stargazer AR Celestial & Ley Line Tracker</h3>
-      <p style="font-size: 11px; color: #cbd5e1; margin-bottom: 12px;">Activate camera feed to track planetary telemetry, celestial nodes, and ancestral ley line grids.</p>
-      <button class="launch-ar-btn" onclick="launchStargazerCamera()">Launch AR Stargazer & Ley Lines</button>
+      <h3 style="color: #66fcf1; font-size: 14px; margin-bottom: 8px; text-transform: uppercase;">Stargazer Celestial & Ley Line Tracker</h3>
+      <p style="font-size: 11px; color: #cbd5e1; margin-bottom: 16px;">Track planetary telemetry and ancestral ley lines. If your camera feed goes dark looking at the night sky, use Deep Space Mode below.</p>
+      
+      <button class="launch-ar-btn" onclick="launchStargazer(true)">Launch with AR Camera Feed</button>
+      <div style="height: 10px;"></div>
+      <button class="launch-ar-btn launch-space-btn" onclick="launchStargazer(false)">Launch in Deep Space Mode (No Camera)</button>
     </div>
 
     <!-- The A-Frame scene starts completely hidden until launched -->
@@ -480,14 +497,17 @@
       speakNews("Telemetry Report", speechText);
     }
 
-    function launchStargazerCamera() {
+    function launchStargazer(useCamera) {
       document.getElementById('stargazerLaunchArea').style.display = 'none';
       const container = document.getElementById('stargazerActiveContainer');
       container.style.display = 'block';
 
-      // Dynamically inject A-Frame scene with transparent background fallback for low-light/night sky
+      // Configure arjs and background based on mode selection
+      const arjsConfig = useCamera ? 'sourceType: webcam; debugUIEnabled: false;' : 'debugUIEnabled: false;';
+      const backgroundStyle = useCamera ? '' : 'background: radial-gradient(circle at center, #0f172a 0%, #000000 100%);';
+
       document.getElementById('sceneWrapper').innerHTML = `
-        <a-scene embedded vr-mode-ui="enabled: false" arjs="sourceType: webcam; debugUIEnabled: false;" renderer="logarithmicDepthBuffer: true; alpha: true;" style="width: 100%; height: 100%;">
+        <a-scene embedded vr-mode-ui="enabled: false" arjs="${arjsConfig}" renderer="logarithmicDepthBuffer: true; alpha: true;" style="width: 100%; height: 100%; ${backgroundStyle}">
           <a-camera gps-camera rotation-reader>
             <a-cursor fuse="true" fuse-timeout="1000" raycaster="objects: .clickable" position="0 0 -1" geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02" material="color: #66fcf1; shader: flat"></a-cursor>
           </a-camera>
@@ -495,19 +515,19 @@
           <!-- Polaris Node -->
           <a-entity id="nodePolaris" position="0 2.5 -4" class="clickable" onclick="showTelemetry('polaris')">
             <a-sphere radius="0.25" color="#f59e0b" material="emissive: #f59e0b; emissiveIntensity: 1.0"></a-sphere>
-            <a-text value="Polaris (Tap for Audio)" position="0.4 0 0" scale="0.5 0.5 0.5" color="#66fcf1"></a-text>
+            <a-text value="Polaris (Tap)" position="0.4 0 0" scale="0.5 0.5 0.5" color="#66fcf1"></a-text>
           </a-entity>
 
           <!-- Mars Node -->
           <a-entity id="nodeMars" position="2 1 -3" class="clickable" onclick="showTelemetry('mars')">
             <a-sphere radius="0.18" color="#ef4444" material="emissive: #ef4444; emissiveIntensity: 0.9"></a-sphere>
-            <a-text value="Mars (Tap for Audio)" position="0.3 0 0" scale="0.5 0.5 0.5" color="#f59e0b"></a-text>
+            <a-text value="Mars (Tap)" position="0.3 0 0" scale="0.5 0.5 0.5" color="#f59e0b"></a-text>
           </a-entity>
 
           <!-- Jupiter Node -->
           <a-entity id="nodeJupiter" position="-2 1.5 -3.5" class="clickable" onclick="showTelemetry('jupiter')">
             <a-sphere radius="0.22" color="#3b82f6" material="emissive: #3b82f6; emissiveIntensity: 0.9"></a-sphere>
-            <a-text value="Jupiter (Tap for Audio)" position="0.3 0 0" scale="0.5 0.5 0.5" color="#66fcf1"></a-text>
+            <a-text value="Jupiter (Tap)" position="0.3 0 0" scale="0.5 0.5 0.5" color="#66fcf1"></a-text>
           </a-entity>
 
           <!-- Glowing Ley Line Grid Vectors Connecting Nodes -->
@@ -518,7 +538,7 @@
           <a-light type="ambient" color="#bfe9ff" intensity="1.2"></a-light>
         </a-scene>
         <div class="stargazer-overlay-ui">
-          <div class="stargazer-text">Ley lines active: Tap any celestial node to trigger audio telemetry & lore</div>
+          <div class="stargazer-text">Mode: ${useCamera ? 'AR Camera Feed' : 'Deep Space Star Map'} — Tap any node for audio telemetry</div>
         </div>
       `;
     }
