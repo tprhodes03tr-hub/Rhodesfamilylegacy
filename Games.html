@@ -341,19 +341,19 @@
         <div style="margin-top: 8px;"><a href="#" class="back-link" onclick="switchPortal('globe3d')">← Return to Main Legacy Hub</a></div>
       </div>
 
-      <!-- PORTAL 5: 2D SIDE-SCROLLING BRAWLER ARENA -->
+      <!-- PORTAL 5: 2D SIDE-SCROLLING BRAWLER ARENA (3-STAGE CAMPAIGN) -->
       <div class="sandbox-container brawler-container hidden" id="portal-brawler">
-        <div class="sandbox-header" style="color: #38bdf8;" id="brawler-header-title">Marcus Prime (Lead) & Xochitl (Tactical AI)</div>
-        <h1 style="color: #38bdf8;" id="brawler-boss-title">STAGE 1 • DEFEAT BOSS: CHRONOLOCK</h1>
+        <div class="sandbox-header" style="color: #38bdf8;" id="brawler-header-title">Marcus Prime (Lead) & Nénambi (Tactical AI)</div>
+        <h1 style="color: #38bdf8;" id="brawler-boss-title">STAGE 1 OF 3 • DEFEAT BOSS: CHRONOLOCK</h1>
 
         <div class="stats-bar" style="border-color: #1e3a8a; color: #38bdf8;">
           <span>🛡️ Team Health: <strong id="team-health" style="color: #10b981;">100</strong>/100</span>
-          <span>💥 Boss Status: <strong id="boss-hp" style="color: #ef4444;">100%</strong></span>
+          <span>💥 Stage/Boss: <strong id="boss-hp" style="color: #ef4444;">Stage 1 • Wave 1</strong></span>
           <span>⚡ Shield Energy: <strong id="shield-energy-label" style="color: #38bdf8;">100%</strong></span>
         </div>
 
         <div class="dialogue-banner" id="brawler-dialogue">
-          Co-op: Xochitl covers your flank!
+          Co-op: Marcus leads the Vanguard tactical front!
         </div>
 
         <div style="width: 100%; aspect-ratio: 4 / 3; background: #030712; border: 2px solid #38bdf8; border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 8px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 10px;">
@@ -570,10 +570,6 @@
       else if (target === 'submarine') { speakText("Guacan reporting in. Wacon trench sensor relays and hydro pods active."); initSubmarineEngine(); }
       else if (target === 'space') { speakText("Vanguard Fleet tactical Voyager intercept sequence initiated."); initSpaceEngine(); }
       else if (target === 'brawler') {
-        bossIndex = (bossIndex + 1) % bossPool.length;
-        let currentBoss = bossPool[bossIndex];
-        document.getElementById('brawler-boss-title').innerText = `STAGE ${bossIndex + 1} • DEFEAT BOSS: ${currentBoss.name.toUpperCase()}`;
-        speakText(`Brawler arena engaged against ${currentBoss.name}. Defeat the droids and face the boss!`);
         initBrawlerEngine();
       }
     }
@@ -1462,14 +1458,23 @@
       spaceLoop();
     }
 
-    // 2D SIDE-SCROLLING BRAWLER ARENA
+    // 2D SIDE-SCROLLING BRAWLER ARENA (3-STAGE PROGRESSION & SOLID DECK GROUNDING)
     function initBrawlerEngine() {
       const canvas = document.getElementById('brawlerCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      let playerX = 80, playerY = 250, isJumping = false, jumpVel = 0;
-      let partnerX = 40; 
-      let bossX = 450, bossY = 220, bossHp = 100, teamHealth = 100;
+
+      const FLOOR_Y = 300;
+      const GROUNDED_PLAYER_Y = 230; // Calibrated so sprite feet sit squarely on FLOOR_Y (300)
+      const MAX_STAGES = 3;
+
+      let currentStage = 1;
+      let stageTransitioning = false;
+      let stageBannerText = "";
+
+      let playerX = 115, playerY = GROUNDED_PLAYER_Y, isJumping = false, jumpVel = 0;
+      let partnerX = 45;
+      let bossX = 460, bossY = 238, bossHp = 100, teamHealth = 100;
       let brawlerProjectiles = [], droidProjectiles = [], bossAttacks = [];
       let luettaActive = false, luettaY = -50, luettaAlpha = 1.0;
       let solarLionActive = false, solarLionX = 0, solarLionAlpha = 1.0;
@@ -1490,36 +1495,102 @@
         shieldBtn.ontouchend = () => { isShieldButtonHeld = false; };
       }
 
-      let xochitlGlideActive = false, glideX = 80, glideY = 250, glideProgress = 0, featheryDaggers = [];
+      let xochitlGlideActive = false, glideX = 115, glideY = GROUNDED_PLAYER_Y, glideProgress = 0, featheryDaggers = [];
       let playerSpeedMult = 1.0, groundScrollX = 0, timeOfDayTimer = 0;
       let currentWave = 1, bossShootTimer = 0, playerHasFired = false;
       let clockShards = [];
 
-      let currentBossObj = bossPool[bossIndex];
-      document.getElementById('brawler-boss-title').innerText = `STAGE ${bossIndex + 1} • DEFEAT BOSS: ${currentBossObj.name.toUpperCase()}`;
+      let currentBossObj = bossPool[bossIndex % bossPool.length];
+
+      function updateStageHeaderUI(statusLabel) {
+        document.getElementById('brawler-boss-title').innerText =
+          `STAGE ${currentStage} OF ${MAX_STAGES} • DEFEAT BOSS: ${currentBossObj.name.toUpperCase()}`;
+        if (statusLabel) {
+          document.getElementById('boss-hp').innerText = statusLabel;
+        }
+      }
 
       let preBossDroids = [];
       function spawnWave(waveNum) {
         preBossDroids = [];
-        let count = waveNum === 1 ? 5 : (waveNum === 2 ? 7 : 6);
+        let count = (waveNum === 1 ? 4 : 5) + (currentStage - 1);
         for (let i = 0; i < count; i++) {
           preBossDroids.push({ 
-            x: 450 + (i * 28), 
-            y: 250, 
-            hp: waveNum === 2 ? 3 : 2, 
+            x: 450 + (i * 34), 
+            y: FLOOR_Y, 
+            hp: (waveNum === 2 ? 3 : 2) + (currentStage - 1), 
             active: true, 
-            isFlying: waveNum === 2 ? (i % 3 === 0) : (i % 2 === 0), 
-            speed: waveNum === 2 ? 1.4 : 1.0, 
-            shootTimer: -40, 
+            isFlying: waveNum === 2 ? (i % 2 === 1) : (i % 3 === 1), 
+            speed: (waveNum === 2 ? 1.35 : 1.0) + (currentStage - 1) * 0.15, 
+            shootTimer: -40 - (i * 15), 
             walkAnim: Math.random() * Math.PI 
           });
         }
+        updateStageHeaderUI(`Stage ${currentStage} • Wave ${waveNum}/2`);
       }
-      spawnWave(1);
+
+      function setupStage(stageNum) {
+        currentStage = stageNum;
+        currentWave = 1;
+        bossHp = 100;
+        bossX = 460;
+        bossY = 238;
+        brawlerProjectiles = [];
+        droidProjectiles = [];
+        bossAttacks = [];
+        clockShards = [];
+        playerX = 115;
+        partnerX = 45;
+        playerY = GROUNDED_PLAYER_Y;
+        isJumping = false;
+        jumpVel = 0;
+        currentBossObj = bossPool[(bossIndex + stageNum - 1) % bossPool.length];
+        spawnWave(1);
+        updateStageHeaderUI(`Stage ${currentStage} • Wave 1/2`);
+        speakText(`Stage ${currentStage} of ${MAX_STAGES} engaged against ${currentBossObj.name}. Clear the droids and defeat the boss!`);
+      }
+
+      setupStage(1);
       
       let rainDrops = [];
       for (let i = 0; i < 35; i++) rainDrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 7 + Math.random() * 4 });
       let chopperX = 180, chopperDir = 1, rotorAngle = 0;
+
+      function handleBossDefeated() {
+        if (stageTransitioning) return;
+        playSound('transform');
+        addScore(350 * currentStage);
+
+        if (currentBossObj.name === "Chronolock") {
+          for (let s = 0; s < 12; s++) {
+            clockShards.push({ x: bossX + (Math.random() * 60 - 30), y: bossY + (Math.random() * 60 - 30), vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, rotation: Math.random() * Math.PI });
+          }
+        }
+
+        if (currentStage < MAX_STAGES) {
+          stageTransitioning = true;
+          const completedStage = currentStage;
+          stageBannerText = `STAGE ${completedStage} CLEARED! ADVANCING TO STAGE ${completedStage + 1}...`;
+          document.getElementById('brawler-dialogue').innerText = `Stage ${completedStage} Clear! Team restored +35 HP. Advancing to Stage ${completedStage + 1} of ${MAX_STAGES}!`;
+          speakText(`${currentBossObj.name} defeated! Stage ${completedStage} cleared. Advancing to Stage ${completedStage + 1}.`);
+
+          setTimeout(() => {
+            teamHealth = Math.min(100, teamHealth + 35);
+            document.getElementById('team-health').innerText = teamHealth;
+            stageBannerText = "";
+            stageTransitioning = false;
+            setupStage(completedStage + 1);
+          }, 1600);
+        } else {
+          stageTransitioning = true;
+          stageBannerText = "ALL 3 STAGES CLEARED! SECTOR SECURED!";
+          bossIndex = (bossIndex + MAX_STAGES) % bossPool.length;
+          speakText(`${currentBossObj.name} defeated! All 3 stages cleared! Returning to Marrow Globe Nexus.`);
+          setTimeout(() => {
+            switchPortal('globe3d');
+          }, 1600);
+        }
+      }
 
       window.cycleHeroTag = () => {
         heroIndex = (heroIndex + 1) % heroes.length;
@@ -1569,7 +1640,7 @@
             speakText("Xochitl ascends to celestial apex with majestic angel wings!");
           }
         } else if (activeName === 'Wakan') {
-          brawlerProjectiles.push({ x: playerX + 40, y: playerY - 20, vx: 11, color: '#34d399', type: 'abyssal-tsunami', width: 110, height: 95, damage: 2 });
+          brawlerProjectiles.push({ x: playerX + 40, y: playerY - 10, vx: 11, color: '#34d399', type: 'abyssal-tsunami', width: 110, height: 95, damage: 2 });
         } else {
           brawlerProjectiles.push({ x: playerX + 40, y: playerY + 10, vx: 14, color: '#f59e0b', type: 'orb', width: 28, height: 28, damage: 1 });
         }
@@ -1588,17 +1659,24 @@
       };
 
       window.triggerSolarLionFinishingMove = () => {
+        if (stageTransitioning) return;
         playSound('transform');
         solarLionActive = true; solarLionX = playerX; solarLionAlpha = 1.0;
+
+        let droidsActive = preBossDroids.some(d => d.active);
+        if (droidsActive) {
+          preBossDroids.forEach(d => { d.active = false; });
+          addScore(150);
+          speakText("Rrrrraaar! The Solar Lion clears the droid wave!");
+          return;
+        }
+
         bossHp = Math.max(0, bossHp - 35);
-        document.getElementById('boss-hp').innerText = bossHp + '%';
+        document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${bossHp}%`;
         speakText("Rrrrraaar! The Solar Lion charges forward, pulverizing enemy ranks!");
         addScore(150);
         if (bossHp <= 0) {
-          setTimeout(() => {
-            speakText(`${currentBossObj.name} defeated! Returning to Marrow Globe Nexus.`);
-            switchPortal('globe3d');
-          }, 1200);
+          handleBossDefeated();
         }
       };
 
@@ -1636,36 +1714,115 @@
       }
 
       function drawShieldHUD(ctx) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-        ctx.fillRect(40, 40, 180, 14);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+        ctx.fillRect(20, 18, 175, 14);
         ctx.strokeStyle = "#00ffff";
         ctx.lineWidth = 1;
-        ctx.strokeRect(40, 40, 180, 14);
+        ctx.strokeRect(20, 18, 175, 14);
 
-        let fillWidth = (shieldEnergy / maxShieldEnergy) * 180;
+        let fillWidth = (shieldEnergy / maxShieldEnergy) * 171;
         ctx.fillStyle = shieldDepletedLockout ? "#ef4444" : "#00ffff";
-        ctx.fillRect(42, 42, fillWidth - 4, 10);
+        ctx.fillRect(22, 20, Math.max(0, fillWidth), 10);
 
         ctx.fillStyle = "#ffffff";
-        ctx.font = "10px monospace";
-        ctx.fillText(`SHIELD: ${Math.floor(shieldEnergy)}%`, 45, 52);
+        ctx.font = "bold 10px monospace";
+        ctx.fillText(`SHIELD: ${Math.floor(shieldEnergy)}%`, 26, 29);
+
+        // Stage badge on top-right of canvas
+        ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+        ctx.fillRect(canvas.width - 135, 18, 115, 18);
+        ctx.strokeStyle = "#d4af37";
+        ctx.strokeRect(canvas.width - 135, 18, 115, 18);
+        ctx.fillStyle = "#d4af37";
+        ctx.fillText(`STAGE ${currentStage} / ${MAX_STAGES}`, canvas.width - 122, 30);
+      }
+
+      // Grounded floor renderer: solid metallic street platform so characters clearly stand ON the deck
+      function drawSolidFloorDeck(ctx) {
+        // Top walkable curb / steel deck edge at y = FLOOR_Y (300)
+        let topLipGrad = ctx.createLinearGradient(0, FLOOR_Y - 3, 0, FLOOR_Y + 12);
+        topLipGrad.addColorStop(0, '#7dd3fc');
+        topLipGrad.addColorStop(0.25, '#38bdf8');
+        topLipGrad.addColorStop(0.55, '#1e3a8a');
+        topLipGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = topLipGrad;
+        ctx.fillRect(0, FLOOR_Y - 2, canvas.width, 14);
+
+        // Bright surface highlight line right where feet meet the ground
+        ctx.strokeStyle = '#bae6fd';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, FLOOR_Y);
+        ctx.lineTo(canvas.width, FLOOR_Y);
+        ctx.stroke();
+
+        // Main solid deck body (y = 312 to 400)
+        let deckGrad = ctx.createLinearGradient(0, FLOOR_Y + 12, 0, canvas.height);
+        deckGrad.addColorStop(0, '#1e293b');
+        deckGrad.addColorStop(0.35, '#0f172a');
+        deckGrad.addColorStop(1, '#020617');
+        ctx.fillStyle = deckGrad;
+        ctx.fillRect(0, FLOOR_Y + 12, canvas.width, canvas.height - (FLOOR_Y + 12));
+
+        // Horizontal structural plate seam
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, FLOOR_Y + 34);
+        ctx.lineTo(canvas.width, FLOOR_Y + 34);
+        ctx.stroke();
+
+        // Scrolling heavy steel floor plating seams & rivets
+        for (let gx = (groundScrollX % 60) - 60; gx < canvas.width + 60; gx += 60) {
+          ctx.strokeStyle = '#1e3a8a';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(gx, FLOOR_Y + 12);
+          ctx.lineTo(gx - 18, canvas.height);
+          ctx.stroke();
+
+          // Metallic plate bolts along upper deck
+          ctx.fillStyle = '#64748b';
+          ctx.fillRect(gx + 10, FLOOR_Y + 18, 4, 4);
+          ctx.fillRect(gx + 38, FLOOR_Y + 18, 4, 4);
+
+          // Subtle gold hazard dash along curb
+          ctx.fillStyle = 'rgba(212, 175, 55, 0.55)';
+          ctx.fillRect(gx + 14, FLOOR_Y + 3, 24, 3);
+        }
+      }
+
+      // Ground contact shadow directly on FLOOR_Y so sprites are visually anchored to the floor
+      function drawGroundShadow(ctx, centerX, radiusX, jumpOffset = 0) {
+        let scale = Math.max(0.45, 1 - (jumpOffset / 160));
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 0, 0, ${0.65 * scale})`;
+        ctx.beginPath();
+        ctx.ellipse(centerX, FLOOR_Y + 2, radiusX * scale, 5 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
 
       function renderHeroCharacter(ctx, heroObj, posX, posY) {
+        // Draw grounded contact shadow at FLOOR_Y under the character's feet
+        let jumpHeight = Math.max(0, GROUNDED_PLAYER_Y - posY);
+        drawGroundShadow(ctx, posX + 42, 34, jumpHeight);
+
+        // Sprite drawn from posY - 75 with height 145 -> bottom edge sits right on FLOOR_Y (300) when posY = 230
         let singleImg = sprites[heroObj.key];
         if (singleImg && singleImg.complete && singleImg.naturalWidth !== 0) {
           ctx.drawImage(singleImg, posX - 15, posY - 75, 115, 145);
         } else {
           let fallbackSheet = heroObj.sheetKey ? sprites[heroObj.sheetKey] : null;
           if (fallbackSheet && fallbackSheet.complete && fallbackSheet.naturalWidth !== 0) {
-            ctx.drawImage(fallbackSheet, posX - 10, posY - 70, 105, 135);
+            ctx.drawImage(fallbackSheet, posX - 10, posY - 70, 105, 140);
           } else {
-            ctx.fillStyle = '#1e3a8a'; ctx.fillRect(posX + 10, posY - 45, 32, 50);
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(posX + 24, posY - 10, 36, 80);
           }
         }
       }
 
-      // --- 1. Independent Character P2 Spacing Fix ---
       function updatePartnerSpacing(leadX, pX, minSpacing = 70) {
         let distance = Math.abs(leadX - pX);
         if (distance < minSpacing) {
@@ -1681,49 +1838,6 @@
         return { leadX, partnerX: pX };
       }
 
-      // --- 2. Diverse Botanical Flora Rendering ---
-      function drawDiverseFlora(ctx, cameraX, canvasWidth, groundY = 300) {
-        const floraTypes = [
-          { stemHeight: 32, petals: 6, color: '#f39c12', centerColor: '#f1c40f' },
-          { stemHeight: 48, petals: 5, color: '#9b59b6', centerColor: '#8e44ad' },
-          { stemHeight: 24, petals: 8, color: '#e74c3c', centerColor: '#c0392b' },
-          { stemHeight: 38, petals: 5, color: '#3498db', centerColor: '#2980b9' },
-          { stemHeight: 44, petals: 7, color: '#2ecc71', centerColor: '#27ae60' }
-        ];
-
-        const patchPositions = [90, 210, 360, 490, 620, 780, 940, 1100];
-
-        patchPositions.forEach((posX, index) => {
-          let flora = floraTypes[index % floraTypes.length];
-          let renderX = (posX - (cameraX * 0.6)) % (canvasWidth + 100);
-          if (renderX < -50) renderX += canvasWidth + 150;
-          
-          let stemTopY = groundY - flora.stemHeight;
-
-          ctx.strokeStyle = '#27ae60';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(renderX, groundY);
-          ctx.quadraticCurveTo(renderX + 3, groundY - (flora.stemHeight / 2), renderX, stemTopY);
-          ctx.stroke();
-
-          ctx.fillStyle = flora.color;
-          for (let i = 0; i < flora.petals; i++) {
-            let angle = (i * 2 * Math.PI) / flora.petals;
-            let petalX = renderX + Math.cos(angle) * 5;
-            let petalY = stemTopY + Math.sin(angle) * 5;
-            ctx.beginPath();
-            ctx.arc(petalX, petalY, 4.5, 0, 2 * Math.PI);
-            ctx.fill();
-          }
-
-          ctx.fillStyle = flora.centerColor;
-          ctx.beginPath();
-          ctx.arc(renderX, stemTopY, 3.5, 0, 2 * Math.PI);
-          ctx.fill();
-        });
-      }
-
       function brawlerLoop() {
         if (canvas.offsetParent !== null) {
           updateMarcusShield();
@@ -1735,7 +1849,14 @@
           playerX = spacingResult.leadX;
           partnerX = spacingResult.partnerX;
 
-          if (isJumping) { playerY += jumpVel; jumpVel += 0.8; if (playerY >= 250) { playerY = 250; isJumping = false; } }
+          if (isJumping) {
+            playerY += jumpVel;
+            jumpVel += 0.8;
+            if (playerY >= GROUNDED_PLAYER_Y) {
+              playerY = GROUNDED_PLAYER_Y;
+              isJumping = false;
+            }
+          }
           
           let droidsActive = preBossDroids.some(d => d.active);
           timeOfDayTimer += 0.003;
@@ -1744,58 +1865,56 @@
           chopperX += chopperDir * 1.0;
           if (chopperX > 480 || chopperX < 120) chopperDir *= -1;
 
-          if (playerHasFired && Math.random() < 0.02 && droidsActive) {
-            brawlerProjectiles.push({ x: partnerX, y: playerY, vx: 10, color: '#a855f7', type: 'partner-laser', width: 20, height: 8, damage: 1 });
+          if (!stageTransitioning && playerHasFired && Math.random() < 0.02 && droidsActive) {
+            brawlerProjectiles.push({ x: partnerX + 45, y: GROUNDED_PLAYER_Y, vx: 10, color: '#a855f7', type: 'partner-laser', width: 20, height: 8, damage: 1 });
           }
 
-          preBossDroids.forEach(d => {
-            if (d.active) {
-              if (d.x > playerX + 25) d.x -= d.speed;
-              else if (d.x < playerX - 15) d.x += d.speed;
+          if (!stageTransitioning) {
+            preBossDroids.forEach(d => {
+              if (d.active) {
+                if (d.x > playerX + 65) d.x -= d.speed;
+                else if (d.x < playerX + 45) d.x += d.speed;
 
-              d.walkAnim += 0.15;
-              d.shootTimer++;
-              if (d.shootTimer > 95) {
-                d.shootTimer = 0;
-                droidProjectiles.push({ x: d.x, y: d.isFlying ? d.y - 40 : d.y - 20, vx: -5, vy: 0 });
+                d.walkAnim += 0.15;
+                d.shootTimer++;
+                if (d.shootTimer > 95) {
+                  d.shootTimer = 0;
+                  droidProjectiles.push({ x: d.x, y: d.isFlying ? d.y - 65 : d.y - 35, vx: -5, vy: 0 });
+                }
               }
-            }
-          });
+            });
 
-          if (!droidsActive) {
-            let activeCount = preBossDroids.filter(d => !d.active).length;
-            if (activeCount >= preBossDroids.length && currentWave < 3) {
-              currentWave++;
-              if (currentWave === 2) {
-                speakText("Wave 2: Elite Vanguard Droid Assault inbound! Master your hero superpowers!");
+            if (!droidsActive) {
+              if (currentWave < 2) {
+                currentWave++;
+                speakText(`Stage ${currentStage}, Wave 2: Elite Vanguard Droid Assault inbound!`);
+                spawnWave(currentWave);
               } else {
-                speakText("Final Pre-Boss Wave incoming! Prepare for the ultimate showdown!");
-              }
-              spawnWave(currentWave);
-            } else if (currentWave === 3) {
-              let distanceToPlayer = Math.abs(bossX - playerX);
-              if (distanceToPlayer > 140) {
-                if (bossX > playerX + 140) bossX -= 1.2;
-                else if (bossX < playerX - 140) bossX += 1.2;
-              } else {
-                bossX += Math.sin(Date.now() * 0.005) * 0.8;
-              }
-
-              bossShootTimer++;
-              if (bossShootTimer > 70) {
-                bossShootTimer = 0;
-                playSound('beam');
-                let bossName = currentBossObj.name;
-                if (bossName === "Chronolock") {
-                  bossAttacks.push({ x: bossX, y: bossY, vx: -6, type: 'temporal-glitch', color: '#d4af37', width: 35, height: 35 });
-                } else if (bossName === "Apex Vault") {
-                  bossAttacks.push({ x: bossX, y: bossY, vx: -14, type: 'volt-shock', color: '#38bdf8', width: 45, height: 10 });
-                } else if (bossName === "Magnum Weaver") {
-                  bossAttacks.push({ x: bossX, y: 275, vx: -4, type: 'creeping-lava', color: '#ea580c', width: 140, height: 30 });
-                } else if (bossName === "Vipera") {
-                  bossAttacks.push({ x: bossX, y: bossY, vx: -10, type: 'venom-stream', color: '#10b981', width: 50, height: 14 });
+                document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${bossHp}%`;
+                let distanceToPlayer = Math.abs(bossX - playerX);
+                if (distanceToPlayer > 160) {
+                  if (bossX > playerX + 160) bossX -= 1.2;
+                  else if (bossX < playerX - 160) bossX += 1.2;
                 } else {
-                  bossAttacks.push({ x: bossX, y: bossY, vx: -8, type: 'standard-pulse', color: '#ef4444', width: 30, height: 12 });
+                  bossX += Math.sin(Date.now() * 0.005) * 0.8;
+                }
+
+                bossShootTimer++;
+                if (bossShootTimer > 70) {
+                  bossShootTimer = 0;
+                  playSound('beam');
+                  let bossName = currentBossObj.name;
+                  if (bossName === "Chronolock") {
+                    bossAttacks.push({ x: bossX, y: bossY, vx: -6, type: 'temporal-glitch', color: '#d4af37', width: 35, height: 35 });
+                  } else if (bossName === "Apex Vault") {
+                    bossAttacks.push({ x: bossX, y: bossY, vx: -14, type: 'volt-shock', color: '#38bdf8', width: 45, height: 10 });
+                  } else if (bossName === "Magnum Weaver") {
+                    bossAttacks.push({ x: bossX, y: FLOOR_Y - 26, vx: -4, type: 'creeping-lava', color: '#ea580c', width: 140, height: 26 });
+                  } else if (bossName === "Vipera") {
+                    bossAttacks.push({ x: bossX, y: bossY, vx: -10, type: 'venom-stream', color: '#10b981', width: 50, height: 14 });
+                  } else {
+                    bossAttacks.push({ x: bossX, y: bossY, vx: -8, type: 'standard-pulse', color: '#ef4444', width: 30, height: 12 });
+                  }
                 }
               }
             }
@@ -1803,7 +1922,7 @@
 
           for (let i = droidProjectiles.length - 1; i >= 0; i--) {
             let dp = droidProjectiles[i]; dp.x += dp.vx;
-            if (Math.abs(playerX - dp.x) < 30) {
+            if (Math.abs((playerX + 40) - dp.x) < 30 && !isJumping) {
               playSound('crash');
               if (isShieldActive) {
                 shieldEnergy -= 5;
@@ -1818,7 +1937,7 @@
 
           for (let i = bossAttacks.length - 1; i >= 0; i--) {
             let ba = bossAttacks[i]; ba.x += ba.vx;
-            if (Math.abs(playerX - ba.x) < 35) {
+            if (Math.abs((playerX + 40) - ba.x) < 35 && !isJumping) {
               playSound('crash');
               if (isShieldActive) {
                 shieldEnergy -= 8;
@@ -1833,8 +1952,10 @@
 
           for (let i = brawlerProjectiles.length - 1; i >= 0; i--) {
             let bp = brawlerProjectiles[i]; bp.x += bp.vx;
+            let hitSomething = false;
             if (droidsActive) {
-              preBossDroids.forEach(d => {
+              for (let j = 0; j < preBossDroids.length; j++) {
+                let d = preBossDroids[j];
                 if (d.active && Math.abs(bp.x - d.x) < 40) {
                   d.hp -= (bp.damage || 1);
                   if (d.hp <= 0) {
@@ -1842,38 +1963,34 @@
                     playSound('transform');
                   }
                   let remainingCount = preBossDroids.filter(d => d.active).length;
-                  document.getElementById('boss-hp').innerText = remainingCount > 0 ? `Wave ${currentWave} • ${remainingCount} Units` : "Boss Active!";
+                  document.getElementById('boss-hp').innerText = remainingCount > 0
+                    ? `Stage ${currentStage} • W${currentWave} (${remainingCount} left)`
+                    : `Stage ${currentStage} Boss: ${bossHp}%`;
                   addScore(25);
-                  brawlerProjectiles.splice(i, 1);
+                  hitSomething = true;
+                  break;
                 }
-              });
-            } else {
-              if (Math.abs(bp.x - bossX) < 50) {
-                playSound('crash'); bossHp = Math.max(0, bossHp - (bp.damage === 2 ? 20 : 10));
-                document.getElementById('boss-hp').innerText = bossHp + '%';
-                brawlerProjectiles.splice(i, 1);
+              }
+            } else if (!stageTransitioning && bossHp > 0) {
+              if (Math.abs(bp.x - bossX) < 55) {
+                playSound('crash');
+                bossHp = Math.max(0, bossHp - (bp.damage === 2 ? 20 : 10));
+                document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${bossHp}%`;
                 addScore(50);
+                hitSomething = true;
                 if (bossHp <= 0) {
-                  playSound('transform');
-                  addScore(500);
-                  
-                  if (currentBossObj.name === "Chronolock") {
-                    for (let s = 0; s < 12; s++) {
-                      clockShards.push({ x: bossX + (Math.random()*60 - 30), y: bossY + (Math.random()*60 - 30), vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, rotation: Math.random()*Math.PI });
-                    }
-                  }
-
-                  setTimeout(() => {
-                    speakText(`${currentBossObj.name} defeated! Returning to Marrow Globe Nexus.`);
-                    switchPortal('globe3d');
-                  }, 1200);
-                  return;
+                  brawlerProjectiles.splice(i, 1);
+                  handleBossDefeated();
+                  break;
                 }
               }
             }
-            if (bp.x > canvas.width || bp.x < 0) brawlerProjectiles.splice(i, 1);
+            if (hitSomething || bp.x > canvas.width || bp.x < 0) {
+              brawlerProjectiles.splice(i, 1);
+            }
           }
 
+          // Background sky & skyline
           let skyAlpha = (Math.sin(timeOfDayTimer) + 1) / 2;
           let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
           bgGrad.addColorStop(0, skyAlpha > 0.5 ? '#0f172a' : '#030712');
@@ -1911,11 +2028,11 @@
           ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 3;
           ctx.beginPath(); ctx.moveTo(chopperX - 35 + Math.sin(rotorAngle)*25, 42); ctx.lineTo(chopperX + 35 - Math.sin(rotorAngle)*25, 42); ctx.stroke();
 
-          let searchGradient = ctx.createRadialGradient(chopperX, 55, 10, chopperX, 300, 140);
+          let searchGradient = ctx.createRadialGradient(chopperX, 55, 10, chopperX, FLOOR_Y, 140);
           searchGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
           searchGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
           ctx.fillStyle = searchGradient;
-          ctx.beginPath(); ctx.moveTo(chopperX, 55); ctx.lineTo(chopperX - 60, 300); ctx.lineTo(chopperX + 60, 300); ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(chopperX, 55); ctx.lineTo(chopperX - 60, FLOOR_Y); ctx.lineTo(chopperX + 60, FLOOR_Y); ctx.closePath(); ctx.fill();
 
           ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)'; ctx.lineWidth = 1.5;
           rainDrops.forEach(r => {
@@ -1923,17 +2040,8 @@
             ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 2, r.y + 10); ctx.stroke();
           });
 
-          ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 300); ctx.lineTo(canvas.width, 300); ctx.stroke();
-          let groundGrad = ctx.createLinearGradient(0, 300, 0, canvas.height);
-          groundGrad.addColorStop(0, '#0f172a'); groundGrad.addColorStop(1, '#020617');
-          ctx.fillStyle = groundGrad; ctx.fillRect(0, 300, canvas.width, 100);
-          ctx.strokeStyle = '#1e3a8a'; ctx.lineWidth = 2;
-          for (let gx = (groundScrollX % 40) - 40; gx < canvas.width; gx += 40) {
-            ctx.beginPath(); ctx.moveTo(gx, 300); ctx.lineTo(gx - 20, canvas.height); ctx.stroke();
-          }
-
-          // Render Diverse Flora along the terrain baseline
-          drawDiverseFlora(ctx, groundScrollX, canvas.width, 300);
+          // Render Solid Metallic Floor Deck (no flowers)
+          drawSolidFloorDeck(ctx);
 
           drawShieldHUD(ctx);
 
@@ -2008,14 +2116,16 @@
             preBossDroids.forEach(d => {
               if (d.active) {
                 if (d.isFlying) {
+                  drawGroundShadow(ctx, d.x, 18, 65);
                   ctx.fillStyle = '#cbd5e1';
-                  ctx.beginPath(); ctx.ellipse(d.x, d.y - 65, 22, 11, 0, 0, Math.PI*2); ctx.fill();
+                  ctx.beginPath(); ctx.ellipse(d.x, d.y - 80, 22, 11, 0, 0, Math.PI*2); ctx.fill();
                   ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.stroke();
-                  ctx.fillStyle = '#ef4444'; ctx.fillRect(d.x - 4, d.y - 65, 8, 8);
-                  ctx.fillStyle = '#38bdf8'; ctx.fillRect(d.x - 16, d.y - 52, 32, 4);
+                  ctx.fillStyle = '#ef4444'; ctx.fillRect(d.x - 4, d.y - 80, 8, 8);
+                  ctx.fillStyle = '#38bdf8'; ctx.fillRect(d.x - 16, d.y - 67, 32, 4);
                 } else {
+                  drawGroundShadow(ctx, d.x, 22, 0);
                   ctx.save();
-                  ctx.translate(d.x, 300);
+                  ctx.translate(d.x, FLOOR_Y);
                   
                   ctx.fillStyle = '#1e293b';
                   ctx.strokeStyle = '#38bdf8';
@@ -2040,19 +2150,21 @@
                 }
               }
             });
-          } else if (bossHp > 0) {
+          } else if (bossHp > 0 && !stageTransitioning) {
+            drawGroundShadow(ctx, bossX, 44, 0);
             let bossImg = sprites[currentBossObj.sprite];
+            // Boss sprite bottom sits right at FLOOR_Y (238 - 68 + 130 = 300)
             if (bossImg && bossImg.complete && bossImg.naturalWidth !== 0) {
-              ctx.drawImage(bossImg, bossX - 50, bossY - 60, 100, 120);
+              ctx.drawImage(bossImg, bossX - 52, bossY - 68, 104, 130);
             } else {
               ctx.fillStyle = '#991b1b';
-              ctx.beginPath(); ctx.roundRect(bossX - 40, bossY - 50, 80, 100, 8); ctx.fill();
+              ctx.beginPath(); ctx.roundRect(bossX - 40, bossY - 48, 80, 110, 8); ctx.fill();
               ctx.strokeStyle = '#f87171'; ctx.lineWidth = 2; ctx.stroke();
-              ctx.fillStyle = '#38bdf8'; ctx.fillRect(bossX - 20, bossY - 30, 40, 10);
+              ctx.fillStyle = '#38bdf8'; ctx.fillRect(bossX - 20, bossY - 28, 40, 10);
             }
             
-            ctx.fillStyle = '#1e293b'; ctx.fillRect(bossX - 40, bossY - 75, 80, 8);
-            ctx.fillStyle = '#ef4444'; ctx.fillRect(bossX - 40, bossY - 75, 80 * (bossHp / 100), 8);
+            ctx.fillStyle = '#1e293b'; ctx.fillRect(bossX - 40, bossY - 82, 80, 8);
+            ctx.fillStyle = '#ef4444'; ctx.fillRect(bossX - 40, bossY - 82, 80 * (bossHp / 100), 8);
           }
 
           clockShards.forEach(cs => {
@@ -2086,7 +2198,7 @@
                   let activeDroids = preBossDroids.filter(d => d.active);
                   if (activeDroids.length > 0) {
                     targetX = activeDroids[0].x;
-                    targetY = activeDroids[0].y;
+                    targetY = activeDroids[0].y - 30;
                   }
                 }
                 let angle = Math.atan2(targetY - glideY, targetX - glideX);
@@ -2133,19 +2245,21 @@
 
               if (droidsActive) {
                 preBossDroids.forEach(d => {
-                  if (d.active && Math.hypot(fd.x - d.x, fd.y - d.y) < 30) {
+                  if (d.active && Math.hypot(fd.x - d.x, fd.y - (d.y - 30)) < 35) {
                     d.hp -= fd.damage;
                     if (d.hp <= 0) d.active = false;
                     featheryDaggers.splice(f, 1);
                   }
                 });
-              } else if (Math.hypot(fd.x - bossX, fd.y - bossY) < 45) {
+              } else if (!stageTransitioning && Math.hypot(fd.x - bossX, fd.y - bossY) < 48) {
                 bossHp = Math.max(0, bossHp - 2);
-                document.getElementById('boss-hp').innerText = bossHp + '%';
+                document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${bossHp}%`;
                 featheryDaggers.splice(f, 1);
                 if (bossHp <= 0) {
-                  speakText(`${currentBossObj.name} defeated by Xochitl's fire wings glide!`);
-                  switchPortal('globe3d');
+                  xochitlGlideActive = false;
+                  playerX = partnerX + 55;
+                  glideY = GROUNDED_PLAYER_Y;
+                  handleBossDefeated();
                 }
               }
             }
@@ -2153,24 +2267,24 @@
 
             if (glideProgress >= 3.2 || (glideX <= partnerX + 30 && glideProgress > 1.5)) {
               xochitlGlideActive = false;
-              playerX = partnerX + 50;
-              glideY = 250;
+              playerX = partnerX + 55;
+              glideY = GROUNDED_PLAYER_Y;
               speakText("Xochitl lands back down smoothly next to her partner.");
             }
           } else {
-            renderHeroCharacter(ctx, activeHero, playerX, playerY);
+            // Both Partner and Lead Hero stand directly on FLOOR_Y (GROUNDED_PLAYER_Y)
+            renderHeroCharacter(ctx, partnerHero, partnerX, GROUNDED_PLAYER_Y);
+            renderHeroCharacter(ctx, activeHero, playerX, GROUNDED_PLAYER_Y);
 
             if (isShieldActive) {
               ctx.strokeStyle = '#00ffff';
               ctx.lineWidth = 3;
               ctx.beginPath();
-              ctx.arc(playerX + 40, playerY, 45, 0, Math.PI * 2);
+              ctx.arc(playerX + 42, playerY - 4, 48, 0, Math.PI * 2);
               ctx.stroke();
               ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
               ctx.fill();
             }
-
-            renderHeroCharacter(ctx, partnerHero, partnerX, playerY + 5);
           }
 
           if (solarLionActive) {
@@ -2178,10 +2292,10 @@
             ctx.save();
             ctx.globalAlpha = solarLionAlpha;
             if (sprites.solarLionRoar && sprites.solarLionRoar.complete && sprites.solarLionRoar.naturalWidth !== 0) {
-              ctx.drawImage(sprites.solarLionRoar, solarLionX, 150, 180, 140);
+              ctx.drawImage(sprites.solarLionRoar, solarLionX, 160, 180, 140);
             } else {
               ctx.fillStyle = '#f59e0b';
-              ctx.beginPath(); ctx.arc(solarLionX + 60, 220, 60, 0, Math.PI*2); ctx.fill();
+              ctx.beginPath(); ctx.arc(solarLionX + 60, 235, 60, 0, Math.PI*2); ctx.fill();
             }
             ctx.restore();
             if (solarLionX > canvas.width + 100) { solarLionActive = false; solarLionAlpha = 1.0; }
@@ -2196,7 +2310,21 @@
             if (sprites.motherLuta && sprites.motherLuta.complete) {
               ctx.drawImage(sprites.motherLuta, playerX - 25, luettaY, 60, 80);
             }
-            if (luettaY > 300) { luettaAlpha -= 0.05; if (luettaAlpha <= 0) luettaActive = false; }
+            if (luettaY > FLOOR_Y) { luettaAlpha -= 0.05; if (luettaAlpha <= 0) luettaActive = false; }
+          }
+
+          // Stage transition banner overlay
+          if (stageBannerText) {
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+            ctx.fillRect(40, 130, canvas.width - 80, 56);
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(40, 130, canvas.width - 80, 56);
+            ctx.fillStyle = '#d4af37';
+            ctx.font = 'bold 14px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(stageBannerText, canvas.width / 2, 163);
+            ctx.textAlign = 'left';
           }
 
           activeBrawlerId = requestAnimationFrame(brawlerLoop);
