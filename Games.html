@@ -344,11 +344,11 @@
       <!-- PORTAL 5: 2D SIDE-SCROLLING BRAWLER ARENA (3-STAGE CAMPAIGN + TRINITY SURGE) -->
       <div class="sandbox-container brawler-container hidden" id="portal-brawler">
         <div class="sandbox-header" style="color: #38bdf8;" id="brawler-header-title">Marcus (Lead) & Sundiata Prime (Tactical AI)</div>
-        <h1 style="color: #38bdf8;" id="brawler-boss-title">STAGE 1 OF 3 • DEFEAT BOSS: CHRONOLOCK</h1>
+        <h1 style="color: #38bdf8;" id="brawler-boss-title">STAGE 1/3 (DETROIT '313 GRID) • BOSS: CHRONOLOCK</h1>
 
         <div class="stats-bar" style="border-color: #1e3a8a; color: #38bdf8;">
           <span>🛡️ Team Health: <strong id="team-health" style="color: #10b981;">100</strong>/100</span>
-          <span>💥 Stage/Boss: <strong id="boss-hp" style="color: #ef4444;">Stage 1 • Wave 1</strong></span>
+          <span>💥 Stage/Boss: <strong id="boss-hp" style="color: #ef4444;">Stage 1 • Wave 1/3</strong></span>
           <span>⚡ Shield Energy: <strong id="shield-energy-label" style="color: #38bdf8;">100%</strong></span>
         </div>
 
@@ -375,7 +375,7 @@
 
         <div class="choice-grid" style="grid-template-columns: 1fr 1fr; display: grid; gap: 6px;">
           <button class="game-btn" onclick="triggerTrinitySurge()" id="trinity-btn" style="background: linear-gradient(135deg, #1e3a8a 0%, #d4af37 100%); border-color: #fef08a; color: #ffffff; text-align: center; font-size: 0.65rem;">⚡ THREE PRIMES TRINITY SURGE (0%)</button>
-          <button class="game-btn" onclick="summonMotherLuetta()" style="background: #78350f; border-color: #d4af37; color: #d4af37; text-align: center; font-size: 0.65rem;">🌟 SUMMON MOTHER LUETTA (HEAL)</button>
+          <button class="game-btn" onclick="summonMotherLuetta()" id="luetta-btn" style="background: #78350f; border-color: #d4af37; color: #d4af37; text-align: center; font-size: 0.65rem;">🌟 MOTHER LUETTA (HEAL READY)</button>
         </div>
 
         <div style="margin-top: 10px;"><a href="#" class="back-link" onclick="switchPortal('globe3d')">← Return to Marrow Globe Nexus</a></div>
@@ -431,7 +431,8 @@
       xochitlSpriteSheet: './xochitl_sprite_sheet.png',
       kofi: './kofi.png',
       kofiSpriteSheet: './kofi_spritesheet.png',
-      wakan: './wakan.png',
+      wakanSpriteSheet: './wakan_spritesheet.png',
+      guacanSheet: './guacan-sheet.png',
       motherLuta: './mother-luta.png',
       chronolock: './chrono-lock.png',
       apexVault: './apex-volt.png',
@@ -545,7 +546,7 @@
       { name: "Amina Zazzau", key: "amina", sheetKey: null, sheetCols: 1, sheetRows: 1, tag: "TAG: XOCHITL", s1: "⚡ Lightning Spear", s2: "🌩️ Multi-Bolt Storm", s3: "🛡️ Zazzau Aegis", dialogue: "Co-op: Amina Zazzau strikes with sovereign lightning spears!" },
       { name: "Xochitl", key: "xochitl", sheetKey: "xochitlSpriteSheet", sheetCols: 4, sheetRows: 4, tag: "TAG: KOFI", s1: "🕊️ Fire Wings Glide", s2: "🔥 Solar Feather Barrage", s3: "🛡️ Wing Shield", dialogue: "Co-op: Xochitl ascends with blazing fire wings!" },
       { name: "Kofi", key: "kofi", sheetKey: "kofiSpriteSheet", sheetCols: 4, sheetRows: 4, tag: "TAG: WAKAN", s1: "🔨 Crucible Hammer Wave", s2: "⚒️ Anvil Sledge", s3: "🛡️ Crucible Bastion", dialogue: "Co-op: Kofi strikes with the forged crucible hammer!" },
-      { name: "Wakan", key: "wakan", sheetKey: null, sheetCols: 1, sheetRows: 1, tag: "TAG: MARCUS", s1: "🌊 Abyssal Tsunami", s2: "🐚 Conch Tidal Spiral", s3: "🛡️ Trench Shell", dialogue: "Co-op: Wakan summons the roaring tides!" }
+      { name: "Wakan", key: null, sheetKey: "wakanSpriteSheet", fallbackSheetKey: "guacanSheet", sheetCols: 4, sheetRows: 4, tag: "TAG: MARCUS", s1: "🌊 Abyssal Tsunami", s2: "🐚 Conch Tidal Spiral", s3: "🛡️ Trench Shell", dialogue: "Co-op: Wakan summons the roaring tides!" }
     ];
 
     function switchPortal(target) {
@@ -1461,7 +1462,7 @@
       spaceLoop();
     }
 
-    // 2D SIDE-SCROLLING BRAWLER ARENA (3 DISTINCT STAGE ENVIRONMENTS, BALANCED CHALLENGE, SUNDIATA SOLAR LION, AMINA ZAZZAU, WAKAN SINGLE SPRITE, ENHANCED TRINITY SURGE)
+    // 2D SIDE-SCROLLING BRAWLER ARENA (BALANCED PACING, SOLAR LION COLLISION, SINGLE MOTHER LUETTA RESCUE, WAKAN SINGLE FRAME)
     function initBrawlerEngine() {
       const canvas = document.getElementById('brawlerCanvas');
       if (!canvas) return;
@@ -1478,10 +1479,16 @@
 
       let playerX = 115, playerY = GROUNDED_PLAYER_Y, isJumping = false, jumpVel = 0;
       let partnerX = 45;
-      let bossX = 460, bossY = 238, bossHp = 250, bossMaxHp = 250, teamHealth = 100;
+      let bossX = 460, bossY = 238, bossHp = 260, bossMaxHp = 260, teamHealth = 100;
       let brawlerProjectiles = [], droidProjectiles = [], bossAttacks = [];
+
+      // Mother Luetta Rescue State (Once per stage auto-rescue + cooldown)
       let luettaActive = false, luettaY = -50, luettaAlpha = 1.0, luettaBeamTimer = 0;
-      let solarLionActive = false, solarLionX = 0, solarLionAlpha = 1.0;
+      let luettaAutoUsedThisStage = false;
+      let luettaCooldown = 0;
+
+      // Sundiata Prime's Solar Lion Attack State (Active Damage Hitbox)
+      let solarLionActive = false, solarLionX = 0, solarLionAlpha = 1.0, solarLionHitBoss = false, solarLionHitIds = new Set();
 
       // Three Primes Trinity Surge State
       let trinityMeter = 0;
@@ -1490,8 +1497,8 @@
       
       let shieldEnergy = 100;
       const maxShieldEnergy = 100;
-      const shieldDrainRate = 0.4;
-      const shieldRechargerRate = 0.2;
+      const shieldDrainRate = 0.35;
+      const shieldRechargerRate = 0.25;
       let isShieldActive = false;
       let shieldDepletedLockout = false;
       let isShieldButtonHeld = false;
@@ -1538,20 +1545,21 @@
       let preBossDroids = [];
       function spawnWave(waveNum) {
         preBossDroids = [];
-        // Tougher multi-wave enemies: 5 to 9 units with higher HP and armored variants
-        let count = 4 + waveNum + currentStage;
+        // Balanced wave pacing: 4 to 7 units moving at steady arcade speed so you can enjoy animations
+        let count = 3 + waveNum + currentStage;
         for (let i = 0; i < count; i++) {
           let isArmored = (waveNum >= 2 && i % 2 === 0);
           preBossDroids.push({ 
-            x: 440 + (i * 38), 
+            id: `${currentStage}-${waveNum}-${i}-${Date.now()}`,
+            x: 455 + (i * 44), 
             y: FLOOR_Y, 
             hp: (isArmored ? 5 : 3) + currentStage, 
             maxHp: (isArmored ? 5 : 3) + currentStage,
             active: true, 
             isArmored: isArmored,
             isFlying: waveNum >= 2 ? (i % 3 === 1) : (i % 4 === 1), 
-            speed: (isArmored ? 0.95 : 1.35) + (currentStage - 1) * 0.15, 
-            shootTimer: -25 - (i * 12), 
+            speed: (isArmored ? 0.58 : 0.82) + (currentStage - 1) * 0.08, 
+            shootTimer: -45 - (i * 22), 
             walkAnim: Math.random() * Math.PI 
           });
         }
@@ -1561,7 +1569,7 @@
       function setupStage(stageNum) {
         currentStage = stageNum;
         currentWave = 1;
-        bossMaxHp = 150 + (stageNum * 100); // Stage 1: 250 HP, Stage 2: 350 HP, Stage 3: 450 HP
+        bossMaxHp = 180 + (stageNum * 90); // Stage 1: 270 HP, Stage 2: 360 HP, Stage 3: 450 HP
         bossHp = bossMaxHp;
         bossX = 460;
         bossY = 238;
@@ -1574,16 +1582,19 @@
         playerY = GROUNDED_PLAYER_Y;
         isJumping = false;
         jumpVel = 0;
+        luettaAutoUsedThisStage = false;
+        const lBtn = document.getElementById('luetta-btn');
+        if (lBtn) lBtn.innerText = "🌟 MOTHER LUETTA (HEAL READY)";
         currentBossObj = bossPool[(bossIndex + stageNum - 1) % bossPool.length];
         spawnWave(1);
         updateStageHeaderUI(`Stage ${currentStage} • Wave 1/${WAVES_PER_STAGE}`);
-        speakText(`Stage ${currentStage} of ${MAX_STAGES} engaged against ${currentBossObj.name}. Brace for heavy Syndicate waves!`);
+        speakText(`Stage ${currentStage} of ${MAX_STAGES} engaged against ${currentBossObj.name}.`);
       }
 
       setupStage(1);
       
       let rainDrops = [];
-      for (let i = 0; i < 35; i++) rainDrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 7 + Math.random() * 4 });
+      for (let i = 0; i < 35; i++) rainDrops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, speed: 5 + Math.random() * 3 });
       let chopperX = 180, chopperDir = 1, rotorAngle = 0;
 
       function handleBossDefeated() {
@@ -1593,7 +1604,7 @@
 
         if (currentBossObj.name === "Chronolock") {
           for (let s = 0; s < 12; s++) {
-            clockShards.push({ x: bossX + (Math.random() * 60 - 30), y: bossY + (Math.random() * 60 - 30), vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, rotation: Math.random() * Math.PI });
+            clockShards.push({ x: bossX + (Math.random() * 60 - 30), y: bossY + (Math.random() * 60 - 30), vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, rotation: Math.random() * Math.PI });
           }
         }
 
@@ -1602,16 +1613,16 @@
           const completedStage = currentStage;
           const nextZone = completedStage === 1 ? "SAHEL PYRAMID SECTOR" : "CELESTIAL NEXUS ROOFTOP";
           stageBannerText = `STAGE ${completedStage} CLEARED! WARPING TO ${nextZone}...`;
-          document.getElementById('brawler-dialogue').innerText = `Stage ${completedStage} Clear! Team restored +35 HP. Advancing to ${nextZone}!`;
+          document.getElementById('brawler-dialogue').innerText = `Stage ${completedStage} Clear! Team restored +40 HP. Advancing to ${nextZone}!`;
           speakText(`${currentBossObj.name} defeated! Advancing to Stage ${completedStage + 1}: ${nextZone}.`);
 
           setTimeout(() => {
-            teamHealth = Math.min(100, teamHealth + 35);
+            teamHealth = Math.min(100, teamHealth + 40);
             document.getElementById('team-health').innerText = teamHealth;
             stageBannerText = "";
             stageTransitioning = false;
             setupStage(completedStage + 1);
-          }, 1700);
+          }, 1800);
         } else {
           stageTransitioning = true;
           stageBannerText = "ALL 3 STAGES CLEARED! SECTOR SECURED!";
@@ -1619,7 +1630,7 @@
           speakText(`${currentBossObj.name} defeated! All 3 stages cleared! Returning to Marrow Globe Nexus.`);
           setTimeout(() => {
             switchPortal('globe3d');
-          }, 1700);
+          }, 1800);
         }
       }
 
@@ -1649,7 +1660,7 @@
         if (!isJumping) { playSound('transform'); isJumping = true; jumpVel = -12; }
       };
 
-      // SKILL 1: Signature Primary Superpowers (Includes Sundiata Prime's Solar Lion Roar & Amina Zazzau's Lightning Spear)
+      // SKILL 1: Signature Primary Superpowers (Sundiata Prime's Solar Lion Roar now deals real collision damage!)
       window.brawlerSkill1 = () => {
         playSound('acoustic');
         playerHasFired = true;
@@ -1658,21 +1669,22 @@
         let currentShieldPowerBonus = (shieldEnergy > 50) ? 1.5 : 1.0;
         
         if (activeName === 'Sundiata Prime') {
-          // Sundiata Prime's Signature Move: Solar Lion Roar Charge + Golden Bastion Slash
           solarLionActive = true;
-          solarLionX = playerX + 20;
+          solarLionX = playerX + 35;
           solarLionAlpha = 1.0;
-          brawlerProjectiles.push({ x: playerX + 55, y: playerY, vx: 18, color: '#d4af37', type: 'lion-bastion-slash', width: 95, height: 70, damage: 3 });
+          solarLionHitBoss = false;
+          solarLionHitIds = new Set();
+          brawlerProjectiles.push({ x: playerX + 55, y: playerY, vx: 14, color: '#d4af37', type: 'lion-bastion-slash', width: 95, height: 70, damage: 2 });
           speakText("Sundiata Prime: Solar Lion Roar!");
         } else if (activeName === 'Nénambi') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY, vx: 18, color: '#f59e0b', type: 'acoustic-wave', width: 95, height: 45, damage: 2 });
+          brawlerProjectiles.push({ x: playerX + 45, y: playerY, vx: 15, color: '#f59e0b', type: 'acoustic-wave', width: 95, height: 45, damage: 2 });
           speakText("Nénambi Prime: Acoustic Sonic Wave deployed!");
         } else if (activeName === 'Amina Zazzau') {
-          brawlerProjectiles.push({ x: playerX + 50, y: playerY - 4, vx: 24, color: '#38bdf8', type: 'lightning-spear', width: 95, height: 14, damage: 3 });
+          brawlerProjectiles.push({ x: playerX + 50, y: playerY - 4, vx: 19, color: '#38bdf8', type: 'lightning-spear', width: 95, height: 14, damage: 3 });
           speakText("Amina Zazzau: Lightning Spear!");
         } else if (activeName === 'Marcus') {
-          brawlerProjectiles.push({ x: playerX + 50, y: playerY, vx: 22 * currentShieldPowerBonus, color: '#38bdf8', type: 'electric-arc', width: 85 * currentShieldPowerBonus, height: 16, damage: 2 });
-          if (shieldEnergy > 50) shieldEnergy -= 20;
+          brawlerProjectiles.push({ x: playerX + 50, y: playerY, vx: 18 * currentShieldPowerBonus, color: '#38bdf8', type: 'electric-arc', width: 85 * currentShieldPowerBonus, height: 16, damage: 2 });
+          if (shieldEnergy > 50) shieldEnergy -= 15;
         } else if (activeName === 'Xochitl') {
           if (!xochitlGlideActive) {
             xochitlGlideActive = true;
@@ -1683,10 +1695,10 @@
             speakText("Xochitl ascends to celestial apex with majestic angel wings!");
           }
         } else if (activeName === 'Kofi') {
-          brawlerProjectiles.push({ x: playerX + 50, y: playerY, vx: 17, color: '#f59e0b', type: 'crucible-wave', width: 90, height: 60, damage: 3 });
+          brawlerProjectiles.push({ x: playerX + 50, y: playerY, vx: 15, color: '#f59e0b', type: 'crucible-wave', width: 90, height: 60, damage: 3 });
           speakText("Kofi: Crucible Hammer Wave!");
         } else if (activeName === 'Wakan') {
-          brawlerProjectiles.push({ x: playerX + 40, y: playerY - 10, vx: 12, color: '#34d399', type: 'abyssal-tsunami', width: 110, height: 95, damage: 3 });
+          brawlerProjectiles.push({ x: playerX + 40, y: playerY - 10, vx: 11, color: '#34d399', type: 'abyssal-tsunami', width: 110, height: 95, damage: 3 });
           speakText("Wakan: Abyssal Tsunami unleashed!");
         }
       };
@@ -1699,26 +1711,26 @@
         let activeName = heroes[heroIndex].name;
 
         if (activeName === 'Marcus') {
-          brawlerProjectiles.push({ x: playerX + 48, y: playerY + 4, vx: 16, color: '#38bdf8', type: 'lightning-orb', width: 34, height: 34, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: playerX + 48, y: playerY + 4, vx: 14, color: '#38bdf8', type: 'lightning-orb', width: 34, height: 34, damage: 2, rot: 0 });
         } else if (activeName === 'Sundiata Prime') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY + 15, vx: 16, color: '#f59e0b', type: 'sovereign-wave', width: 70, height: 34, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: playerX + 45, y: playerY + 15, vx: 14, color: '#f59e0b', type: 'sovereign-wave', width: 70, height: 34, damage: 2, rot: 0 });
           speakText("Sundiata Prime: Sovereign Shockwave!");
         } else if (activeName === 'Nénambi') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY - 4, vx: 16, color: '#38bdf8', type: 'mineral-pulse', width: 46, height: 46, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: playerX + 45, y: playerY - 4, vx: 14, color: '#38bdf8', type: 'mineral-pulse', width: 46, height: 46, damage: 2, rot: 0 });
           speakText("Nénambi Prime: Crystal Prism Burst active!");
         } else if (activeName === 'Amina Zazzau') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY - 14, vx: 20, color: '#fef08a', type: 'lightning-spear', width: 75, height: 12, damage: 2, rot: 0 });
-          brawlerProjectiles.push({ x: playerX + 35, y: playerY + 12, vx: 19, color: '#38bdf8', type: 'lightning-spear', width: 75, height: 12, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: playerX + 45, y: playerY - 14, vx: 17, color: '#fef08a', type: 'lightning-spear', width: 75, height: 12, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: playerX + 35, y: playerY + 12, vx: 16, color: '#38bdf8', type: 'lightning-spear', width: 75, height: 12, damage: 2, rot: 0 });
           speakText("Amina Zazzau: Multi-Bolt Storm!");
         } else if (activeName === 'Xochitl') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY - 10, vx: 19, color: '#fbbf24', type: 'solar-feather', width: 44, height: 16, damage: 2, rot: 0 });
-          brawlerProjectiles.push({ x: playerX + 35, y: playerY + 14, vx: 18, color: '#f97316', type: 'solar-feather', width: 44, height: 16, damage: 1, rot: 0 });
+          brawlerProjectiles.push({ x: playerX + 45, y: playerY - 10, vx: 16, color: '#fbbf24', type: 'solar-feather', width: 44, height: 16, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: playerX + 35, y: playerY + 14, vx: 15, color: '#f97316', type: 'solar-feather', width: 44, height: 16, damage: 1, rot: 0 });
           speakText("Xochitl: Solar Feather Barrage!");
         } else if (activeName === 'Kofi') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY + 4, vx: 15, color: '#fb923c', type: 'anvil-sledge', width: 40, height: 40, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: playerX + 45, y: playerY + 4, vx: 14, color: '#fb923c', type: 'anvil-sledge', width: 40, height: 40, damage: 2, rot: 0 });
           speakText("Kofi: Forged Anvil Sledge!");
         } else if (activeName === 'Wakan') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY + 2, vx: 15, color: '#34d399', type: 'hydro-spiral', width: 44, height: 44, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: playerX + 45, y: playerY + 2, vx: 14, color: '#34d399', type: 'hydro-spiral', width: 44, height: 44, damage: 2, rot: 0 });
           speakText("Wakan: Conch Tidal Spiral!");
         }
       };
@@ -1736,7 +1748,6 @@
         trinityMeter = 0;
         chargeTrinityMeter(0);
 
-        // Wipes current droid wave or deals heavy 35% max-HP damage to boss
         preBossDroids.forEach(d => { d.active = false; });
         droidProjectiles = [];
         bossAttacks = [];
@@ -1756,16 +1767,37 @@
         }
       };
 
-      // MOTHER LUETTA CELESTIAL ENERGY BEAM HEAL
-      window.summonMotherLuetta = () => {
+      // MOTHER LUETTA CELESTIAL ENERGY BEAM HEAL (Guarded against repeated triggers)
+      window.summonMotherLuetta = (isAutoRescue = false) => {
+        if (luettaActive) return;
+        if (isAutoRescue && luettaAutoUsedThisStage) return;
+        if (!isAutoRescue && luettaCooldown > 0) {
+          speakText("Mother Luetta is recharging celestial energy.");
+          return;
+        }
+
+        if (isAutoRescue) {
+          luettaAutoUsedThisStage = true;
+        } else {
+          luettaCooldown = 480; // ~8 second manual cooldown
+        }
+
+        // Immediately restore health & clear incoming hazards so she never double-triggers
+        teamHealth = 100;
+        shieldEnergy = maxShieldEnergy;
+        droidProjectiles = [];
+        bossAttacks = [];
+        document.getElementById('team-health').innerText = teamHealth;
+
         playSound('heal');
         luettaActive = true;
         luettaY = -50;
         luettaAlpha = 1.0;
-        luettaBeamTimer = 140;
-        teamHealth = 100;
-        shieldEnergy = maxShieldEnergy;
-        document.getElementById('team-health').innerText = teamHealth;
+        luettaBeamTimer = 135;
+
+        const lBtn = document.getElementById('luetta-btn');
+        if (lBtn) lBtn.innerText = "🌟 MOTHER LUETTA (CHARGING)";
+
         document.getElementById('brawler-dialogue').innerText =
           "Mother Luetta descends in a celestial golden energy beam, fully restoring Team Health & Shield!";
         speakText("Mother Luetta descends in radiant celestial light, healing the Vanguard with her energy beam!");
@@ -1823,7 +1855,6 @@
       // Dynamic 3-Stage Environment Backdrop Renderer
       function drawStageEnvironment(ctx) {
         if (currentStage === 1) {
-          // STAGE 1: DETROIT '313 RAINY CYBER-STREET
           let skyAlpha = (Math.sin(timeOfDayTimer) + 1) / 2;
           let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
           bgGrad.addColorStop(0, skyAlpha > 0.5 ? '#0f172a' : '#030712');
@@ -1856,7 +1887,6 @@
             }
           }
 
-          // Searchlight chopper & rain
           ctx.fillStyle = '#475569'; ctx.fillRect(chopperX - 25, 45, 50, 18);
           ctx.fillStyle = '#38bdf8'; ctx.fillRect(chopperX + 10, 48, 12, 10);
           ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 3;
@@ -1874,7 +1904,6 @@
             ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 2, r.y + 10); ctx.stroke();
           });
         } else if (currentStage === 2) {
-          // STAGE 2: SAHEL SUNSET & GOLDEN PYRAMID TEMPLE SECTOR
           let bgGrad = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
           bgGrad.addColorStop(0, '#1e1b4b');
           bgGrad.addColorStop(0.55, '#7c2d12');
@@ -1882,19 +1911,16 @@
           ctx.fillStyle = bgGrad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Glowing Solar Disc on Horizon
           ctx.fillStyle = 'rgba(254, 240, 138, 0.25)';
           ctx.beginPath(); ctx.arc(460, 195, 68, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = '#f59e0b';
           ctx.beginPath(); ctx.arc(460, 195, 44, 0, Math.PI * 2); ctx.fill();
 
-          // Distant Pyramids & Ancestral Obelisks
           ctx.fillStyle = '#451a03';
           ctx.beginPath(); ctx.moveTo(40, FLOOR_Y); ctx.lineTo(155, 130); ctx.lineTo(270, FLOOR_Y); ctx.closePath(); ctx.fill();
           ctx.fillStyle = '#78350f';
           ctx.beginPath(); ctx.moveTo(210, FLOOR_Y); ctx.lineTo(340, 105); ctx.lineTo(470, FLOOR_Y); ctx.closePath(); ctx.fill();
 
-          // Glowing Golden Runes on Obelisk
           ctx.fillStyle = '#291509';
           ctx.fillRect(515, 120, 32, 180);
           ctx.fillStyle = '#fbbf24';
@@ -1902,7 +1928,6 @@
             ctx.fillRect(526, ry, 10, 10);
           }
         } else {
-          // STAGE 3: CELESTIAL MARROW NEXUS ROOFTOP (HIGH-ALTITUDE AURORA & CLOCKWORK)
           let bgGrad = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
           bgGrad.addColorStop(0, '#090d16');
           bgGrad.addColorStop(0.5, '#1e1b4b');
@@ -1910,7 +1935,6 @@
           ctx.fillStyle = bgGrad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Aurora Borealis Ribbons
           ctx.save();
           ctx.strokeStyle = 'rgba(52, 211, 153, 0.28)';
           ctx.lineWidth = 18;
@@ -1920,7 +1944,6 @@
           ctx.stroke();
           ctx.restore();
 
-          // Giant Celestial Golden Clockwork Ring in Sky
           ctx.save();
           ctx.translate(320, 145);
           ctx.rotate(timeOfDayTimer * 0.5);
@@ -1936,7 +1959,6 @@
           }
           ctx.restore();
 
-          // Nexus Spires
           ctx.fillStyle = '#0f172a';
           ctx.fillRect(60, 140, 40, 160);
           ctx.fillRect(500, 130, 45, 170);
@@ -1946,7 +1968,6 @@
         }
       }
 
-      // Stage-Themed Solid Floor Deck Renderer
       function drawSolidFloorDeck(ctx) {
         const curbTop = currentStage === 2 ? '#fcd34d' : (currentStage === 3 ? '#c084fc' : '#7dd3fc');
         const curbMid = currentStage === 2 ? '#d97706' : (currentStage === 3 ? '#6366f1' : '#38bdf8');
@@ -2008,33 +2029,43 @@
         ctx.restore();
       }
 
-      // Single-character renderer (uses single PNGs directly so Wakan & Amina render cleanly)
+      // Single-character renderer (crops top-left standing frame from wakan_spritesheet.png or guacan-sheet.png)
       function renderHeroCharacter(ctx, heroObj, posX, posY) {
         let jumpHeight = Math.max(0, GROUNDED_PLAYER_Y - posY);
         drawGroundShadow(ctx, posX + 42, 34, jumpHeight);
 
-        let singleImg = sprites[heroObj.key];
+        let singleImg = heroObj.key ? sprites[heroObj.key] : null;
         if (singleImg && singleImg.complete && singleImg.naturalWidth !== 0) {
           ctx.drawImage(singleImg, posX - 15, posY - 75, 115, 145);
+          return;
+        }
+
+        let sheetImg = heroObj.sheetKey ? sprites[heroObj.sheetKey] : null;
+        if (!sheetImg || !sheetImg.complete || sheetImg.naturalWidth === 0) {
+          sheetImg = heroObj.fallbackSheetKey ? sprites[heroObj.fallbackSheetKey] : null;
+        }
+
+        if (sheetImg && sheetImg.complete && sheetImg.naturalWidth !== 0) {
+          let cols = heroObj.sheetCols || 4;
+          let rows = heroObj.sheetRows || 4;
+          let frameW = sheetImg.naturalWidth / cols;
+          let frameH = sheetImg.naturalHeight / rows;
+          ctx.drawImage(sheetImg, 0, 0, frameW, frameH, posX - 15, posY - 75, 115, 145);
         } else {
-          let fallbackSheet = heroObj.sheetKey ? sprites[heroObj.sheetKey] : null;
-          if (fallbackSheet && fallbackSheet.complete && fallbackSheet.naturalWidth !== 0) {
-            let cols = heroObj.sheetCols || 4;
-            let rows = heroObj.sheetRows || 4;
-            let frameW = fallbackSheet.naturalWidth / cols;
-            let frameH = fallbackSheet.naturalHeight / rows;
-            ctx.drawImage(fallbackSheet, 0, 0, frameW, frameH, posX - 15, posY - 75, 115, 145);
-          } else {
-            ctx.save();
-            ctx.fillStyle = heroObj.name === 'Wakan' ? '#0d9488' : (heroObj.name === 'Amina Zazzau' ? '#0284c7' : '#d4af37');
-            ctx.beginPath();
-            ctx.roundRect(posX + 24, posY - 10, 36, 80, 8);
-            ctx.fill();
-            ctx.strokeStyle = '#38bdf8';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.restore();
-          }
+          // Stylized Ocean Warrior silhouette for Wakan while sheet finishes loading
+          ctx.save();
+          ctx.fillStyle = '#0f766e';
+          ctx.beginPath();
+          ctx.roundRect(posX + 26, posY - 12, 32, 82, 8);
+          ctx.fill();
+          ctx.strokeStyle = '#34d399';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(posX + 42, posY - 24, 13, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
         }
       }
 
@@ -2056,6 +2087,14 @@
       function brawlerLoop() {
         if (canvas.offsetParent !== null) {
           updateMarcusShield();
+
+          if (luettaCooldown > 0) {
+            luettaCooldown--;
+            if (luettaCooldown === 0 && !luettaActive) {
+              const lBtn = document.getElementById('luetta-btn');
+              if (lBtn) lBtn.innerText = "🌟 MOTHER LUETTA (HEAL READY)";
+            }
+          }
 
           if (trinityActive) {
             trinityTimer--;
@@ -2079,28 +2118,28 @@
           }
           
           let droidsActive = preBossDroids.some(d => d.active);
-          timeOfDayTimer += 0.003;
-          rotorAngle += 0.4;
+          timeOfDayTimer += 0.002;
+          rotorAngle += 0.35;
 
-          chopperX += chopperDir * 1.0;
+          chopperX += chopperDir * 0.85;
           if (chopperX > 480 || chopperX < 120) chopperDir *= -1;
 
-          if (!stageTransitioning && playerHasFired && Math.random() < 0.02 && droidsActive) {
-            brawlerProjectiles.push({ x: partnerX + 45, y: GROUNDED_PLAYER_Y, vx: 10, color: '#a855f7', type: 'partner-laser', width: 20, height: 8, damage: 1 });
+          if (!stageTransitioning && playerHasFired && Math.random() < 0.018 && droidsActive) {
+            brawlerProjectiles.push({ x: partnerX + 45, y: GROUNDED_PLAYER_Y, vx: 9, color: '#a855f7', type: 'partner-laser', width: 20, height: 8, damage: 1 });
           }
 
           if (!stageTransitioning) {
             preBossDroids.forEach(d => {
               if (d.active) {
-                if (d.x > playerX + 65) d.x -= d.speed;
-                else if (d.x < playerX + 45) d.x += d.speed;
+                if (d.x > playerX + 75) d.x -= d.speed;
+                else if (d.x < playerX + 55) d.x += d.speed;
 
-                d.walkAnim += 0.15;
+                d.walkAnim += 0.11;
                 d.shootTimer++;
-                let fireDelay = Math.max(55, 85 - currentStage * 8);
+                let fireDelay = Math.max(125, 165 - currentStage * 12);
                 if (d.shootTimer > fireDelay) {
                   d.shootTimer = 0;
-                  droidProjectiles.push({ x: d.x, y: d.isFlying ? d.y - 65 : d.y - 35, vx: -(5.5 + currentStage * 0.5), vy: 0 });
+                  droidProjectiles.push({ x: d.x, y: d.isFlying ? d.y - 65 : d.y - 35, vx: -(3.4 + currentStage * 0.35), vy: 0 });
                 }
               }
             });
@@ -2108,67 +2147,68 @@
             if (!droidsActive) {
               if (currentWave < WAVES_PER_STAGE) {
                 currentWave++;
-                speakText(`Stage ${currentStage}, Wave ${currentWave}: Heavy Syndicate reinforcements inbound!`);
+                speakText(`Stage ${currentStage}, Wave ${currentWave}: Syndicate reinforcements approaching!`);
                 spawnWave(currentWave);
               } else {
                 document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
                 let distanceToPlayer = Math.abs(bossX - playerX);
-                if (distanceToPlayer > 160) {
-                  if (bossX > playerX + 160) bossX -= 1.3;
-                  else if (bossX < playerX - 160) bossX += 1.3;
+                if (distanceToPlayer > 175) {
+                  if (bossX > playerX + 175) bossX -= 0.85;
+                  else if (bossX < playerX - 175) bossX += 0.85;
                 } else {
-                  bossX += Math.sin(Date.now() * 0.005) * 0.9;
+                  bossX += Math.sin(Date.now() * 0.0035) * 0.7;
                 }
 
                 bossShootTimer++;
-                let bossCooldown = Math.max(45, 68 - currentStage * 6);
+                let bossCooldown = Math.max(95, 130 - currentStage * 10);
                 if (bossShootTimer > bossCooldown) {
                   bossShootTimer = 0;
                   playSound('beam');
                   let bossName = currentBossObj.name;
                   if (bossName === "Chronolock") {
-                    bossAttacks.push({ x: bossX, y: bossY, vx: -7, type: 'temporal-glitch', color: '#d4af37', width: 35, height: 35 });
+                    bossAttacks.push({ x: bossX, y: bossY, vx: -4.2, type: 'temporal-glitch', color: '#d4af37', width: 35, height: 35 });
                   } else if (bossName === "Apex Vault") {
-                    bossAttacks.push({ x: bossX, y: bossY, vx: -15, type: 'volt-shock', color: '#38bdf8', width: 45, height: 10 });
+                    bossAttacks.push({ x: bossX, y: bossY, vx: -8.5, type: 'volt-shock', color: '#38bdf8', width: 45, height: 10 });
                   } else if (bossName === "Magnum Weaver") {
-                    bossAttacks.push({ x: bossX, y: FLOOR_Y - 26, vx: -5, type: 'creeping-lava', color: '#ea580c', width: 140, height: 26 });
+                    bossAttacks.push({ x: bossX, y: FLOOR_Y - 26, vx: -3.5, type: 'creeping-lava', color: '#ea580c', width: 140, height: 26 });
                   } else if (bossName === "Vipera") {
-                    bossAttacks.push({ x: bossX, y: bossY, vx: -11, type: 'venom-stream', color: '#10b981', width: 50, height: 14 });
+                    bossAttacks.push({ x: bossX, y: bossY, vx: -6.5, type: 'venom-stream', color: '#10b981', width: 50, height: 14 });
                   } else {
-                    bossAttacks.push({ x: bossX, y: bossY, vx: -9, type: 'standard-pulse', color: '#ef4444', width: 30, height: 12 });
+                    bossAttacks.push({ x: bossX, y: bossY, vx: -5.5, type: 'standard-pulse', color: '#ef4444', width: 30, height: 12 });
                   }
                 }
               }
             }
           }
 
+          // Enemy projectile collision (moderate damage + single Mother Luetta rescue check)
           for (let i = droidProjectiles.length - 1; i >= 0; i--) {
             let dp = droidProjectiles[i]; dp.x += dp.vx;
-            if (Math.abs((playerX + 40) - dp.x) < 30 && !isJumping) {
+            if (Math.abs((playerX + 40) - dp.x) < 28 && !isJumping) {
               playSound('crash');
               if (isShieldActive) {
-                shieldEnergy -= 5;
+                shieldEnergy -= 4;
               } else {
-                teamHealth = Math.max(0, teamHealth - 10);
+                teamHealth = Math.max(0, teamHealth - 5);
                 document.getElementById('team-health').innerText = teamHealth;
               }
               droidProjectiles.splice(i, 1);
-              if (teamHealth <= 0) summonMotherLuetta();
+              if (teamHealth <= 0) summonMotherLuetta(true);
             } else if (dp.x < 0) droidProjectiles.splice(i, 1);
           }
 
           for (let i = bossAttacks.length - 1; i >= 0; i--) {
             let ba = bossAttacks[i]; ba.x += ba.vx;
-            if (Math.abs((playerX + 40) - ba.x) < 35 && !isJumping) {
+            if (Math.abs((playerX + 40) - ba.x) < 32 && !isJumping) {
               playSound('crash');
               if (isShieldActive) {
-                shieldEnergy -= 8;
+                shieldEnergy -= 6;
               } else {
-                teamHealth = Math.max(0, teamHealth - 16);
+                teamHealth = Math.max(0, teamHealth - 9);
                 document.getElementById('team-health').innerText = teamHealth;
               }
               bossAttacks.splice(i, 1);
-              if (teamHealth <= 0) summonMotherLuetta();
+              if (teamHealth <= 0) summonMotherLuetta(true);
             } else if (ba.x < 0) bossAttacks.splice(i, 1);
           }
 
@@ -2223,7 +2263,6 @@
           brawlerProjectiles.forEach(bp => {
             ctx.save();
             if (bp.type === 'lightning-spear') {
-              // Amina Zazzau Skill 1 & 2: Blazing Electric Spear
               ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 22;
               ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4;
               ctx.beginPath();
@@ -2447,16 +2486,16 @@
           let partnerHero = heroes[(heroIndex + 1) % heroes.length];
 
           if (xochitlGlideActive && activeHero.name === 'Xochitl') {
-            glideProgress += 0.025;
+            glideProgress += 0.02;
             
             if (glideProgress < 0.3) {
-              glideX = Math.min(canvas.width - 80, glideX + 4.0);
-              glideY = Math.max(80, glideY - 3.5);
+              glideX = Math.min(canvas.width - 80, glideX + 3.5);
+              glideY = Math.max(80, glideY - 3.0);
             } else {
-              glideX = Math.max(80, glideX - 2.8);
+              glideX = Math.max(80, glideX - 2.4);
               glideY = 140 + Math.sin(glideProgress * Math.PI) * 20;
 
-              if (Math.random() < 0.25 && featheryDaggers.length < 15) {
+              if (Math.random() < 0.22 && featheryDaggers.length < 15) {
                 let targetX = bossX, targetY = bossY;
                 if (droidsActive) {
                   let activeDroids = preBossDroids.filter(d => d.active);
@@ -2466,7 +2505,7 @@
                   }
                 }
                 let angle = Math.atan2(targetY - glideY, targetX - glideX);
-                let speed = 9;
+                let speed = 8;
                 featheryDaggers.push({
                   x: glideX,
                   y: glideY,
@@ -2556,7 +2595,6 @@
             let surgeProgress = 1 - (trinityTimer / 190);
             let flashAlpha = Math.sin(surgeProgress * Math.PI) * 0.35;
 
-            // Golden-cyan cosmic aura wash
             let auraGrad = ctx.createRadialGradient(playerX + 40, GROUNDED_PLAYER_Y - 30, 20, playerX + 40, GROUNDED_PLAYER_Y - 30, 320);
             auraGrad.addColorStop(0, `rgba(254, 240, 138, ${flashAlpha + 0.15})`);
             auraGrad.addColorStop(0.5, `rgba(56, 189, 248, ${flashAlpha})`);
@@ -2564,12 +2602,10 @@
             ctx.fillStyle = auraGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Render Marcus Prime, Sundiata Prime & Nénambi Prime in formation
             renderHeroCharacter(ctx, heroes[0], playerX - 65, GROUNDED_PLAYER_Y);
             renderHeroCharacter(ctx, heroes[1], playerX, GROUNDED_PLAYER_Y - 8);
             renderHeroCharacter(ctx, heroes[2], playerX + 65, GROUNDED_PLAYER_Y);
 
-            // Rotating Tri-Core Astral Runes & Geometric Mandala
             ctx.save();
             ctx.translate(playerX + 42, GROUNDED_PLAYER_Y - 25);
             ctx.rotate(Date.now() * 0.004);
@@ -2579,7 +2615,6 @@
             ctx.arc(0, 0, 108, 0, Math.PI * 2);
             ctx.stroke();
 
-            // Sacred Triangle connecting the Three Primes
             ctx.strokeStyle = '#38bdf8';
             ctx.lineWidth = 2.5;
             ctx.beginPath();
@@ -2594,24 +2629,19 @@
             ctx.stroke();
             ctx.restore();
 
-            // Three Converging Hyper-Beams blasting across the screen
             let beamStartX = playerX + 95;
-            // Beam 1: Marcus Cyan Electric Hyper-Beam
             ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
             ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 25;
             ctx.fillRect(beamStartX, GROUNDED_PLAYER_Y - 52, canvas.width - beamStartX, 14);
 
-            // Beam 2: Sundiata Royal Gold Lion Beam
             ctx.fillStyle = 'rgba(254, 240, 138, 0.95)';
             ctx.shadowColor = '#d4af37'; ctx.shadowBlur = 30;
             ctx.fillRect(beamStartX, GROUNDED_PLAYER_Y - 30, canvas.width - beamStartX, 22);
 
-            // Beam 3: Nénambi Amber Sonic Frequency Beam
             ctx.fillStyle = 'rgba(245, 158, 11, 0.85)';
             ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 25;
             ctx.fillRect(beamStartX, GROUNDED_PLAYER_Y - 2, canvas.width - beamStartX, 14);
 
-            // Expanding Shockwave Pulse Ring
             let pulseRadius = (surgeProgress * 520) % 520;
             ctx.strokeStyle = `rgba(254, 240, 138, ${1 - surgeProgress})`;
             ctx.lineWidth = 4;
@@ -2622,10 +2652,46 @@
             ctx.restore();
           }
 
+          // SUNDIATA PRIME'S SOLAR LION CHARGE (ACTIVE COLLISION DAMAGE AGAINST DROIDS & BOSS)
           if (solarLionActive) {
-            solarLionX += 8;
+            solarLionX += 6.5;
+            const lionCenterX = solarLionX + 90;
+
+            // Damage every droid the Solar Lion charges through
+            if (droidsActive) {
+              preBossDroids.forEach(d => {
+                if (d.active && !solarLionHitIds.has(d.id) && Math.abs(lionCenterX - d.x) < 75) {
+                  solarLionHitIds.add(d.id);
+                  d.hp -= 5;
+                  playSound('crash');
+                  addScore(40);
+                  if (d.hp <= 0) {
+                    d.active = false;
+                    playSound('transform');
+                  }
+                  let remainingCount = preBossDroids.filter(dr => dr.active).length;
+                  document.getElementById('boss-hp').innerText = remainingCount > 0
+                    ? `Stage ${currentStage} • W${currentWave}/${WAVES_PER_STAGE} (${remainingCount} left)`
+                    : `Stage ${currentStage} Boss: ${getBossPercent()}%`;
+                }
+              });
+            } else if (!stageTransitioning && bossHp > 0 && !solarLionHitBoss && Math.abs(lionCenterX - bossX) < 85) {
+              // Deal 20% max-HP maul damage when the Solar Lion slams into the boss
+              solarLionHitBoss = true;
+              playSound('crash');
+              bossHp = Math.max(0, bossHp - Math.ceil(bossMaxHp * 0.20));
+              document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
+              addScore(120);
+              if (bossHp <= 0) {
+                solarLionActive = false;
+                handleBossDefeated();
+              }
+            }
+
             ctx.save();
             ctx.globalAlpha = solarLionAlpha;
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = 24;
             if (sprites.solarLionRoar && sprites.solarLionRoar.complete && sprites.solarLionRoar.naturalWidth !== 0) {
               ctx.drawImage(sprites.solarLionRoar, solarLionX, 160, 180, 140);
             } else {
@@ -2672,7 +2738,15 @@
 
             if (luettaBeamTimer <= 0) {
               luettaAlpha -= 0.04;
-              if (luettaAlpha <= 0) luettaActive = false;
+              if (luettaAlpha <= 0) {
+                luettaActive = false;
+                const lBtn = document.getElementById('luetta-btn');
+                if (lBtn) {
+                  lBtn.innerText = luettaCooldown > 0
+                    ? "🌟 MOTHER LUETTA (CHARGING)"
+                    : "🌟 MOTHER LUETTA (HEAL READY)";
+                }
+              }
             }
           }
 
