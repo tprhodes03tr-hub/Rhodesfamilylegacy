@@ -431,8 +431,7 @@
       xochitlSpriteSheet: './xochitl_sprite_sheet.png',
       kofi: './kofi.png',
       kofiSpriteSheet: './kofi_spritesheet.png',
-      wakanSpriteSheet: './wakan_spritesheet.png',
-      guacanSheet: './guacan-sheet.png',
+      wakan: './guacan-sheet.png',
       motherLuta: './mother-luta.png',
       chronolock: './chrono-lock.png',
       apexVault: './apex-volt.png',
@@ -546,7 +545,7 @@
       { name: "Amina Zazzau", key: "amina", sheetKey: null, sheetCols: 1, sheetRows: 1, tag: "TAG: XOCHITL", s1: "⚡ Lightning Spear", s2: "🌩️ Multi-Bolt Storm", s3: "🛡️ Zazzau Aegis", dialogue: "Co-op: Amina Zazzau strikes with sovereign lightning spears!" },
       { name: "Xochitl", key: "xochitl", sheetKey: "xochitlSpriteSheet", sheetCols: 4, sheetRows: 4, tag: "TAG: KOFI", s1: "🕊️ Fire Wings Glide", s2: "🔥 Solar Feather Barrage", s3: "🛡️ Wing Shield", dialogue: "Co-op: Xochitl ascends with blazing fire wings!" },
       { name: "Kofi", key: "kofi", sheetKey: "kofiSpriteSheet", sheetCols: 4, sheetRows: 4, tag: "TAG: WAKAN", s1: "🔨 Crucible Hammer Wave", s2: "⚒️ Anvil Sledge", s3: "🛡️ Crucible Bastion", dialogue: "Co-op: Kofi strikes with the forged crucible hammer!" },
-      { name: "Wakan", key: null, sheetKey: "wakanSpriteSheet", fallbackSheetKey: "guacanSheet", sheetCols: 4, sheetRows: 4, tag: "TAG: MARCUS", s1: "🌊 Abyssal Tsunami", s2: "🐚 Conch Tidal Spiral", s3: "🛡️ Trench Shell", dialogue: "Co-op: Wakan summons the roaring tides!" }
+      { name: "Wakan", key: "wakan", sheetKey: null, sheetCols: 1, sheetRows: 1, tag: "TAG: MARCUS", s1: "🌊 Abyssal Tsunami", s2: "🐚 Conch Tidal Spiral", s3: "🛡️ Trench Shell", dialogue: "Co-op: Wakan summons the roaring tides!" }
     ];
 
     function switchPortal(target) {
@@ -1462,7 +1461,7 @@
       spaceLoop();
     }
 
-    // 2D SIDE-SCROLLING BRAWLER ARENA (BALANCED PACING, SOLAR LION COLLISION, SINGLE MOTHER LUETTA RESCUE, WAKAN SINGLE FRAME)
+    // 2D SIDE-SCROLLING BRAWLER ARENA
     function initBrawlerEngine() {
       const canvas = document.getElementById('brawlerCanvas');
       if (!canvas) return;
@@ -1482,18 +1481,22 @@
       let bossX = 460, bossY = 238, bossHp = 260, bossMaxHp = 260, teamHealth = 100;
       let brawlerProjectiles = [], droidProjectiles = [], bossAttacks = [];
 
-      // Mother Luetta Rescue State (Once per stage auto-rescue + cooldown)
+      // Mother Luetta Rescue State
       let luettaActive = false, luettaY = -50, luettaAlpha = 1.0, luettaBeamTimer = 0;
       let luettaAutoUsedThisStage = false;
       let luettaCooldown = 0;
 
-      // Sundiata Prime's Solar Lion Attack State (Active Damage Hitbox)
+      // Sundiata Prime's Solar Lion Attack State
       let solarLionActive = false, solarLionX = 0, solarLionAlpha = 1.0, solarLionHitBoss = false, solarLionHitIds = new Set();
 
-      // Three Primes Trinity Surge State
+      // Three Primes Trinity Surge State (2-Phase Charge -> Detonation Beam)
       let trinityMeter = 0;
       let trinityActive = false;
       let trinityTimer = 0;
+      const TRINITY_TOTAL_FRAMES = 210;
+      const TRINITY_CHARGE_END = 85; // First 85 frames: Tri-Core Energy Charge; Frame 85: Cataclysmic Beam Fire
+      let trinityBeamFired = false;
+      let trinityParticles = [];
       
       let shieldEnergy = 100;
       const maxShieldEnergy = 100;
@@ -1545,7 +1548,6 @@
       let preBossDroids = [];
       function spawnWave(waveNum) {
         preBossDroids = [];
-        // Balanced wave pacing: 4 to 7 units moving at steady arcade speed so you can enjoy animations
         let count = 3 + waveNum + currentStage;
         for (let i = 0; i < count; i++) {
           let isArmored = (waveNum >= 2 && i % 2 === 0);
@@ -1569,7 +1571,7 @@
       function setupStage(stageNum) {
         currentStage = stageNum;
         currentWave = 1;
-        bossMaxHp = 180 + (stageNum * 90); // Stage 1: 270 HP, Stage 2: 360 HP, Stage 3: 450 HP
+        bossMaxHp = 180 + (stageNum * 90);
         bossHp = bossMaxHp;
         bossX = 460;
         bossY = 238;
@@ -1660,7 +1662,6 @@
         if (!isJumping) { playSound('transform'); isJumping = true; jumpVel = -12; }
       };
 
-      // SKILL 1: Signature Primary Superpowers (Sundiata Prime's Solar Lion Roar now deals real collision damage!)
       window.brawlerSkill1 = () => {
         playSound('acoustic');
         playerHasFired = true;
@@ -1703,7 +1704,6 @@
         }
       };
 
-      // SKILL 2: Unique Secondary Superpowers
       window.brawlerSkill2 = () => {
         playSound('shield-up');
         playerHasFired = true;
@@ -1735,18 +1735,50 @@
         }
       };
 
-      // THREE PRIMES TRINITY SURGE (TRI-CORE RESONANCE OVERLOAD)
+      // THREE PRIMES TRINITY SURGE (2-PHASE CINEMATIC CHARGE -> CATACLYSMIC PLASMA BEAM)
       window.triggerTrinitySurge = () => {
-        if (stageTransitioning) return;
+        if (stageTransitioning || trinityActive) return;
         if (trinityMeter < 100) {
           speakText(`Trinity Surge at ${Math.floor(trinityMeter)} percent. Land more hero attacks to unite the Three Primes!`);
           return;
         }
-        playSound('transform');
+        playSound('acoustic');
         trinityActive = true;
-        trinityTimer = 190;
+        trinityTimer = TRINITY_TOTAL_FRAMES;
+        trinityBeamFired = false;
         trinityMeter = 0;
         chargeTrinityMeter(0);
+
+        // Seed inward-spiraling cosmic energy particles for the charge phase
+        trinityParticles = [];
+        const colors = ['#38bdf8', '#fef08a', '#f59e0b', '#ffffff'];
+        for (let p = 0; p < 55; p++) {
+          let ang = Math.random() * Math.PI * 2;
+          let dist = 110 + Math.random() * 160;
+          trinityParticles.push({
+            angle: ang,
+            dist: dist,
+            speed: 2.2 + Math.random() * 2.5,
+            size: 2 + Math.random() * 3.5,
+            color: colors[p % colors.length],
+            beamVx: 8 + Math.random() * 14,
+            beamYOffset: (Math.random() - 0.5) * 65
+          });
+        }
+
+        droidProjectiles = [];
+        bossAttacks = [];
+
+        document.getElementById('brawler-dialogue').innerText =
+          "TRINITY SURGE: Marcus, Sundiata & Nénambi channel Tri-Core Singularity Energy...";
+        speakText("Three Primes Trinity Surge! Channeling Tri-Core Singularity!");
+      };
+
+      function executeTrinityDetonation() {
+        if (trinityBeamFired) return;
+        trinityBeamFired = true;
+        playSound('transform');
+        addScore(350);
 
         preBossDroids.forEach(d => { d.active = false; });
         droidProjectiles = [];
@@ -1758,16 +1790,14 @@
         }
 
         document.getElementById('brawler-dialogue').innerText =
-          "TRINITY SURGE: Marcus, Sundiata & Nénambi unleash Tri-Core Hyper-Beams & Astral Runes!";
-        speakText("Three Primes Trinity Surge! Marcus, Sundiata, and Nénambi unleash the Tri-Core Overload!");
-        addScore(350);
+          "TRI-CORE OVERLOAD DETONATION! Combined Ancestral Plasma Beam obliterates Syndicate defenses!";
 
         if (bossHp <= 0) {
           handleBossDefeated();
         }
-      };
+      }
 
-      // MOTHER LUETTA CELESTIAL ENERGY BEAM HEAL (Guarded against repeated triggers)
+      // MOTHER LUETTA CELESTIAL ENERGY BEAM HEAL
       window.summonMotherLuetta = (isAutoRescue = false) => {
         if (luettaActive) return;
         if (isAutoRescue && luettaAutoUsedThisStage) return;
@@ -1779,10 +1809,9 @@
         if (isAutoRescue) {
           luettaAutoUsedThisStage = true;
         } else {
-          luettaCooldown = 480; // ~8 second manual cooldown
+          luettaCooldown = 480;
         }
 
-        // Immediately restore health & clear incoming hazards so she never double-triggers
         teamHealth = 100;
         shieldEnergy = maxShieldEnergy;
         droidProjectiles = [];
@@ -1843,7 +1872,6 @@
         ctx.font = "bold 10px monospace";
         ctx.fillText(`SHIELD: ${Math.floor(shieldEnergy)}%`, 26, 29);
 
-        // Stage badge on top-right of canvas
         ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
         ctx.fillRect(canvas.width - 135, 18, 115, 18);
         ctx.strokeStyle = "#d4af37";
@@ -1852,7 +1880,6 @@
         ctx.fillText(`STAGE ${currentStage} / ${MAX_STAGES}`, canvas.width - 122, 30);
       }
 
-      // Dynamic 3-Stage Environment Backdrop Renderer
       function drawStageEnvironment(ctx) {
         if (currentStage === 1) {
           let skyAlpha = (Math.sin(timeOfDayTimer) + 1) / 2;
@@ -2029,7 +2056,7 @@
         ctx.restore();
       }
 
-      // Single-character renderer (crops top-left standing frame from wakan_spritesheet.png or guacan-sheet.png)
+      // Single-character renderer (uses standalone PNGs including Wakan's ./guacan-sheet.png)
       function renderHeroCharacter(ctx, heroObj, posX, posY) {
         let jumpHeight = Math.max(0, GROUNDED_PLAYER_Y - posY);
         drawGroundShadow(ctx, posX + 42, 34, jumpHeight);
@@ -2041,10 +2068,6 @@
         }
 
         let sheetImg = heroObj.sheetKey ? sprites[heroObj.sheetKey] : null;
-        if (!sheetImg || !sheetImg.complete || sheetImg.naturalWidth === 0) {
-          sheetImg = heroObj.fallbackSheetKey ? sprites[heroObj.fallbackSheetKey] : null;
-        }
-
         if (sheetImg && sheetImg.complete && sheetImg.naturalWidth !== 0) {
           let cols = heroObj.sheetCols || 4;
           let rows = heroObj.sheetRows || 4;
@@ -2052,7 +2075,6 @@
           let frameH = sheetImg.naturalHeight / rows;
           ctx.drawImage(sheetImg, 0, 0, frameW, frameH, posX - 15, posY - 75, 115, 145);
         } else {
-          // Stylized Ocean Warrior silhouette for Wakan while sheet finishes loading
           ctx.save();
           ctx.fillStyle = '#0f766e';
           ctx.beginPath();
@@ -2061,10 +2083,6 @@
           ctx.strokeStyle = '#34d399';
           ctx.lineWidth = 2;
           ctx.stroke();
-          ctx.fillStyle = '#38bdf8';
-          ctx.beginPath();
-          ctx.arc(posX + 42, posY - 24, 13, 0, Math.PI * 2);
-          ctx.fill();
           ctx.restore();
         }
       }
@@ -2098,7 +2116,13 @@
 
           if (trinityActive) {
             trinityTimer--;
-            if (trinityTimer <= 0) trinityActive = false;
+            let elapsed = TRINITY_TOTAL_FRAMES - trinityTimer;
+            if (elapsed === TRINITY_CHARGE_END) {
+              executeTrinityDetonation();
+            }
+            if (trinityTimer <= 0) {
+              trinityActive = false;
+            }
           }
 
           let targetPartnerX = playerX - 70;
@@ -2181,7 +2205,6 @@
             }
           }
 
-          // Enemy projectile collision (moderate damage + single Mother Luetta rescue check)
           for (let i = droidProjectiles.length - 1; i >= 0; i--) {
             let dp = droidProjectiles[i]; dp.x += dp.vx;
             if (Math.abs((playerX + 40) - dp.x) < 28 && !isJumping) {
@@ -2254,7 +2277,14 @@
             }
           }
 
-          // Render Stage-Specific Backdrop & Solid Floor Deck
+          // Camera shake during Trinity Surge detonation
+          ctx.save();
+          if (trinityActive) {
+            let elapsed = TRINITY_TOTAL_FRAMES - trinityTimer;
+            let shakeMag = elapsed < TRINITY_CHARGE_END ? 1.5 : Math.max(0, 6 * (trinityTimer / (TRINITY_TOTAL_FRAMES - TRINITY_CHARGE_END)));
+            ctx.translate((Math.random() - 0.5) * shakeMag, (Math.random() - 0.5) * shakeMag);
+          }
+
           drawStageEnvironment(ctx);
           drawSolidFloorDeck(ctx);
           drawShieldHUD(ctx);
@@ -2589,65 +2619,166 @@
             }
           }
 
-          // UPGRADED THREE PRIMES TRINITY SURGE (TRI-CORE RESONANCE OVERLOAD)
+          // SPECTACULAR 2-PHASE THREE PRIMES TRINITY SURGE
           if (trinityActive) {
             ctx.save();
-            let surgeProgress = 1 - (trinityTimer / 190);
-            let flashAlpha = Math.sin(surgeProgress * Math.PI) * 0.35;
+            let elapsed = TRINITY_TOTAL_FRAMES - trinityTimer;
+            let isCharging = elapsed < TRINITY_CHARGE_END;
+            let coreX = playerX + 115;
+            let coreY = GROUNDED_PLAYER_Y - 26;
 
-            let auraGrad = ctx.createRadialGradient(playerX + 40, GROUNDED_PLAYER_Y - 30, 20, playerX + 40, GROUNDED_PLAYER_Y - 30, 320);
-            auraGrad.addColorStop(0, `rgba(254, 240, 138, ${flashAlpha + 0.15})`);
-            auraGrad.addColorStop(0.5, `rgba(56, 189, 248, ${flashAlpha})`);
-            auraGrad.addColorStop(1, 'rgba(2, 6, 23, 0)');
-            ctx.fillStyle = auraGrad;
+            // Cosmic night eclipse backdrop so the plasma colors pop dramatically
+            ctx.fillStyle = isCharging ? 'rgba(2, 6, 23, 0.58)' : 'rgba(2, 6, 23, 0.42)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            renderHeroCharacter(ctx, heroes[0], playerX - 65, GROUNDED_PLAYER_Y);
-            renderHeroCharacter(ctx, heroes[1], playerX, GROUNDED_PLAYER_Y - 8);
-            renderHeroCharacter(ctx, heroes[2], playerX + 65, GROUNDED_PLAYER_Y);
+            // Three Primes rising into formation with individual colored auras
+            const marcusX = playerX - 62, marcusY = GROUNDED_PLAYER_Y - 4;
+            const sundiataX = playerX, sundiataY = GROUNDED_PLAYER_Y - 16;
+            const nenambiX = playerX + 62, nenambiY = GROUNDED_PLAYER_Y - 4;
 
-            ctx.save();
-            ctx.translate(playerX + 42, GROUNDED_PLAYER_Y - 25);
-            ctx.rotate(Date.now() * 0.004);
-            ctx.strokeStyle = '#fef08a';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(0, 0, 108, 0, Math.PI * 2);
-            ctx.stroke();
+            // Aura glows behind each Prime
+            [
+              { x: marcusX + 42, y: marcusY, col: 'rgba(56, 189, 248, 0.45)' },
+              { x: sundiataX + 42, y: sundiataY, col: 'rgba(254, 240, 138, 0.5)' },
+              { x: nenambiX + 42, y: nenambiY, col: 'rgba(245, 158, 11, 0.45)' }
+            ].forEach(a => {
+              let g = ctx.createRadialGradient(a.x, a.y, 4, a.x, a.y, 58);
+              g.addColorStop(0, a.col);
+              g.addColorStop(1, 'rgba(0,0,0,0)');
+              ctx.fillStyle = g;
+              ctx.beginPath(); ctx.arc(a.x, a.y, 58, 0, Math.PI * 2); ctx.fill();
+            });
 
-            ctx.strokeStyle = '#38bdf8';
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            for (let t = 0; t < 3; t++) {
-              let ang = (t * Math.PI * 2) / 3;
-              let px = Math.cos(ang) * 105;
-              let py = Math.sin(ang) * 105;
-              if (t === 0) ctx.moveTo(px, py);
-              else ctx.lineTo(px, py);
+            renderHeroCharacter(ctx, heroes[0], marcusX, marcusY);
+            renderHeroCharacter(ctx, heroes[1], sundiataX, sundiataY);
+            renderHeroCharacter(ctx, heroes[2], nenambiX, nenambiY);
+
+            if (isCharging) {
+              // PHASE 1: ENERGY SURGE & SINGULARITY BUILD-UP BEFORE THE BEAM FIRES
+              let chargePct = elapsed / TRINITY_CHARGE_END;
+              let coreRadius = 10 + chargePct * 34 + Math.sin(elapsed * 0.45) * 4;
+
+              // Three braided energy conduits feeding from the Three Primes into the Singularity Core
+              const conduits = [
+                { sx: marcusX + 55, sy: marcusY - 10, col: '#38bdf8' },
+                { sx: sundiataX + 55, sy: sundiataY - 15, col: '#fef08a' },
+                { sx: nenambiX + 55, sy: nenambiY - 10, col: '#f59e0b' }
+              ];
+              conduits.forEach((c, idx) => {
+                ctx.strokeStyle = c.col;
+                ctx.shadowColor = c.col;
+                ctx.shadowBlur = 18;
+                ctx.lineWidth = 2.5 + chargePct * 2.5;
+                ctx.beginPath();
+                ctx.moveTo(c.sx, c.sy);
+                let ctrlY = c.sy + Math.sin(elapsed * 0.3 + idx * 2) * 35;
+                ctx.quadraticCurveTo((c.sx + coreX) / 2, ctrlY, coreX, coreY);
+                ctx.stroke();
+              });
+
+              // Inward-spiraling cosmic particles
+              trinityParticles.forEach(p => {
+                p.angle += 0.09;
+                p.dist = Math.max(8, p.dist - p.speed);
+                if (p.dist <= 12) p.dist = 140 + Math.random() * 120;
+                let px = coreX + Math.cos(p.angle) * p.dist;
+                let py = coreY + Math.sin(p.angle) * p.dist;
+                ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(px, py, p.size, 0, Math.PI * 2);
+                ctx.fill();
+              });
+
+              // Contracting harmonic rings around the Singularity Core
+              let ringR = Math.max(12, 130 * (1 - (chargePct % 0.5) * 2));
+              ctx.strokeStyle = 'rgba(254, 240, 138, 0.8)';
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.arc(coreX, coreY, ringR, 0, Math.PI * 2);
+              ctx.stroke();
+
+              // White-hot Singularity Core orb
+              let coreGrad = ctx.createRadialGradient(coreX, coreY, 2, coreX, coreY, coreRadius * 1.6);
+              coreGrad.addColorStop(0, '#ffffff');
+              coreGrad.addColorStop(0.35, '#fef08a');
+              coreGrad.addColorStop(0.7, 'rgba(56, 189, 248, 0.75)');
+              coreGrad.addColorStop(1, 'rgba(2, 6, 23, 0)');
+              ctx.fillStyle = coreGrad;
+              ctx.beginPath();
+              ctx.arc(coreX, coreY, coreRadius * 1.6, 0, Math.PI * 2);
+              ctx.fill();
+            } else {
+              // PHASE 2: CATACLYSMIC TRI-CORE PLASMA BEAM & SHOCKWAVE
+              let beamElapsed = elapsed - TRINITY_CHARGE_END;
+              let beamLife = 1 - (beamElapsed / (TRINITY_TOTAL_FRAMES - TRINITY_CHARGE_END));
+              let beamHalfH = (38 * Math.sin(Math.min(1, beamElapsed / 10) * (Math.PI / 2))) * Math.max(0.2, beamLife);
+
+              // Flash burst at moment of firing
+              if (beamElapsed < 14) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${(14 - beamElapsed) / 22})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+              }
+
+              // Outer volumetric plasma envelope
+              let beamGrad = ctx.createLinearGradient(0, coreY - beamHalfH * 1.6, 0, coreY + beamHalfH * 1.6);
+              beamGrad.addColorStop(0, 'rgba(56, 189, 248, 0)');
+              beamGrad.addColorStop(0.2, `rgba(56, 189, 248, ${0.65 * beamLife})`);
+              beamGrad.addColorStop(0.4, `rgba(245, 158, 11, ${0.85 * beamLife})`);
+              beamGrad.addColorStop(0.5, `rgba(255, 255, 255, ${0.98 * beamLife})`);
+              beamGrad.addColorStop(0.6, `rgba(254, 240, 138, ${0.85 * beamLife})`);
+              beamGrad.addColorStop(0.8, `rgba(56, 189, 248, ${0.65 * beamLife})`);
+              beamGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+
+              ctx.fillStyle = beamGrad;
+              ctx.fillRect(coreX, coreY - beamHalfH * 1.6, canvas.width - coreX, beamHalfH * 3.2);
+
+              // White-hot inner core beam
+              ctx.fillStyle = `rgba(255, 255, 255, ${0.95 * beamLife})`;
+              ctx.shadowColor = '#fef08a';
+              ctx.shadowBlur = 30;
+              ctx.fillRect(coreX, coreY - beamHalfH * 0.42, canvas.width - coreX, beamHalfH * 0.84);
+
+              // Dual intertwined energy helix waves along the beam
+              ctx.lineWidth = 3;
+              ctx.strokeStyle = `rgba(56, 189, 248, ${0.9 * beamLife})`;
+              ctx.beginPath();
+              for (let bx = coreX; bx < canvas.width; bx += 12) {
+                let by = coreY + Math.sin((bx - beamElapsed * 24) * 0.045) * (beamHalfH * 1.15);
+                if (bx === coreX) ctx.moveTo(bx, by);
+                else ctx.lineTo(bx, by);
+              }
+              ctx.stroke();
+
+              ctx.strokeStyle = `rgba(254, 240, 138, ${0.9 * beamLife})`;
+              ctx.beginPath();
+              for (let bx = coreX; bx < canvas.width; bx += 12) {
+                let by = coreY - Math.sin((bx - beamElapsed * 24) * 0.045) * (beamHalfH * 1.15);
+                if (bx === coreX) ctx.moveTo(bx, by);
+                else ctx.lineTo(bx, by);
+              }
+              ctx.stroke();
+
+              // High-velocity plasma sparks streaming down the beam
+              trinityParticles.forEach((p, idx) => {
+                let sx = coreX + ((beamElapsed * p.beamVx + idx * 37) % Math.max(60, canvas.width - coreX));
+                let sy = coreY + p.beamYOffset * beamLife;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(sx, sy, 10, 2.5);
+              });
+
+              // Blazing muzzle flare at the Singularity Core
+              let flareGrad = ctx.createRadialGradient(coreX, coreY, 4, coreX, coreY, 68 * beamLife);
+              flareGrad.addColorStop(0, '#ffffff');
+              flareGrad.addColorStop(0.4, '#fef08a');
+              flareGrad.addColorStop(0.75, 'rgba(56, 189, 248, 0.6)');
+              flareGrad.addColorStop(1, 'rgba(0,0,0,0)');
+              ctx.fillStyle = flareGrad;
+              ctx.beginPath();
+              ctx.arc(coreX, coreY, 68 * beamLife, 0, Math.PI * 2);
+              ctx.fill();
             }
-            ctx.closePath();
-            ctx.stroke();
-            ctx.restore();
-
-            let beamStartX = playerX + 95;
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
-            ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 25;
-            ctx.fillRect(beamStartX, GROUNDED_PLAYER_Y - 52, canvas.width - beamStartX, 14);
-
-            ctx.fillStyle = 'rgba(254, 240, 138, 0.95)';
-            ctx.shadowColor = '#d4af37'; ctx.shadowBlur = 30;
-            ctx.fillRect(beamStartX, GROUNDED_PLAYER_Y - 30, canvas.width - beamStartX, 22);
-
-            ctx.fillStyle = 'rgba(245, 158, 11, 0.85)';
-            ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 25;
-            ctx.fillRect(beamStartX, GROUNDED_PLAYER_Y - 2, canvas.width - beamStartX, 14);
-
-            let pulseRadius = (surgeProgress * 520) % 520;
-            ctx.strokeStyle = `rgba(254, 240, 138, ${1 - surgeProgress})`;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.arc(beamStartX, GROUNDED_PLAYER_Y - 20, pulseRadius, -Math.PI * 0.4, Math.PI * 0.4);
-            ctx.stroke();
 
             ctx.restore();
           }
@@ -2657,7 +2788,6 @@
             solarLionX += 6.5;
             const lionCenterX = solarLionX + 90;
 
-            // Damage every droid the Solar Lion charges through
             if (droidsActive) {
               preBossDroids.forEach(d => {
                 if (d.active && !solarLionHitIds.has(d.id) && Math.abs(lionCenterX - d.x) < 75) {
@@ -2676,7 +2806,6 @@
                 }
               });
             } else if (!stageTransitioning && bossHp > 0 && !solarLionHitBoss && Math.abs(lionCenterX - bossX) < 85) {
-              // Deal 20% max-HP maul damage when the Solar Lion slams into the boss
               solarLionHitBoss = true;
               playSound('crash');
               bossHp = Math.max(0, bossHp - Math.ceil(bossMaxHp * 0.20));
@@ -2763,6 +2892,8 @@
             ctx.fillText(stageBannerText, canvas.width / 2, 163);
             ctx.textAlign = 'left';
           }
+
+          ctx.restore(); // End camera shake transform
 
           activeBrawlerId = requestAnimationFrame(brawlerLoop);
         }
