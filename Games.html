@@ -244,6 +244,50 @@
       cursor: not-allowed;
     }
 
+    /* TACTICAL BOUNTIES & LIVING CODEX GALLERY */
+    .bounty-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 6px;
+    }
+    .bounty-row {
+      background: #0b1120;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 0.62rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .bounty-row.done {
+      border-color: #34d399;
+      background: rgba(6, 78, 59, 0.35);
+    }
+    .codex-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      margin-top: 6px;
+    }
+    .codex-chip {
+      background: #090d16;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 6px 4px;
+      font-size: 0.58rem;
+      text-align: center;
+      color: #64748b;
+      cursor: pointer;
+    }
+    .codex-chip.unlocked {
+      border-color: #d4af37;
+      color: #fef08a;
+      background: rgba(54, 42, 5, 0.55);
+    }
+
     .debrief-modal {
       position: fixed;
       inset: 0;
@@ -357,6 +401,15 @@
           </p>
         </div>
 
+        <!-- TACTICAL BOUNTY CONTRACTS -->
+        <div class="upgrade-shop-box" style="border-color: #38bdf8;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#38bdf8; font-weight:bold; font-size:0.72rem;">🎯 ACTIVE MARROW BOUNTY CONTRACTS</span>
+            <span id="bounty-summary-label" style="color:#94a3b8; font-size:0.62rem;">Complete for Bonus Vibranium</span>
+          </div>
+          <div class="bounty-list" id="bounty-list-container"></div>
+        </div>
+
         <!-- VIBRANIUM & LEGACY UPGRADE SHOP -->
         <div class="upgrade-shop-box">
           <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -380,6 +433,18 @@
               <div><strong style="color:#fef08a;">⚡ Trinity Conduit</strong><br><span id="upg-trinity-status" style="color:#94a3b8;">Standard Charge</span></div>
               <button class="upg-buy-btn" id="btn-upg-trinity" onclick="buyArmoryUpgrade('trinity')">Upgrade (450T)</button>
             </div>
+          </div>
+        </div>
+
+        <!-- UNLOCKABLE LIVING CODEX LORE GALLERY -->
+        <div class="upgrade-shop-box" style="border-color: #a855f7;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+            <span style="color:#c084fc; font-weight:bold; font-size:0.72rem;">📖 LIVING CODEX ARCHIVE (<span id="codex-count">3</span>/9 UNLOCKED)</span>
+            <a href="https://payhip.com/rhodesfamilylegacy" target="_blank" rel="noopener" style="color:#fef08a; font-size:0.62rem; text-decoration:underline; font-weight:bold;">📚 Read Full Books on Payhip ↗</a>
+          </div>
+          <div class="codex-grid" id="codex-gallery-grid"></div>
+          <div id="codex-reader-box" style="margin-top:6px; padding:7px; background:#090d16; border:1px solid #334155; border-radius:6px; font-size:0.63rem; color:#cbd5e1;">
+            Tap any unlocked Living Codex card above to inspect its ancestral resonance dossier!
           </div>
         </div>
 
@@ -571,7 +636,7 @@
   </div>
 
   <script>
-    const SAVE_STORAGE_KEY = 'rfl_ancestral_vanguard_save_v3';
+    const SAVE_STORAGE_KEY = 'rfl_ancestral_vanguard_save_v4';
     let globalScore = 0;
     let freightYields = 1450;
     let campaignCycleCount = 0;
@@ -584,6 +649,207 @@
       shieldOverclock: false,
       trinityConduit: false
     };
+
+    // STEP 1: GLOBAL COMBO MULTIPLIER & BOSS INTRO SPLASH ENGINE
+    let comboCount = 0;
+    let comboTimer = 0;
+    const COMBO_DECAY_FRAMES = 190;
+
+    function getComboMultiplier() {
+      if (comboCount >= 15) return 3.0;
+      if (comboCount >= 10) return 2.5;
+      if (comboCount >= 6) return 2.0;
+      if (comboCount >= 3) return 1.5;
+      return 1.0;
+    }
+
+    function registerComboHit() {
+      comboCount++;
+      comboTimer = COMBO_DECAY_FRAMES;
+      if (comboCount >= 10) {
+        updateBountyProgress('combo10', 1);
+      }
+    }
+
+    function resetCombo() {
+      comboCount = 0;
+      comboTimer = 0;
+    }
+
+    function updateAndDrawComboHUD(ctx, canvasWidth) {
+      if (comboCount > 0) {
+        if (!isGamePaused) {
+          comboTimer--;
+          if (comboTimer <= 0) resetCombo();
+        }
+        if (comboCount >= 2) {
+          const mult = getComboMultiplier();
+          const isOverdrive = comboCount >= 10;
+          ctx.save();
+          ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+          ctx.strokeStyle = isOverdrive ? '#fef08a' : '#38bdf8';
+          ctx.lineWidth = 2;
+          drawRoundedRect(ctx, canvasWidth - 158, 42, 138, 34, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.textAlign = 'center';
+          ctx.fillStyle = isOverdrive ? '#fef08a' : '#38bdf8';
+          ctx.font = 'bold 12px Courier New';
+          ctx.fillText(`🔥 ${comboCount} HIT COMBO`, canvasWidth - 89, 56);
+          ctx.fillStyle = '#34d399';
+          ctx.font = 'bold 10px Courier New';
+          ctx.fillText(`SCORE x${mult.toFixed(1)}`, canvasWidth - 89, 70);
+          ctx.restore();
+        }
+      }
+    }
+
+    const BossIntroBanner = (() => {
+      let timer = 0;
+      let bossName = '';
+      let bossSub = '';
+      let accent = '#ef4444';
+
+      function trigger(name, sub, color = '#ef4444') {
+        timer = 78; // ~1.3s dramatic splash
+        bossName = name;
+        bossSub = sub;
+        accent = color;
+      }
+
+      function render(ctx, width, height) {
+        if (timer <= 0) return;
+        if (!isGamePaused) timer--;
+        const alpha = Math.min(1, timer / 14);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.86)';
+        ctx.fillRect(0, height / 2 - 44, width, 88);
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2 - 44);
+        ctx.lineTo(width, height / 2 - 44);
+        ctx.moveTo(0, height / 2 + 44);
+        ctx.lineTo(width, height / 2 + 44);
+        ctx.stroke();
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = accent;
+        ctx.font = 'bold 11px Courier New';
+        ctx.fillText('⚠️ SYNDICATE INTRUSION WARNING ⚠️', width / 2, height / 2 - 20);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 20px Courier New';
+        ctx.fillText(bossName, width / 2, height / 2 + 6);
+        ctx.fillStyle = '#fef08a';
+        ctx.font = 'bold 11px Courier New';
+        ctx.fillText(bossSub, width / 2, height / 2 + 27);
+        ctx.restore();
+      }
+
+      return { trigger, render };
+    })();
+
+    // STEP 2: TACTICAL BOUNTIES & UNLOCKABLE LIVING CODEX ARCHIVE
+    let bountyState = {
+      cleanTrench: { completed: false, claimed: false },
+      combo10: { completed: false, claimed: false },
+      apexSlayer: { completed: false, claimed: false }
+    };
+
+    const BOUNTY_META = [
+      { id: 'cleanTrench', title: '🌊 Clean Sweep: Destroy all 3 Wacon Drill Pumps under 45% Toxicity', reward: 400 },
+      { id: 'combo10', title: '🔥 Marrow Flow: Land a 10-Hit Combo Chain in any sector', reward: 300 },
+      { id: 'apexSlayer', title: '👑 Citadel Breaker: Defeat an Apex Boss in Chapter 4', reward: 500 }
+    ];
+
+    let unlockedCodexIds = ['marcus', 'motherLuta', 'wakan'];
+
+    const CODEX_DATABASE = [
+      { id: 'marcus', name: 'Marcus Prime', lineage: 'North America • Detroit \'313 Grid', bio: 'Urban dynamo channeling bio-electric marrow current through kinetic shields and Woodward interceptors.' },
+      { id: 'motherLuta', name: 'Mother Luta', lineage: 'Living Codex Hearth Anchor', bio: 'Root matriarch anchoring universal memory across time fractures and projecting the Golden Ledger of Resonance.' },
+      { id: 'wakan', name: 'Wakan (Guacan)', lineage: 'Caribbean • Wacon Trench', bio: 'Guardian of the deep abyssal trenches, summoning tidal tsunamis and defending Earth\'s living core.' },
+      { id: 'sundiata', name: 'Sundiata Prime', lineage: 'Mandé • Mali Empire Resonance', bio: 'Strikes the Sacred Bronze Dundun Drum of Niani to unleash the Solar Lion Bastion.' },
+      { id: 'nenambi', name: 'Nénambi Prime', lineage: 'Acoustic Tactician Hub', bio: 'Tunes harmonic frequencies into crystalline shockwaves that shatter Syndicate armor.' },
+      { id: 'chronolock', name: 'Chronolock', lineage: 'Albor Syndicate Temporal Enforcer', bio: 'Warps across micro-timelines using stolen clock-tech to freeze unprepared defenders.' },
+      { id: 'dreadHarmonic', name: 'Dread Harmonic', lineage: 'Syndicate Frequency Disruptor', bio: 'Broadcasts dissonant sub-bass radio rings designed to scramble Vanguard comms.' },
+      { id: 'apexVault', name: 'Apex Volt', lineage: 'Syndicate High-Voltage Overlord', bio: 'Channels synthetic arc-plasma beams across the Celestial Nexus rooftop.' },
+      { id: 'ironclad', name: 'Ironclad', lineage: 'Syndicate Heavy Siege Juggernaut', bio: 'Armored dreadnought unit suppressing corridors with sustained gatling barrages.' }
+    ];
+
+    function unlockCodexEntry(id) {
+      if (!id || unlockedCodexIds.includes(id)) return;
+      unlockedCodexIds.push(id);
+      persistSaveState(false);
+      renderCodexGallery();
+    }
+
+    function updateBountyProgress(bountyId, value) {
+      const b = bountyState[bountyId];
+      if (!b || b.completed) return;
+      if (value >= 1) {
+        b.completed = true;
+        persistSaveState(false);
+        renderBountyBoard();
+      }
+    }
+
+    function claimBountyReward(bountyId) {
+      const b = bountyState[bountyId];
+      const meta = BOUNTY_META.find(m => m.id === bountyId);
+      if (!b || !meta || !b.completed || b.claimed) return;
+      b.claimed = true;
+      freightYields += meta.reward;
+      addScore(150);
+      playSound('transform');
+      renderBountyBoard();
+      updateArmoryShopUI();
+      persistSaveState(true);
+    }
+
+    function renderBountyBoard() {
+      const container = document.getElementById('bounty-list-container');
+      if (!container) return;
+      container.innerHTML = '';
+      BOUNTY_META.forEach(meta => {
+        const st = bountyState[meta.id] || { completed: false, claimed: false };
+        const row = document.createElement('div');
+        row.className = 'bounty-row' + (st.completed ? ' done' : '');
+        const btnHtml = st.claimed
+          ? `<span style="color:#34d399; font-weight:bold;">✅ CLAIMED</span>`
+          : (st.completed
+              ? `<button class="upg-buy-btn" onclick="claimBountyReward('${meta.id}')">CLAIM +${meta.reward}T</button>`
+              : `<span style="color:#f59e0b; font-weight:bold;">+${meta.reward}T</span>`);
+        row.innerHTML = `<span style="color:#e2e8f0;">${meta.title}</span>${btnHtml}`;
+        container.appendChild(row);
+      });
+    }
+
+    function renderCodexGallery() {
+      const grid = document.getElementById('codex-gallery-grid');
+      const countEl = document.getElementById('codex-count');
+      if (!grid) return;
+      if (countEl) countEl.innerText = unlockedCodexIds.length;
+      grid.innerHTML = '';
+      CODEX_DATABASE.forEach(entry => {
+        const isUnlocked = unlockedCodexIds.includes(entry.id);
+        const chip = document.createElement('div');
+        chip.className = 'codex-chip' + (isUnlocked ? ' unlocked' : '');
+        chip.innerText = isUnlocked ? `🎴 ${entry.name}` : `🔒 ???`;
+        chip.onclick = () => {
+          const reader = document.getElementById('codex-reader-box');
+          if (!reader) return;
+          if (!isUnlocked) {
+            reader.innerHTML = `<span style="color:#94a3b8;">🔒 Encrypted Marrow Record — Battle with or defeat this entity in the campaign to unlock!</span>`;
+          } else {
+            playSound('transform');
+            reader.innerHTML = `<strong style="color:#fef08a;">${entry.name.toUpperCase()}</strong> • <span style="color:#38bdf8;">${entry.lineage}</span><br>${entry.bio}`;
+          }
+        };
+        grid.appendChild(chip);
+      });
+    }
 
     let floatingNumbers = [];
     function spawnDamageNumber(x, y, text, color = '#fef08a') {
@@ -1046,6 +1312,8 @@
           freightYields,
           campaignCycleCount,
           armoryUpgrades,
+          bountyState,
+          unlockedCodexIds,
           savedAt: Date.now()
         };
         localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(payload));
@@ -1061,6 +1329,8 @@
         const raw = localStorage.getItem(SAVE_STORAGE_KEY);
         if (!raw) {
           updateArmoryShopUI();
+          renderBountyBoard();
+          renderCodexGallery();
           return;
         }
         const data = JSON.parse(raw);
@@ -1070,7 +1340,15 @@
         if (data.armoryUpgrades && typeof data.armoryUpgrades === 'object') {
           armoryUpgrades = { ...armoryUpgrades, ...data.armoryUpgrades };
         }
+        if (data.bountyState && typeof data.bountyState === 'object') {
+          bountyState = { ...bountyState, ...data.bountyState };
+        }
+        if (Array.isArray(data.unlockedCodexIds)) {
+          unlockedCodexIds = Array.from(new Set([...unlockedCodexIds, ...data.unlockedCodexIds]));
+        }
         refreshScoreUI();
+        renderBountyBoard();
+        renderCodexGallery();
       } catch (e) {}
     }
 
@@ -1087,14 +1365,23 @@
       freightYields = 1450;
       campaignCycleCount = 0;
       armoryUpgrades = { mk2Starter: false, extraNanobots: 0, shieldOverclock: false, trinityConduit: false };
+      bountyState = {
+        cleanTrench: { completed: false, claimed: false },
+        combo10: { completed: false, claimed: false },
+        apexSlayer: { completed: false, claimed: false }
+      };
+      unlockedCodexIds = ['marcus', 'motherLuta', 'wakan'];
       refreshScoreUI();
+      renderBountyBoard();
+      renderCodexGallery();
       const statusEl = document.getElementById('save-status');
       if (statusEl) statusEl.innerText = '🗑️ WIPED';
       playSound('crash');
     }
 
     function addScore(pts) {
-      globalScore += pts;
+      const scaled = Math.round(pts * getComboMultiplier());
+      globalScore += scaled;
       refreshScoreUI();
       persistSaveState(false);
     }
@@ -1164,6 +1451,8 @@
     function initCommandDeck() {
       loadSavedState();
       updateControlDeckOrders();
+      renderBountyBoard();
+      renderCodexGallery();
       speakText("Control deck online. Mother Luetta has new sector orders.", "deck-init", 5000);
       initGlobeEngine();
     }
@@ -1209,6 +1498,7 @@
       initAudio();
       disarmExitLinks();
       setGamePaused(false);
+      resetCombo();
       floatingNumbers = [];
       const modal = document.getElementById('victory-debrief-modal');
       if (modal) modal.classList.add('hidden');
@@ -1235,6 +1525,8 @@
       if (target === 'globe3d') {
         updateControlDeckOrders();
         updateArmoryShopUI();
+        renderBountyBoard();
+        renderCodexGallery();
         const nextBoss = bossPool[bossIndex % bossPool.length];
         speakText(`Control deck active. Next intruder: ${nextBoss.name}.`, "deck-return", 3000);
         initGlobeEngine();
@@ -1441,6 +1733,7 @@
         if (runnerDead) return;
         runnerDead = true;
         carHull = 0;
+        resetCombo();
         document.getElementById('car-hull').innerText = '0%';
         setRunnerBanner(`<span style="color:#fca5a5;">Wakan: "Marcus, interceptor hull lost on the '313 grid! Rebooting run..."</span>`);
         persistSaveState(false);
@@ -1499,6 +1792,7 @@
         obstacles = [];
         chaseCars = [];
         droidProjectiles = [];
+        registerComboHit();
         addScore(60);
         setRunnerBanner(`Marcus Prime: "313 grid EMP shockwave discharged! Lane swept clean for Wakan's relay."`);
       };
@@ -1610,6 +1904,7 @@
             if (Math.abs(playerX - obs.x) < 40 && Math.abs(320 - obs.y) < 42) {
               if (!isTurboActive) {
                 playSound('crash');
+                resetCombo();
                 carHull = Math.max(0, carHull - 25);
                 spawnDamageNumber(playerX, 290, "-25", "#ef4444");
                 document.getElementById('car-hull').innerText = carHull + '%';
@@ -1640,6 +1935,7 @@
             if (Math.abs(playerX - cc.x) < 38 && Math.abs(320 - cc.y) < 44) {
               if (!isTurboActive) {
                 playSound('crash');
+                resetCombo();
                 carHull = Math.max(0, carHull - 20);
                 spawnDamageNumber(playerX, 290, "-20", "#ef4444");
                 document.getElementById('car-hull').innerText = carHull + '%';
@@ -1673,6 +1969,7 @@
             for (let c = chaseCars.length - 1; c >= 0; c--) {
               if (Math.hypot(hs.x - chaseCars[c].x, hs.y - chaseCars[c].y) < 32) {
                 playSound('crash');
+                registerComboHit();
                 chaseCars[c].hp -= 2;
                 chaseCars[c].hitFlash = 4;
                 spawnDamageNumber(chaseCars[c].x, chaseCars[c].y - 20, "+50", "#fef08a");
@@ -1686,6 +1983,7 @@
               for (let o = obstacles.length - 1; o >= 0; o--) {
                 if (Math.hypot(hs.x - obstacles[o].x, hs.y - obstacles[o].y) < 30) {
                   playSound('crash');
+                  registerComboHit();
                   obstacles[o].hp -= 2;
                   obstacles[o].hitFlash = 4;
                   spawnDamageNumber(obstacles[o].x, obstacles[o].y - 16, "+35", "#38bdf8");
@@ -1705,6 +2003,7 @@
             if (Math.abs(playerX - dp.x) < 28 && Math.abs(320 - dp.y) < 28) {
               if (!isTurboActive) {
                 playSound('crash');
+                resetCombo();
                 carHull = Math.max(0, carHull - 18);
                 spawnDamageNumber(playerX, 290, "-18", "#ef4444");
                 document.getElementById('car-hull').innerText = carHull + '%';
@@ -1722,6 +2021,7 @@
             for (let j = obstacles.length - 1; j >= 0; j--) {
               if (Math.abs(b.x - obstacles[j].x) < 24 && Math.abs(b.y - obstacles[j].y) < 24) {
                 playSound('crash');
+                registerComboHit();
                 obstacles[j].hp--;
                 obstacles[j].hitFlash = 3;
                 if (obstacles[j].hp <= 0) obstacles.splice(j, 1);
@@ -1734,6 +2034,7 @@
               for (let c = chaseCars.length - 1; c >= 0; c--) {
                 if (Math.abs(b.x - chaseCars[c].x) < 26 && Math.abs(b.y - chaseCars[c].y) < 28) {
                   playSound('crash');
+                  registerComboHit();
                   chaseCars[c].hp--;
                   chaseCars[c].hitFlash = 3;
                   if (chaseCars[c].hp <= 0) { chaseCars.splice(c, 1); addScore(75); }
@@ -1864,6 +2165,7 @@
         }
         ctx.restore();
 
+        updateAndDrawComboHUD(ctx, canvas.width);
         updateAndDrawFloatingNumbers(ctx);
         NexusCountdown.render(ctx, canvas.width, canvas.height);
         if (isGamePaused) drawPauseOverlay(ctx, canvas);
@@ -1938,6 +2240,7 @@
       function triggerSubDeath(reason = 'hull') {
         if (subDead) return;
         subDead = true;
+        resetCombo();
         if (reason === 'toxicity') {
           document.getElementById('sub-gameover-title').innerText = '☣️ EARTH TOXICITY CRITICAL (100%)';
           document.getElementById('sub-gameover-desc').innerText = 'Albor Syndicate drills poisoned the Wacon Trench! Destroy the 3 pumps before Toxicity hits 100%!';
@@ -1994,6 +2297,7 @@
           sonarAngle: 0
         };
         playSound('acoustic');
+        BossIntroBanner.trigger('ABYSSAL DREADNOUGHT', 'DEEP-TRENCH SIEGE LEVIATHAN • TARGET CRIMSON CORE', '#34d399');
         setSubBanner(`<strong style="color:#fef08a;">Marcus: "MASSIVE CONTACT ON SONAR—${trenchBoss.name} rising from the abyss! Target its crimson core!"</strong>`);
         speakText("Warning! Syndicate Abyssal Dreadnought rising from the trench.", "sub-boss", 3500);
       }
@@ -2274,6 +2578,7 @@
             if (Math.hypot(subX - es.x, subY - es.y) < 62) {
               if (!isSubTurboActive) {
                 playSound('crash');
+                resetCombo();
                 const ramDmg = Math.max(8, Math.round(20 * getSubArmorMultiplier()));
                 subHull = Math.max(0, subHull - ramDmg);
                 spawnDamageNumber(subX, subY - 25, `-${ramDmg}`, "#ef4444");
@@ -2293,6 +2598,7 @@
             if (Math.hypot(subX - dt.x, subY - dt.y) < 42) {
               if (!isSubTurboActive) {
                 playSound('crash');
+                resetCombo();
                 const baseHit = dt.isBossTorp ? 14 : 18;
                 const mitigatedHit = Math.max(6, Math.round(baseHit * getSubArmorMultiplier()));
                 subHull = Math.max(0, subHull - mitigatedHit);
@@ -2340,6 +2646,7 @@
               const rig = drillRigs[rIdx];
               if (!rig.destroyed && Math.abs(t.x - rig.x) < 34 && Math.abs(t.y - (rig.y - 16)) < 38) {
                 playSound('crash');
+                registerComboHit();
                 rig.hp -= (t.dmg || 3);
                 rig.hitFlash = 4;
                 subTorpedoes.splice(idx, 1);
@@ -2363,6 +2670,7 @@
 
             if (trenchBossPhase && trenchBoss && Math.abs(t.x - trenchBoss.x) < 76 && Math.abs(t.y - trenchBoss.y) < 44) {
               playSound('crash');
+              registerComboHit();
               trenchBoss.hp -= (t.dmg || 3);
               trenchBoss.hitFlash = 4;
               subTorpedoes.splice(idx, 1);
@@ -2371,6 +2679,10 @@
               addScore(35);
               if (trenchBoss.hp <= 0) {
                 subCompleted = true;
+                const pumpsDestroyed = drillRigs.filter(r => r.destroyed).length;
+                if (pumpsDestroyed === 3 && earthToxicity < 45) {
+                  updateBountyProgress('cleanTrench', 1);
+                }
                 for (let p = 0; p < 18; p++) {
                   subDebris.push({ x: trenchBoss.x + (Math.random() - 0.5) * 90, y: trenchBoss.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 7, vy: (Math.random() - 0.5) * 7, life: 36 });
                 }
@@ -2383,7 +2695,7 @@
                   title: "CHAPTER 2 CLEAR • WACON TRENCH SAVED",
                   grade,
                   lines: [
-                    `Albor Drill Pumps Destroyed: <strong style="color:#34d399;">3 / 3</strong>`,
+                    `Albor Drill Pumps Destroyed: <strong style="color:#34d399;">${pumpsDestroyed} / 3</strong>`,
                     `Final Earth Toxicity: <strong style="color:#38bdf8;">${Math.round(earthToxicity)}%</strong>`,
                     `Vibranium Salvaged: <strong style="color:#d4af37;">+${vibReward}T</strong>`
                   ],
@@ -2399,6 +2711,7 @@
               let es = enemySubs[sIdx];
               if (Math.hypot(t.x - es.x, t.y - es.y) < 42) {
                 playSound('crash');
+                registerComboHit();
                 es.hp -= (t.dmg || 3);
                 es.hitFlash = 4;
                 subTorpedoes.splice(idx, 1);
@@ -2573,7 +2886,9 @@
         });
         ctx.restore();
 
+        updateAndDrawComboHUD(ctx, canvas.width);
         updateAndDrawFloatingNumbers(ctx);
+        BossIntroBanner.render(ctx, canvas.width, canvas.height);
         NexusCountdown.render(ctx, canvas.width, canvas.height);
         if (isGamePaused) drawPauseOverlay(ctx, canvas);
         activeSubId = requestAnimationFrame(subLoop);
@@ -2656,6 +2971,7 @@
       function triggerSpaceDeath(reason = 'ship') {
         if (spaceDead) return;
         spaceDead = true;
+        resetCombo();
         if (reason === 'station') {
           stationHull = 0;
           document.getElementById('space-gameover-title').innerText = '💀 ORBITAL RELAY STATION DESTROYED';
@@ -2683,9 +2999,13 @@
           const absorbed = Math.min(spaceShield, dmg);
           spaceShield -= absorbed;
           const overflow = dmg - absorbed;
-          if (overflow > 0) shipHull = Math.max(0, shipHull - overflow);
+          if (overflow > 0) {
+            resetCombo();
+            shipHull = Math.max(0, shipHull - overflow);
+          }
         } else {
           playSound('crash');
+          resetCombo();
           shipHull = Math.max(0, shipHull - dmg);
           spawnDamageNumber(shipX, shipY - 25, `-${dmg}`, "#ef4444");
         }
@@ -2818,6 +3138,7 @@
           hitFlash: 0
         };
         playSound('acoustic');
+        BossIntroBanner.trigger(flagship.name, 'ORBITAL SIEGE COMMANDER • DEFEND THE RELAY STATION', '#f59e0b');
         setFleetBanner(`<strong style="color:#fef08a;">SOS ALERT: "${flagship.name} warping in to bombard the Relay Station! Intercept its plasma volleys!"</strong>`);
         speakText(`Warning! ${flagshipCommander.name} flagship entering orbit.`, "flagship-warp", 3500);
       }
@@ -3012,6 +3333,7 @@
             if (Math.hypot(shipX - dl.x, shipY - dl.y) < interceptRadius) {
               if (aegisBubbleTimer > 0) {
                 playSound('shield-up');
+                registerComboHit();
                 spawnDamageNumber(dl.x, dl.y, "BLOCKED!", "#00ffff");
                 addScore(15);
               } else {
@@ -3042,6 +3364,7 @@
             if (flagshipPhase && flagship && Math.abs(st.x - flagship.x) < 68 && Math.abs(st.y - flagship.y) < 36) {
               flagship.hp -= (st.dmg || 1);
               flagship.hitFlash = 4;
+              registerComboHit();
               spaceTorpedoes.splice(i, 1);
               hitFlagship = true;
               spawnDamageNumber(flagship.x + (Math.random() - 0.5) * 30, flagship.y + 10, `-${st.dmg || 1}`, "#fef08a");
@@ -3077,6 +3400,7 @@
               let hitBox = d.type === 'cruiser' ? 42 : 28;
               if (Math.hypot(st.x - d.x, st.y - d.y) < hitBox) {
                 playSound('crash'); d.hp -= (st.dmg || 1); d.hitFlash = 3; spaceTorpedoes.splice(i, 1);
+                registerComboHit();
                 if (d.hp <= 0) {
                   for (let p = 0; p < 8; p++) {
                     explosionDebris.push({ x: d.x, y: d.y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 30 });
@@ -3272,7 +3596,9 @@
         }
         ctx.restore();
 
+        updateAndDrawComboHUD(ctx, canvas.width);
         updateAndDrawFloatingNumbers(ctx);
+        BossIntroBanner.render(ctx, canvas.width, canvas.height);
         NexusCountdown.render(ctx, canvas.width, canvas.height);
         if (isGamePaused) drawPauseOverlay(ctx, canvas);
         activeSpaceId = requestAnimationFrame(spaceLoop);
@@ -3303,8 +3629,13 @@
       let partnerX = 45, partnerFireTimer = 0;
       let bossX = 455, bossY = 238, bossHp = 360, bossMaxHp = 360, teamHealth = 100;
       let bossHitFlash = 0;
+      let bossIntroShownForStage = false;
       let playerInvulnFrames = 0;
       let brawlerProjectiles = [], droidProjectiles = [], bossAttacks = [], radioWaveRings = [];
+
+      // STEP 1: DYNAMIC SPRITE LUNGE, RECOIL & AFTERIMAGES
+      let heroActionAnim = 0; // > 0 lunge forward, < 0 recoil backward
+      let afterimages = [];
 
       let timeFreezeTimer = 0;
       let chronolockBlinkTimer = 0;
@@ -3370,6 +3701,7 @@
       function triggerBrawlerDeath() {
         if (brawlerDead) return;
         brawlerDead = true;
+        resetCombo();
         teamHealth = 0;
         document.getElementById('team-health').innerText = '0';
         persistSaveState(false);
@@ -3379,6 +3711,7 @@
 
       function absorbShieldImpact(incomingDmg) {
         playSound('shield-up');
+        registerComboHit();
         shieldEnergy = Math.max(0, shieldEnergy - Math.ceil(incomingDmg * 0.45));
         kineticShieldCharge = Math.min(100, kineticShieldCharge + 28);
         shieldImpactPulse = 12;
@@ -3396,6 +3729,8 @@
         }
         if (playerInvulnFrames > 0) return;
         playerInvulnFrames = 38;
+        heroActionAnim = -10; // Recoil snap
+        resetCombo();
         teamHealth = Math.max(0, teamHealth - dmg);
         spawnDamageNumber(playerX + 42, playerY - 30, `-${dmg}`, "#ef4444");
         document.getElementById('team-health').innerText = teamHealth;
@@ -3477,6 +3812,7 @@
       function setupStage(stageNum) {
         currentStage = stageNum;
         currentWave = 1;
+        bossIntroShownForStage = false;
         bossMaxHp = 360 + (stageNum * 110);
         bossHp = bossMaxHp;
         bossX = 455;
@@ -3536,6 +3872,9 @@
         if (stageTransitioning) return;
         playSound('transform');
         addScore(450 * currentStage);
+        updateBountyProgress('apexSlayer', 1);
+        unlockCodexEntry(currentBossObj.sprite);
+        unlockCodexEntry(heroes[heroIndex].key);
 
         if (currentBossObj.name === "Chronolock") {
           for (let s = 0; s < 12; s++) {
@@ -3574,7 +3913,7 @@
               `Citadel Rooftop Conquered: <strong style="color:#34d399;">VICTORY</strong>`,
               `Remaining Team HP: <strong style="color:#38bdf8;">${teamHealth}/100</strong>`,
               `Apex Vibranium Reward: <strong style="color:#d4af37;">+600T</strong>`,
-              `Next Threat: <strong style="color:#fef08a;">${nextBoss.name}</strong>`
+              `Living Codex Unlocked: <strong style="color:#c084fc;">${currentBossObj.name}</strong>`
             ],
             nextLabel: "RETURN TO MARROW GLOBE CONTROL DECK ▶",
             onContinue: () => switchPortal('globe3d')
@@ -3587,6 +3926,7 @@
         heroIndex = (heroIndex + 1) % heroes.length;
         let h = heroes[heroIndex];
         let nextPartner = heroes[(heroIndex + 1) % heroes.length];
+        unlockCodexEntry(h.key);
         
         document.getElementById('tag-hero-btn').innerText = h.tag;
         document.getElementById('skill1-btn').innerText = h.s1;
@@ -3602,6 +3942,7 @@
         if (brawlerDead || isGamePaused || NexusCountdown.isActive()) return;
         if (timeFreezeTimer > 0) return;
         playSound('beam');
+        afterimages.push({ x: playerX, y: playerY, dir: facingDir, alpha: 0.55, hero: heroes[heroIndex] });
         let disruptFactor = sonicDisruptTimer > 0 ? 0.55 : 1.0;
         let moveDist = 26 * playerSpeedMult * disruptFactor;
         if (dir === 'left') {
@@ -3619,7 +3960,12 @@
       window.brawlerJump = () => {
         if (brawlerDead || isGamePaused || NexusCountdown.isActive()) return;
         if (timeFreezeTimer > 0) return;
-        if (!isJumping) { playSound('transform'); isJumping = true; jumpVel = -12.5; }
+        if (!isJumping) {
+          playSound('transform');
+          afterimages.push({ x: playerX, y: playerY, dir: facingDir, alpha: 0.65, hero: heroes[heroIndex] });
+          isJumping = true;
+          jumpVel = -12.5;
+        }
       };
 
       function damageEnemiesAlongBeam(startX, endX, dmgPerHit, scorePts, isBossStrike = false) {
@@ -3635,6 +3981,7 @@
               d.hp -= dmgPerHit;
               d.hitFlash = 4;
               hitDroid = true;
+              registerComboHit();
               spawnDamageNumber(d.x, d.y - 60, `-${dmgPerHit}`, "#fef08a");
               if (d.hp <= 0) {
                 d.active = false;
@@ -3651,6 +3998,7 @@
           }
         } else if (bossHp > 0 && bossX >= minX && bossX <= maxX) {
           playSound('crash');
+          registerComboHit();
           const totalDmg = isBossStrike ? dmgPerHit * 8 : dmgPerHit * 6;
           bossHp = Math.max(0, bossHp - totalDmg);
           bossHitFlash = 5;
@@ -3669,6 +4017,8 @@
         if (NexusCountdown.tryPerfectStart()) return;
         if (brawlerDead || isGamePaused || NexusCountdown.isActive()) return;
         playSound('acoustic');
+        heroActionAnim = 10; // Forward lunge!
+        afterimages.push({ x: playerX, y: playerY, dir: facingDir, alpha: 0.6, hero: heroes[heroIndex] });
         chargeTrinityMeter(14);
         let activeName = heroes[heroIndex].name;
         let dir = facingDir;
@@ -3733,6 +4083,7 @@
         if (NexusCountdown.tryPerfectStart()) return;
         if (brawlerDead || isGamePaused || NexusCountdown.isActive()) return;
         playSound('shield-up');
+        heroActionAnim = 8;
         chargeTrinityMeter(14);
         let activeName = heroes[heroIndex].name;
         let dir = facingDir;
@@ -3766,6 +4117,7 @@
             d.hp -= dmg;
             d.hitFlash = 6;
             hitAnyDroid = true;
+            registerComboHit();
             spawnDamageNumber(d.x, d.y - 60, `-${dmg} TRINITY!`, "#fef08a");
             if (d.hp <= 0) {
               d.active = false;
@@ -3783,6 +4135,7 @@
         } else if (bossHp > 0 && trinityBossHits < 2) {
           trinityBossHits++;
           playSound('crash');
+          registerComboHit();
           const share = trinityBossHits === 1 ? 0.55 : (isIntensified ? 0.25 : 0);
           const chunk = Math.ceil(bossMaxHp * share);
           bossHp = Math.max(0, bossHp - chunk);
@@ -4112,16 +4465,19 @@
         ctx.restore();
       }
 
-      function renderHeroCharacter(ctx, heroObj, posX, posY, dir = 1) {
+      // STEP 1: DYNAMIC LUNGE, RECOIL & SQUASH/STRETCH RENDERER FOR SINGLE-SPRITE FIGHTERS
+      function renderHeroCharacter(ctx, heroObj, posX, posY, dir = 1, animImpulse = 0) {
         let jumpHeight = Math.max(0, GROUNDED_PLAYER_Y - posY);
-        drawGroundShadow(ctx, posX + 42, 34, jumpHeight);
+        const lungeX = animImpulse * 1.4 * dir;
+        const scalePopX = 1 + Math.abs(animImpulse) * 0.012;
+        const scalePopY = 1 - Math.abs(animImpulse) * 0.008;
+
+        drawGroundShadow(ctx, posX + 42 + lungeX, 34, jumpHeight);
 
         ctx.save();
-        if (dir === -1) {
-          ctx.translate(posX + 42, 0);
-          ctx.scale(-1, 1);
-          ctx.translate(-(posX + 42), 0);
-        }
+        ctx.translate(posX + 42 + lungeX, posY + 70);
+        ctx.scale(dir * scalePopX, scalePopY);
+        ctx.translate(-(posX + 42), -(posY + 70));
 
         let singleImg = heroObj.key ? sprites[heroObj.key] : null;
         if (isSpriteReady(singleImg)) {
@@ -4204,6 +4560,13 @@
 
             if (playerInvulnFrames > 0) playerInvulnFrames--;
             if (bossHitFlash > 0) bossHitFlash--;
+            if (heroActionAnim > 0) heroActionAnim = Math.max(0, heroActionAnim - 1);
+            if (heroActionAnim < 0) heroActionAnim = Math.min(0, heroActionAnim + 1);
+
+            for (let ai = afterimages.length - 1; ai >= 0; ai--) {
+              afterimages[ai].alpha -= 0.055;
+              if (afterimages[ai].alpha <= 0) afterimages.splice(ai, 1);
+            }
 
             if (hitStopFrames > 0) {
               hitStopFrames--;
@@ -4366,6 +4729,10 @@
                   document.getElementById('team-health').innerText = teamHealth;
                   spawnWave(currentWave);
                 } else {
+                  if (!bossIntroShownForStage) {
+                    bossIntroShownForStage = true;
+                    BossIntroBanner.trigger(currentBossObj.name.toUpperCase(), currentBossObj.title, '#d4af37');
+                  }
                   const overdrive = bossHp < bossMaxHp * 0.5;
                   document.getElementById('boss-hp').innerText =
                     `Stage ${currentStage} Boss: ${getBossPercent()}%${overdrive ? ' ⚡' : ''}`;
@@ -4580,6 +4947,7 @@
                       bp.hitIds.add(d.id);
                       d.hp -= bp.damage;
                       d.hitFlash = 4;
+                      registerComboHit();
                       spawnDamageNumber(d.x, d.y - 60, `-${bp.damage}`, bp.supercharged ? "#fef08a" : "#38bdf8");
                       if (d.hp <= 0) {
                         d.active = false;
@@ -4597,6 +4965,7 @@
                   if (bossInLane) {
                     bp.hitBoss = true;
                     playSound('crash');
+                    registerComboHit();
                     const dmgDealt = bp.damage * 8;
                     bossHp = Math.max(0, bossHp - dmgDealt);
                     bossHitFlash = 5;
@@ -4626,6 +4995,7 @@
                     const dmg = bp.damage || 1;
                     d.hp -= dmg;
                     d.hitFlash = 4;
+                    registerComboHit();
                     spawnDamageNumber(d.x, d.y - 60, `-${dmg}`, "#38bdf8");
                     if (d.hp <= 0) {
                       d.active = false;
@@ -4643,6 +5013,7 @@
               } else if (!stageTransitioning && bossHp > 0) {
                 if (Math.abs(bp.x - bossX) < 55) {
                   playSound('crash');
+                  registerComboHit();
                   const dmg = (bp.damage || 1) * 6;
                   bossHp = Math.max(0, bossHp - dmg);
                   bossHitFlash = 4;
@@ -4674,6 +5045,15 @@
 
           let activeHero = heroes[heroIndex];
           let partnerHero = heroes[(heroIndex + 1) % heroes.length];
+
+          // Render Cyan/Gold Dash & Lunge Afterimages
+          afterimages.forEach(ai => {
+            ctx.save();
+            ctx.globalAlpha = ai.alpha * 0.45;
+            ctx.filter = 'hue-rotate(160deg) brightness(1.4)';
+            renderHeroCharacter(ctx, ai.hero, ai.x, ai.y, ai.dir, 0);
+            ctx.restore();
+          });
 
           if (xochitlGlideActive && activeHero.name === 'Xochitl') {
             if (!isGamePaused) {
@@ -4712,7 +5092,6 @@
               ctx.fillRect(glideX - 12, glideY - 25, 24, 45);
             }
 
-            // Blazing Fire Wings VFX
             ctx.fillStyle = '#f97316';
             ctx.shadowColor = '#fbbf24';
             ctx.shadowBlur = 24;
@@ -4740,12 +5119,14 @@
                   preBossDroids.forEach(d => {
                     if (d.active && Math.hypot(fd.x - d.x, fd.y - (d.y - 30)) < 35) {
                       d.hp -= fd.damage;
+                      registerComboHit();
                       if (d.hp <= 0) d.active = false;
                       featheryDaggers.splice(f, 1);
                     }
                   });
                 } else if (!stageTransitioning && Math.hypot(fd.x - bossX, fd.y - bossY) < 48) {
                   bossHp = Math.max(0, bossHp - 5);
+                  registerComboHit();
                   document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
                   featheryDaggers.splice(f, 1);
                   if (bossHp <= 0) {
@@ -4766,12 +5147,12 @@
             }
           } else {
             const pDir = bossX < partnerX ? -1 : 1;
-            renderHeroCharacter(ctx, partnerHero, partnerX, GROUNDED_PLAYER_Y, pDir);
+            renderHeroCharacter(ctx, partnerHero, partnerX, GROUNDED_PLAYER_Y, pDir, 0);
             ctx.save();
             if (playerInvulnFrames > 0 && Math.floor(playerInvulnFrames / 3) % 2 === 0) {
               ctx.globalAlpha = 0.55;
             }
-            renderHeroCharacter(ctx, activeHero, playerX, playerY, facingDir);
+            renderHeroCharacter(ctx, activeHero, playerX, playerY, facingDir, heroActionAnim);
             ctx.restore();
 
             if (isShieldActive || kineticShieldCharge > 0) {
@@ -5097,9 +5478,9 @@
               ctx.fill();
             });
 
-            renderHeroCharacter(ctx, heroes[0], marcusX, GROUNDED_PLAYER_Y - 4, 1);
-            renderHeroCharacter(ctx, heroes[2], nenambiX, GROUNDED_PLAYER_Y - 10, 1);
-            renderHeroCharacter(ctx, heroes[1], sundiataX, GROUNDED_PLAYER_Y - 4, 1);
+            renderHeroCharacter(ctx, heroes[0], marcusX, GROUNDED_PLAYER_Y - 4, 1, 6);
+            renderHeroCharacter(ctx, heroes[2], nenambiX, GROUNDED_PLAYER_Y - 10, 1, 6);
+            renderHeroCharacter(ctx, heroes[1], sundiataX, GROUNDED_PLAYER_Y - 4, 1, 6);
 
             if (!inBeat3) {
               let chargePct = elapsed / BEAT2_NENAMBI_END;
@@ -5129,13 +5510,11 @@
               ctx.arc(coreX, coreY, coreRadius * 1.6, 0, Math.PI * 2);
               ctx.fill();
             } else {
-              // Beat 3: Full-Width Golden-Cyan Marrow Cannon + Sweeping Shock Arcs + Blazing Golden Lion War
               let lionElapsed = elapsed - BEAT2_NENAMBI_END;
               let lionSurgeX = Math.min(bossX - 18, coreX + 65 + lionElapsed * (lionIntensified ? 7.6 : 4.8));
               const arcCount = lionIntensified ? 6 : 4;
               const pulse = Math.sin(lionElapsed * 0.45) * 7;
 
-              // Full-Arena Golden & Cyan Energy Beam behind the Lion
               const beamH = lionIntensified ? 44 : 28;
               let beamGrad = ctx.createLinearGradient(0, coreY - beamH, 0, coreY + beamH);
               beamGrad.addColorStop(0, 'rgba(56, 189, 248, 0)');
@@ -5236,7 +5615,9 @@
             ctx.textAlign = 'left';
           }
 
+          updateAndDrawComboHUD(ctx, canvas.width);
           updateAndDrawFloatingNumbers(ctx);
+          BossIntroBanner.render(ctx, canvas.width, canvas.height);
           NexusCountdown.render(ctx, canvas.width, canvas.height);
           ctx.restore();
         } catch (err) {
