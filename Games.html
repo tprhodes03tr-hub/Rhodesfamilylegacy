@@ -333,7 +333,7 @@
         </div>
 
         <div class="dialogue-banner" id="sub-comm-banner" style="border-color: #34d399; color: #34d399;">
-          📡 <b>Marcus ↔ Wakan Intercom:</b> "Marcus here—313 grid relays linked to your trench sonar. Collect golden orbs to upgrade your sub!"
+          📡 <b>Marcus ↔ Wakan Intercom:</b> "Marcus here—313 grid relays linked to your trench sonar. Collect golden orbs to upgrade armor & torpedoes!"
         </div>
 
         <div style="width: 100%; aspect-ratio: 4 / 3; background: #010c14; border: 2px solid #34d399; border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 8px;">
@@ -1413,7 +1413,7 @@
       runnerLoop();
     }
 
-    // CHAPTER 2: WAKAN SUBMARINE (3-TIER EVOLUTION + NANOBOTS + ABYSSAL LEVIATHAN BOSS)
+    // CHAPTER 2: WAKAN SUBMARINE (3-TIER EVOLUTION + TIER HULL ARMOR + NANOBOTS + ABYSSAL LEVIATHAN BOSS)
     function initSubmarineEngine() {
       if (activeSubId) cancelAnimationFrame(activeSubId);
       const canvas = document.getElementById('subCanvas');
@@ -1428,12 +1428,18 @@
       let marineOrbs = [], subTorpedoes = [], enemySubs = [], coralReefs = [], droneTorps = [], abyssJellies = [], subDebris = [];
       let isSubTurboActive = false, subTurboTimer = 0;
 
-      const LEVIATHAN_TRIGGER_DEPTH = 340;
+      const LEVIATHAN_TRIGGER_DEPTH = 380;
       let trenchBossPhase = false;
       let trenchBoss = null;
 
       document.getElementById('sub-integrity').innerText = '100%';
       document.getElementById('sub-torpedoes').innerText = '50';
+
+      function getSubArmorMultiplier() {
+        if (subTier === 3) return 0.70; // 30% armor damage reduction on MK III
+        if (subTier === 2) return 0.85; // 15% armor damage reduction on MK II
+        return 1.0;
+      }
 
       function updateSubTierHUD() {
         const tBadge = document.getElementById('sub-tier-badge');
@@ -1481,7 +1487,7 @@
       for (let i = 0; i < 7; i++) abyssJellies.push({ x: Math.random() * canvas.width, y: Math.random() * (canvas.height - 150), speed: 0.8 + Math.random() * 0.8, pulse: Math.random() * Math.PI });
 
       const subLoreDialogue = [
-        "Wakan: 'Marcus, enemy submarines closing in on the trench! Collecting golden orbs upgrades my sub hull and torpedo tubes!'",
+        "Wakan: 'Marcus, enemy submarines closing in on the trench! Collecting golden orbs upgrades my armor plating and torpedo tubes!'",
         "Marcus Prime: '313 grid relays tracking your sonar, Wakan. Keep those nanobots welding whenever hull drops!'",
         "Wakan: 'Deep-trench sonar picking up a massive Syndicate Leviathan ahead—arming homing torpedoes!'"
       ];
@@ -1572,8 +1578,9 @@
       window.moveSub = (dir) => {
         if (subDead || isGamePaused) return;
         playSound('beam');
-        if (dir === 'up') subTargetY = Math.max(65, subTargetY - 65);
-        if (dir === 'down') subTargetY = Math.min(canvas.height - 65, subTargetY + 65);
+        const step = subTier === 3 ? 74 : (subTier === 2 ? 70 : 65);
+        if (dir === 'up') subTargetY = Math.max(65, subTargetY - step);
+        if (dir === 'down') subTargetY = Math.min(canvas.height - 65, subTargetY + step);
       };
       
       window.triggerSubTurbo = () => {
@@ -1632,7 +1639,7 @@
         if (!subDead && !isGamePaused) {
           subX += (subTargetX - subX) * 0.2;
           subY += (subTargetY - subY) * 0.2;
-          subDistance = Math.max(0, subDistance + (isSubTurboActive ? 0.9 : 0.32));
+          subDistance = Math.max(0, subDistance + (isSubTurboActive ? 0.9 : 0.30));
 
           if (!trenchBossPhase && subDistance >= LEVIATHAN_TRIGGER_DEPTH) {
             launchTrenchLeviathan();
@@ -1696,7 +1703,7 @@
             }
           }
 
-          if (Math.random() < 0.06 && marineOrbs.length < 8) {
+          if (Math.random() < 0.068 && marineOrbs.length < 8) {
             marineOrbs.push({ x: canvas.width + 30, y: 80 + Math.random() * (canvas.height - 160), speed: isSubTurboActive ? 5.5 : 2.8 });
           }
 
@@ -1716,20 +1723,21 @@
             if (Math.hypot(subX - o.x, subY - o.y) < 45) {
               playSound('transform'); subOrbs++;
               addScore(15);
-              torpedoes = Math.min(50, torpedoes + 5);
-              if (subOrbs % 6 === 0 && nanobotCharges < 5) {
+              const ammoBonus = subTier === 3 ? 8 : (subTier === 2 ? 6 : 5);
+              torpedoes = Math.min(60, torpedoes + ammoBonus);
+              if (subOrbs % 5 === 0 && nanobotCharges < 5) {
                 nanobotCharges++;
                 updateNanobotHUD();
               }
               const prevTier = subTier;
-              if (subOrbs >= 14) subTier = 3;
-              else if (subOrbs >= 6) subTier = 2;
+              if (subOrbs >= 11) subTier = 3;
+              else if (subOrbs >= 5) subTier = 2;
               if (subTier !== prevTier) {
                 updateSubTierHUD();
                 setSubBanner(
                   subTier === 3
-                    ? `Wakan: "MK III Sovereign Trench Leviathan online! Triple plasma-torpedoes armed!"`
-                    : `Wakan: "MK II Abyssal Hydro-Cruiser upgraded! Twin homing torpedo tubes active!"`
+                    ? `Wakan: "MK III Sovereign Trench Leviathan online! Triple plasma-torpedoes & 30% Vibranium armor active!"`
+                    : `Wakan: "MK II Abyssal Hydro-Cruiser upgraded! Twin homing torpedoes & 15% reinforced hull armor active!"`
                 );
               }
               document.getElementById('sub-torpedoes').innerText = torpedoes;
@@ -1753,7 +1761,8 @@
             if (Math.hypot(subX - es.x, subY - es.y) < 62) {
               if (!isSubTurboActive) {
                 playSound('crash');
-                subHull = Math.max(0, subHull - 20);
+                const ramDmg = Math.max(8, Math.round(20 * getSubArmorMultiplier()));
+                subHull = Math.max(0, subHull - ramDmg);
                 document.getElementById('sub-integrity').innerText = subHull + '%';
                 if (subHull <= 0) { triggerSubDeath(); break; }
               }
@@ -1770,7 +1779,9 @@
             if (Math.hypot(subX - dt.x, subY - dt.y) < 42) {
               if (!isSubTurboActive) {
                 playSound('crash');
-                subHull = Math.max(0, subHull - (dt.isBossTorp ? 14 : 18));
+                const baseHit = dt.isBossTorp ? 14 : 18;
+                const mitigatedHit = Math.max(6, Math.round(baseHit * getSubArmorMultiplier()));
+                subHull = Math.max(0, subHull - mitigatedHit);
                 document.getElementById('sub-integrity').innerText = subHull + '%';
                 if (subHull <= 0) { triggerSubDeath(); break; }
               }
