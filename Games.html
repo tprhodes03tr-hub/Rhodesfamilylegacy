@@ -25,6 +25,7 @@
       min-height: 100vh;
       padding: 10px;
       position: relative;
+      transition: background 0.6s ease;
     }
 
     body::after {
@@ -288,6 +289,39 @@
       background: rgba(54, 42, 5, 0.55);
     }
 
+    /* CAMPAIGN STREAK & HIGH-SCORE PRESTIGE BADGES */
+    .prestige-shelf {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .prestige-badge {
+      background: linear-gradient(145deg, #090d16 0%, #0f172a 100%);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 6px 4px;
+      text-align: center;
+      font-size: 0.58rem;
+      color: #64748b;
+      transition: all 0.25s ease;
+    }
+    .prestige-badge.earned {
+      border-color: #d4af37;
+      color: #fef08a;
+      box-shadow: 0 0 14px rgba(212, 175, 55, 0.28);
+      background: linear-gradient(145deg, #271e04 0%, #0f172a 100%);
+    }
+    .prestige-badge strong {
+      display: block;
+      font-size: 0.72rem;
+      margin-top: 2px;
+      color: #38bdf8;
+    }
+    .prestige-badge.earned strong {
+      color: #d4af37;
+    }
+
     .debrief-modal {
       position: fixed;
       inset: 0;
@@ -399,6 +433,28 @@
             • Combat Power: <strong style="color: #38bdf8;">PWR 91</strong> | Defense: <strong style="color: #10b981;">DEF 88</strong><br>
             • Profile: Urban dynamo commanding Woodward Avenue interceptor grid and kinetic energy-absorbing shields.
           </p>
+        </div>
+
+        <!-- CAMPAIGN STREAK & HIGH-SCORE PRESTIGE BADGES -->
+        <div class="upgrade-shop-box" style="border-color: #d4af37;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#d4af37; font-weight:bold; font-size:0.72rem;">🌳 MARROW LEGACY PRESTIGE CRESTS</span>
+            <span style="color:#94a3b8; font-size:0.6rem;">All-Time Records</span>
+          </div>
+          <div class="prestige-shelf">
+            <div class="prestige-badge" id="badge-flawless">
+              🛡️ FLAWLESS RUNS
+              <strong id="stat-flawless">0 Streak</strong>
+            </div>
+            <div class="prestige-badge" id="badge-peak">
+              ⭐ PEAK CYCLE SCORE
+              <strong id="stat-peak">0 PTS</strong>
+            </div>
+            <div class="prestige-badge" id="badge-nodamage">
+              👑 UNTOUCHED BOSSES
+              <strong id="stat-nodamage">0 Streak</strong>
+            </div>
+          </div>
         </div>
 
         <!-- TACTICAL BOUNTY CONTRACTS -->
@@ -650,7 +706,144 @@
       trinityConduit: false
     };
 
-    // STEP 1: GLOBAL COMBO MULTIPLIER & BOSS INTRO SPLASH ENGINE
+    // CAMPAIGN STREAK & HIGH-SCORE PRESTIGE TRACKING
+    let prestigeStats = {
+      flawlessRuns: 0,
+      currentFlawlessStreak: 0,
+      peakLegacyScore: 0,
+      noHitBossStreak: 0,
+      tookDamageThisSector: false
+    };
+
+    function updatePrestigeUI() {
+      const fEl = document.getElementById('stat-flawless');
+      const pEl = document.getElementById('stat-peak');
+      const nEl = document.getElementById('stat-nodamage');
+      if (fEl) fEl.innerText = `${prestigeStats.flawlessRuns} Streak`;
+      if (pEl) pEl.innerText = `${prestigeStats.peakLegacyScore} PTS`;
+      if (nEl) nEl.innerText = `${prestigeStats.noHitBossStreak} Streak`;
+
+      document.getElementById('badge-flawless')?.classList.toggle('earned', prestigeStats.flawlessRuns >= 1);
+      document.getElementById('badge-peak')?.classList.toggle('earned', prestigeStats.peakLegacyScore >= 1500);
+      document.getElementById('badge-nodamage')?.classList.toggle('earned', prestigeStats.noHitBossStreak >= 1);
+    }
+
+    function recordSectorDamage() {
+      prestigeStats.tookDamageThisSector = true;
+      prestigeStats.currentFlawlessStreak = 0;
+      prestigeStats.noHitBossStreak = 0;
+      updatePrestigeUI();
+    }
+
+    function recordSectorVictory(isFullCycleComplete = false) {
+      if (globalScore > prestigeStats.peakLegacyScore) {
+        prestigeStats.peakLegacyScore = globalScore;
+      }
+      if (!prestigeStats.tookDamageThisSector) {
+        prestigeStats.noHitBossStreak++;
+        if (isFullCycleComplete) {
+          prestigeStats.currentFlawlessStreak++;
+          prestigeStats.flawlessRuns = Math.max(prestigeStats.flawlessRuns, prestigeStats.currentFlawlessStreak);
+        }
+      }
+      prestigeStats.tookDamageThisSector = false;
+      updatePrestigeUI();
+      persistSaveState(false);
+    }
+
+    // DYNAMIC SECTOR MOOD & ERA SHIFTS
+    const SECTOR_MOODS = {
+      globe3d:   { bg: 'radial-gradient(circle at center, #090d1a 0%, #010306 100%)', freq: 110, wave: 'sine' },
+      runner:    { bg: 'radial-gradient(circle at center, #081833 0%, #01040a 100%)', freq: 146.83, wave: 'triangle' },
+      submarine: { bg: 'radial-gradient(circle at center, #03221d 0%, #010709 100%)', freq: 98.0, wave: 'sine' },
+      space:     { bg: 'radial-gradient(circle at center, #231105 0%, #020105 100%)', freq: 130.81, wave: 'triangle' },
+      brawler:   { bg: 'radial-gradient(circle at center, #141030 0%, #02040a 100%)', freq: 164.81, wave: 'sawtooth' }
+    };
+
+    function applySectorMood(portalKey) {
+      const mood = SECTOR_MOODS[portalKey] || SECTOR_MOODS.globe3d;
+      document.body.style.background = mood.bg;
+      prestigeStats.tookDamageThisSector = false;
+
+      try {
+        initAudio();
+        if (!audioCtx || voiceMode === 'mute') return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const filter = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+        osc.type = mood.wave;
+        osc.frequency.setValueAtTime(mood.freq, now);
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(340, now);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.85);
+      } catch (e) {}
+    }
+
+    // GOLDEN TREE OF LIFE & DNA DOUBLE-HELIX CREST MOTIF FOR 3D GLOBE
+    function drawDoubleHelixTreeReticle(ctx, cx, cy, baseRadius, rotAngle) {
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      const helixRadius = baseRadius + 24;
+      const steps = 48;
+      for (let strand = 0; strand < 2; strand++) {
+        ctx.strokeStyle = strand === 0 ? 'rgba(212, 175, 55, 0.72)' : 'rgba(254, 240, 138, 0.58)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+          const t = (i / steps) * Math.PI * 2;
+          const wave = Math.sin(t * 6 + rotAngle * 3 + strand * Math.PI) * 7;
+          const r = helixRadius + wave;
+          const px = Math.cos(t + rotAngle * 0.4) * r;
+          const py = Math.sin(t + rotAngle * 0.4) * r;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < 16; i++) {
+        const t = (i / 16) * Math.PI * 2 + rotAngle * 0.4;
+        const w1 = Math.sin(t * 6 + rotAngle * 3) * 7;
+        const w2 = Math.sin(t * 6 + rotAngle * 3 + Math.PI) * 7;
+        const r1 = helixRadius + w1;
+        const r2 = helixRadius + w2;
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(t) * r1, Math.sin(t) * r1);
+        ctx.lineTo(Math.cos(t) * r2, Math.sin(t) * r2);
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 44);
+      ctx.lineTo(0, -34);
+      ctx.moveTo(0, 34); ctx.lineTo(-22, 48);
+      ctx.moveTo(0, 34); ctx.lineTo(22, 48);
+      ctx.moveTo(0, -10); ctx.lineTo(-28, -28);
+      ctx.moveTo(0, -10); ctx.lineTo(28, -28);
+      ctx.moveTo(0, -24); ctx.lineTo(-18, -42);
+      ctx.moveTo(0, -24); ctx.lineTo(18, -42);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, -24, 34, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // GLOBAL COMBO MULTIPLIER & BOSS INTRO SPLASH ENGINE
     let comboCount = 0;
     let comboTimer = 0;
     const COMBO_DECAY_FRAMES = 190;
@@ -712,7 +905,7 @@
       let accent = '#ef4444';
 
       function trigger(name, sub, color = '#ef4444') {
-        timer = 78; // ~1.3s dramatic splash
+        timer = 78;
         bossName = name;
         bossSub = sub;
         accent = color;
@@ -751,7 +944,7 @@
       return { trigger, render };
     })();
 
-    // STEP 2: TACTICAL BOUNTIES & UNLOCKABLE LIVING CODEX ARCHIVE
+    // TACTICAL BOUNTIES & UNLOCKABLE LIVING CODEX ARCHIVE
     let bountyState = {
       cleanTrench: { completed: false, claimed: false },
       combo10: { completed: false, claimed: false },
@@ -1314,6 +1507,7 @@
           armoryUpgrades,
           bountyState,
           unlockedCodexIds,
+          prestigeStats,
           savedAt: Date.now()
         };
         localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(payload));
@@ -1331,6 +1525,7 @@
           updateArmoryShopUI();
           renderBountyBoard();
           renderCodexGallery();
+          updatePrestigeUI();
           return;
         }
         const data = JSON.parse(raw);
@@ -1346,6 +1541,10 @@
         if (Array.isArray(data.unlockedCodexIds)) {
           unlockedCodexIds = Array.from(new Set([...unlockedCodexIds, ...data.unlockedCodexIds]));
         }
+        if (data.prestigeStats && typeof data.prestigeStats === 'object') {
+          prestigeStats = { ...prestigeStats, ...data.prestigeStats };
+        }
+        updatePrestigeUI();
         refreshScoreUI();
         renderBountyBoard();
         renderCodexGallery();
@@ -1371,6 +1570,14 @@
         apexSlayer: { completed: false, claimed: false }
       };
       unlockedCodexIds = ['marcus', 'motherLuta', 'wakan'];
+      prestigeStats = {
+        flawlessRuns: 0,
+        currentFlawlessStreak: 0,
+        peakLegacyScore: 0,
+        noHitBossStreak: 0,
+        tookDamageThisSector: false
+      };
+      updatePrestigeUI();
       refreshScoreUI();
       renderBountyBoard();
       renderCodexGallery();
@@ -1382,6 +1589,10 @@
     function addScore(pts) {
       const scaled = Math.round(pts * getComboMultiplier());
       globalScore += scaled;
+      if (globalScore > prestigeStats.peakLegacyScore) {
+        prestigeStats.peakLegacyScore = globalScore;
+        updatePrestigeUI();
+      }
       refreshScoreUI();
       persistSaveState(false);
     }
@@ -1453,6 +1664,8 @@
       updateControlDeckOrders();
       renderBountyBoard();
       renderCodexGallery();
+      updatePrestigeUI();
+      applySectorMood('globe3d');
       speakText("Control deck online. Mother Luetta has new sector orders.", "deck-init", 5000);
       initGlobeEngine();
     }
@@ -1504,6 +1717,8 @@
       if (modal) modal.classList.add('hidden');
 
       currentActivePortal = target;
+      applySectorMood(target);
+
       if (activeGlobeId) cancelAnimationFrame(activeGlobeId);
       if (activeRunnerId) cancelAnimationFrame(activeRunnerId);
       if (activeSubId) cancelAnimationFrame(activeSubId);
@@ -1527,6 +1742,7 @@
         updateArmoryShopUI();
         renderBountyBoard();
         renderCodexGallery();
+        updatePrestigeUI();
         const nextBoss = bossPool[bossIndex % bossPool.length];
         speakText(`Control deck active. Next intruder: ${nextBoss.name}.`, "deck-return", 3000);
         initGlobeEngine();
@@ -1605,6 +1821,8 @@
         starfield.forEach(s => { ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'; ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2); ctx.fill(); });
 
         let centerX = canvas.width / 2, centerY = canvas.height / 2, globeRadius = 160;
+        drawDoubleHelixTreeReticle(ctx, centerX, centerY, globeRadius, globeRotationY);
+
         let globeGrad = ctx.createRadialGradient(centerX - 40, centerY - 40, 20, centerX, centerY, globeRadius);
         globeGrad.addColorStop(0, '#0f2744'); globeGrad.addColorStop(1, '#01040a');
         ctx.fillStyle = globeGrad; ctx.beginPath(); ctx.arc(centerX, centerY, globeRadius, 0, Math.PI * 2); ctx.fill();
@@ -1715,6 +1933,7 @@
         const bonusVib = carHull >= 80 ? 350 : 200;
         freightYields += bonusVib;
         addScore(300);
+        recordSectorVictory(false);
         const grade = carHull >= 85 ? 'S' : (carHull >= 60 ? 'A' : 'B');
         showVictoryDebrief({
           title: "CHAPTER 1 CLEAR • DETROIT '313 SECURED",
@@ -1734,6 +1953,7 @@
         runnerDead = true;
         carHull = 0;
         resetCombo();
+        recordSectorDamage();
         document.getElementById('car-hull').innerText = '0%';
         setRunnerBanner(`<span style="color:#fca5a5;">Wakan: "Marcus, interceptor hull lost on the '313 grid! Rebooting run..."</span>`);
         persistSaveState(false);
@@ -1905,6 +2125,7 @@
               if (!isTurboActive) {
                 playSound('crash');
                 resetCombo();
+                recordSectorDamage();
                 carHull = Math.max(0, carHull - 25);
                 spawnDamageNumber(playerX, 290, "-25", "#ef4444");
                 document.getElementById('car-hull').innerText = carHull + '%';
@@ -1936,6 +2157,7 @@
               if (!isTurboActive) {
                 playSound('crash');
                 resetCombo();
+                recordSectorDamage();
                 carHull = Math.max(0, carHull - 20);
                 spawnDamageNumber(playerX, 290, "-20", "#ef4444");
                 document.getElementById('car-hull').innerText = carHull + '%';
@@ -2004,6 +2226,7 @@
               if (!isTurboActive) {
                 playSound('crash');
                 resetCombo();
+                recordSectorDamage();
                 carHull = Math.max(0, carHull - 18);
                 spawnDamageNumber(playerX, 290, "-18", "#ef4444");
                 document.getElementById('car-hull').innerText = carHull + '%';
@@ -2241,6 +2464,7 @@
         if (subDead) return;
         subDead = true;
         resetCombo();
+        recordSectorDamage();
         if (reason === 'toxicity') {
           document.getElementById('sub-gameover-title').innerText = '☣️ EARTH TOXICITY CRITICAL (100%)';
           document.getElementById('sub-gameover-desc').innerText = 'Albor Syndicate drills poisoned the Wacon Trench! Destroy the 3 pumps before Toxicity hits 100%!';
@@ -2579,6 +2803,7 @@
               if (!isSubTurboActive) {
                 playSound('crash');
                 resetCombo();
+                recordSectorDamage();
                 const ramDmg = Math.max(8, Math.round(20 * getSubArmorMultiplier()));
                 subHull = Math.max(0, subHull - ramDmg);
                 spawnDamageNumber(subX, subY - 25, `-${ramDmg}`, "#ef4444");
@@ -2599,6 +2824,7 @@
               if (!isSubTurboActive) {
                 playSound('crash');
                 resetCombo();
+                recordSectorDamage();
                 const baseHit = dt.isBossTorp ? 14 : 18;
                 const mitigatedHit = Math.max(6, Math.round(baseHit * getSubArmorMultiplier()));
                 subHull = Math.max(0, subHull - mitigatedHit);
@@ -2690,6 +2916,7 @@
                 const vibReward = Math.max(200, Math.round((100 - earthToxicity) * 5));
                 freightYields += vibReward;
                 addScore(400);
+                recordSectorVictory(false);
                 const grade = earthToxicity <= 35 && subHull >= 75 ? 'S' : (earthToxicity <= 65 ? 'A' : 'B');
                 showVictoryDebrief({
                   title: "CHAPTER 2 CLEAR • WACON TRENCH SAVED",
@@ -2972,6 +3199,7 @@
         if (spaceDead) return;
         spaceDead = true;
         resetCombo();
+        recordSectorDamage();
         if (reason === 'station') {
           stationHull = 0;
           document.getElementById('space-gameover-title').innerText = '💀 ORBITAL RELAY STATION DESTROYED';
@@ -3001,11 +3229,13 @@
           const overflow = dmg - absorbed;
           if (overflow > 0) {
             resetCombo();
+            recordSectorDamage();
             shipHull = Math.max(0, shipHull - overflow);
           }
         } else {
           playSound('crash');
           resetCombo();
+          recordSectorDamage();
           shipHull = Math.max(0, shipHull - dmg);
           spawnDamageNumber(shipX, shipY - 25, `-${dmg}`, "#ef4444");
         }
@@ -3342,6 +3572,7 @@
               droidLasers.splice(i, 1);
             } else if (dl.y >= canvas.height - 34) {
               playSound('crash');
+              recordSectorDamage();
               const stDmg = dl.isFlagshipShot ? 7 : 5;
               stationHull = Math.max(0, stationHull - stDmg);
               spawnDamageNumber(dl.x, canvas.height - 42, `STATION -${stDmg}`, "#f59e0b");
@@ -3378,6 +3609,7 @@
                 const vibBonus = stationHull >= 70 ? 450 : 250;
                 freightYields += vibBonus;
                 addScore(400);
+                recordSectorVictory(false);
                 const grade = stationHull >= 75 && shipHull >= 75 ? 'S' : (stationHull >= 50 ? 'A' : 'B');
                 showVictoryDebrief({
                   title: "CHAPTER 3 CLEAR • ORBITAL STATION SAVED",
@@ -3633,8 +3865,8 @@
       let playerInvulnFrames = 0;
       let brawlerProjectiles = [], droidProjectiles = [], bossAttacks = [], radioWaveRings = [];
 
-      // STEP 1: DYNAMIC SPRITE LUNGE, RECOIL & AFTERIMAGES
-      let heroActionAnim = 0; // > 0 lunge forward, < 0 recoil backward
+      // DYNAMIC SPRITE LUNGE, RECOIL & AFTERIMAGES
+      let heroActionAnim = 0;
       let afterimages = [];
 
       let timeFreezeTimer = 0;
@@ -3702,6 +3934,7 @@
         if (brawlerDead) return;
         brawlerDead = true;
         resetCombo();
+        recordSectorDamage();
         teamHealth = 0;
         document.getElementById('team-health').innerText = '0';
         persistSaveState(false);
@@ -3729,8 +3962,9 @@
         }
         if (playerInvulnFrames > 0) return;
         playerInvulnFrames = 38;
-        heroActionAnim = -10; // Recoil snap
+        heroActionAnim = -10;
         resetCombo();
+        recordSectorDamage();
         teamHealth = Math.max(0, teamHealth - dmg);
         spawnDamageNumber(playerX + 42, playerY - 30, `-${dmg}`, "#ef4444");
         document.getElementById('team-health').innerText = teamHealth;
@@ -3884,6 +4118,7 @@
 
         if (currentStage < MAX_STAGES) {
           stageTransitioning = true;
+          recordSectorVictory(false);
           const completedStage = currentStage;
           const nextZone = completedStage === 1 ? "CITADEL INTERIOR ATRIUM" : "CELESTIAL NEXUS ROOFTOP";
           stageBannerText = completedStage === 1
@@ -3903,8 +4138,8 @@
           campaignCycleCount++;
           bossIndex = (bossIndex + MAX_STAGES) % bossPool.length;
           freightYields += 600;
+          recordSectorVictory(true);
           persistSaveState(false);
-          const nextBoss = bossPool[bossIndex % bossPool.length];
           const grade = teamHealth >= 80 ? 'S' : (teamHealth >= 50 ? 'A' : 'B');
           showVictoryDebrief({
             title: `CAMPAIGN CYCLE #${campaignCycleCount} COMPLETE!`,
@@ -4017,7 +4252,7 @@
         if (NexusCountdown.tryPerfectStart()) return;
         if (brawlerDead || isGamePaused || NexusCountdown.isActive()) return;
         playSound('acoustic');
-        heroActionAnim = 10; // Forward lunge!
+        heroActionAnim = 10;
         afterimages.push({ x: playerX, y: playerY, dir: facingDir, alpha: 0.6, hero: heroes[heroIndex] });
         chargeTrinityMeter(14);
         let activeName = heroes[heroIndex].name;
@@ -4465,7 +4700,6 @@
         ctx.restore();
       }
 
-      // STEP 1: DYNAMIC LUNGE, RECOIL & SQUASH/STRETCH RENDERER FOR SINGLE-SPRITE FIGHTERS
       function renderHeroCharacter(ctx, heroObj, posX, posY, dir = 1, animImpulse = 0) {
         let jumpHeight = Math.max(0, GROUNDED_PLAYER_Y - posY);
         const lungeX = animImpulse * 1.4 * dir;
@@ -5046,7 +5280,6 @@
           let activeHero = heroes[heroIndex];
           let partnerHero = heroes[(heroIndex + 1) % heroes.length];
 
-          // Render Cyan/Gold Dash & Lunge Afterimages
           afterimages.forEach(ai => {
             ctx.save();
             ctx.globalAlpha = ai.alpha * 0.45;
@@ -5280,7 +5513,6 @@
             ctx.fillStyle = '#ef4444'; ctx.fillRect(bossX - 44, bossY - 84, 88 * (bossHp / bossMaxHp), 8);
           }
 
-          // ALL HERO SUPERPOWERS RENDERING
           brawlerProjectiles.forEach(bp => {
             const bDir = bp.dir || (bp.vx >= 0 ? 1 : -1);
             ctx.save();
