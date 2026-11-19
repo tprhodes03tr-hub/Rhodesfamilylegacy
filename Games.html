@@ -425,7 +425,6 @@
     let freightYields = 1450;
     let campaignCycleCount = 0;
 
-    // Cross-browser rounded rectangle helper (prevents mobile WebView freezes)
     function drawRoundedRect(ctx, x, y, w, h, r) {
       const radius = Math.min(r, w / 2, h / 2);
       ctx.beginPath();
@@ -445,7 +444,6 @@
       return Boolean(img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0);
     }
 
-    // Calmer, once-only voice control ('brief' = important announcements only + once per tag swap; 'mute' = silent)
     let voiceMode = 'brief';
     let lastSpokenKey = '';
     let lastSpokenAt = 0;
@@ -1648,7 +1646,7 @@
       subLoop();
     }
 
-    // CHAPTER 3: VANGUARD FLEET (UPGRADED WITH AEGIS SHIELD, POWER PODS & AUTO-FIRE)
+    // CHAPTER 3: VANGUARD FLEET
     function initSpaceEngine() {
       if (activeSpaceId) cancelAnimationFrame(activeSpaceId);
       const canvas = document.getElementById('spaceCanvas');
@@ -1659,7 +1657,7 @@
 
       let shipX = 300, shipY = 355, targetShipX = 300, shipBankAngle = 0;
       let orbs = 0, spaceTier = 1, shipHull = 100, spaceShield = 100, spaceDead = false;
-      let aegisBubbleTimer = 180; // Spawn protection bubble on launch so you never get melted at start
+      let aegisBubbleTimer = 180;
       let invulnFrames = 0;
       let autoFireEnabled = true, autoFireTick = 0;
       let starfield = [];
@@ -1762,7 +1760,7 @@
         playSound('shield-up');
         aegisBubbleTimer = 240;
         spaceShield = 100;
-        droidLasers = []; // Nova pulse clears incoming enemy fire
+        droidLasers = [];
         updateSpaceHUD();
         addScore(50);
         document.getElementById('space-comm-banner').innerHTML =
@@ -1805,13 +1803,11 @@
             if (aegisBubbleTimer > 0) aegisBubbleTimer--;
             if (invulnFrames > 0) invulnFrames--;
 
-            // Passive shield trickle recharge
             if (spaceShield < 100) {
               spaceShield = Math.min(100, spaceShield + 0.06);
               if (Math.floor(spaceShield) % 5 === 0) updateSpaceHUD();
             }
 
-            // Automatic rapid weapons fire so you can focus on dodging & collecting upgrades
             if (autoFireEnabled) {
               autoFireTick++;
               const fireInterval = spaceTier === 3 ? 16 : (spaceTier === 2 ? 20 : 24);
@@ -1920,7 +1916,6 @@
                     for (let p = 0; p < 8; p++) {
                       explosionDebris.push({ x: d.x, y: d.y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 30 });
                     }
-                    // Destroyed enemies drop Shield Recharge or Weapon Overcharge Pods!
                     if (Math.random() < 0.55) {
                       powerPods.push({
                         x: d.x,
@@ -1937,7 +1932,6 @@
               }
             }
 
-            // Collect dropped Shield / Weapon Power Pods
             for (let p = powerPods.length - 1; p >= 0; p--) {
               let pod = powerPods[p];
               pod.y += pod.vy;
@@ -2083,7 +2077,6 @@
             ctx.shadowBlur = 0;
           }
 
-          // Visible Aegis Energy Shield Bubble around your starfighter
           if (spaceShield > 0 || aegisBubbleTimer > 0) {
             ctx.strokeStyle = aegisBubbleTimer > 0 ? '#fef08a' : 'rgba(0, 255, 255, 0.75)';
             ctx.lineWidth = aegisBubbleTimer > 0 ? 3.5 : 2;
@@ -2120,9 +2113,10 @@
       let stageBannerText = "";
       let brawlerDead = false;
 
-      let playerX = 155, playerY = GROUNDED_PLAYER_Y, isJumping = false, jumpVel = 0;
+      let playerX = 155, playerY = GROUNDED_PLAYER_Y, facingDir = 1, isJumping = false, jumpVel = 0;
       let partnerX = 48, partnerFireTimer = 0;
       let bossX = 460, bossY = 238, bossHp = 280, bossMaxHp = 280, teamHealth = 100;
+      let playerInvulnFrames = 0;
       let brawlerProjectiles = [], droidProjectiles = [], bossAttacks = [];
 
       let timeFreezeTimer = 0;
@@ -2135,7 +2129,7 @@
       let luettaAutoUsedThisStage = false;
       let luettaCooldown = 0;
 
-      let solarLionActive = false, solarLionX = 0, solarLionAlpha = 1.0, solarLionHitBoss = false, solarLionHitIds = new Set();
+      let solarLionActive = false, solarLionX = 0, solarLionDir = 1, solarLionAlpha = 1.0, solarLionHitBoss = false, solarLionHitIds = new Set();
 
       let trinityMeter = 0;
       let trinityActive = false;
@@ -2144,6 +2138,7 @@
       const BEAT1_MARCUS_END = 45;
       const BEAT2_NENAMBI_END = 95;
       let trinityBeamFired = false;
+      let trinityBossTicks = 0;
       let lionIntensified = false;
       let lionIntensifyFlash = 0;
       let hitStopFrames = 0;
@@ -2153,8 +2148,8 @@
       
       let shieldEnergy = 100;
       const maxShieldEnergy = 100;
-      const shieldDrainRate = 0.32;
-      const shieldRechargerRate = 0.25;
+      const shieldDrainRate = 0.26;
+      const shieldRechargerRate = 0.30;
       let isShieldActive = false;
       let shieldDepletedLockout = false;
       let isShieldButtonHeld = false;
@@ -2202,11 +2197,13 @@
       }
 
       function applyTeamDamage(dmg) {
-        if (brawlerDead || stageTransitioning) return;
+        if (brawlerDead || stageTransitioning || trinityActive || luettaActive) return;
         if (isShieldActive) {
           absorbShieldImpact(dmg);
           return;
         }
+        if (playerInvulnFrames > 0) return;
+        playerInvulnFrames = 38;
         teamHealth = Math.max(0, teamHealth - dmg);
         document.getElementById('team-health').innerText = teamHealth;
         if (teamHealth <= 0) {
@@ -2261,21 +2258,21 @@
       let preBossDroids = [];
       function spawnWave(waveNum) {
         preBossDroids = [];
-        let count = 3 + waveNum + currentStage;
+        let count = Math.min(4, 2 + waveNum);
         for (let i = 0; i < count; i++) {
           let isArmored = (waveNum >= 2 && i % 2 === 0);
           preBossDroids.push({ 
             id: `${currentStage}-${waveNum}-${i}-${Date.now()}`,
-            x: 420 + (i * 82), 
+            x: 410 + (i * 88), 
             y: FLOOR_Y, 
-            preferredRange: 115 + (i % 3) * 48,
-            hp: (isArmored ? 7 : 5) + currentStage * 2, 
-            maxHp: (isArmored ? 7 : 5) + currentStage * 2,
+            preferredRange: 120 + (i % 3) * 48,
+            hp: (isArmored ? 6 : 4) + currentStage, 
+            maxHp: (isArmored ? 6 : 4) + currentStage,
             active: true, 
             isArmored: isArmored,
             isFlying: waveNum >= 2 ? (i % 3 === 1) : (i % 4 === 1), 
-            speed: (isArmored ? 0.72 : 0.95) + (currentStage - 1) * 0.08, 
-            shootTimer: -30 - (i * 26), 
+            speed: (isArmored ? 0.68 : 0.88) + (currentStage - 1) * 0.06, 
+            shootTimer: -45 - (i * 34), 
             walkAnim: Math.random() * Math.PI 
           });
         }
@@ -2285,7 +2282,7 @@
       function setupStage(stageNum) {
         currentStage = stageNum;
         currentWave = 1;
-        bossMaxHp = 210 + (stageNum * 100);
+        bossMaxHp = 210 + (stageNum * 90);
         bossHp = bossMaxHp;
         bossX = 465;
         bossY = 238;
@@ -2298,6 +2295,7 @@
         prismAlpha = 1.0;
         prismPhaseTimer = 0;
         playerX = 155;
+        facingDir = 1;
         partnerX = 48;
         playerY = GROUNDED_PLAYER_Y;
         isJumping = false;
@@ -2337,10 +2335,10 @@
           const completedStage = currentStage;
           const nextZone = completedStage === 1 ? "SAHEL PYRAMID SECTOR" : "CELESTIAL NEXUS ROOFTOP";
           stageBannerText = `STAGE ${completedStage} CLEARED! WARPING TO ${nextZone}...`;
-          document.getElementById('brawler-dialogue').innerText = `Stage ${completedStage} Clear! Team restored +40 HP. Advancing to ${nextZone}!`;
+          document.getElementById('brawler-dialogue').innerText = `Stage ${completedStage} Clear! Team restored +50 HP. Advancing to ${nextZone}!`;
 
           setTimeout(() => {
-            teamHealth = Math.min(100, teamHealth + 40);
+            teamHealth = Math.min(100, teamHealth + 50);
             document.getElementById('team-health').innerText = teamHealth;
             stageBannerText = "";
             stageTransitioning = false;
@@ -2382,8 +2380,16 @@
         playSound('beam');
         let disruptFactor = sonicDisruptTimer > 0 ? 0.55 : 1.0;
         let moveDist = 26 * playerSpeedMult * disruptFactor;
-        if (dir === 'left') { playerX = Math.max(45, playerX - moveDist); groundScrollX += 4; }
-        if (dir === 'right') { playerX = Math.min(canvas.width - 120, playerX + moveDist); groundScrollX -= 4; }
+        if (dir === 'left') {
+          facingDir = -1;
+          playerX = Math.max(45, playerX - moveDist);
+          groundScrollX += 4;
+        }
+        if (dir === 'right') {
+          facingDir = 1;
+          playerX = Math.min(canvas.width - 120, playerX + moveDist);
+          groundScrollX -= 4;
+        }
       };
 
       window.brawlerJump = () => {
@@ -2392,34 +2398,81 @@
         if (!isJumping) { playSound('transform'); isJumping = true; jumpVel = -12.5; }
       };
 
+      function damageEnemiesAlongBeam(startX, endX, dmgPerHit, scorePts, isBossStrike = false) {
+        if (stageTransitioning || brawlerDead) return;
+        const minX = Math.min(startX, endX) - 24;
+        const maxX = Math.max(startX, endX) + 24;
+        const droidsActiveNow = preBossDroids.some(d => d.active);
+
+        if (droidsActiveNow) {
+          let hitDroid = false;
+          preBossDroids.forEach(d => {
+            if (d.active && d.x >= minX && d.x <= maxX) {
+              d.hp -= dmgPerHit;
+              hitDroid = true;
+              if (d.hp <= 0) {
+                d.active = false;
+                playSound('transform');
+              }
+              addScore(scorePts);
+            }
+          });
+          if (hitDroid) {
+            let remainingCount = preBossDroids.filter(dr => dr.active).length;
+            document.getElementById('boss-hp').innerText = remainingCount > 0
+              ? `Stage ${currentStage} • W${currentWave}/${WAVES_PER_STAGE} (${remainingCount} left)`
+              : `Stage ${currentStage} Boss: ${getBossPercent()}%`;
+          }
+        } else if (bossHp > 0 && bossX >= minX && bossX <= maxX) {
+          playSound('crash');
+          bossHp = Math.max(0, bossHp - (isBossStrike ? dmgPerHit * 11 : dmgPerHit * 8));
+          document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
+          addScore(scorePts * 2);
+          if (bossHp <= 0) {
+            trinityActive = false;
+            solarLionActive = false;
+            handleBossDefeated();
+          }
+        }
+      }
+
       window.brawlerSkill1 = () => {
         if (brawlerDead) return;
         playSound('acoustic');
-        chargeTrinityMeter(12);
+        chargeTrinityMeter(14);
         let activeName = heroes[heroIndex].name;
-        
+        let dir = facingDir;
+        let spawnX = playerX + (dir === 1 ? 56 : 12);
+
         if (activeName === 'Sundiata Prime') {
+          // Signature Solar Lion Roar sweeps across BOTH directions so enemies behind you also get hit!
           solarLionActive = true;
-          solarLionX = playerX + 35;
+          solarLionDir = dir;
+          solarLionX = playerX + (dir === 1 ? 35 : -145);
           solarLionAlpha = 1.0;
           solarLionHitBoss = false;
           solarLionHitIds = new Set();
-          brawlerProjectiles.push({ x: playerX + 55, y: playerY, vx: 14, vy: 0, color: '#d4af37', type: 'lion-bastion-slash', width: 95, height: 70, damage: 3 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY, vx: 14 * dir, vy: 0, dir, color: '#d4af37', type: 'lion-bastion-slash', width: 95, height: 70, damage: 3 });
+          damageEnemiesAlongBeam(0, canvas.width, 2, 30, false);
         } else if (activeName === 'Nénambi Prime') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY, vx: 15, vy: 0, color: '#f59e0b', type: 'acoustic-wave', width: 95, height: 45, damage: 3 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY, vx: 15 * dir, vy: 0, dir, color: '#f59e0b', type: 'acoustic-wave', width: 95, height: 45, damage: 3 });
         } else if (activeName === 'Amina Zazzau') {
-          brawlerProjectiles.push({ x: playerX + 50, y: playerY - 4, vx: 19, vy: 0, color: '#38bdf8', type: 'lightning-spear', width: 95, height: 14, damage: 3 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY - 4, vx: 19 * dir, vy: 0, dir, color: '#38bdf8', type: 'lightning-spear', width: 95, height: 14, damage: 3 });
         } else if (activeName === 'Marcus Prime') {
+          // Piercing Lightning Strike fires in your facing direction AND hits any enemy in that lane
           const chargeBonus = 1 + (kineticShieldCharge / 100) * 1.4;
           const isSupercharged = kineticShieldCharge >= 50;
+          const endX = dir === 1 ? canvas.width - 12 : 12;
           brawlerProjectiles.push({
-            x: playerX + 58,
+            x: spawnX,
+            endX: endX,
             y: playerY - 6,
-            vx: 26,
+            vx: 26 * dir,
             vy: 0,
+            dir,
             color: isSupercharged ? '#fef08a' : '#38bdf8',
             type: 'searing-lightning-bolt',
-            width: canvas.width - (playerX + 58),
+            width: Math.abs(endX - spawnX),
             height: isSupercharged ? 26 : 16,
             damage: Math.round(3 * chargeBonus),
             piercing: true,
@@ -2442,36 +2495,73 @@
             featheryDaggers = [];
           }
         } else if (activeName === 'Kofi') {
-          brawlerProjectiles.push({ x: playerX + 50, y: playerY, vx: 15, vy: 0, color: '#f59e0b', type: 'crucible-wave', width: 90, height: 60, damage: 3 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY, vx: 15 * dir, vy: 0, dir, color: '#f59e0b', type: 'crucible-wave', width: 90, height: 60, damage: 3 });
         } else if (activeName === 'Wakan') {
-          brawlerProjectiles.push({ x: playerX + 40, y: playerY - 10, vx: 11, vy: 0, color: '#34d399', type: 'abyssal-tsunami', width: 110, height: 95, damage: 3 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY - 10, vx: 11 * dir, vy: 0, dir, color: '#34d399', type: 'abyssal-tsunami', width: 110, height: 95, damage: 3 });
         }
       };
 
       window.brawlerSkill2 = () => {
         if (brawlerDead) return;
         playSound('shield-up');
-        chargeTrinityMeter(12);
+        chargeTrinityMeter(14);
         let activeName = heroes[heroIndex].name;
+        let dir = facingDir;
+        let spawnX = playerX + (dir === 1 ? 48 : 10);
 
         if (activeName === 'Marcus Prime') {
-          brawlerProjectiles.push({ x: playerX + 48, y: playerY + 4, vx: 14, vy: 0, color: '#38bdf8', type: 'lightning-orb', width: 34, height: 34, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY + 4, vx: 14 * dir, vy: 0, dir, color: '#38bdf8', type: 'lightning-orb', width: 34, height: 34, damage: 2, rot: 0 });
         } else if (activeName === 'Sundiata Prime') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY + 15, vx: 14, vy: 0, color: '#f59e0b', type: 'sovereign-wave', width: 70, height: 34, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY + 15, vx: 14 * dir, vy: 0, dir, color: '#f59e0b', type: 'sovereign-wave', width: 70, height: 34, damage: 2, rot: 0 });
         } else if (activeName === 'Nénambi Prime') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY - 4, vx: 14, vy: 0, color: '#38bdf8', type: 'mineral-pulse', width: 46, height: 46, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY - 4, vx: 14 * dir, vy: 0, dir, color: '#38bdf8', type: 'mineral-pulse', width: 46, height: 46, damage: 2, rot: 0 });
         } else if (activeName === 'Amina Zazzau') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY - 14, vx: 17, vy: 0, color: '#fef08a', type: 'lightning-spear', width: 75, height: 12, damage: 2, rot: 0 });
-          brawlerProjectiles.push({ x: playerX + 35, y: playerY + 12, vx: 16, vy: 0, color: '#38bdf8', type: 'lightning-spear', width: 75, height: 12, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY - 14, vx: 17 * dir, vy: 0, dir, color: '#fef08a', type: 'lightning-spear', width: 75, height: 12, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY + 12, vx: 16 * dir, vy: 0, dir, color: '#38bdf8', type: 'lightning-spear', width: 75, height: 12, damage: 2, rot: 0 });
         } else if (activeName === 'Xochitl') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY - 10, vx: 16, vy: 0, color: '#fbbf24', type: 'solar-feather', width: 44, height: 16, damage: 2, rot: 0 });
-          brawlerProjectiles.push({ x: playerX + 35, y: playerY + 14, vx: 15, vy: 0, color: '#f97316', type: 'solar-feather', width: 44, height: 16, damage: 1, rot: 0 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY - 10, vx: 16 * dir, vy: 0, dir, color: '#fbbf24', type: 'solar-feather', width: 44, height: 16, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY + 14, vx: 15 * dir, vy: 0, dir, color: '#f97316', type: 'solar-feather', width: 44, height: 16, damage: 1, rot: 0 });
         } else if (activeName === 'Kofi') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY + 4, vx: 14, vy: 0, color: '#fb923c', type: 'anvil-sledge', width: 40, height: 40, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY + 4, vx: 14 * dir, vy: 0, dir, color: '#fb923c', type: 'anvil-sledge', width: 40, height: 40, damage: 2, rot: 0 });
         } else if (activeName === 'Wakan') {
-          brawlerProjectiles.push({ x: playerX + 45, y: playerY + 2, vx: 14, vy: 0, color: '#34d399', type: 'hydro-spiral', width: 44, height: 44, damage: 2, rot: 0 });
+          brawlerProjectiles.push({ x: spawnX, y: playerY + 2, vx: 14 * dir, vy: 0, dir, color: '#34d399', type: 'hydro-spiral', width: 44, height: 44, damage: 2, rot: 0 });
         }
       };
+
+      // Three Primes Trinity Surge hits enemies across the ENTIRE arena (left & right of the Primes)!
+      function applyTrinityBeamDamage(coreX, isIntensified) {
+        if (stageTransitioning || brawlerDead) return;
+        let hitAnyDroid = false;
+        preBossDroids.forEach(d => {
+          if (d.active) {
+            d.hp -= isIntensified ? 4 : 2;
+            hitAnyDroid = true;
+            if (d.hp <= 0) {
+              d.active = false;
+              addScore(35);
+            }
+          }
+        });
+
+        if (hitAnyDroid) {
+          playSound('crash');
+          let remainingCount = preBossDroids.filter(dr => dr.active).length;
+          document.getElementById('boss-hp').innerText = remainingCount > 0
+            ? `Stage ${currentStage} • W${currentWave}/${WAVES_PER_STAGE} (${remainingCount} left)`
+            : `Stage ${currentStage} Boss: ${getBossPercent()}%`;
+        } else if (bossHp > 0 && trinityBossTicks < (isIntensified ? 5 : 3)) {
+          trinityBossTicks++;
+          playSound('crash');
+          const chunk = Math.ceil(bossMaxHp * (isIntensified ? 0.16 : 0.12));
+          bossHp = Math.max(0, bossHp - chunk);
+          document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
+          addScore(110);
+          if (bossHp <= 0) {
+            trinityActive = false;
+            handleBossDefeated();
+          }
+        }
+      }
 
       function intensifyGoldenLionStrike() {
         if (lionIntensified) return;
@@ -2490,20 +2580,12 @@
           });
         }
 
-        if (bossHp > 0 && !stageTransitioning) {
-          bossHp = Math.max(0, bossHp - Math.ceil(bossMaxHp * 0.18));
-          document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
-        }
+        applyTrinityBeamDamage(playerX + 115, true);
 
         document.getElementById('brawler-dialogue').innerText =
-          "APEX TIER INTENSIFIED! Golden Lion roars through electric bolts & wave wings at 3.0x power!";
+          "APEX TIER INTENSIFIED! Golden Lion obliterates every enemy in the beam at 3.0x power!";
         speakText("Golden Lion Strike intensified!", "lion-intensify", 3000);
         updateTrinityButtonLabel();
-
-        if (bossHp <= 0) {
-          trinityActive = false;
-          handleBossDefeated();
-        }
       }
 
       window.triggerTrinitySurge = () => {
@@ -2523,6 +2605,7 @@
         trinityActive = true;
         trinityTimer = TRINITY_TOTAL_FRAMES;
         trinityBeamFired = false;
+        trinityBossTicks = 0;
         lionIntensified = false;
         lionIntensifyFlash = 0;
         screenShakeMag = 4;
@@ -2563,23 +2646,12 @@
         lionIntensifyFlash = 6;
         addScore(350);
 
-        preBossDroids.forEach(d => { d.active = false; });
         droidProjectiles = [];
         bossAttacks = [];
-
-        const multDmg = lionIntensified ? 0.50 : 0.35;
-        if (bossHp > 0) {
-          bossHp = Math.max(0, bossHp - Math.ceil(bossMaxHp * multDmg));
-          document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
-        }
+        applyTrinityBeamDamage(playerX + 115, lionIntensified);
 
         document.getElementById('brawler-dialogue').innerText =
           "BEAT 3/3 — SYMBIOTIC PRIME GOLDEN LION STRIKE! Tap Trinity button to INTENSIFY!";
-
-        if (bossHp <= 0) {
-          trinityActive = false;
-          handleBossDefeated();
-        }
       }
 
       window.summonMotherLuetta = (isAutoRescue = false) => {
@@ -2834,13 +2906,21 @@
         ctx.restore();
       }
 
-      function renderHeroCharacter(ctx, heroObj, posX, posY) {
+      function renderHeroCharacter(ctx, heroObj, posX, posY, dir = 1) {
         let jumpHeight = Math.max(0, GROUNDED_PLAYER_Y - posY);
         drawGroundShadow(ctx, posX + 42, 34, jumpHeight);
+
+        ctx.save();
+        if (dir === -1) {
+          ctx.translate(posX + 42, 0);
+          ctx.scale(-1, 1);
+          ctx.translate(-(posX + 42), 0);
+        }
 
         let singleImg = heroObj.key ? sprites[heroObj.key] : null;
         if (isSpriteReady(singleImg)) {
           ctx.drawImage(singleImg, posX - 15, posY - 75, 115, 145);
+          ctx.restore();
           return;
         }
 
@@ -2852,7 +2932,6 @@
           let frameH = sheetImg.naturalHeight / rows;
           ctx.drawImage(sheetImg, 0, 0, frameW, frameH, posX - 15, posY - 75, 115, 145);
         } else {
-          ctx.save();
           ctx.fillStyle = '#0f766e';
           drawRoundedRect(ctx, posX + 26, posY - 12, 32, 82, 8);
           ctx.fill();
@@ -2863,8 +2942,8 @@
           ctx.beginPath();
           ctx.arc(posX + 42, posY - 22, 12, 0, Math.PI * 2);
           ctx.fill();
-          ctx.restore();
         }
+        ctx.restore();
       }
 
       function drawGoldenLionStrike(ctx, lionX, lionY, elapsed, intensified) {
@@ -2945,6 +3024,8 @@
             if (!brawlerDead) {
               updateMarcusShield();
 
+              if (playerInvulnFrames > 0) playerInvulnFrames--;
+
               if (hitStopFrames > 0) {
                 hitStopFrames--;
                 activeBrawlerId = requestAnimationFrame(brawlerLoop);
@@ -2973,6 +3054,9 @@
                 }
                 if (elapsed === BEAT2_NENAMBI_END) {
                   executeTrinityDetonation();
+                }
+                if (elapsed >= BEAT2_NENAMBI_END && elapsed % 4 === 0) {
+                  applyTrinityBeamDamage(playerX + 115, lionIntensified);
                 }
                 updateTrinityButtonLabel();
                 if (trinityTimer <= 0) {
@@ -3014,13 +3098,15 @@
               if (chopperX > 480 || chopperX < 120) chopperDir *= -1;
 
               partnerFireTimer++;
-              if (!stageTransitioning && (droidsActive || bossHp > 0) && partnerFireTimer > 82) {
+              if (!stageTransitioning && (droidsActive || bossHp > 0) && partnerFireTimer > 75) {
                 partnerFireTimer = 0;
+                const pDir = bossX < partnerX ? -1 : 1;
                 brawlerProjectiles.push({
-                  x: partnerX + 62,
+                  x: partnerX + (pDir === 1 ? 62 : 12),
                   y: GROUNDED_PLAYER_Y - 4,
-                  vx: 12,
+                  vx: 12 * pDir,
                   vy: 0,
+                  dir: pDir,
                   color: '#a855f7',
                   type: 'partner-laser',
                   width: 28,
@@ -3044,18 +3130,19 @@
                         }
                       }
                     }
-                    d.x = Math.max(220, Math.min(canvas.width - 36, d.x));
+                    d.x = Math.max(45, Math.min(canvas.width - 36, d.x));
 
                     d.walkAnim += 0.11;
                     d.shootTimer++;
-                    let fireDelay = Math.max(105, 145 - currentStage * 12);
+                    let fireDelay = Math.max(125, 165 - currentStage * 10);
                     if (d.shootTimer > fireDelay) {
                       d.shootTimer = 0;
+                      const shotDir = playerX >= d.x ? 1 : -1;
                       droidProjectiles.push({
-                        x: d.x - 12,
+                        x: d.x + (shotDir === 1 ? 14 : -14),
                         y: d.isFlying ? d.y - 82 : d.y - 44,
-                        vx: -(4.1 + currentStage * 0.35),
-                        vy: d.isFlying ? 0.65 : 0
+                        vx: (3.8 + currentStage * 0.3) * shotDir,
+                        vy: d.isFlying ? 0.6 : 0
                       });
                     }
                   }
@@ -3064,6 +3151,8 @@
                 if (!droidsActive) {
                   if (currentWave < WAVES_PER_STAGE) {
                     currentWave++;
+                    teamHealth = Math.min(100, teamHealth + 15);
+                    document.getElementById('team-health').innerText = teamHealth;
                     spawnWave(currentWave);
                   } else {
                     document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
@@ -3092,23 +3181,24 @@
                     }
 
                     bossShootTimer++;
-                    let bossCooldown = Math.max(88, 122 - currentStage * 10);
+                    let bossCooldown = Math.max(98, 132 - currentStage * 10);
                     if (bossShootTimer > bossCooldown) {
                       bossShootTimer = 0;
                       playSound('beam');
+                      const dirToPlayer = (playerX >= bossX) ? 1 : -1;
 
                       if (bossName === "Chronolock") {
-                        timeFreezeTimer = 42;
+                        timeFreezeTimer = 36;
                         bossTeleportFlash = 16;
                         const warpBehind = Math.random() > 0.45 && playerX > 150;
                         bossX = warpBehind
                           ? Math.max(55, playerX - 105)
                           : Math.min(canvas.width - 70, playerX + 125);
-                        const dirToPlayer = (playerX >= bossX) ? 1 : -1;
+                        const newDir = (playerX >= bossX) ? 1 : -1;
                         bossAttacks.push({
                           x: bossX,
                           y: bossY,
-                          vx: dirToPlayer * 6.4,
+                          vx: newDir * 5.8,
                           vy: 0,
                           type: 'temporal-strike',
                           color: '#d4af37',
@@ -3117,9 +3207,9 @@
                         });
                       } else if (bossName === "Dread Harmonic") {
                         bossAttacks.push({
-                          x: bossX - 18,
+                          x: bossX + dirToPlayer * 18,
                           y: bossY - 6,
-                          vx: -5.4,
+                          vx: 4.9 * dirToPlayer,
                           vy: 0,
                           type: 'harmonic-wave',
                           color: '#a855f7',
@@ -3130,10 +3220,10 @@
                         const angles = [-0.26, 0, 0.22];
                         angles.forEach((ang, aIdx) => {
                           bossAttacks.push({
-                            x: bossX - 10,
+                            x: bossX + dirToPlayer * 14,
                             y: bossY - 28 + aIdx * 16,
-                            vx: -Math.cos(ang) * 6.0,
-                            vy: Math.sin(ang) * 5.2,
+                            vx: Math.cos(ang) * 5.5 * dirToPlayer,
+                            vy: Math.sin(ang) * 4.8,
                             type: 'computer-chip',
                             color: '#ec4899',
                             width: 24,
@@ -3141,11 +3231,10 @@
                           });
                         });
                       } else if (bossName === "Prism Ghost") {
-                        const dirToPlayer = (playerX >= bossX) ? 1 : -1;
                         bossAttacks.push({
                           x: bossX,
                           y: bossY - 8,
-                          vx: dirToPlayer * 6.8,
+                          vx: dirToPlayer * 6.2,
                           vy: 0,
                           type: 'prism-beam',
                           color: '#38bdf8',
@@ -3153,11 +3242,11 @@
                           height: 16
                         });
                       } else if (bossName === "Apex Vault") {
-                        bossAttacks.push({ x: bossX, y: bossY, vx: -8.5, vy: 0, type: 'volt-shock', color: '#38bdf8', width: 45, height: 10 });
+                        bossAttacks.push({ x: bossX, y: bossY, vx: 7.5 * dirToPlayer, vy: 0, type: 'volt-shock', color: '#38bdf8', width: 45, height: 10 });
                       } else if (bossName === "Magnum Weaver") {
-                        bossAttacks.push({ x: bossX, y: FLOOR_Y - 26, vx: -3.8, vy: 0, type: 'creeping-lava', color: '#ea580c', width: 140, height: 26 });
+                        bossAttacks.push({ x: bossX, y: FLOOR_Y - 26, vx: 3.6 * dirToPlayer, vy: 0, type: 'creeping-lava', color: '#ea580c', width: 140, height: 26 });
                       } else {
-                        bossAttacks.push({ x: bossX, y: bossY, vx: -5.8, vy: 0, type: 'standard-pulse', color: '#ef4444', width: 32, height: 14 });
+                        bossAttacks.push({ x: bossX, y: bossY, vx: 5.4 * dirToPlayer, vy: 0, type: 'standard-pulse', color: '#ef4444', width: 32, height: 14 });
                       }
                     }
                   }
@@ -3170,9 +3259,9 @@
                 dp.y += (dp.vy || 0);
                 if (Math.abs((playerX + 40) - dp.x) < 30 && Math.abs((playerY - 10) - dp.y) < 38) {
                   playSound('crash');
-                  applyTeamDamage(12);
+                  applyTeamDamage(6);
                   droidProjectiles.splice(i, 1);
-                } else if (dp.x < 0 || dp.y > FLOOR_Y) droidProjectiles.splice(i, 1);
+                } else if (dp.x < -30 || dp.x > canvas.width + 30 || dp.y > FLOOR_Y) droidProjectiles.splice(i, 1);
               }
 
               for (let i = bossAttacks.length - 1; i >= 0 && !brawlerDead; i--) {
@@ -3182,11 +3271,11 @@
                 if (Math.abs((playerX + 40) - ba.x) < 34 && Math.abs((playerY - 10) - ba.y) < 42) {
                   playSound('crash');
                   if (ba.type === 'harmonic-wave' && !isShieldActive) {
-                    sonicDisruptTimer = 110;
+                    sonicDisruptTimer = 95;
                     document.getElementById('brawler-dialogue').innerText =
                       "⚠ DREAD HARMONIC ULTRA-WAVES! Player movement disrupted—hold Kinetic Shield!";
                   }
-                  applyTeamDamage(17);
+                  applyTeamDamage(10);
                   bossAttacks.splice(i, 1);
                 } else if (ba.x < -60 || ba.x > canvas.width + 60 || ba.y > FLOOR_Y + 10) {
                   bossAttacks.splice(i, 1);
@@ -3195,15 +3284,17 @@
 
               for (let i = brawlerProjectiles.length - 1; i >= 0 && !brawlerDead; i--) {
                 let bp = brawlerProjectiles[i];
+                const bDir = bp.dir || (bp.vx >= 0 ? 1 : -1);
                 if (bp.type === 'searing-lightning-bolt') {
                   bp.life--;
-                  bp.x = playerX + 58;
-                  bp.y = playerY - 6;
-                  bp.width = canvas.width - bp.x;
+                  bp.x = playerX + (bDir === 1 ? 58 : 10);
+                  bp.endX = bDir === 1 ? canvas.width - 12 : 12;
+                  bp.width = Math.abs(bp.endX - bp.x);
 
                   if (droidsActive) {
                     preBossDroids.forEach(d => {
-                      if (d.active && !bp.hitIds.has(d.id) && d.x >= bp.x - 10) {
+                      const inLane = bDir === 1 ? (d.x >= bp.x - 14) : (d.x <= bp.x + 14);
+                      if (d.active && !bp.hitIds.has(d.id) && inLane) {
                         bp.hitIds.add(d.id);
                         d.hp -= bp.damage;
                         if (d.hp <= 0) {
@@ -3217,16 +3308,19 @@
                     document.getElementById('boss-hp').innerText = remainingCount > 0
                       ? `Stage ${currentStage} • W${currentWave}/${WAVES_PER_STAGE} (${remainingCount} left)`
                       : `Stage ${currentStage} Boss: ${getBossPercent()}%`;
-                  } else if (!stageTransitioning && bossHp > 0 && !bp.hitBoss && bossX >= bp.x - 20) {
-                    bp.hitBoss = true;
-                    playSound('crash');
-                    bossHp = Math.max(0, bossHp - (bp.damage * 11));
-                    document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
-                    addScore(75);
-                    if (bossHp <= 0) {
-                      brawlerProjectiles.splice(i, 1);
-                      handleBossDefeated();
-                      break;
+                  } else if (!stageTransitioning && bossHp > 0 && !bp.hitBoss) {
+                    const bossInLane = bDir === 1 ? (bossX >= bp.x - 24) : (bossX <= bp.x + 24);
+                    if (bossInLane) {
+                      bp.hitBoss = true;
+                      playSound('crash');
+                      bossHp = Math.max(0, bossHp - (bp.damage * 11));
+                      document.getElementById('boss-hp').innerText = `Stage ${currentStage} Boss: ${getBossPercent()}%`;
+                      addScore(75);
+                      if (bossHp <= 0) {
+                        brawlerProjectiles.splice(i, 1);
+                        handleBossDefeated();
+                        break;
+                      }
                     }
                   }
 
@@ -3270,7 +3364,7 @@
                     }
                   }
                 }
-                if (hitSomething || bp.x > canvas.width || bp.x < 0) {
+                if (hitSomething || bp.x > canvas.width + 40 || bp.x < -40) {
                   brawlerProjectiles.splice(i, 1);
                 }
               }
@@ -3288,14 +3382,13 @@
             let activeHero = heroes[heroIndex];
             let partnerHero = heroes[(heroIndex + 1) % heroes.length];
 
-            // Render Vanguard heroes first so characters are guaranteed visible every frame
             if (xochitlGlideActive && activeHero.name === 'Xochitl') {
               glideProgress += 0.02;
               if (glideProgress < 0.3) {
-                glideX = Math.min(canvas.width - 80, glideX + 3.5);
+                glideX = Math.min(canvas.width - 80, Math.max(80, glideX + 3.5 * facingDir));
                 glideY = Math.max(80, glideY - 3.0);
               } else {
-                glideX = Math.max(80, glideX - 2.4);
+                glideX = Math.max(80, Math.min(canvas.width - 80, glideX - 2.4 * facingDir));
                 glideY = 140 + Math.sin(glideProgress * Math.PI) * 20;
 
                 if (Math.random() < 0.22 && featheryDaggers.length < 15) {
@@ -3365,14 +3458,20 @@
               }
               ctx.restore();
 
-              if (glideProgress >= 3.2 || (glideX <= partnerX + 55 && glideProgress > 1.5)) {
+              if (glideProgress >= 3.2 || (Math.abs(glideX - partnerX) < 35 && glideProgress > 1.5)) {
                 xochitlGlideActive = false;
-                playerX = partnerX + 105;
+                playerX = Math.min(canvas.width - 120, partnerX + 105);
                 glideY = GROUNDED_PLAYER_Y;
               }
             } else {
-              renderHeroCharacter(ctx, partnerHero, partnerX, GROUNDED_PLAYER_Y);
-              renderHeroCharacter(ctx, activeHero, playerX, playerY);
+              const pDir = bossX < partnerX ? -1 : 1;
+              renderHeroCharacter(ctx, partnerHero, partnerX, GROUNDED_PLAYER_Y, pDir);
+              ctx.save();
+              if (playerInvulnFrames > 0 && Math.floor(playerInvulnFrames / 3) % 2 === 0) {
+                ctx.globalAlpha = 0.55;
+              }
+              renderHeroCharacter(ctx, activeHero, playerX, playerY, facingDir);
+              ctx.restore();
 
               if (isShieldActive || kineticShieldCharge > 0) {
                 const chargeRatio = kineticShieldCharge / 100;
@@ -3395,7 +3494,7 @@
                   ctx.strokeStyle = 'rgba(254, 240, 138, 0.75)';
                   ctx.lineWidth = 2;
                   ctx.beginPath();
-                  ctx.arc(playerX + 58, playerY - 4, 14 + Math.sin(Date.now() * 0.03) * 4, 0, Math.PI * 2);
+                  ctx.arc(playerX + (facingDir === 1 ? 58 : 10), playerY - 4, 14 + Math.sin(Date.now() * 0.03) * 4, 0, Math.PI * 2);
                   ctx.stroke();
                   ctx.restore();
                 }
@@ -3513,9 +3612,10 @@
             }
 
             brawlerProjectiles.forEach(bp => {
+              const bDir = bp.dir || (bp.vx >= 0 ? 1 : -1);
               ctx.save();
               if (bp.type === 'searing-lightning-bolt') {
-                const endX = canvas.width - 12;
+                const endX = bp.endX !== undefined ? bp.endX : (bDir === 1 ? canvas.width - 12 : 12);
                 const startX = bp.x;
                 const baseY = bp.y;
                 ctx.shadowColor = bp.supercharged ? '#fef08a' : '#38bdf8';
@@ -3540,18 +3640,18 @@
                 ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4;
                 ctx.beginPath();
                 ctx.moveTo(bp.x, bp.y);
-                ctx.lineTo(bp.x + bp.width - 16, bp.y);
+                ctx.lineTo(bp.x + (bp.width - 16) * bDir, bp.y);
                 ctx.stroke();
                 ctx.fillStyle = '#fef08a';
                 ctx.beginPath();
-                ctx.moveTo(bp.x + bp.width, bp.y);
-                ctx.lineTo(bp.x + bp.width - 22, bp.y - 8);
-                ctx.lineTo(bp.x + bp.width - 16, bp.y);
-                ctx.lineTo(bp.x + bp.width - 22, bp.y + 8);
+                ctx.moveTo(bp.x + bp.width * bDir, bp.y);
+                ctx.lineTo(bp.x + (bp.width - 22) * bDir, bp.y - 8);
+                ctx.lineTo(bp.x + (bp.width - 16) * bDir, bp.y);
+                ctx.lineTo(bp.x + (bp.width - 22) * bDir, bp.y + 8);
                 ctx.closePath();
                 ctx.fill();
               } else if (bp.type === 'mineral-pulse') {
-                ctx.translate(bp.x + 15, bp.y + 10);
+                ctx.translate(bp.x + 15 * bDir, bp.y + 10);
                 ctx.rotate(bp.rot || 0);
                 ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 22;
                 ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
@@ -3561,7 +3661,7 @@
                 ctx.closePath();
                 ctx.fill(); ctx.stroke();
               } else if (bp.type === 'lightning-orb') {
-                ctx.translate(bp.x + 15, bp.y + 10);
+                ctx.translate(bp.x + 15 * bDir, bp.y + 10);
                 ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 24;
                 let orbGrad = ctx.createRadialGradient(0, 0, 3, 0, 0, 18);
                 orbGrad.addColorStop(0, '#ffffff');
@@ -3576,41 +3676,44 @@
                 ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 24;
                 ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 5;
                 ctx.beginPath();
-                ctx.arc(bp.x, bp.y, 32, -Math.PI * 0.45, Math.PI * 0.45);
+                if (bDir === 1) ctx.arc(bp.x, bp.y, 32, -Math.PI * 0.45, Math.PI * 0.45);
+                else ctx.arc(bp.x, bp.y, 32, Math.PI * 0.55, Math.PI * 1.45);
                 ctx.stroke();
               } else if (bp.type === 'sovereign-wave') {
                 ctx.shadowColor = '#d4af37'; ctx.shadowBlur = 18;
                 ctx.fillStyle = '#f59e0b';
                 ctx.beginPath();
                 ctx.moveTo(bp.x, bp.y - 16);
-                ctx.lineTo(bp.x + bp.width, bp.y);
+                ctx.lineTo(bp.x + bp.width * bDir, bp.y);
                 ctx.lineTo(bp.x, bp.y + 16);
-                ctx.lineTo(bp.x + 14, bp.y);
+                ctx.lineTo(bp.x + 14 * bDir, bp.y);
                 ctx.closePath();
                 ctx.fill();
               } else if (bp.type === 'solar-feather') {
                 ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 16;
                 ctx.fillStyle = '#fef08a';
                 ctx.beginPath();
-                ctx.ellipse(bp.x + 16, bp.y, 22, 6, 0, 0, Math.PI * 2);
+                ctx.ellipse(bp.x + 16 * bDir, bp.y, 22, 6, 0, 0, Math.PI * 2);
                 ctx.fill();
               } else if (bp.type === 'anvil-sledge') {
-                ctx.translate(bp.x + 16, bp.y + 6);
+                ctx.translate(bp.x + 16 * bDir, bp.y + 6);
                 ctx.rotate(bp.rot || 0);
                 ctx.fillStyle = '#94a3b8';
                 ctx.fillRect(-16, -8, 32, 16);
                 ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5;
                 ctx.strokeRect(-16, -8, 32, 16);
               } else if (bp.type === 'hydro-spiral') {
-                ctx.translate(bp.x + 16, bp.y + 6);
+                ctx.translate(bp.x + 16 * bDir, bp.y + 6);
                 ctx.rotate(bp.rot || 0);
                 ctx.strokeStyle = '#34d399'; ctx.lineWidth = 3.5;
                 ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 1.5); ctx.stroke();
               } else if (bp.type === 'acoustic-wave') {
                 ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 20;
                 ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.arc(bp.x, bp.y, 25, -Math.PI/2, Math.PI/2); ctx.stroke();
-                ctx.beginPath(); ctx.arc(bp.x - 10, bp.y, 35, -Math.PI/2, Math.PI/2); ctx.stroke();
+                ctx.beginPath();
+                if (bDir === 1) ctx.arc(bp.x, bp.y, 25, -Math.PI/2, Math.PI/2);
+                else ctx.arc(bp.x, bp.y, 25, Math.PI/2, Math.PI * 1.5);
+                ctx.stroke();
               } else if (bp.type === 'abyssal-tsunami') {
                 ctx.shadowColor = '#34d399'; ctx.shadowBlur = 25;
                 let tGrad = ctx.createLinearGradient(bp.x, bp.y - bp.height/2, bp.x, bp.y + bp.height/2);
@@ -3618,16 +3721,16 @@
                 tGrad.addColorStop(1, 'rgba(4, 47, 46, 0.95)');
                 ctx.fillStyle = tGrad;
                 ctx.beginPath();
-                ctx.moveTo(bp.x - bp.width/2, bp.y + bp.height/2);
-                ctx.lineTo(bp.x - bp.width/3, bp.y - bp.height/2);
-                ctx.quadraticCurveTo(bp.x, bp.y - bp.height * 0.8, bp.x + bp.width/2, bp.y + bp.height/2);
+                ctx.moveTo(bp.x - (bp.width/2) * bDir, bp.y + bp.height/2);
+                ctx.lineTo(bp.x - (bp.width/3) * bDir, bp.y - bp.height/2);
+                ctx.quadraticCurveTo(bp.x, bp.y - bp.height * 0.8, bp.x + (bp.width/2) * bDir, bp.y + bp.height/2);
                 ctx.closePath();
                 ctx.fill();
               } else {
                 ctx.fillStyle = bp.color;
                 ctx.shadowColor = bp.color; ctx.shadowBlur = 12;
                 ctx.beginPath();
-                ctx.ellipse(bp.x + 10, bp.y + 4, 14, 5, 0, 0, Math.PI * 2);
+                ctx.ellipse(bp.x + 10 * bDir, bp.y + 4, 14, 5, 0, 0, Math.PI * 2);
                 ctx.fill();
               }
               ctx.restore();
@@ -3738,9 +3841,9 @@
                 ctx.beginPath(); ctx.arc(a.x, a.y, 62, 0, Math.PI * 2); ctx.fill();
               });
 
-              renderHeroCharacter(ctx, heroes[0], marcusX, marcusY);
-              renderHeroCharacter(ctx, heroes[2], nenambiX, nenambiY);
-              renderHeroCharacter(ctx, heroes[1], sundiataX, sundiataY);
+              renderHeroCharacter(ctx, heroes[0], marcusX, marcusY, 1);
+              renderHeroCharacter(ctx, heroes[2], nenambiX, nenambiY, 1);
+              renderHeroCharacter(ctx, heroes[1], sundiataX, sundiataY, 1);
 
               if (!inBeat3) {
                 let chargePct = elapsed / BEAT2_NENAMBI_END;
@@ -3780,7 +3883,7 @@
                 beamGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
 
                 ctx.fillStyle = beamGrad;
-                ctx.fillRect(coreX, coreY - beamHalfH * 1.6, canvas.width - coreX, beamHalfH * 3.2);
+                ctx.fillRect(0, coreY - beamHalfH * 1.6, canvas.width, beamHalfH * 3.2);
 
                 let lionSurgeX = Math.min(canvas.width - 70, coreX + 35 + lionElapsed * (lionIntensified ? 7.5 : 4.8));
                 drawGoldenLionStrike(ctx, lionSurgeX, coreY, lionElapsed, lionIntensified);
@@ -3795,12 +3898,12 @@
             }
 
             if (solarLionActive) {
-              solarLionX += 6.5;
+              solarLionX += 7.5 * solarLionDir;
               const lionCenterX = solarLionX + 90;
 
               if (droidsStillActive) {
                 preBossDroids.forEach(d => {
-                  if (d.active && !solarLionHitIds.has(d.id) && Math.abs(lionCenterX - d.x) < 75) {
+                  if (d.active && !solarLionHitIds.has(d.id) && Math.abs(lionCenterX - d.x) < 85) {
                     solarLionHitIds.add(d.id);
                     d.hp -= 5;
                     playSound('crash');
@@ -3815,7 +3918,7 @@
                       : `Stage ${currentStage} Boss: ${getBossPercent()}%`;
                   }
                 });
-              } else if (!stageTransitioning && bossHp > 0 && !solarLionHitBoss && Math.abs(lionCenterX - bossX) < 85) {
+              } else if (!stageTransitioning && bossHp > 0 && !solarLionHitBoss && Math.abs(lionCenterX - bossX) < 95) {
                 solarLionHitBoss = true;
                 playSound('crash');
                 bossHp = Math.max(0, bossHp - Math.ceil(bossMaxHp * 0.20));
@@ -3838,7 +3941,7 @@
                 ctx.beginPath(); ctx.arc(solarLionX + 60, 235, 60, 0, Math.PI*2); ctx.fill();
               }
               ctx.restore();
-              if (solarLionX > canvas.width + 100) { solarLionActive = false; solarLionAlpha = 1.0; }
+              if (solarLionX > canvas.width + 120 || solarLionX < -220) { solarLionActive = false; solarLionAlpha = 1.0; }
             }
 
             if (luettaActive) {
