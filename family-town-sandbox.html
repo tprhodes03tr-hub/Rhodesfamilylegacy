@@ -171,6 +171,10 @@
         
         <!-- Unified Resource, Ledger & Save/Reset HUD -->
         <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-amber-500/40 text-[11px] sm:text-xs shadow-inner flex-wrap">
+            <a href="index.html" class="bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/40 px-2 py-0.5 rounded-lg text-[10px] font-bold no-underline">← Hub</a>
+            <div class="bg-amber-950/70 border border-amber-400/50 text-amber-200 px-2 py-0.5 rounded-lg text-[10px] font-bold">
+                <span id="rflNexusRank">Initiate</span> • <span id="rflNexusPts">0</span> Pts
+            </div>
             <div>🪙 <span id="hud-coins" class="font-bold text-amber-400">5070</span></div>
             <div>🌾 <span id="hud-crops" class="font-bold text-yellow-400">2065</span></div>
             <div>🪵 <span id="hud-wood" class="font-bold text-emerald-400">530</span></div>
@@ -410,6 +414,104 @@
 
     <!-- Unified 5-Portal Audio & Legacy Engine Script -->
     <script>
+        // --- CROSS-GAME LEGACY SAVE BRIDGE (rfl_legacy_save_v1) ---
+        (function initNexusLegacyBridge() {
+            "use strict";
+            var STORAGE_KEY = "rfl_legacy_save_v1";
+
+            function defaultState() {
+                return {
+                    version: 1,
+                    visitedPaths: [],
+                    unlockedClues: [],
+                    gameScores: {
+                        commandDeck: 0,
+                        chronoTetris: 0,
+                        vanguardTycoon: 0,
+                        vanguardGames: 0
+                    },
+                    points: 0,
+                    lastVisit: new Date().toISOString()
+                };
+            }
+
+            function loadSave() {
+                try {
+                    var raw = window.localStorage.getItem(STORAGE_KEY);
+                    if (!raw) return defaultState();
+                    var parsed = JSON.parse(raw);
+                    return {
+                        version: 1,
+                        visitedPaths: Array.isArray(parsed.visitedPaths) ? parsed.visitedPaths : [],
+                        unlockedClues: Array.isArray(parsed.unlockedClues) ? parsed.unlockedClues : [],
+                        gameScores: Object.assign(defaultState().gameScores, parsed.gameScores || {}),
+                        points: typeof parsed.points === "number" ? parsed.points : 0,
+                        lastVisit: new Date().toISOString()
+                    };
+                } catch (e) {
+                    return defaultState();
+                }
+            }
+
+            function writeSave(state) {
+                try {
+                    state.lastVisit = new Date().toISOString();
+                    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                } catch (e) {}
+            }
+
+            function computeRank(state) {
+                var signals = state.visitedPaths.length + state.unlockedClues.length;
+                if (state.points >= 1000 || signals >= 6) return "Vanguard Prime";
+                if (state.points >= 400 || signals >= 3) return "Codex Keeper";
+                if (state.points >= 100 || signals >= 1) return "Wayfinder";
+                return "Initiate";
+            }
+
+            function refreshNexusPill(state) {
+                try {
+                    var rankEl = document.getElementById("rflNexusRank");
+                    var ptsEl = document.getElementById("rflNexusPts");
+                    if (rankEl) rankEl.textContent = computeRank(state);
+                    if (ptsEl) ptsEl.textContent = String(state.points);
+                } catch (e) {}
+            }
+
+            window.RFLNexusBridge = {
+                getState: loadSave,
+                addPoints: function (ptsEarned, clueId) {
+                    try {
+                        var state = loadSave();
+                        var add = typeof ptsEarned === "number" && ptsEarned > 0 ? Math.floor(ptsEarned) : 0;
+                        state.points += add;
+                        if (clueId && state.unlockedClues.indexOf(clueId) === -1) {
+                            state.unlockedClues.push(clueId);
+                        }
+                        writeSave(state);
+                        refreshNexusPill(state);
+                        return state;
+                    } catch (e) {
+                        return defaultState();
+                    }
+                },
+                refresh: function () {
+                    refreshNexusPill(loadSave());
+                }
+            };
+
+            window.addEventListener("storage", function (ev) {
+                if (ev && ev.key === STORAGE_KEY) {
+                    refreshNexusPill(loadSave());
+                }
+            });
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", function () { refreshNexusPill(loadSave()); });
+            } else {
+                refreshNexusPill(loadSave());
+            }
+        })();
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -949,6 +1051,7 @@
             game.coins += 40;
             game.knowledge += 20;
             game.moralPoints += 15;
+            if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(25);
             playSound('coin');
             spawnParticles(leg.hubX, leg.hubY, '#fbbf24', '🚂');
             spawnFloatingLabel(leg.hubX, leg.hubY - 26, '+40 🪙 +20 📚', '#fef08a');
@@ -1350,6 +1453,7 @@
                 game.knowledge += 35;
                 game.moralPoints += 25;
                 game.coins += 60;
+                if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(50, "nexus_clue_" + branch.id);
 
                 MIGRATION_BADGES.forEach(b => {
                     if (!prevUnlockedBadges.includes(b.id) && getBadgeProgress(b).unlocked) {
@@ -1362,6 +1466,7 @@
                     game.coins += 250;
                     game.moralPoints += 100;
                     game.knowledge += 50;
+                    if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(150);
                     spawnFloatingLabel(240, 95, '👑 SOVEREIGN FAMILY ARCHIVIST!', '#fef08a');
                 }
 
@@ -1455,6 +1560,7 @@
                         gathered = true;
                         game.wood += 25;
                         game.moralPoints += 15;
+                        if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
                         playSound('coin');
                         spawnParticles(item.x, 210, '#fbbf24', '🪵');
                         spawnFloatingLabel(item.x, 192, `🪵 Log ${fannieState.logs}/3 (+25 Wood)`, '#fbbf24');
@@ -1476,6 +1582,7 @@
                         gathered = true;
                         game.crops += 25;
                         game.moralPoints += 15;
+                        if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
                         playSound('coin');
                         spawnParticles(item.x, 210, '#fde047', '🌾');
                         spawnFloatingLabel(item.x, 192, `🌾 Hay ${fannieState.hay}/3 (+25 Crops)`, '#fde047');
@@ -1496,6 +1603,7 @@
                         gathered = true;
                         game.moralPoints += 20;
                         game.coins += 50;
+                        if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(25);
                         playSound('coin');
                         spawnParticles(item.x, 210, '#38bdf8', '💧');
                         spawnFloatingLabel(item.x, 192, `💧 Water ${fannieState.water}/3 (+50 🪙)`, '#38bdf8');
@@ -1508,6 +1616,7 @@
                             fannieState.brotherOutfits = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#0284c7"];
                             game.coins += 120;
                             game.moralPoints += 50;
+                            if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(75);
                             playSound('bell');
                             spawnFloatingLabel(240, 130, '🎉 ALL 6 BROTHERS UNITED!', '#fef08a');
                             fannieState.dialogue = "🎉 GRAND FINALE! Under radiant dawn, Aaron, James, Johnny, William, Little Bit, and Bear stand united with Little Fannie May! 'What is packed in the bone never fades from the marrow!'";
@@ -1562,6 +1671,7 @@
                         clockState.gears++;
                         found = true;
                         game.knowledge += 15;
+                        if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
                         playSound('gear');
                         spawnParticles(bush.x, 215, '#38bdf8', '⚙️');
                         spawnFloatingLabel(bush.x, 190, `⚙️ Clock Gear ${clockState.gears}/3!`, '#38bdf8');
@@ -1590,6 +1700,7 @@
                 clockState.bushes.forEach(b => b.searched = false);
                 game.knowledge += 30;
                 game.coins += 75;
+                if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(50);
                 spawnParticles(240, 120, '#fbbf24', '✨');
                 const nextEraTitle = clockState.eras[Math.min(clockState.eraIndex, 3)].title;
                 spawnFloatingLabel(240, 135, `⏳ ${nextEraTitle.replace('🕰️ ', '')}`, '#fef08a');
@@ -1695,6 +1806,7 @@
             game.bankVisitorsInLobby += 1;
             game.moralPoints += 20;
             game.coins += 25;
+            if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(15);
             playSound('coin');
             spawnFloatingLabel(240, 155, '+25 🪙 +20 ❤️', '#fef08a');
             updateHUD();
@@ -1733,6 +1845,7 @@
             game.coins += 45;
             game.moralPoints += 15;
             game.shopperIdx += 1;
+            if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
             playSound('coin');
             spawnParticles(240, 140, '#fbbf24', '🪙');
             spawnFloatingLabel(240, 130, '+45 🪙 +15 ❤️', '#34d399');
@@ -1768,6 +1881,7 @@
             game.guestIndex++;
             game.coins += 25;
             game.moralPoints += 15;
+            if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(15);
             playSound('coin');
             spawnFloatingLabel(240, 145, `🔑 Room ${roomNum} (+25 🪙)`, '#38bdf8');
             updateHUD();
@@ -1790,6 +1904,7 @@
             room.mealServed = true;
             game.coins += 35;
             game.moralPoints += 20;
+            if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
             playSound('coin');
             spawnFloatingLabel(240, 145, '🍽️ Supper Served (+35 🪙)', '#34d399');
             updateHUD();
@@ -1818,6 +1933,7 @@
                 game.moralPoints += 15;
                 game.homeworkIdx++;
                 game.homeworkStatus = 'A+ Honor Roll!';
+                if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(25);
                 playSound('bell');
                 spawnFloatingLabel(240, 120, '⭐ A+ (+25 📚 +30 🪙)', '#fef08a');
                 setDialogue(`⭐ A+ Homework! ${item.tip} (+25 Knowledge, +30 Coins)`);
@@ -1836,6 +1952,7 @@
                 game.mansionStage = Math.min(3, game.mansionStage + 1);
                 game.chronicleLevel = Math.min(25, game.chronicleLevel + 1);
                 game.moralPoints += 35;
+                if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(30);
                 playSound('bell');
                 spawnFloatingLabel(240, 150, `🏰 ${getMansionLabel()}!`, '#fef08a');
                 setDialogue(`🏰 Homestead upgraded to ${getMansionLabel()}! Your family estate keeps growing.`);
@@ -1845,6 +1962,7 @@
                     game.coins -= 150;
                     game.landAcres += 40;
                     game.moralPoints += 20;
+                    if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
                     playSound('coin');
                     spawnFloatingLabel(240, 150, `🌾 +40 Acres (${game.landAcres}a)`, '#a3e635');
                     setDialogue(`🌾 Bought +40 Acres of family land! Total Land: ${game.landAcres} Acres.`);
@@ -1856,6 +1974,7 @@
                 game.hasFreeway = true;
                 game.hasStreetlights = true;
                 game.moralPoints += 25;
+                if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
                 playSound('bell');
                 spawnFloatingLabel(240, 150, '🛣️ Streets & Lights!', '#38bdf8');
                 setDialogue("🛣️ Paved & lit Yazoo City streets! Neighbors can travel safely day and night.");
@@ -1863,6 +1982,7 @@
             } else if (kind === 'police') {
                 game.hasPoliceStation = true;
                 game.moralPoints += 25;
+                if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
                 playSound('bell');
                 spawnFloatingLabel(340, 115, '🚓 Police Station!', '#93c5fd');
                 setDialogue("🚓 Yazoo City Police Station active! Keeping our growing community safe.");
@@ -1870,6 +1990,7 @@
             } else if (kind === 'fire') {
                 game.hasFireDept = true;
                 game.moralPoints += 25;
+                if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
                 playSound('bell');
                 spawnFloatingLabel(340, 198, '🚒 Fire Dept!', '#fca5a5');
                 setDialogue("🚒 Yazoo City Fire Department active! Protecting the farm, hotel, and timberland.");
@@ -1893,6 +2014,7 @@
             const eCount = document.getElementById('estate-count');
             if (eCount) eCount.innerText = `Chronicle Chapters: ${Math.floor(game.chronicleLevel)}`;
             updateArchivistCelebrationUI();
+            if (window.RFLNexusBridge) window.RFLNexusBridge.refresh();
             
             try {
                 localStorage.setItem('rhodes_coins', game.coins);
@@ -2006,6 +2128,7 @@
                 if (game.coins >= 100) {
                     game.coins -= 100;
                     game.bankBalance += 120;
+                    if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(15);
                     playSound('coin');
                     spawnFloatingLabel(240, 150, '+120 Vault 🪙', '#fef08a');
                     setDialogue(`🏦 Deposited 100 Coins! Vault Balance: ${game.bankBalance}🪙.`);
@@ -2023,6 +2146,7 @@
                     game.crops += 35;
                     game.moralPoints += 12;
                     game.chronicleLevel = Math.min(25, game.chronicleLevel + 0.2);
+                    if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(15);
                     playSound('tractor');
                     spawnParticles(game.tractorX, 230, '#f59e0b', '🌾');
                     spawnFloatingLabel(game.tractorX, 175, '+35 🌾 Harvest!', '#fde047');
@@ -2044,6 +2168,7 @@
                         targetTree.chopped = true;
                         game.screenShake = 22;
                         game.wood += 45;
+                        if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(20);
                         playSound('chop');
                         spawnFloatingLabel(targetTree.x, 145, '+45 🪵 Timber!', '#34d399');
                         setDialogue(`🪵 Timber! Tree crashed down! +45 Wood collected.`);
@@ -2061,6 +2186,7 @@
                 game.iron += 20;
                 game.hammerSwingAnim = 18;
                 game.screenShake = 8;
+                if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(15);
                 playSound('forge');
                 spawnParticles(255, 145, '#ea580c', '🔥');
                 spawnParticles(275, 130, '#cbd5e1', '💨');
@@ -2070,6 +2196,7 @@
             } else if (game.state === 'HOTEL') {
                 game.coins += 90;
                 game.moralPoints += 20;
+                if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(25);
                 playSound('coin');
                 spawnFloatingLabel(240, 150, '+90 🪙 +20 ❤️', '#38bdf8');
                 setDialogue(`🏨 Hosted VIP Travelers at Aunt Zelma's Hotel! +90 Coins, +20 Moral Points ❤️.`);
