@@ -62,6 +62,18 @@
             border-color: var(--accent-blue);
             box-shadow: 0 0 12px rgba(102, 252, 241, 0.4);
         }
+        .rfl-hub-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(255, 123, 0, 0.14);
+            border: 1px solid rgba(255, 123, 0, 0.55);
+            color: #fef08a;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
         .app-container {
             margin: 15px auto;
             background: var(--panel-bg);
@@ -333,6 +345,7 @@
             <button class="tab-btn" onclick="switchApp('marrowdeck', event)">🎴 MARROW DECK</button>
         </div>
         <div style="margin-top: 6px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <a href="index.html" style="background: #111827; color: #66fcf1; border: 1px solid #45a29e; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; text-decoration: none;">← HUB</a>
             <select id="city-selector" onchange="changeCityBoard(this.value)" style="background: #0b0c10; color: var(--accent-blue); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; font-family: 'Courier New', Courier, monospace;">
                 <option value="detroit">🚗 Detroit & Saginaw (MI)</option>
                 <option value="riverside">🌴 Riverside (California)</option>
@@ -341,6 +354,11 @@
                 <option value="dominican">🌴 Dominican Republic (Quisqueya)</option>
             </select>
             <button onclick="toggleLanguage()" id="lang-btn" style="background: #111827; color: #2ecc71; border: 1px solid #2ecc71; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; cursor: pointer; font-family: 'Courier New', Courier, monospace;">🌐 ESPAÑOL</button>
+            <span class="rfl-hub-pill" id="rflHubPill">
+                <span>Rank: <strong id="rflHubRank">Initiate</strong></span>
+                <span>•</span>
+                <span>Legacy Pts: <strong id="rflHubPoints">0</strong></span>
+            </span>
         </div>
     </header>
 
@@ -629,6 +647,131 @@
     </div>
 
 <script>
+    // --- CROSS-GAME LEGACY SAVE BRIDGE (rfl_legacy_save_v1 + RFLGameHooks) ---
+    (function initCrossGameHubBridge() {
+        "use strict";
+        var STORAGE_KEY = "rfl_legacy_save_v1";
+
+        function defaultState() {
+            return {
+                version: 1,
+                visitedPaths: [],
+                unlockedClues: [],
+                gameScores: {
+                    commandDeck: 0,
+                    chronoTetris: 0,
+                    vanguardTycoon: 0,
+                    vanguardGames: 0,
+                    bingoLounge: 0,
+                    marrowDeck: 0
+                },
+                points: 0,
+                lastVisit: new Date().toISOString()
+            };
+        }
+
+        function loadSave() {
+            try {
+                var raw = window.localStorage.getItem(STORAGE_KEY);
+                if (!raw) return defaultState();
+                var parsed = JSON.parse(raw);
+                return {
+                    version: 1,
+                    visitedPaths: Array.isArray(parsed.visitedPaths) ? parsed.visitedPaths : [],
+                    unlockedClues: Array.isArray(parsed.unlockedClues) ? parsed.unlockedClues : [],
+                    gameScores: Object.assign(defaultState().gameScores, parsed.gameScores || {}),
+                    points: typeof parsed.points === "number" ? parsed.points : 0,
+                    lastVisit: new Date().toISOString()
+                };
+            } catch (e) {
+                return defaultState();
+            }
+        }
+
+        function writeSave(state) {
+            try {
+                state.lastVisit = new Date().toISOString();
+                window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (e) {}
+        }
+
+        function computeRank(state) {
+            var signals = state.visitedPaths.length + state.unlockedClues.length;
+            if (state.points >= 1000 || signals >= 6) return "Vanguard Prime";
+            if (state.points >= 400 || signals >= 3) return "Codex Keeper";
+            if (state.points >= 100 || signals >= 1) return "Wayfinder";
+            return "Initiate";
+        }
+
+        function refreshHubPill(state) {
+            try {
+                var rankEl = document.getElementById("rflHubRank");
+                var ptsEl = document.getElementById("rflHubPoints");
+                if (rankEl) rankEl.textContent = computeRank(state);
+                if (ptsEl) ptsEl.textContent = String(state.points);
+            } catch (e) {}
+        }
+
+        var legacyApi = {
+            getState: loadSave,
+            awardGamePoints: function (gameKey, pointsEarned, highScore) {
+                try {
+                    var state = loadSave();
+                    var pts = typeof pointsEarned === "number" && pointsEarned > 0 ? Math.floor(pointsEarned) : 0;
+                    state.points += pts;
+                    if (gameKey && typeof highScore === "number") {
+                        var prev = state.gameScores[gameKey] || 0;
+                        if (highScore > prev) state.gameScores[gameKey] = highScore;
+                    }
+                    writeSave(state);
+                    refreshHubPill(state);
+                    return state;
+                } catch (e) {
+                    return defaultState();
+                }
+            },
+            getPerks: function () {
+                var state = loadSave();
+                return {
+                    tycoonBonusME: state.points >= 300 ? 500 : (state.points >= 100 ? 200 : 0),
+                    tetrisGoldTheme: state.points >= 250 || state.visitedPaths.indexOf("vanguard") !== -1,
+                    nexusShieldBoost: state.unlockedClues.length >= 2
+                };
+            }
+        };
+
+        window.RFLLegacy = legacyApi;
+        window.RFLGameHooks = {
+            getActivePerks: legacyApi.getPerks,
+            onTetrisLineClear: function (linesCleared, currentScore) {
+                var lines = typeof linesCleared === "number" && linesCleared > 0 ? linesCleared : 1;
+                return legacyApi.awardGamePoints("chronoTetris", lines * 25, typeof currentScore === "number" ? currentScore : undefined);
+            },
+            onTycoonTurnOrMatch: function (bonusPointsEarned, matchScore) {
+                var pts = typeof bonusPointsEarned === "number" && bonusPointsEarned > 0 ? bonusPointsEarned : 50;
+                return legacyApi.awardGamePoints("vanguardTycoon", pts, typeof matchScore === "number" ? matchScore : undefined);
+            },
+            onBingoWin: function () {
+                return legacyApi.awardGamePoints("bingoLounge", 75);
+            },
+            onMarrowDeckWin: function () {
+                return legacyApi.awardGamePoints("marrowDeck", 100);
+            }
+        };
+
+        window.addEventListener("storage", function (ev) {
+            if (ev && ev.key === STORAGE_KEY) {
+                refreshHubPill(loadSave());
+            }
+        });
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", function () { refreshHubPill(loadSave()); });
+        } else {
+            refreshHubPill(loadSave());
+        }
+    })();
+
     let currentLang = 'EN';
 
     const i18n = {
@@ -737,6 +880,18 @@
         if(savedToken) document.getElementById('player-color-select').value = savedToken;
         if(savedRoom) document.getElementById('room-code-input').value = savedRoom;
         if(savedMode) document.getElementById('game-mode-select').value = savedMode;
+
+        // Apply starting Legacy Perks bonus ME/VC if earned
+        try {
+            if (window.RFLGameHooks) {
+                var perks = window.RFLGameHooks.getActivePerks();
+                if (perks && perks.tycoonBonusME > 0) {
+                    tycoonGame.funds = 625 + perks.tycoonBonusME;
+                    vanguardGame.funds = 800 + perks.tycoonBonusME;
+                    updateVanguardUI();
+                }
+            }
+        } catch (e) {}
 
         applyProfileSettings();
         drawTycoonBoard();
@@ -911,14 +1066,15 @@
     }
 
     function resetTycoonGame() {
-        tycoonGame.funds = 625;
+        var bonusME = (window.RFLGameHooks && window.RFLGameHooks.getActivePerks().tycoonBonusME) || 0;
+        tycoonGame.funds = 625 + bonusME;
         tycoonGame.p2Funds = 625;
         tycoonGame.position = 0;
         tycoonGame.p2Position = 0;
         tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[currentCityKey].tiles));
         updateUIFunds();
         drawTycoonBoard();
-        logTycoon(`Board reset for all connected players!`);
+        logTycoon(bonusME > 0 ? `Board reset with +${bonusME} ME Legacy Perk bonus!` : `Board reset for all connected players!`);
         broadcastState();
     }
 
@@ -1388,6 +1544,9 @@
                 tile.owner = activeOwner;
                 updateUIFunds();
                 logTycoon(`${activeOwner} acquired ${tile.name} for ${tile.cost} ME!`);
+                if (window.RFLGameHooks) {
+                    window.RFLGameHooks.onTycoonTurnOrMatch(25, tycoonGame.funds);
+                }
                 drawTycoonBoard();
                 broadcastState();
             } else {
@@ -1410,6 +1569,9 @@
                 tile.rent += 30;
                 tile.hasHotel = true;
                 updateUIFunds();
+                if (window.RFLGameHooks) {
+                    window.RFLGameHooks.onTycoonTurnOrMatch(35, tycoonGame.funds);
+                }
                 
                 tycoonContainer.classList.add('word-shaking');
                 logTycoon(`Hotel built on ${tile.name}! Rent surged to ${tile.rent} ME.`);
@@ -1475,16 +1637,27 @@
         [[0,1,1],[1,1,0]],
         [[1,1,0],[0,1,1]]
     ];
-    const COLORS = ['#66fcf1', '#ff7b00', '#9b59b6', '#2ecc71', '#38bdf8', '#f39c12', '#a855f7'];
+    const DEFAULT_COLORS = ['#66fcf1', '#ff7b00', '#9b59b6', '#2ecc71', '#38bdf8', '#f39c12', '#a855f7'];
+    const GOLDEN_HELIX_COLORS = ['#ffd700', '#f59e0b', '#38bdf8', '#fef08a', '#fb923c', '#22d3ee', '#eab308'];
+
+    function getActiveTetrisColors() {
+        try {
+            if (window.RFLGameHooks && window.RFLGameHooks.getActivePerks().tetrisGoldTheme) {
+                return GOLDEN_HELIX_COLORS;
+            }
+        } catch (e) {}
+        return DEFAULT_COLORS;
+    }
 
     let currentPiece = null;
     let nextPieceObj = null;
 
     function createPiece() {
         let idx = Math.floor(Math.random() * SHAPES.length);
+        let palette = getActiveTetrisColors();
         return {
             shape: SHAPES[idx],
-            color: COLORS[idx],
+            color: palette[idx],
             x: Math.floor(COLS / 2) - Math.floor(SHAPES[idx][0].length / 2),
             y: 0
         };
@@ -1617,6 +1790,10 @@
             document.getElementById('tetris-score').innerText = tetrisScore;
             document.getElementById('tetris-marrow').innerText = tetrisMarrow;
             document.getElementById('tetris-level').innerText = tetrisLevel;
+
+            if (window.RFLGameHooks) {
+                window.RFLGameHooks.onTetrisLineClear(linesCleared, tetrisScore);
+            }
 
             if(linesCleared >= 4) {
                 const tetrisContainer = document.getElementById('tetris-view');
@@ -1789,14 +1966,15 @@
     }
 
     function resetVanguardGame() {
-        vanguardGame.funds = 800;
+        var bonusVC = (window.RFLGameHooks && window.RFLGameHooks.getActivePerks().tycoonBonusME) || 0;
+        vanguardGame.funds = 800 + bonusVC;
         vanguardGame.rivalFunds = 800;
         vanguardGame.position = 0;
         vanguardGame.rivalPosition = 0;
         vanguardGame.tiles.forEach(t => { if(t.cost > 0) { t.owner = "None"; t.hasHotel = false; t.isMortgaged = false; } });
         updateVanguardUI();
         drawVanguardBoard();
-        logVanguard("Vanguard Faction Board reset!");
+        logVanguard(bonusVC > 0 ? `Vanguard Faction Board reset with +${bonusVC} VC Legacy Perk bonus!` : "Vanguard Faction Board reset!");
         broadcastState();
     }
 
@@ -2070,6 +2248,9 @@
                 tile.owner = activeOwner;
                 updateVanguardUI();
                 logVanguard(`${activeOwner} claimed ${tile.name} for ${tile.cost} VC!`);
+                if (window.RFLGameHooks) {
+                    window.RFLGameHooks.onTycoonTurnOrMatch(25, vanguardGame.funds);
+                }
                 drawVanguardBoard();
                 broadcastState();
             } else {
@@ -2091,6 +2272,9 @@
                 tile.hasHotel = true;
                 updateVanguardUI();
                 logVanguard(`Nexus Tower constructed on ${tile.name}! Toll surged to ${tile.rent} VC.`);
+                if (window.RFLGameHooks) {
+                    window.RFLGameHooks.onTycoonTurnOrMatch(35, vanguardGame.funds);
+                }
                 drawVanguardBoard();
                 broadcastState();
             } else {
@@ -2298,7 +2482,10 @@
         if([0,1,2,3,4].every(i => bingoBoardData[i][4-i].stamped)) hasWon = true;
 
         if(hasWon) {
-            logBingo("🎉 BINGO! ¡LOTERÍA! Family victory achieved!");
+            if (window.RFLGameHooks) {
+                window.RFLGameHooks.onBingoWin();
+            }
+            logBingo("🎉 BINGO! ¡LOTERÍA! Family victory achieved! (+75 Legacy Pts)");
             speakGameEvent("Bingo! Lotería! Victory!");
             alert("🎉 BINGO / ¡LOTERÍA! You have successfully aligned the board!");
         } else {
@@ -2397,7 +2584,10 @@
             speakGameEvent(`Played ${card.val}`);
 
             if(playerHand.length === 0) {
-                alert("🎉 Victory! You cleared your Marrow Deck hand first!");
+                if (window.RFLGameHooks) {
+                    window.RFLGameHooks.onMarrowDeckWin();
+                }
+                alert("🎉 Victory! You cleared your Marrow Deck hand first! (+100 Legacy Pts)");
                 speakGameEvent("You win the card game!");
                 initMarrowDeckGame();
                 return;
