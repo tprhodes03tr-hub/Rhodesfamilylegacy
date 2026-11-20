@@ -370,6 +370,7 @@
     <span>⭐ <b>LEGACY SCORE:</b> <strong id="global-score" style="color: #38bdf8;">0</strong> PTS</span>
     <span>🏆 <b>RANK:</b> <strong id="resonance-rank" style="color: #10b981;">Vanguard Initiate</strong></span>
     <span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+      <a href="index.html" style="background: #0f172a; color: #38bdf8; border: 1px solid #38bdf8; border-radius: 5px; padding: 3px 8px; font-size: 0.62rem; font-weight: bold; text-decoration: none;">← HUB (<span id="rflDeckPts">0</span> PTS)</a>
       <button onclick="toggleGamePause()" id="pause-toggle-btn" style="background: #78350f; color: #fef08a; border: 1px solid #f59e0b; border-radius: 5px; padding: 3px 9px; font-size: 0.62rem; font-weight: bold; cursor: pointer;">⏸️ PAUSE</button>
       <strong id="save-status" style="color: #fbbf24; font-size: 0.65rem;">💾 SAVED</strong>
       <button onclick="toggleVoiceMode()" id="voice-toggle-btn" style="background: #0f766e; color: #ecfdf5; border: 1px solid #34d399; border-radius: 5px; padding: 3px 8px; font-size: 0.62rem; font-weight: bold; cursor: pointer;">🔊 VOICE: BRIEF</button>
@@ -692,6 +693,98 @@
   </div>
 
   <script>
+    // --- CROSS-GAME LEGACY SAVE BRIDGE (rfl_legacy_save_v1 + RFLGameHooks) ---
+    (function initCommandDeckLegacyBridge() {
+      "use strict";
+      var STORAGE_KEY = "rfl_legacy_save_v1";
+
+      function defaultState() {
+        return {
+          version: 1,
+          visitedPaths: [],
+          unlockedClues: [],
+          gameScores: {
+            commandDeck: 0,
+            chronoTetris: 0,
+            vanguardTycoon: 0,
+            vanguardGames: 0
+          },
+          points: 0,
+          lastVisit: new Date().toISOString()
+        };
+      }
+
+      function loadSave() {
+        try {
+          var raw = window.localStorage.getItem(STORAGE_KEY);
+          if (!raw) return defaultState();
+          var parsed = JSON.parse(raw);
+          return {
+            version: 1,
+            visitedPaths: Array.isArray(parsed.visitedPaths) ? parsed.visitedPaths : [],
+            unlockedClues: Array.isArray(parsed.unlockedClues) ? parsed.unlockedClues : [],
+            gameScores: Object.assign(defaultState().gameScores, parsed.gameScores || {}),
+            points: typeof parsed.points === "number" ? parsed.points : 0,
+            lastVisit: new Date().toISOString()
+          };
+        } catch (e) {
+          return defaultState();
+        }
+      }
+
+      function writeSave(state) {
+        try {
+          state.lastVisit = new Date().toISOString();
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {}
+      }
+
+      function refreshDeckPill(state) {
+        try {
+          var ptsEl = document.getElementById("rflDeckPts");
+          if (ptsEl) ptsEl.textContent = String(state.points);
+        } catch (e) {}
+      }
+
+      window.RFLDeckBridge = {
+        getState: loadSave,
+        awardPoints: function (ptsEarned, highScore, clueId) {
+          try {
+            var state = loadSave();
+            var add = typeof ptsEarned === "number" && ptsEarned > 0 ? Math.floor(ptsEarned) : 0;
+            state.points += add;
+            if (typeof highScore === "number" && highScore > (state.gameScores.commandDeck || 0)) {
+              state.gameScores.commandDeck = highScore;
+            }
+            if (clueId && state.unlockedClues.indexOf(clueId) === -1) {
+              state.unlockedClues.push(clueId);
+            }
+            writeSave(state);
+            refreshDeckPill(state);
+            return state;
+          } catch (e) {
+            return defaultState();
+          }
+        },
+        hasNexusShieldBoost: function () {
+          var state = loadSave();
+          return state.unlockedClues.length >= 2;
+        }
+      };
+
+      window.addEventListener("storage", function (ev) {
+        if (ev && ev.key === STORAGE_KEY) {
+          refreshDeckPill(loadSave());
+        }
+      });
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", function () { refreshDeckPill(loadSave()); });
+      } else {
+        refreshDeckPill(loadSave());
+      }
+    })();
+
     const SAVE_STORAGE_KEY = 'rfl_ancestral_vanguard_save_v4';
     let globalScore = 0;
     let freightYields = 1450;
@@ -974,6 +1067,9 @@
     function unlockCodexEntry(id) {
       if (!id || unlockedCodexIds.includes(id)) return;
       unlockedCodexIds.push(id);
+      if (window.RFLDeckBridge) {
+        window.RFLDeckBridge.awardPoints(25, globalScore, "codex_" + id);
+      }
       persistSaveState(false);
       renderCodexGallery();
     }
@@ -1589,6 +1685,9 @@
     function addScore(pts) {
       const scaled = Math.round(pts * getComboMultiplier());
       globalScore += scaled;
+      if (window.RFLDeckBridge) {
+        window.RFLDeckBridge.awardPoints(Math.max(5, Math.round(scaled * 0.25)), globalScore);
+      }
       if (globalScore > prestigeStats.peakLegacyScore) {
         prestigeStats.peakLegacyScore = globalScore;
         updatePrestigeUI();
@@ -3158,7 +3257,8 @@
       NexusCountdown.start(3, "CHAPTER 3 • ORBITAL RELAY SOS DEFENSE", (res) => {
         if (res.perfectStart) {
           spaceShield = 100;
-          aegisBubbleTimer = armoryUpgrades.shieldOverclock ? 305 : 220;
+          const legacyBoost = (window.RFLDeckBridge && window.RFLDeckBridge.hasNexusShieldBoost()) ? 1.25 : 1.0;
+          aegisBubbleTimer = Math.round((armoryUpgrades.shieldOverclock ? 305 : 220) * legacyBoost);
           updateSpaceHUD();
           addScore(100);
           spawnDamageNumber(shipX, shipY - 35, "AEGIS OVERDRIVE!", "#00ffff");
@@ -3296,7 +3396,8 @@
         if (NexusCountdown.tryPerfectStart()) return;
         if (spaceDead || isGamePaused || NexusCountdown.isActive()) return;
         playSound('shield-up');
-        aegisBubbleTimer = armoryUpgrades.shieldOverclock ? 305 : 210;
+        const legacyBoost = (window.RFLDeckBridge && window.RFLDeckBridge.hasNexusShieldBoost()) ? 1.25 : 1.0;
+        aegisBubbleTimer = Math.round((armoryUpgrades.shieldOverclock ? 305 : 210) * legacyBoost);
         spaceShield = 85;
         droidLasers = [];
         updateSpaceHUD();
@@ -3902,7 +4003,8 @@
       
       let shieldEnergy = 100;
       const maxShieldEnergy = 100;
-      const shieldDrainRate = armoryUpgrades.shieldOverclock ? 0.18 : 0.26;
+      const legacyShieldMult = (window.RFLDeckBridge && window.RFLDeckBridge.hasNexusShieldBoost()) ? 0.8 : 1.0;
+      const shieldDrainRate = (armoryUpgrades.shieldOverclock ? 0.18 : 0.26) * legacyShieldMult;
       const shieldRechargerRate = 0.30;
       let isShieldActive = false;
       let shieldDepletedLockout = false;
