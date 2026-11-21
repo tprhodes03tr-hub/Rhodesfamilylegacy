@@ -377,6 +377,21 @@
                 <span>🏛️ Yazoo City Homestead & Community Builder • <span id="hud-mansion-tier" class="text-sky-400">Mini Mansion</span> (<span id="hud-land" class="text-lime-400">120 Acres</span>)</span>
                 <span id="estate-count" class="text-sky-400">Chronicle Chapters: 20</span>
             </div>
+
+            <!-- Timed Delta & Frontier Event Bar -->
+            <div class="bg-slate-950/90 border border-amber-500/40 rounded-xl p-2 flex flex-wrap justify-between items-center gap-2">
+                <div class="flex-1 min-w-[200px]">
+                    <div id="town-event-title" class="font-bold text-amber-300 text-[11px]">⚡ Yazoo & Cane River Dispatch • Ready</div>
+                    <div id="town-event-desc" class="text-[10px] text-slate-300">Launch a timed Delta & Frontier Event to test your homestead and earn bonus Coins, Moral ❤️ & Legacy Pts!</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="town-event-timer" class="bg-slate-900 border border-amber-500/40 text-amber-200 px-2 py-1 rounded-lg font-mono text-[10px] font-bold">00s</span>
+                    <button onclick="triggerTownEvent()" id="town-event-btn" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-[11px]">
+                        ⚡ Start / Complete Event
+                    </button>
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
                 <button onclick="buildTownCivic('mansion')" class="bg-slate-800 border border-amber-500/40 hover:bg-slate-700 p-2 rounded-xl text-left transition-all">
                     <div class="font-bold text-amber-400">🏰 Grow Homestead Mansion</div>
@@ -723,6 +738,98 @@
                 message: 'Relay completed the arc to California—tying Western kin back to the Golden Tree of Life!'
             }
         ];
+
+        const TOWN_EVENTS = [
+            {
+                title: '🌊 Yazoo Levee Reinforce Alert',
+                desc: 'Strengthen the Yazoo embankment with timber & crops to earn +85 Coins, +30 Moral ❤️ & +35 Nexus Pts!',
+                costWood: 10,
+                rewardCoins: 85,
+                rewardMoral: 30,
+                rewardPts: 35
+            },
+            {
+                title: '🏪 Tom Mitchell Store Harvest Rush',
+                desc: 'Deliver fresh produce baskets to Yazoo neighbors for +95 Coins, +25 Moral ❤️ & +35 Nexus Pts!',
+                costWood: 0,
+                rewardCoins: 95,
+                rewardMoral: 25,
+                rewardPts: 35
+            },
+            {
+                title: '🔥 Fred Hatton Forge Night Shift',
+                desc: 'Temper iron tools for the homestead & migration wagon for +80 Coins, +25 Moral ❤️ & +40 Nexus Pts!',
+                costWood: 5,
+                rewardCoins: 80,
+                rewardMoral: 25,
+                rewardPts: 40
+            }
+        ];
+
+        let townEventState = {
+            active: false,
+            secondsLeft: 0,
+            index: 0,
+            intervalId: null
+        };
+
+        function updateTownEventUI() {
+            const titleEl = document.getElementById('town-event-title');
+            const descEl = document.getElementById('town-event-desc');
+            const timerEl = document.getElementById('town-event-timer');
+            const btnEl = document.getElementById('town-event-btn');
+            const ev = TOWN_EVENTS[townEventState.index % TOWN_EVENTS.length];
+
+            if (titleEl) titleEl.innerText = ev.title;
+            if (descEl) descEl.innerText = ev.desc;
+            if (timerEl) timerEl.innerText = townEventState.active ? `${townEventState.secondsLeft}s` : 'Ready';
+            if (btnEl) btnEl.innerText = townEventState.active ? '✅ Complete Dispatch' : '⚡ Start Event';
+        }
+
+        function triggerTownEvent() {
+            const ev = TOWN_EVENTS[townEventState.index % TOWN_EVENTS.length];
+            if (!townEventState.active) {
+                townEventState.active = true;
+                townEventState.secondsLeft = 20;
+                playSound('bell');
+                if (townEventState.intervalId) clearInterval(townEventState.intervalId);
+                townEventState.intervalId = setInterval(() => {
+                    if (!townEventState.active) return;
+                    townEventState.secondsLeft--;
+                    if (townEventState.secondsLeft <= 0) {
+                        townEventState.active = false;
+                        clearInterval(townEventState.intervalId);
+                        townEventState.index = (townEventState.index + 1) % TOWN_EVENTS.length;
+                    }
+                    updateTownEventUI();
+                }, 1000);
+                updateTownEventUI();
+                setDialogue(`⚡ Active Event: ${ev.title}! Tap Complete Dispatch within 20s to claim the bonus.`);
+                sayVoice(`${ev.title} started! Complete the dispatch to earn bonus coins and legacy points.`);
+                return;
+            }
+
+            if (ev.costWood > 0 && game.wood < ev.costWood) {
+                setDialogue(`🪵 Need at least ${ev.costWood} Wood in Lucius Timberland to finish ${ev.title}!`);
+                return;
+            }
+            if (ev.costWood > 0) game.wood -= ev.costWood;
+            game.coins += ev.rewardCoins;
+            game.moralPoints += ev.rewardMoral;
+            if (window.RFLNexusBridge) window.RFLNexusBridge.addPoints(ev.rewardPts);
+
+            townEventState.active = false;
+            if (townEventState.intervalId) clearInterval(townEventState.intervalId);
+            townEventState.index = (townEventState.index + 1) % TOWN_EVENTS.length;
+
+            playSound('coin');
+            spawnParticles(240, 170, '#fbbf24', '⚡');
+            spawnFloatingLabel(240, 130, `+${ev.rewardCoins} 🪙 +${ev.rewardMoral} ❤️`, '#fef08a');
+            updateHUD();
+            updateTownEventUI();
+            setDialogue(`🎉 Completed ${ev.title}! Earned +${ev.rewardCoins} Coins, +${ev.rewardMoral} Moral ❤️ & +${ev.rewardPts} Nexus Pts.`);
+            sayVoice(`Event complete! You earned ${ev.rewardCoins} coins and ${ev.rewardPts} legacy points.`);
+        }
 
         function getBadgeProgress(badge) {
             const found = badge.requiredClues.filter(id => game.unlockedClues.includes(id));
@@ -1269,6 +1376,7 @@
             updateHUD();
             updateMysteryUI();
             updateRelayUI();
+            updateTownEventUI();
             renderMigrationBadgesGrid();
             renderLineageCrestGrid();
             exitToOverworld();
@@ -1280,6 +1388,7 @@
         function initMarrowNexus() {
             updateHUD();
             updateRelayUI();
+            updateTownEventUI();
             renderMigrationBadgesGrid();
             renderLineageCrestGrid();
             switchPortal('MAP');
@@ -1331,6 +1440,7 @@
                 document.body.style.background = 'radial-gradient(circle at center, #061812 0%, #02040a 100%)';
                 document.getElementById('panel-HOMESTEAD_BUILDER').classList.remove('hidden');
                 document.getElementById('dpad-controls').classList.remove('hidden');
+                updateTownEventUI();
                 if (centerBtn) centerBtn.innerText = '🌳 Enter Station';
                 if (game.state !== 'OVERWORLD') {
                     document.getElementById('minigame-controls').classList.remove('hidden');
@@ -2254,15 +2364,21 @@
             }
         }
 
-        function drawGroundedDNAEmblem(x, y, width, height) {
+        // Draws the Tree of Life anchored directly onto groundY so roots sit planted in the earth
+        function drawGroundedDNAEmblem(x, groundY, width, height) {
             ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.beginPath();
+            ctx.ellipse(x + width / 2, groundY + 2, width * 0.44, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
             if (dnaTreeImg.complete && dnaTreeImg.naturalWidth !== 0) {
-                ctx.drawImage(dnaTreeImg, x, y - height - 10, width, height);
+                ctx.drawImage(dnaTreeImg, x, groundY - height + 4, width, height);
             } else {
                 ctx.font = "32px sans-serif";
                 ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText("🌳🧬", x + width / 2, y - height / 2);
+                ctx.textBaseline = "bottom";
+                ctx.fillText("🌳🧬", x + width / 2, groundY + 2);
             }
             ctx.restore();
         }
@@ -2283,7 +2399,6 @@
             ctx.fillStyle = outfitColor; ctx.beginPath(); ctx.roundRect(-8, -4 + bounce, 16, 18, 4); ctx.fill();
             ctx.fillStyle = "#f59e0b"; ctx.fillRect(-6, -2 + bounce, 12, 9);
 
-            // Period detail accents for Fannie May & the Golden Clock sisters
             if (label === 'Fannie May') {
                 ctx.fillStyle = '#fef08a';
                 ctx.beginPath();
@@ -2333,7 +2448,6 @@
                 ctx.beginPath(); ctx.arc(xCenter - wave, y, 2.5, 0, Math.PI * 2); ctx.fill();
             }
 
-            // Root -> Michigan (Detroit / Saginaw)
             ctx.save();
             ctx.strokeStyle = miUnlocked ? '#38bdf8' : 'rgba(56, 189, 248, 0.38)';
             ctx.lineWidth = miUnlocked ? 3.5 : 2;
@@ -2341,7 +2455,6 @@
             ctx.beginPath(); ctx.moveTo(235, 265); ctx.quadraticCurveTo(255, 165, 290, 75); ctx.stroke();
             ctx.restore();
 
-            // Root -> Ohio
             ctx.save();
             ctx.strokeStyle = ohUnlocked ? '#a78bfa' : 'rgba(167, 139, 250, 0.38)';
             ctx.lineWidth = ohUnlocked ? 3.5 : 2;
@@ -2349,7 +2462,6 @@
             ctx.beginPath(); ctx.moveTo(235, 265); ctx.quadraticCurveTo(320, 195, 375, 125); ctx.stroke();
             ctx.restore();
 
-            // Root -> California
             ctx.save();
             ctx.strokeStyle = caUnlocked ? '#f59e0b' : 'rgba(245, 158, 11, 0.38)';
             ctx.lineWidth = caUnlocked ? 3.5 : 2;
@@ -2385,7 +2497,6 @@
                 ctx.restore();
             });
 
-            // Relay Beacon Marker
             const beaconPulse = Math.sin(Date.now() * 0.008) * 4;
             ctx.save();
             ctx.strokeStyle = '#fef08a';
@@ -2395,7 +2506,7 @@
             ctx.stroke();
             ctx.restore();
 
-            drawGroundedDNAEmblem(14, 325, 48, 66);
+            drawGroundedDNAEmblem(14, 326, 48, 66);
         }
 
         function drawMysteryCaneRiverScene() {
@@ -2415,7 +2526,6 @@
             ctx.fillStyle = bg;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Cane River bayou water & animated ripples
             ctx.strokeStyle = 'rgba(14, 116, 144, 0.55)';
             ctx.lineWidth = 34;
             ctx.beginPath();
@@ -2432,7 +2542,6 @@
             ctx.moveTo(340 + rippleShift, 182); ctx.lineTo(385 + rippleShift, 182);
             ctx.stroke();
 
-            // Riverboat landing dock
             ctx.fillStyle = '#78350f';
             ctx.fillRect(210, 148, 44, 54);
             ctx.strokeStyle = '#d97706';
@@ -2486,20 +2595,20 @@
             if (keys.left) { fannieState.x = Math.max(40, fannieState.x - 3.8); isMoving = true; }
             if (keys.right) { fannieState.x = Math.min(435, fannieState.x + 3.8); isMoving = true; }
 
+            const groundY = 190;
             const era = fannieState.eras[Math.min(fannieState.chapter - 1, 3)];
-            let skyGrad = ctx.createLinearGradient(0, 0, 0, 220);
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
             skyGrad.addColorStop(0, era.sky[0]);
             skyGrad.addColorStop(1, era.sky[1]);
             ctx.fillStyle = skyGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Distant pine ridge & sun/moon atmosphere
             ctx.fillStyle = fannieState.chapter === 3 ? 'rgba(15, 23, 42, 0.65)' : 'rgba(6, 78, 59, 0.42)';
             for (let px = 12; px < 470; px += 46) {
                 ctx.beginPath();
-                ctx.moveTo(px - 18, 190);
+                ctx.moveTo(px - 18, groundY);
                 ctx.lineTo(px, 118);
-                ctx.lineTo(px + 18, 190);
+                ctx.lineTo(px + 18, groundY);
                 ctx.closePath();
                 ctx.fill();
             }
@@ -2521,31 +2630,32 @@
                 }
             }
 
-            ctx.save();
-            ctx.shadowColor = '#fbbf24';
-            ctx.shadowBlur = 22;
-            drawGroundedDNAEmblem(208, 165, 68, 86);
-            ctx.restore();
-
             if (fannieState.barnBuilt || fannieState.logs > 0) {
                 ctx.fillStyle = '#b45309';
-                ctx.fillRect(340, 108, 108, 84);
+                ctx.fillRect(340, 108, 108, groundY - 108);
                 ctx.fillStyle = '#78350f';
                 ctx.beginPath(); ctx.moveTo(328, 108); ctx.lineTo(394, 65); ctx.lineTo(460, 108); ctx.closePath(); ctx.fill();
                 ctx.fillStyle = '#fef08a';
-                ctx.fillRect(380, 140, 28, 52);
+                ctx.fillRect(380, 140, 28, groundY - 140);
             }
 
-            let groundGrad = ctx.createLinearGradient(0, 190, 0, 340);
+            let groundGrad = ctx.createLinearGradient(0, groundY, 0, canvas.height);
             groundGrad.addColorStop(0, era.ground);
             groundGrad.addColorStop(1, '#022c22');
             ctx.fillStyle = groundGrad;
-            ctx.fillRect(0, 190, canvas.width, 150);
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+            // Golden Tree planted directly into the ground at y = groundY
+            ctx.save();
+            ctx.shadowColor = '#fbbf24';
+            ctx.shadowBlur = 22;
+            drawGroundedDNAEmblem(206, groundY, 68, 86);
+            ctx.restore();
 
             ctx.font = '24px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('🐎', 65, 184);
-            ctx.fillText('🐄', 110, 184);
+            ctx.fillText('🐎', 65, groundY - 4);
+            ctx.fillText('🐄', 110, groundY - 4);
 
             const activeType = fannieState.chapter === 1 ? 'log' : (fannieState.chapter === 2 ? 'hay' : (fannieState.chapter === 3 ? 'water' : null));
             const pulse = Math.sin(Date.now() * 0.008) * 3;
@@ -2602,21 +2712,21 @@
             if (keys.left) { clockState.x = Math.max(45, clockState.x - 3.8); isMoving = true; }
             if (keys.right) { clockState.x = Math.min(435, clockState.x + 3.8); isMoving = true; }
 
+            const groundY = 190;
             const era = clockState.eras[Math.min(clockState.eraIndex, 3)];
-            let skyGrad = ctx.createLinearGradient(0, 0, 0, 220);
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
             skyGrad.addColorStop(0, era.sky[0]);
             skyGrad.addColorStop(1, era.sky[1]);
             ctx.fillStyle = skyGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Era-specific horizon landmarks (Pine Bluff cottages, Yazoo levee, Michigan lamps)
             if (clockState.eraIndex === 0 || clockState.eraIndex === 3) {
                 ctx.fillStyle = 'rgba(120, 53, 15, 0.65)';
-                ctx.fillRect(46, 156, 44, 34);
+                ctx.fillRect(46, 156, 44, groundY - 156);
                 ctx.beginPath(); ctx.moveTo(40, 156); ctx.lineTo(68, 134); ctx.lineTo(96, 156); ctx.closePath(); ctx.fill();
             } else if (clockState.eraIndex === 1) {
                 ctx.fillStyle = 'rgba(14, 116, 144, 0.45)';
-                ctx.fillRect(0, 174, canvas.width, 16);
+                ctx.fillRect(0, groundY - 16, canvas.width, 16);
             } else if (clockState.eraIndex === 2) {
                 ctx.fillStyle = '#fef08a';
                 for (let s = 0; s < 14; s++) {
@@ -2626,31 +2736,32 @@
                 }
                 [85, 395].forEach(lx => {
                     ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.moveTo(lx, 190); ctx.lineTo(lx, 142); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(lx, groundY); ctx.lineTo(lx, 142); ctx.stroke();
                     ctx.fillStyle = '#fde047';
                     ctx.beginPath(); ctx.arc(lx, 140, 4, 0, Math.PI * 2); ctx.fill();
                 });
             }
 
+            let floorGrad = ctx.createLinearGradient(0, groundY, 0, canvas.height);
+            floorGrad.addColorStop(0, era.ground);
+            floorGrad.addColorStop(1, '#030712');
+            ctx.fillStyle = floorGrad;
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+            // Golden Tree planted directly into the ground at y = groundY
             const pulse = Math.sin(Date.now() * 0.008) * 4;
             ctx.save();
             ctx.shadowColor = '#fbbf24';
             ctx.shadowBlur = clockState.treeReady ? 38 : 16;
-            drawGroundedDNAEmblem(198, 175, 84, 105);
+            drawGroundedDNAEmblem(198, groundY, 84, 102);
             if (clockState.treeReady) {
                 ctx.strokeStyle = '#fef08a';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.arc(240, 120, 48 + pulse, 0, Math.PI * 2);
+                ctx.arc(240, groundY - 52, 46 + pulse, 0, Math.PI * 2);
                 ctx.stroke();
             }
             ctx.restore();
-
-            let floorGrad = ctx.createLinearGradient(0, 190, 0, 340);
-            floorGrad.addColorStop(0, era.ground);
-            floorGrad.addColorStop(1, '#030712');
-            ctx.fillStyle = floorGrad;
-            ctx.fillRect(0, 190, canvas.width, 150);
 
             let nearBush = false;
             if (clockState.eraIndex < 3) {
