@@ -489,6 +489,8 @@
       font-size: 0.72rem;
       font-weight: bold;
       text-transform: uppercase;
+      gap: 6px;
+      flex-wrap: wrap;
     }
     .clash-grid-syn {
       display: grid;
@@ -513,7 +515,7 @@
       gap: 4px;
       position: relative;
       overflow: hidden;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.25s ease, border-color 0.2s ease;
     }
     .holo-card::after {
       content: "";
@@ -532,6 +534,15 @@
     .holo-card.syn {
       background: linear-gradient(145deg, #1f0f16 0%, #0b070e 100%);
       border-color: rgba(239, 68, 68, 0.45);
+      cursor: pointer;
+    }
+    .holo-card.syn.targeted {
+      border-color: #facc15;
+      box-shadow: 0 0 18px rgba(250, 204, 21, 0.45);
+    }
+    .holo-card.ko {
+      opacity: 0.42;
+      filter: grayscale(0.85);
     }
     .holo-img-box {
       width: 100%;
@@ -559,6 +570,10 @@
       border: none;
       cursor: pointer;
       text-transform: uppercase;
+    }
+    .clash-act-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
     .clash-bench {
       display: grid;
@@ -1050,6 +1065,7 @@
         <div class="stats-bar" style="border-color: #d4af37; color: #fef08a;">
           <span>✨ Marrow: <strong id="clashMarrowLabel" style="color: #d4af37;">5</strong></span>
           <span>⚡ Syndicate Tech: <strong id="clashSynEnergy" style="color: #ef4444;">4</strong></span>
+          <span>🎯 Actions Left: <strong id="clashActionsLeft" style="color: #34d399;">2 / 2</strong></span>
           <span>🌐 3D AR Codex: <strong style="color: #38bdf8;">ACTIVE</strong></span>
         </div>
 
@@ -1057,10 +1073,10 @@
         <div class="clash-zone clash-zone-syn">
           <div class="clash-zone-head">
             <span style="color: #f87171;">● The Iron Syndicate</span>
-            <span style="color: #fca5a5;">Target Syndicate Operatives</span>
+            <span id="clashTargetLabel" style="color: #fca5a5;">Target: Apex Volt (Taunt)</span>
           </div>
           <div class="clash-grid-syn">
-            <div class="holo-card syn">
+            <div class="holo-card syn" id="syn-card-chrono" onclick="selectClashTarget('chrono')">
               <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:bold;">
                 <span>Chrono-Lock</span><span style="color:#94a3b8; font-size:0.62rem;">NEXUS</span>
               </div>
@@ -1068,13 +1084,13 @@
                 <img src="./chrono-lock.png" alt="Chrono-Lock" onerror="this.src='./packed-marrow-tree.png'">
               </div>
               <div style="font-size:0.65rem; color:#fbbf24; font-weight:bold;">Temporal Static</div>
-              <div style="font-size:0.62rem; color:#cbd5e1;">P:72 | D:84 | W:99</div>
+              <div style="font-size:0.62rem; color:#cbd5e1;">P:72 | D:84 | W:99 • <strong id="clash-hp-text-chrono" style="color:#34d399;">95/95</strong></div>
               <div style="width:100%; height:5px; background:#1e293b; border-radius:3px; overflow:hidden;">
-                <div id="clash-hp-chrono" style="width:100%; height:100%; background:#10b981;"></div>
+                <div id="clash-hp-chrono" style="width:100%; height:100%; background:#10b981; transition:width 0.25s ease;"></div>
               </div>
             </div>
 
-            <div class="holo-card syn">
+            <div class="holo-card syn" id="syn-card-null" onclick="selectClashTarget('null')">
               <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:bold;">
                 <span>Null-Byte</span><span style="color:#94a3b8; font-size:0.62rem;">BACKLINE</span>
               </div>
@@ -1082,13 +1098,13 @@
                 <img src="./null-byte.png" alt="Null-Byte" onerror="this.src='./packed-marrow-tree.png'">
               </div>
               <div style="font-size:0.65rem; color:#fbbf24; font-weight:bold;">Signal Intercept</div>
-              <div style="font-size:0.62rem; color:#cbd5e1;">P:85 | D:74 | W:94</div>
+              <div style="font-size:0.62rem; color:#cbd5e1;">P:85 | D:74 | W:94 • <strong id="clash-hp-text-null" style="color:#34d399;">90/90</strong></div>
               <div style="width:100%; height:5px; background:#1e293b; border-radius:3px; overflow:hidden;">
-                <div id="clash-hp-null" style="width:100%; height:100%; background:#10b981;"></div>
+                <div id="clash-hp-null" style="width:100%; height:100%; background:#10b981; transition:width 0.25s ease;"></div>
               </div>
             </div>
 
-            <div class="holo-card syn">
+            <div class="holo-card syn targeted" id="syn-card-apex" onclick="selectClashTarget('apex')">
               <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:bold;">
                 <span>Apex Volt</span><span style="color:#94a3b8; font-size:0.62rem;">FRONTLINE</span>
               </div>
@@ -1096,9 +1112,9 @@
                 <img src="./apex-volt.png" alt="Apex Volt" onerror="this.src='./packed-marrow-tree.png'">
               </div>
               <div style="font-size:0.65rem; color:#fbbf24; font-weight:bold;">Conduit (Taunt)</div>
-              <div style="font-size:0.62rem; color:#cbd5e1;">P:94 | D:82 | W:75</div>
+              <div style="font-size:0.62rem; color:#cbd5e1;">P:94 | D:82 | W:75 • <strong id="clash-hp-text-apex" style="color:#34d399;">115/115</strong></div>
               <div style="width:100%; height:5px; background:#1e293b; border-radius:3px; overflow:hidden;">
-                <div id="clash-hp-apex" style="width:100%; height:100%; background:#10b981;"></div>
+                <div id="clash-hp-apex" style="width:100%; height:100%; background:#10b981; transition:width 0.25s ease;"></div>
               </div>
             </div>
           </div>
@@ -1108,65 +1124,80 @@
         <div class="clash-zone clash-zone-van">
           <div class="clash-zone-head">
             <span style="color: #fef08a;">● Ancestral Vanguard</span>
-            <button onclick="clashEndTurn()" style="background:#ea580c; color:#fff; border:none; border-radius:4px; padding:3px 8px; font-size:0.62rem; font-weight:bold; cursor:pointer;">End Turn (+3 Marrow)</button>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button onclick="resetFullCardClash()" style="background:#1e293b; color:#38bdf8; border:1px solid #38bdf8; border-radius:4px; padding:3px 8px; font-size:0.62rem; font-weight:bold; cursor:pointer;">🔄 Reset Match</button>
+              <button onclick="clashEndTurn()" style="background:#ea580c; color:#fff; border:none; border-radius:4px; padding:3px 8px; font-size:0.62rem; font-weight:bold; cursor:pointer;">End Turn (+3 Marrow)</button>
+            </div>
           </div>
           <div class="clash-grid-van">
-            <div class="holo-card">
+            <div class="holo-card" id="van-card-xochitl">
               <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:bold;">
                 <span>Xochitl</span><span style="color:#fbbf24; font-size:0.62rem;">OBSIDIAN SUN</span>
               </div>
               <div class="holo-img-box">
                 <img src="./xochitl.png" alt="Xochitl" onerror="this.src='./packed-marrow-tree.png'">
               </div>
-              <div style="font-size:0.62rem; color:#94a3b8;">P:89 | D:78 | W:86 • Solar Flurry</div>
+              <div style="font-size:0.62rem; color:#94a3b8;">P:89 | D:78 | W:86 • HP: <strong id="clash-hp-text-xochitl" style="color:#34d399;">105/105</strong></div>
+              <div style="width:100%; height:5px; background:#1e293b; border-radius:3px; overflow:hidden;">
+                <div id="clash-hp-xochitl" style="width:100%; height:100%; background:#10b981; transition:width 0.25s ease;"></div>
+              </div>
               <div class="clash-btn-row">
-                <button class="clash-act-btn" style="background:#2563eb; color:#fff;" onclick="clashStrike('Xochitl')">Strike</button>
-                <button class="clash-act-btn" style="background:#d4af37; color:#000;" onclick="clashSkill('Xochitl', 3)">Skill (3)</button>
+                <button class="clash-act-btn" id="btn-clash-strike-xochitl" style="background:#2563eb; color:#fff;" onclick="clashStrike('Xochitl')">Strike</button>
+                <button class="clash-act-btn" id="btn-clash-skill-xochitl" style="background:#d4af37; color:#000;" onclick="clashSkill('Xochitl', 3)">Skill (3)</button>
               </div>
               <button class="clash-act-btn" style="background:#7c3aed; color:#fff;" onclick="openNexusCardAR('Xochitl')">🌐 3D AR Dossier</button>
             </div>
 
-            <div class="holo-card">
+            <div class="holo-card" id="van-card-elena">
               <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:bold;">
                 <span>Elena</span><span style="color:#38bdf8; font-size:0.62rem;">CANOPY SENTINEL</span>
               </div>
               <div class="holo-img-box">
                 <img src="./elena.png" alt="Elena" onerror="this.src='./packed-marrow-tree.png'">
               </div>
-              <div style="font-size:0.62rem; color:#94a3b8;">P:88 | D:92 | W:85 • Tropic Pulse</div>
+              <div style="font-size:0.62rem; color:#94a3b8;">P:88 | D:92 | W:85 • HP: <strong id="clash-hp-text-elena" style="color:#34d399;">100/100</strong></div>
+              <div style="width:100%; height:5px; background:#1e293b; border-radius:3px; overflow:hidden;">
+                <div id="clash-hp-elena" style="width:100%; height:100%; background:#10b981; transition:width 0.25s ease;"></div>
+              </div>
               <div class="clash-btn-row">
-                <button class="clash-act-btn" style="background:#2563eb; color:#fff;" onclick="clashStrike('Elena')">Strike</button>
-                <button class="clash-act-btn" style="background:#d4af37; color:#000;" onclick="clashSkill('Elena', 3)">Skill (3)</button>
+                <button class="clash-act-btn" id="btn-clash-strike-elena" style="background:#2563eb; color:#fff;" onclick="clashStrike('Elena')">Strike</button>
+                <button class="clash-act-btn" id="btn-clash-skill-elena" style="background:#d4af37; color:#000;" onclick="clashSkill('Elena', 3)">Skill (3)</button>
               </div>
               <button class="clash-act-btn" style="background:#7c3aed; color:#fff;" onclick="openNexusCardAR('Elena')">🌐 3D AR Dossier</button>
             </div>
 
-            <div class="holo-card">
+            <div class="holo-card" id="van-card-wakan">
               <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:bold;">
                 <span>Wakan</span><span style="color:#34d399; font-size:0.62rem;">CARIBBEAN SENTINEL</span>
               </div>
               <div class="holo-img-box">
                 <img src="./wakan.png" alt="Wakan" onerror="this.src='./guacan-sheet.png'">
               </div>
-              <div style="font-size:0.62rem; color:#94a3b8;">P:89 | D:94 | W:92 • Tidal Pulse</div>
+              <div style="font-size:0.62rem; color:#94a3b8;">P:89 | D:94 | W:92 • HP: <strong id="clash-hp-text-wakan" style="color:#34d399;">110/110</strong></div>
+              <div style="width:100%; height:5px; background:#1e293b; border-radius:3px; overflow:hidden;">
+                <div id="clash-hp-wakan" style="width:100%; height:100%; background:#10b981; transition:width 0.25s ease;"></div>
+              </div>
               <div class="clash-btn-row">
-                <button class="clash-act-btn" style="background:#2563eb; color:#fff;" onclick="clashStrike('Wakan')">Strike</button>
-                <button class="clash-act-btn" style="background:#00d2ff; color:#000;" onclick="clashSkill('Wakan', 3)">Tide (3)</button>
+                <button class="clash-act-btn" id="btn-clash-strike-wakan" style="background:#2563eb; color:#fff;" onclick="clashStrike('Wakan')">Strike</button>
+                <button class="clash-act-btn" id="btn-clash-skill-wakan" style="background:#00d2ff; color:#000;" onclick="clashSkill('Wakan', 3)">Tide (3)</button>
               </div>
               <button class="clash-act-btn" style="background:#7c3aed; color:#fff;" onclick="openNexusCardAR('Wakan')">🌐 3D AR Dossier</button>
             </div>
 
-            <div class="holo-card">
+            <div class="holo-card" id="van-card-luetta">
               <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:bold;">
                 <span>Mother Luetta</span><span style="color:#fef08a; font-size:0.62rem;">LIVING CODEX</span>
               </div>
               <div class="holo-img-box">
                 <img src="./mother-luta.png" alt="Mother Luetta" onerror="this.src='./packed-marrow-tree.png'">
               </div>
-              <div style="font-size:0.62rem; color:#94a3b8;">P:60 | D:80 | W:100 • Resonance</div>
+              <div style="font-size:0.62rem; color:#94a3b8;">P:60 | D:80 | W:100 • HP: <strong id="clash-hp-text-luetta" style="color:#34d399;">115/115</strong></div>
+              <div style="width:100%; height:5px; background:#1e293b; border-radius:3px; overflow:hidden;">
+                <div id="clash-hp-luetta" style="width:100%; height:100%; background:#10b981; transition:width 0.25s ease;"></div>
+              </div>
               <div class="clash-btn-row">
-                <button class="clash-act-btn" style="background:#2563eb; color:#fff;" onclick="clashStrike('Mother Luetta')">Strike</button>
-                <button class="clash-act-btn" style="background:#ea580c; color:#fff;" onclick="clashSkill('Mother Luetta', 4)">Hearth (4)</button>
+                <button class="clash-act-btn" id="btn-clash-strike-luetta" style="background:#2563eb; color:#fff;" onclick="clashStrike('Mother Luetta')">Strike</button>
+                <button class="clash-act-btn" id="btn-clash-skill-luetta" style="background:#ea580c; color:#fff;" onclick="clashSkill('Mother Luetta', 4)">Hearth (4)</button>
               </div>
               <button class="clash-act-btn" style="background:#7c3aed; color:#fff;" onclick="openNexusCardAR('Mother Luetta')">🌐 3D AR Dossier</button>
             </div>
@@ -1186,13 +1217,13 @@
             <div class="clash-bench-item" onclick="openNexusCardAR('Kensei')">
               <img src="./shadow-kensei.png" alt="Kensei" onerror="this.src='./packed-marrow-tree.png'">
               <div style="color:#fef08a; font-weight:bold;">Kensei</div>
-              <div style="color:#94a3b8;">P:92 D:83</div>
+              <div style="color:#94a3b8;">P:92 D:83 W:91</div>
             </div>
           </div>
         </div>
 
-        <div id="clashLogBox" style="background:#05070a; border:1px solid #334155; border-radius:8px; padding:8px; font-size:0.68rem; color:#cbd5e1; max-height:84px; overflow-y:auto; text-align:left;">
-          Living Codex Card Clash ready inside the Vanguard Command Deck.
+        <div id="clashLogBox" style="background:#05070a; border:1px solid #334155; border-radius:8px; padding:8px; font-size:0.68rem; color:#cbd5e1; max-height:110px; overflow-y:auto; text-align:left; white-space:pre-line;">
+          Living Codex Card Clash ready. Tap any Syndicate card to target (Apex Volt has Taunt) or attack directly!
         </div>
 
         <div class="exit-footer">
@@ -1650,7 +1681,7 @@
     }
 
     const twoCardClashState = {
-      mode: 'ai', // 'ai' or '2p'
+      mode: 'ai',
       p1SelectedIdx: 0,
       p2SelectedIdx: 0,
       pendingP1Move: null,
@@ -1818,7 +1849,6 @@
         }
       }
 
-      // VS AI mode
       const aliveAiIndices = twoCardClashState.p2Cards
         .map((c, idx) => (c.hp > 0 ? idx : -1))
         .filter(idx => idx !== -1);
@@ -2471,56 +2501,258 @@
       persistSaveState(false);
     }
 
-    // --- CARD CLASH & 3D AR DOSSIER LOGIC ---
+    // --- CARD CLASH & 3D AR DOSSIER LOGIC (WITH FULL SYNDICATE AI RETALIATION) ---
     let clashMarrow = 5;
-    let clashSynHp = { apex: 115, null: 90, chrono: 95 };
+    let clashSynEnergy = 4;
+    let clashActionsLeft = 2;
+    let clashSelectedTarget = 'apex';
+    let clashMatchOver = false;
+
+    const clashSynState = {
+      apex:   { name: 'Apex Volt',   hp: 115, maxHp: 115, pwr: 94, def: 82, skillName: 'Arc-Grid Overload' },
+      null:   { name: 'Null-Byte',   hp: 90,  maxHp: 90,  pwr: 85, def: 74, skillName: 'Signal Breach' },
+      chrono: { name: 'Chrono-Lock', hp: 95,  maxHp: 95,  pwr: 72, def: 84, skillName: 'Temporal Static' }
+    };
+
+    const clashVanState = {
+      xochitl: { name: 'Xochitl',       hp: 105, maxHp: 105, pwr: 89, def: 78 },
+      elena:   { name: 'Elena',         hp: 100, maxHp: 100, pwr: 88, def: 92 },
+      wakan:   { name: 'Wakan',         hp: 110, maxHp: 110, pwr: 89, def: 94 },
+      luetta:  { name: 'Mother Luetta', hp: 115, maxHp: 115, pwr: 60, def: 80 }
+    };
+
+    const VAN_NAME_TO_KEY = {
+      'Xochitl': 'xochitl',
+      'Elena': 'elena',
+      'Wakan': 'wakan',
+      'Mother Luetta': 'luetta'
+    };
 
     function appendClashLog(msg) {
       const box = document.getElementById('clashLogBox');
       if (!box) return;
-      box.innerText += "\n" + msg;
-      box.scrollTop = box.scrollHeight;
+      box.innerText = msg + "\n" + box.innerText;
+      box.scrollTop = 0;
     }
 
-    function clashStrike(charName) {
+    function getActiveClashTargetKey() {
+      if (clashSynState.apex.hp > 0) return 'apex';
+      if (clashSelectedTarget && clashSynState[clashSelectedTarget] && clashSynState[clashSelectedTarget].hp > 0) {
+        return clashSelectedTarget;
+      }
+      return ['null', 'chrono'].find(k => clashSynState[k].hp > 0) || null;
+    }
+
+    function selectClashTarget(key) {
+      if (!clashSynState[key] || clashSynState[key].hp <= 0) return;
+      if (clashSynState.apex.hp > 0 && key !== 'apex') {
+        appendClashLog(`[Taunt] Apex Volt's Frontline Conduit forces your attacks onto him first!`);
+        clashSelectedTarget = 'apex';
+      } else {
+        clashSelectedTarget = key;
+        playSound('shield-up');
+      }
+      syncClashUI();
+    }
+
+    function syncClashUI() {
+      const mEl = document.getElementById('clashMarrowLabel');
+      const sEl = document.getElementById('clashSynEnergy');
+      const aEl = document.getElementById('clashActionsLeft');
+      if (mEl) mEl.innerText = clashMarrow;
+      if (sEl) sEl.innerText = clashSynEnergy;
+      if (aEl) aEl.innerText = `${clashActionsLeft} / 2`;
+
+      const activeTarget = getActiveClashTargetKey();
+      const tLabel = document.getElementById('clashTargetLabel');
+      if (tLabel) {
+        tLabel.innerText = activeTarget
+          ? `Target: ${clashSynState[activeTarget].name}${activeTarget === 'apex' ? ' (Taunt)' : ''}`
+          : 'All Syndicate Eliminated';
+      }
+
+      ['apex', 'null', 'chrono'].forEach(k => {
+        const unit = clashSynState[k];
+        const bar = document.getElementById(`clash-hp-${k}`);
+        const txt = document.getElementById(`clash-hp-text-${k}`);
+        const card = document.getElementById(`syn-card-${k}`);
+        if (bar) bar.style.width = `${Math.max(0, (unit.hp / unit.maxHp) * 100)}%`;
+        if (txt) txt.innerText = `${unit.hp}/${unit.maxHp}`;
+        if (card) {
+          card.classList.toggle('targeted', activeTarget === k && unit.hp > 0);
+          card.classList.toggle('ko', unit.hp <= 0);
+        }
+      });
+
+      ['xochitl', 'elena', 'wakan', 'luetta'].forEach(k => {
+        const unit = clashVanState[k];
+        const bar = document.getElementById(`clash-hp-${k}`);
+        const txt = document.getElementById(`clash-hp-text-${k}`);
+        const card = document.getElementById(`van-card-${k}`);
+        const strikeBtn = document.getElementById(`btn-clash-strike-${k}`);
+        const skillBtn = document.getElementById(`btn-clash-skill-${k}`);
+        if (bar) bar.style.width = `${Math.max(0, (unit.hp / unit.maxHp) * 100)}%`;
+        if (txt) txt.innerText = `${unit.hp}/${unit.maxHp}`;
+        if (card) card.classList.toggle('ko', unit.hp <= 0);
+        const disabled = unit.hp <= 0 || clashMatchOver;
+        if (strikeBtn) strikeBtn.disabled = disabled;
+        if (skillBtn) skillBtn.disabled = disabled;
+      });
+    }
+
+    function checkClashVictoryOrDefeat() {
+      const synAlive = Object.values(clashSynState).some(u => u.hp > 0);
+      const vanAlive = Object.values(clashVanState).some(u => u.hp > 0);
+      if (!synAlive) {
+        clashMatchOver = true;
+        addScore(150);
+        if (window.RFLDeckBridge) {
+          window.RFLDeckBridge.awardPoints(50, globalScore, "card_clash_victory");
+        }
+        playSound('transform');
+        appendClashLog(`🏆 [VICTORY] Ancestral Vanguard defeated The Iron Syndicate! +150 Legacy PTS & +50 Hub Merit PTS!`);
+        syncClashUI();
+        return true;
+      }
+      if (!vanAlive) {
+        clashMatchOver = true;
+        playSound('crash');
+        appendClashLog(`💀 [DEFEAT] The Iron Syndicate overwhelmed the Vanguard line. Tap Reset Match to battle again!`);
+        syncClashUI();
+        return true;
+      }
+      return false;
+    }
+
+    function executeSyndicateAITurn(reasonLabel = 'End Turn') {
+      if (clashMatchOver) return;
+      const aliveSyn = Object.keys(clashSynState).filter(k => clashSynState[k].hp > 0);
+      const aliveVan = Object.keys(clashVanState).filter(k => clashVanState[k].hp > 0);
+      if (aliveSyn.length === 0 || aliveVan.length === 0) return;
+
+      clashSynEnergy = Math.min(10, clashSynEnergy + 2);
+      const attackerKey = aliveSyn[Math.floor(Math.random() * aliveSyn.length)];
+      const attacker = clashSynState[attackerKey];
+
+      // Syndicate AI targets lowest-HP Vanguard operative for tactical pressure
+      aliveVan.sort((a, b) => clashVanState[a].hp - clashVanState[b].hp);
+      const victimKey = aliveVan[0];
+      const victim = clashVanState[victimKey];
+
+      const useSpecial = clashSynEnergy >= 3;
+      let dmg = 0;
+      if (useSpecial) {
+        clashSynEnergy -= 3;
+        dmg = Math.max(14, Math.round(attacker.pwr * 0.28 - victim.def * 0.06));
+        victim.hp = Math.max(0, victim.hp - dmg);
+        playSound('acoustic');
+        appendClashLog(`⚡ [Syndicate AI • ${reasonLabel}] ${attacker.name} unleashes ${attacker.skillName} (-3 Tech) on ${victim.name} for ${dmg} DMG (${victim.hp}/${victim.maxHp} HP)!`);
+      } else {
+        dmg = Math.max(10, Math.round(attacker.pwr * 0.21 - victim.def * 0.06));
+        victim.hp = Math.max(0, victim.hp - dmg);
+        playSound('crash');
+        appendClashLog(`🔴 [Syndicate AI • ${reasonLabel}] ${attacker.name} strikes ${victim.name} for ${dmg} DMG (${victim.hp}/${victim.maxHp} HP)!`);
+      }
+
+      clashMarrow = Math.min(10, clashMarrow + 3);
+      clashActionsLeft = 2;
+      syncClashUI();
+      checkClashVictoryOrDefeat();
+    }
+
+    function consumeClashPlayerAction() {
+      if (checkClashVictoryOrDefeat()) return;
+      clashActionsLeft = Math.max(0, clashActionsLeft - 1);
+      syncClashUI();
+      if (clashActionsLeft === 0) {
+        setTimeout(() => {
+          if (!clashMatchOver && clashActionsLeft === 0) {
+            executeSyndicateAITurn('Auto-Counter');
+          }
+        }, 420);
+      }
+    }
+
+    function clashStrike(charName, bonusDmg = 0) {
+      if (clashMatchOver) {
+        appendClashLog(`[Match Complete] Tap Reset Match to start a new Card Clash.`);
+        return;
+      }
+      const vanKey = VAN_NAME_TO_KEY[charName];
+      const attacker = vanKey ? clashVanState[vanKey] : null;
+      if (attacker && attacker.hp <= 0) {
+        appendClashLog(`[Downed] ${charName} is incapacitated for this match.`);
+        return;
+      }
+      const targetKey = getActiveClashTargetKey();
+      if (!targetKey) {
+        checkClashVictoryOrDefeat();
+        return;
+      }
+      const target = clashSynState[targetKey];
+      const baseDmg = attacker ? Math.max(12, Math.round(attacker.pwr * 0.24 - target.def * 0.05)) : 18;
+      const totalDmg = baseDmg + bonusDmg;
+
       playSound('beam');
       addScore(20);
-      if (clashSynHp.apex > 0) {
-        clashSynHp.apex = Math.max(0, clashSynHp.apex - 18);
-        document.getElementById('clash-hp-apex').style.width = (clashSynHp.apex / 115 * 100) + "%";
-        appendClashLog(`[Strike] ${charName} strikes Apex Volt for 18 DMG (${clashSynHp.apex}/115 HP).`);
-      } else if (clashSynHp.null > 0) {
-        clashSynHp.null = Math.max(0, clashSynHp.null - 20);
-        document.getElementById('clash-hp-null').style.width = (clashSynHp.null / 90 * 100) + "%";
-        appendClashLog(`[Strike] ${charName} strikes Null-Byte for 20 DMG (${clashSynHp.null}/90 HP).`);
-      } else if (clashSynHp.chrono > 0) {
-        clashSynHp.chrono = Math.max(0, clashSynHp.chrono - 22);
-        document.getElementById('clash-hp-chrono').style.width = (clashSynHp.chrono / 95 * 100) + "%";
-        appendClashLog(`[Strike] ${charName} strikes Chrono-Lock for 22 DMG (${clashSynHp.chrono}/95 HP).`);
-      } else {
-        appendClashLog(`[Victory] Syndicate line cleared! +100 bonus score.`);
-        addScore(100);
-      }
+      target.hp = Math.max(0, target.hp - totalDmg);
+      appendClashLog(`⚔️ [Strike] ${charName} hits ${target.name} for ${totalDmg} DMG (${target.hp}/${target.maxHp} HP).`);
+      syncClashUI();
+      consumeClashPlayerAction();
     }
 
     function clashSkill(charName, cost) {
+      if (clashMatchOver) {
+        appendClashLog(`[Match Complete] Tap Reset Match to start a new Card Clash.`);
+        return;
+      }
+      const vanKey = VAN_NAME_TO_KEY[charName];
+      const attacker = vanKey ? clashVanState[vanKey] : null;
+      if (attacker && attacker.hp <= 0) {
+        appendClashLog(`[Downed] ${charName} is incapacitated for this match.`);
+        return;
+      }
       if (clashMarrow < cost) {
-        appendClashLog(`[Alert] Need ${cost} Marrow for ${charName}'s skill.`);
+        appendClashLog(`[Alert] Need ${cost} Marrow for ${charName}'s skill (Current: ${clashMarrow}).`);
         return;
       }
       clashMarrow -= cost;
-      document.getElementById('clashMarrowLabel').innerText = clashMarrow;
       addScore(35);
-      appendClashLog(`[Skill] ${charName} activates signature surge (-${cost} Marrow).`);
-      clashStrike(charName);
+
+      if (charName === 'Mother Luetta') {
+        Object.values(clashVanState).forEach(v => {
+          if (v.hp > 0) v.hp = Math.min(v.maxHp, v.hp + 18);
+        });
+        playSound('heal');
+        appendClashLog(`🌟 [Living Codex Hearth] Mother Luetta (-${cost} Marrow) restores +18 HP to all active Vanguard heroes & blasts the Syndicate!`);
+        clashStrike(charName, 10);
+        return;
+      }
+
+      appendClashLog(`✨ [Signature Surge] ${charName} channels (-${cost} Marrow) for +14 bonus surge damage!`);
+      clashStrike(charName, 14);
     }
 
     function clashEndTurn() {
-      clashMarrow = Math.min(10, clashMarrow + 3);
-      document.getElementById('clashMarrowLabel').innerText = clashMarrow;
+      if (clashMatchOver) {
+        resetFullCardClash();
+        return;
+      }
       addScore(15);
+      executeSyndicateAITurn('End Turn');
+    }
+
+    function resetFullCardClash() {
+      clashMarrow = 5;
+      clashSynEnergy = 4;
+      clashActionsLeft = 2;
+      clashSelectedTarget = 'apex';
+      clashMatchOver = false;
+      Object.values(clashSynState).forEach(u => { u.hp = u.maxHp; });
+      Object.values(clashVanState).forEach(u => { u.hp = u.maxHp; });
       playSound('transform');
-      appendClashLog(`--- Turn Complete: Marrow replenished to ${clashMarrow} ---`);
+      syncClashUI();
+      appendClashLog(`🔄 [Arena Reset] Both Vanguard and Iron Syndicate squads restored to full HP!`);
     }
 
     const nexusCardQuotes = {
@@ -2621,6 +2853,7 @@
       renderCodexGallery();
       renderHubKotdFlipGrid();
       renderTwoCardArena();
+      syncClashUI();
       updatePrestigeUI();
       applySectorMood('globe3d');
       speakText("Control deck online. Mother Luetta has new sector orders.", "deck-init", 5000);
@@ -2717,7 +2950,7 @@
       } else if (target === 'brawler') {
         initBrawlerEngine();
       } else if (target === 'clash') {
-        document.getElementById('clashMarrowLabel').innerText = clashMarrow;
+        syncClashUI();
         speakText("Living Codex Card Clash active.", "portal-clash", 3000);
       }
     }
@@ -6821,10 +7054,3 @@
         }
 
         if (isGamePaused) drawPauseOverlay(ctx, canvas);
-        activeBrawlerId = requestAnimationFrame(brawlerLoop);
-      }
-      brawlerLoop();
-    }
-  </script>
-</body>
-</html>
