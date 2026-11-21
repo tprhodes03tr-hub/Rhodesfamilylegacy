@@ -319,6 +319,79 @@
             display: block;
             background: #000;
         }
+
+        /* CROSSWORD & RACK STYLES */
+        .word-board-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 3px;
+            max-width: 450px;
+            margin: 10px auto;
+            background: #050811;
+            padding: 8px;
+            border-radius: 10px;
+            border: 2px solid var(--accent-blue);
+        }
+        .word-cell {
+            aspect-ratio: 1 / 1;
+            background: #0f172a;
+            border: 1px solid rgba(102, 252, 241, 0.28);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.95rem;
+            color: #f8fafc;
+            cursor: pointer;
+            position: relative;
+        }
+        .word-cell.bonus-2l { background: rgba(56, 189, 248, 0.16); border-color: #38bdf8; }
+        .word-cell.bonus-2w { background: rgba(255, 123, 0, 0.18); border-color: #ff7b00; }
+        .word-cell.bonus-3w { background: rgba(255, 0, 85, 0.22); border-color: #ff0055; }
+        .word-cell.placed-draft {
+            background: #1e293b;
+            border: 2px solid #ffd700;
+            color: #ffd700;
+        }
+        .word-rack {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 10px auto;
+        }
+        .letter-tile {
+            width: 44px;
+            height: 48px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 2px solid #ff7b00;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.05rem;
+            color: #fef08a;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 123, 0, 0.35);
+        }
+        .letter-tile.selected {
+            border-color: #66fcf1;
+            box-shadow: 0 0 16px rgba(102, 252, 241, 0.75);
+            transform: translateY(-3px);
+        }
+        .pattern-chip {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin: 0 3px;
+            border: 1px solid rgba(255,255,255,0.25);
+        }
+
         .hidden { display: none !important; }
 
         @media (max-width: 768px) {
@@ -330,6 +403,9 @@
                 flex-direction: row;
                 justify-content: space-around;
                 align-items: center;
+            }
+            .word-board-grid {
+                max-width: 100%;
             }
         }
     </style>
@@ -343,6 +419,9 @@
             <button class="tab-btn" onclick="switchApp('vanguard', event)">⚡ VANGUARD TYCOON</button>
             <button class="tab-btn" onclick="switchApp('bingo', event)">🎯 BINGO LOUNGE</button>
             <button class="tab-btn" onclick="switchApp('marrowdeck', event)">🎴 MARROW DECK</button>
+            <button class="tab-btn" onclick="switchApp('wordgame', event)">📝 MARROW WORDS</button>
+            <button class="tab-btn" onclick="switchApp('nexusboard', event)">🛰️ NEXUS GRID BOARD</button>
+            <button class="tab-btn" onclick="switchApp('bubblepop', event)">🫧 BUBBLE POP</button>
         </div>
         <div style="margin-top: 6px; display: flex; justify-content: center; gap: 10px; align-items: center; flex-wrap: wrap;">
             <a href="index.html" style="background: #111827; color: #66fcf1; border: 1px solid #45a29e; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; text-decoration: none;">← HUB</a>
@@ -609,6 +688,97 @@
         </div>
     </div>
 
+    <!-- 6. MARROW CROSSWORD / TILE WORD GAME -->
+    <div id="wordgame-view" class="app-container hidden">
+        <div class="players-scoreboard">
+            <div class="player-card active-turn">
+                <div style="font-weight: bold; color: var(--accent-orange);">YOU (<span id="wg-player-label">Tommy</span>)</div>
+                <div style="font-size: 1.1rem; font-weight: bold; color: #fef08a;"><span id="wg-you-score">158</span> PTS</div>
+            </div>
+            <div class="player-card">
+                <div style="font-weight: bold; color: var(--accent-blue);">RIVAL (<span id="wg-rival-label">Angela / Bot</span>)</div>
+                <div style="font-size: 1.1rem; font-weight: bold; color: #66fcf1;"><span id="wg-rival-score">145</span> PTS</div>
+            </div>
+        </div>
+
+        <div class="reserves-banner" style="border-color: var(--accent-blue);">
+            <span id="wg-draft-readout" style="color: var(--accent-blue);">Tap a tile in your rack, then tap a grid square to build words!</span>
+            <span style="color: #ffd700; font-size: 0.78rem;">Bonus Words: MARROW • LEGACY • VANGUARD • RHODES • WAKAN • MARCUS</span>
+        </div>
+
+        <div id="word-grid-el" class="word-board-grid"></div>
+        <div id="word-rack-el" class="word-rack"></div>
+
+        <div id="log-box-wg" style="margin-top: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 8px; height: 38px; overflow-y: auto; font-size: 0.78rem; color: #a0aec0;">
+            Place letters onto the crossword grid and press SUBMIT WORD to score points!
+        </div>
+
+        <div class="controls">
+            <button class="ctrl-btn secondary" onclick="submitWordPlay()">✅ SUBMIT WORD</button>
+            <button class="ctrl-btn" onclick="recallDraftTiles()">↩️ RECALL TILES</button>
+            <button class="ctrl-btn purple" onclick="shuffleWordRack()">🔀 SHUFFLE RACK</button>
+            <button class="ctrl-btn danger" onclick="initWordGame()">🔄 NEW BOARD</button>
+        </div>
+    </div>
+
+    <!-- 7. HIGH-TECH NEXUS GRID BOARD GAME -->
+    <div id="nexusboard-view" class="app-container hidden">
+        <div class="reserves-banner" style="border-color: #38bdf8;">
+            <span style="color: #38bdf8;">🛰️ MARROW NEXUS TACTICAL CONQUEST BOARD</span>
+            <span style="color: #ffd700;">RESONANCE: <span id="nb-resonance">120</span> MR | ROUND: <span id="nb-round">1</span></span>
+        </div>
+
+        <div class="players-scoreboard">
+            <div class="player-card active-turn" style="border-color: #66fcf1;">
+                <div style="font-weight: bold; color: #66fcf1;">🛡️ VANGUARD SQUAD</div>
+                <div>Sectors Controlled: <strong id="nb-v-sectors">2</strong> / 8</div>
+            </div>
+            <div class="player-card" style="border-color: #ff0055;">
+                <div style="font-weight: bold; color: #ff0055;">⚔️ SYNDICATE GRID</div>
+                <div>Sectors Controlled: <strong id="nb-s-sectors">2</strong> / 8</div>
+            </div>
+        </div>
+
+        <canvas id="nexusBoardCanvas" width="900" height="440" onclick="handleNexusBoardClick(event)"></canvas>
+
+        <div id="log-box-nb" style="margin-top: 8px; background: var(--bg-dark); border: 1px solid #38bdf8; padding: 6px 10px; border-radius: 8px; height: 38px; overflow-y: auto; font-size: 0.78rem; color: #a0aec0;">
+            Roll Tactical Dice or tap any Sector node on the board to claim, fortify, or pulse Marrow Resonance!
+        </div>
+
+        <div class="controls">
+            <button class="ctrl-btn" onclick="rollNexusBoardTurn()">🎲 ROLL TACTICAL DICE</button>
+            <button class="ctrl-btn secondary" onclick="pulseSelectedSector()">⚡ MARROW PULSE (30 MR)</button>
+            <button class="ctrl-btn danger" onclick="initNexusBoardGame()">🔄 RESET BOARD</button>
+        </div>
+    </div>
+
+    <!-- 8. TIMED COLOR PATTERN BUBBLE POP GAME -->
+    <div id="bubblepop-view" class="app-container hidden">
+        <div class="reserves-banner" style="border-color: #f472b6;">
+            <span style="color: #f472b6;">🫧 RESONANCE BUBBLE PATTERN POP</span>
+            <span>
+                ⏱️ TIME: <strong id="bp-timer" style="color: #fef08a;">45s</strong> •
+                SCORE: <strong id="bp-score" style="color: #66fcf1;">0</strong> •
+                STREAK: <strong id="bp-streak" style="color: #2ecc71;">0</strong>
+            </span>
+        </div>
+
+        <div id="bp-pattern-bar" style="background: var(--bg-dark); border: 1px solid rgba(244, 114, 182, 0.5); padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; text-align: center; font-size: 0.85rem;">
+            Target Pattern: <span id="bp-pattern-chips"></span>
+        </div>
+
+        <canvas id="bubbleCanvas" width="900" height="420" onclick="handleBubbleCanvasClick(event)"></canvas>
+
+        <div id="log-box-bp" style="margin-top: 8px; background: var(--bg-dark); border: 1px solid #f472b6; padding: 6px 10px; border-radius: 8px; height: 38px; overflow-y: auto; font-size: 0.78rem; color: #a0aec0;">
+            Pop bubbles matching the Target Pattern in order before the timer hits 0s!
+        </div>
+
+        <div class="controls">
+            <button class="ctrl-btn secondary" onclick="startBubblePopGame()">▶️ START / NEW ROUND</button>
+            <button class="ctrl-btn purple" onclick="cycleBubblePattern()">🎨 NEW PATTERN</button>
+        </div>
+    </div>
+
     <!-- HOLOGRAPHIC 3D PROPERTY DEED MODAL -->
     <div id="ar-modal" class="hidden">
         <div class="ar-card">
@@ -663,7 +833,10 @@
                     vanguardTycoon: 0,
                     vanguardGames: 0,
                     bingoLounge: 0,
-                    marrowDeck: 0
+                    marrowDeck: 0,
+                    marrowWords: 0,
+                    nexusBoard: 0,
+                    bubblePop: 0
                 },
                 points: 0,
                 lastVisit: new Date().toISOString()
@@ -821,6 +994,8 @@
         if (!isVoiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     }
 
+    let tetrisInterval = null;
+
     function switchApp(appKey, evt) {
         document.querySelectorAll('.app-container').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -842,8 +1017,20 @@
         } else if(appKey === 'marrowdeck') {
             document.getElementById('marrowdeck-view').classList.remove('hidden');
             initMarrowDeckGame();
+        } else if(appKey === 'wordgame') {
+            document.getElementById('wordgame-view').classList.remove('hidden');
+            if (!wordGrid.length) initWordGame();
+            else renderWordGameUI();
+        } else if(appKey === 'nexusboard') {
+            document.getElementById('nexusboard-view').classList.remove('hidden');
+            if (!nexusSectors.length) initNexusBoardGame();
+            else drawNexusBoard();
+        } else if(appKey === 'bubblepop') {
+            document.getElementById('bubblepop-view').classList.remove('hidden');
+            if (!bubblesList.length) startBubblePopGame();
+            else drawBubblesScene();
         }
-        evt.target.classList.add('active');
+        if (evt && evt.target) evt.target.classList.add('active');
     }
 
     function logTycoon(msg) {
@@ -853,7 +1040,7 @@
         speakGameEvent(msg);
     }
 
-    // --- CANVAS & FAMILY SPRITE SETUP ---
+    // --- CANVAS & FAMILY SPRITE SETUP (LOCKED IN WITH CREST FALLBACK) ---
     let tCanvas, tCtx;
     let vCanvas, vCtx;
     let familyTreeImg = new Image();
@@ -861,7 +1048,32 @@
     familyTreeImg.onload = () => {
         drawTycoonBoard();
         drawVanguardBoard();
+        drawNexusBoard();
     };
+
+    function drawFamilyCrestSprite(targetCtx, cx, cy, w, h, glowColor) {
+        targetCtx.save();
+        targetCtx.shadowColor = glowColor || '#ffd700';
+        targetCtx.shadowBlur = 22;
+        if (familyTreeImg && familyTreeImg.complete && familyTreeImg.naturalWidth !== 0) {
+            targetCtx.drawImage(familyTreeImg, cx - w / 2, cy - h / 2, w, h);
+        } else {
+            // Golden Double-Helix Tree of Life crest fallback so the emblem is never blank
+            targetCtx.fillStyle = '#ffd700';
+            targetCtx.beginPath();
+            targetCtx.arc(cx, cy, Math.min(w, h) * 0.34, 0, Math.PI * 2);
+            targetCtx.fill();
+            targetCtx.strokeStyle = '#66fcf1';
+            targetCtx.lineWidth = 2.5;
+            targetCtx.beginPath();
+            targetCtx.moveTo(cx - 12, cy - 16);
+            targetCtx.bezierCurveTo(cx + 16, cy - 4, cx - 16, cy + 8, cx + 12, cy + 18);
+            targetCtx.moveTo(cx + 12, cy - 16);
+            targetCtx.bezierCurveTo(cx - 16, cy - 4, cx + 16, cy + 8, cx - 12, cy + 18);
+            targetCtx.stroke();
+        }
+        targetCtx.restore();
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
         tCanvas = document.getElementById('tycoonCanvas');
@@ -881,7 +1093,6 @@
         if(savedRoom) document.getElementById('room-code-input').value = savedRoom;
         if(savedMode) document.getElementById('game-mode-select').value = savedMode;
 
-        // Apply starting Legacy Perks bonus ME/VC if earned
         try {
             if (window.RFLGameHooks) {
                 var perks = window.RFLGameHooks.getActivePerks();
@@ -896,6 +1107,9 @@
         applyProfileSettings();
         drawTycoonBoard();
         drawVanguardBoard();
+        initWordGame();
+        initNexusBoardGame();
+        startBubblePopGame();
     });
 
     // --- COMPOUND WORD-CODE GENERATOR ---
@@ -942,6 +1156,9 @@
             tycoonGame.p2Token = tokenVal;
             if(tycoonGame.p1Token === tokenVal) tycoonGame.p1Token = "🔵";
         }
+
+        const wgLabel = document.getElementById('wg-player-label');
+        if (wgLabel) wgLabel.innerText = nameVal;
 
         updateUIFunds();
     }
@@ -1364,22 +1581,7 @@
         let cx = tCanvas.width / 2;
         let cy = tCanvas.height / 2;
 
-        // --- DRAW EXACT FAMILY SPRITE (packed-marrow-tree.png) ---
-        tCtx.save();
-        tCtx.shadowColor = '#ffd700';
-        tCtx.shadowBlur = 20;
-
-        let imgW = 110;
-        let imgH = 110;
-        if(familyTreeImg.complete && familyTreeImg.naturalWidth !== 0) {
-            tCtx.drawImage(familyTreeImg, cx - imgW/2, cy - 85, imgW, imgH);
-        } else {
-            tCtx.fillStyle = '#ffd700';
-            tCtx.beginPath();
-            tCtx.arc(cx, cy - 35, 38, 0, Math.PI * 2);
-            tCtx.fill();
-        }
-        tCtx.restore();
+        drawFamilyCrestSprite(tCtx, cx, cy - 30, 110, 110, '#ffd700');
 
         tCtx.font = "bold 14px Courier New";
         tCtx.fillStyle = "#66fcf1";
@@ -1587,35 +1789,6 @@
         }
     }
 
-    function triggerAiTurn() {
-        let aiRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
-        let oldPos = tycoonGame.p2Position;
-        tycoonGame.p2Position = (tycoonGame.p2Position + aiRoll) % tycoonGame.tiles.length;
-        if(tycoonGame.p2Position < oldPos) tycoonGame.p2Funds += 200;
-
-        let tile = tycoonGame.tiles[tycoonGame.p2Position];
-        logTycoon(`Bot 101 rolled ${aiRoll} and landed on ${tile.name}.`);
-
-        if(tile.owner === "None" && tile.cost > 0 && tycoonGame.p2Funds >= tile.cost) {
-            tycoonGame.p2Funds -= tile.cost;
-            tile.owner = tycoonGame.p2Name;
-            logTycoon(`Bot 101 purchased ${tile.name}!`);
-        } else if(tile.owner !== "None" && tile.owner !== tycoonGame.p2Name && !tile.isMortgaged) {
-            let payableRent = tile.rent;
-            if(hasColorMonopoly(tile.owner, tile.color)) payableRent *= 2;
-
-            let success = checkTycoonBankruptcy(false, payableRent, tile.owner);
-            if (success) {
-                if (tile.owner === tycoonGame.p1Name) tycoonGame.funds += payableRent;
-                logTycoon(`Bot 101 paid rent of ${payableRent} ME to ${tile.owner}!`);
-            }
-        }
-
-        updateUIFunds();
-        drawTycoonBoard();
-    }
-
-
     // --- CHRONO-GRID TETRIS ---
     let tCanvasEl, tCtxEl, nextCanvasEl, nextCtxEl;
     const BLOCK_SZ = 22;
@@ -1625,7 +1798,6 @@
     let tetrisScore = 0;
     let tetrisMarrow = 0;
     let tetrisLevel = 1;
-    let tetrisInterval = null;
     let isTetrisPaused = false;
 
     const SHAPES = [
@@ -1934,12 +2106,6 @@
     };
     let vTileRects = [];
 
-    window.addEventListener('DOMContentLoaded', () => {
-        vCanvas = document.getElementById('vanguardCanvas');
-        if (vCanvas) vCtx = vCanvas.getContext('2d');
-        drawVanguardBoard();
-    });
-
     function logVanguard(msg) {
         const box = document.getElementById('log-box-v');
         if(box) {
@@ -2109,22 +2275,7 @@
         let cx = vCanvas.width / 2;
         let cy = vCanvas.height / 2;
 
-        // --- DRAW EXACT FAMILY SPRITE (packed-marrow-tree.png) IN VANGUARD HUB ---
-        vCtx.save();
-        vCtx.shadowColor = '#ffd700';
-        vCtx.shadowBlur = 20;
-
-        let imgW = 110;
-        let imgH = 110;
-        if(familyTreeImg.complete && familyTreeImg.naturalWidth !== 0) {
-            vCtx.drawImage(familyTreeImg, cx - imgW/2, cy - 85, imgW, imgH);
-        } else {
-            vCtx.fillStyle = '#ffd700';
-            vCtx.beginPath();
-            vCtx.arc(cx, cy - 35, 38, 0, Math.PI * 2);
-            vCtx.fill();
-        }
-        vCtx.restore();
+        drawFamilyCrestSprite(vCtx, cx, cy - 30, 110, 110, '#ffd700');
 
         vCtx.font = "bold 14px Courier New";
         vCtx.fillStyle = "#ff0055";
@@ -2174,7 +2325,6 @@
             setTimeout(() => {
                 document.getElementById('dice-modal').classList.add('hidden');
                 
-                // 1. HERO TURN
                 if (vanguardGame.myRole === 'p1' || vanguardGame.gameMode === 'ai') {
                     let oldPos = vanguardGame.position;
                     vanguardGame.position = (vanguardGame.position + roll) % vanguardGame.tiles.length;
@@ -2196,7 +2346,6 @@
                     }
                 }
 
-                // 2. AUTOMATED AI RIVAL TURN (if in AI mode)
                 if(vanguardGame.gameMode === 'ai') {
                     setTimeout(() => {
                         let aiRoll = Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2;
@@ -2388,14 +2537,7 @@
                 bCtx.restore();
 
                 if(cell.isCenter) {
-                    bCtx.fillStyle = '#ff7b00';
-                    bCtx.beginPath();
-                    bCtx.arc(x + cellW/2, y + cellH/2 - 5, 22, 0, Math.PI * 2);
-                    bCtx.fill();
-                    bCtx.fillStyle = '#66fcf1';
-                    bCtx.font = 'bold 18px Courier New';
-                    bCtx.textAlign = 'center';
-                    bCtx.fillText("🌳", x + cellW/2, y + cellH/2 + 3);
+                    drawFamilyCrestSprite(bCtx, x + cellW/2, y + cellH/2, 46, 46, '#ffd700');
                 } else {
                     bCtx.fillStyle = cell.stamped ? '#ff7b00' : '#f0f2f5';
                     bCtx.font = bingoMode === 'traditional' ? 'bold 20px Courier New' : 'bold 11px Courier New';
@@ -2667,6 +2809,567 @@
             box.innerHTML += `<br>&gt; ${msg}`;
             box.scrollTop = box.scrollHeight;
         }
+    }
+
+
+    // --- 6. MARROW CROSSWORD / TILE WORD GAME ---
+    const WG_SIZE = 9;
+    const WG_BONUS_WORDS = ["MARROW", "LEGACY", "VANGUARD", "RHODES", "WAKAN", "MARCUS", "CLAN", "CREST", "SOIL", "TREE", "STAR", "GOLD", "IRON"];
+    const LETTER_POINTS = { A:1, B:3, C:3, D:2, E:1, F:4, G:2, H:4, I:1, J:8, K:5, L:1, M:3, N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:4, W:4, X:8, Y:4, Z:10 };
+    let wordGrid = [];
+    let wordRack = [];
+    let selectedRackIdx = null;
+    let wgYouScore = 158;
+    let wgRivalScore = 145;
+
+    function logWordGame(msg) {
+        const box = document.getElementById('log-box-wg');
+        if (box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
+        speakGameEvent(msg);
+    }
+
+    function getTileBonusType(r, c) {
+        if ((r === 0 || r === 8) && (c === 0 || c === 8 || c === 4)) return '3w';
+        if (r === 4 && c === 4) return '2w';
+        if ((r === 2 || r === 6) && (c === 2 || c === 6)) return '2l';
+        return null;
+    }
+
+    function initWordGame() {
+        wordGrid = Array(WG_SIZE).fill(null).map((_, r) =>
+            Array(WG_SIZE).fill(null).map((__, c) => ({
+                letter: null,
+                pts: 0,
+                locked: false,
+                draftRackIdx: null,
+                bonus: getTileBonusType(r, c)
+            }))
+        );
+
+        // Seed initial family word anchor in center
+        const seedWord = "MARROW";
+        for (let i = 0; i < seedWord.length; i++) {
+            const ch = seedWord[i];
+            wordGrid[4][1 + i].letter = ch;
+            wordGrid[4][1 + i].pts = LETTER_POINTS[ch] || 1;
+            wordGrid[4][1 + i].locked = true;
+        }
+
+        wordRack = [];
+        shuffleWordRack(true);
+        renderWordGameUI();
+    }
+
+    function shuffleWordRack(freshDraw) {
+        const pool = "AEIOURSTLNMDGCHPWY";
+        if (freshDraw || wordRack.length < 7) {
+            const needed = 7 - wordRack.length;
+            for (let i = 0; i < needed; i++) {
+                const ch = pool[Math.floor(Math.random() * pool.length)];
+                wordRack.push({ letter: ch, pts: LETTER_POINTS[ch] || 1, used: false });
+            }
+        } else {
+            wordRack.sort(() => Math.random() - 0.5);
+        }
+        selectedRackIdx = null;
+        renderWordGameUI();
+    }
+
+    function recallDraftTiles() {
+        for (let r = 0; r < WG_SIZE; r++) {
+            for (let c = 0; c < WG_SIZE; c++) {
+                const cell = wordGrid[r][c];
+                if (!cell.locked && cell.letter) {
+                    if (cell.draftRackIdx !== null && wordRack[cell.draftRackIdx]) {
+                        wordRack[cell.draftRackIdx].used = false;
+                    }
+                    cell.letter = null;
+                    cell.pts = 0;
+                    cell.draftRackIdx = null;
+                }
+            }
+        }
+        selectedRackIdx = null;
+        renderWordGameUI();
+    }
+
+    function handleWordCellClick(r, c) {
+        const cell = wordGrid[r][c];
+        if (cell.locked) return;
+
+        if (!cell.locked && cell.letter) {
+            if (cell.draftRackIdx !== null && wordRack[cell.draftRackIdx]) {
+                wordRack[cell.draftRackIdx].used = false;
+            }
+            cell.letter = null;
+            cell.pts = 0;
+            cell.draftRackIdx = null;
+            renderWordGameUI();
+            return;
+        }
+
+        if (selectedRackIdx !== null && wordRack[selectedRackIdx] && !wordRack[selectedRackIdx].used) {
+            const t = wordRack[selectedRackIdx];
+            t.used = true;
+            cell.letter = t.letter;
+            cell.pts = t.pts;
+            cell.draftRackIdx = selectedRackIdx;
+            selectedRackIdx = null;
+            renderWordGameUI();
+        }
+    }
+
+    function submitWordPlay() {
+        let placed = [];
+        for (let r = 0; r < WG_SIZE; r++) {
+            for (let c = 0; c < WG_SIZE; c++) {
+                if (!wordGrid[r][c].locked && wordGrid[r][c].letter) {
+                    placed.push({ r, c, letter: wordGrid[r][c].letter, pts: wordGrid[r][c].pts, bonus: wordGrid[r][c].bonus });
+                }
+            }
+        }
+
+        if (placed.length === 0) {
+            logWordGame("Place at least 1 tile on the grid before submitting!");
+            return;
+        }
+
+        let turnPts = 0;
+        let wordMult = 1;
+        let formedStr = placed.map(p => p.letter).join("");
+
+        placed.forEach(p => {
+            let lp = p.pts;
+            if (p.bonus === '2l') lp *= 2;
+            if (p.bonus === '2w') wordMult *= 2;
+            if (p.bonus === '3w') wordMult *= 3;
+            turnPts += lp;
+            wordGrid[p.r][p.c].locked = true;
+            wordGrid[p.r][p.c].draftRackIdx = null;
+        });
+
+        turnPts = (turnPts + placed.length * 4) * wordMult;
+        const isLegacyMatch = WG_BONUS_WORDS.some(w => formedStr.includes(w) || w.includes(formedStr));
+        if (isLegacyMatch) turnPts += 20;
+
+        wgYouScore += turnPts;
+        document.getElementById('wg-you-score').innerText = wgYouScore;
+
+        // Rival bot response move
+        const botGain = 14 + Math.floor(Math.random() * 14);
+        wgRivalScore += botGain;
+        document.getElementById('wg-rival-score').innerText = wgRivalScore;
+
+        if (window.RFLGameHooks) {
+            window.RFLGameHooks.onTycoonTurnOrMatch(Math.min(50, Math.max(20, Math.floor(turnPts / 2))), wgYouScore);
+        }
+
+        wordRack = wordRack.filter(t => !t.used);
+        shuffleWordRack(true);
+        logWordGame(`Scored +${turnPts} pts${isLegacyMatch ? " (Legacy Word Bonus!)" : ""}! Rival scored +${botGain}.`);
+        renderWordGameUI();
+    }
+
+    function renderWordGameUI() {
+        const gridEl = document.getElementById('word-grid-el');
+        const rackEl = document.getElementById('word-rack-el');
+        const draftEl = document.getElementById('wg-draft-readout');
+        if (!gridEl || !rackEl) return;
+
+        gridEl.innerHTML = "";
+        let draftLetters = "";
+
+        for (let r = 0; r < WG_SIZE; r++) {
+            for (let c = 0; c < WG_SIZE; c++) {
+                const cell = wordGrid[r][c];
+                const div = document.createElement('div');
+                div.className = "word-cell";
+                if (!cell.letter && cell.bonus) div.classList.add("bonus-" + cell.bonus);
+                if (!cell.locked && cell.letter) {
+                    div.classList.add("placed-draft");
+                    draftLetters += cell.letter;
+                }
+                if (cell.letter) {
+                    div.innerHTML = `<span>${cell.letter}</span><span style="position:absolute;bottom:1px;right:3px;font-size:0.55rem;color:#94a3b8;">${cell.pts}</span>`;
+                } else if (cell.bonus) {
+                    div.innerHTML = `<span style="font-size:0.65rem;color:#cbd5e1;">${cell.bonus.toUpperCase()}</span>`;
+                }
+                div.onclick = () => handleWordCellClick(r, c);
+                gridEl.appendChild(div);
+            }
+        }
+
+        if (draftEl) {
+            draftEl.innerText = draftLetters
+                ? `Placed Tiles: ${draftLetters} — Tap SUBMIT WORD to lock in!`
+                : "Tap a tile in your rack, then tap a grid square to build words!";
+        }
+
+        rackEl.innerHTML = "";
+        wordRack.forEach((t, idx) => {
+            if (t.used) return;
+            const btn = document.createElement('div');
+            btn.className = "letter-tile" + (selectedRackIdx === idx ? " selected" : "");
+            btn.innerHTML = `<span>${t.letter}</span><span style="font-size:0.6rem;color:#66fcf1;">${t.pts}</span>`;
+            btn.onclick = () => {
+                selectedRackIdx = (selectedRackIdx === idx) ? null : idx;
+                renderWordGameUI();
+            };
+            rackEl.appendChild(btn);
+        });
+    }
+
+
+    // --- 7. HIGH-TECH NEXUS GRID BOARD GAME ---
+    let nbCanvas, nbCtx;
+    let nexusSectors = [];
+    let selectedSectorIdx = 0;
+    let nbResonance = 120;
+    let nbRound = 1;
+
+    function logNexusBoard(msg) {
+        const box = document.getElementById('log-box-nb');
+        if (box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
+        speakGameEvent(msg);
+    }
+
+    function initNexusBoardGame() {
+        nbCanvas = document.getElementById('nexusBoardCanvas');
+        nbCtx = nbCanvas ? nbCanvas.getContext('2d') : null;
+        nbResonance = 120;
+        nbRound = 1;
+        selectedSectorIdx = 0;
+
+        nexusSectors = [
+            { name: "Detroit '313", x: 170, y: 120, owner: "VANGUARD", level: 2, yieldMR: 25 },
+            { name: "Wacon Trench", x: 360, y: 100, owner: "VANGUARD", level: 1, yieldMR: 20 },
+            { name: "Quisqueya Coast", x: 550, y: 100, owner: "NEUTRAL",  level: 1, yieldMR: 25 },
+            { name: "Cane River", x: 730, y: 130, owner: "NEUTRAL",  level: 1, yieldMR: 20 },
+            { name: "Yazoo Ridge", x: 170, y: 315, owner: "NEUTRAL",  level: 1, yieldMR: 20 },
+            { name: "Saginaw Foundry", x: 360, y: 340, owner: "SYNDICATE", level: 1, yieldMR: 25 },
+            { name: "Chrono Spire", x: 550, y: 340, owner: "SYNDICATE", level: 2, yieldMR: 30 },
+            { name: "Marrow Core", x: 730, y: 310, owner: "NEUTRAL",  level: 1, yieldMR: 35 }
+        ];
+
+        updateNexusBoardStats();
+        drawNexusBoard();
+    }
+
+    function updateNexusBoardStats() {
+        const vCount = nexusSectors.filter(s => s.owner === "VANGUARD").length;
+        const sCount = nexusSectors.filter(s => s.owner === "SYNDICATE").length;
+        const vEl = document.getElementById('nb-v-sectors');
+        const sEl = document.getElementById('nb-s-sectors');
+        const rEl = document.getElementById('nb-resonance');
+        const rndEl = document.getElementById('nb-round');
+        if (vEl) vEl.innerText = vCount;
+        if (sEl) sEl.innerText = sCount;
+        if (rEl) rEl.innerText = nbResonance;
+        if (rndEl) rndEl.innerText = nbRound;
+    }
+
+    function drawNexusBoard() {
+        if (!nbCtx) return;
+        nbCtx.clearRect(0, 0, nbCanvas.width, nbCanvas.height);
+
+        nbCtx.strokeStyle = 'rgba(56, 189, 248, 0.14)';
+        nbCtx.lineWidth = 1;
+        for (let x = 0; x < nbCanvas.width; x += 30) {
+            nbCtx.beginPath(); nbCtx.moveTo(x, 0); nbCtx.lineTo(x, nbCanvas.height); nbCtx.stroke();
+        }
+        for (let y = 0; y < nbCanvas.height; y += 30) {
+            nbCtx.beginPath(); nbCtx.moveTo(0, y); nbCtx.lineTo(nbCanvas.width, y); nbCtx.stroke();
+        }
+
+        // Orbital data links between sectors
+        nbCtx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
+        nbCtx.lineWidth = 2;
+        for (let i = 0; i < nexusSectors.length; i++) {
+            const a = nexusSectors[i];
+            const b = nexusSectors[(i + 1) % nexusSectors.length];
+            nbCtx.beginPath(); nbCtx.moveTo(a.x, a.y); nbCtx.lineTo(b.x, b.y); nbCtx.stroke();
+        }
+
+        // Center family crest emblem on the tactical board
+        drawFamilyCrestSprite(nbCtx, nbCanvas.width / 2, nbCanvas.height / 2, 92, 92, '#ffd700');
+
+        nexusSectors.forEach((sec, idx) => {
+            const isSel = idx === selectedSectorIdx;
+            const col = sec.owner === "VANGUARD" ? "#66fcf1" : (sec.owner === "SYNDICATE" ? "#ff0055" : "#ff7b00");
+
+            nbCtx.save();
+            nbCtx.fillStyle = isSel ? "#1e293b" : "#0b0c10";
+            nbCtx.strokeStyle = isSel ? "#ffd700" : col;
+            nbCtx.lineWidth = isSel ? 3 : 1.8;
+            nbCtx.beginPath();
+            nbCtx.roundRect(sec.x - 68, sec.y - 34, 136, 68, 10);
+            nbCtx.fill();
+            nbCtx.stroke();
+
+            nbCtx.fillStyle = "#ffffff";
+            nbCtx.font = "bold 11px Courier New";
+            nbCtx.textAlign = "center";
+            nbCtx.fillText(sec.name, sec.x, sec.y - 12);
+
+            nbCtx.fillStyle = col;
+            nbCtx.font = "bold 10px Courier New";
+            nbCtx.fillText(`${sec.owner} • Lv.${sec.level}`, sec.x, sec.y + 6);
+
+            nbCtx.fillStyle = "#fef08a";
+            nbCtx.font = "9px Courier New";
+            nbCtx.fillText(`Yield: +${sec.yieldMR * sec.level} MR`, sec.x, sec.y + 22);
+            nbCtx.restore();
+        });
+    }
+
+    function handleNexusBoardClick(event) {
+        if (!nbCanvas) return;
+        const rect = nbCanvas.getBoundingClientRect();
+        const cx = ((event.clientX - rect.left) / rect.width) * nbCanvas.width;
+        const cy = ((event.clientY - rect.top) / rect.height) * nbCanvas.height;
+
+        nexusSectors.forEach((sec, idx) => {
+            if (Math.abs(cx - sec.x) <= 72 && Math.abs(cy - sec.y) <= 38) {
+                selectedSectorIdx = idx;
+                drawNexusBoard();
+                logNexusBoard(`Selected ${sec.name} (${sec.owner}, Level ${sec.level}).`);
+            }
+        });
+    }
+
+    function rollNexusBoardTurn() {
+        const step = Math.floor(Math.random() * 6) + 1;
+        selectedSectorIdx = (selectedSectorIdx + step) % nexusSectors.length;
+        const sec = nexusSectors[selectedSectorIdx];
+
+        if (sec.owner !== "VANGUARD") {
+            sec.owner = "VANGUARD";
+            nbResonance += sec.yieldMR;
+            logNexusBoard(`Rolled ${step}! Vanguard claimed ${sec.name} (+${sec.yieldMR} MR).`);
+        } else {
+            sec.level = Math.min(4, sec.level + 1);
+            nbResonance += sec.yieldMR * sec.level;
+            logNexusBoard(`Rolled ${step}! Fortified ${sec.name} to Level ${sec.level}.`);
+        }
+
+        // Syndicate counter-claim on a neutral sector
+        const neutral = nexusSectors.find(s => s.owner === "NEUTRAL");
+        if (neutral && Math.random() > 0.45) {
+            neutral.owner = "SYNDICATE";
+        }
+
+        nbRound += 1;
+        if (window.RFLGameHooks) {
+            window.RFLGameHooks.onTycoonTurnOrMatch(30, nbResonance);
+        }
+        updateNexusBoardStats();
+        drawNexusBoard();
+    }
+
+    function pulseSelectedSector() {
+        if (nbResonance < 30) {
+            logNexusBoard("Need at least 30 MR to fire a Marrow Pulse!");
+            return;
+        }
+        nbResonance -= 30;
+        const sec = nexusSectors[selectedSectorIdx];
+        sec.owner = "VANGUARD";
+        sec.level = Math.min(4, sec.level + 1);
+        nbResonance += 45;
+        if (window.RFLGameHooks) {
+            window.RFLGameHooks.onTycoonTurnOrMatch(35, nbResonance);
+        }
+        logNexusBoard(`⚡ Marrow Pulse secured ${sec.name} (Lv.${sec.level}) and harvested +45 MR!`);
+        updateNexusBoardStats();
+        drawNexusBoard();
+    }
+
+
+    // --- 8. TIMED COLOR PATTERN BUBBLE POP GAME ---
+    let bpCanvas, bpCtx;
+    let bubblesList = [];
+    let bpTargetPattern = [];
+    let bpPatternStep = 0;
+    let bpScore = 0;
+    let bpStreak = 0;
+    let bpTimeLeft = 45;
+    let bpTimerInterval = null;
+
+    const BUBBLE_COLORS = [
+        { name: "GOLD", hex: "#ffd700", text: "#000" },
+        { name: "CYAN", hex: "#66fcf1", text: "#000" },
+        { name: "MAGENTA", hex: "#ff0055", text: "#fff" },
+        { name: "EMERALD", hex: "#2ecc71", text: "#000" }
+    ];
+
+    function logBubblePop(msg) {
+        const box = document.getElementById('log-box-bp');
+        if (box) {
+            box.innerHTML += `<br>&gt; ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
+    }
+
+    function cycleBubblePattern() {
+        bpTargetPattern = [];
+        for (let i = 0; i < 4; i++) {
+            bpTargetPattern.push(BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)]);
+        }
+        bpPatternStep = 0;
+        renderBubblePatternChips();
+    }
+
+    function renderBubblePatternChips() {
+        const el = document.getElementById('bp-pattern-chips');
+        if (!el) return;
+        el.innerHTML = "";
+        bpTargetPattern.forEach((c, idx) => {
+            const done = idx < bpPatternStep;
+            const active = idx === bpPatternStep;
+            const span = document.createElement('span');
+            span.className = "pattern-chip";
+            span.style.background = c.hex;
+            span.style.color = c.text;
+            span.style.outline = active ? "2px solid #ffffff" : "none";
+            span.innerText = `${done ? "✓ " : ""}${c.name}`;
+            el.appendChild(span);
+        });
+    }
+
+    function spawnBubbleWave() {
+        bubblesList = [];
+        // Guarantee every color in the active target pattern is available on screen
+        const guaranteed = bpTargetPattern.map(c => c);
+        for (let i = 0; i < 14; i++) {
+            const col = i < guaranteed.length
+                ? guaranteed[i]
+                : BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)];
+            bubblesList.push({
+                x: 90 + (i % 7) * 120 + (Math.random() * 24 - 12),
+                y: i < 7 ? 135 + (Math.random() * 20 - 10) : 285 + (Math.random() * 20 - 10),
+                r: 32,
+                color: col,
+                pulsePhase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    function startBubblePopGame() {
+        bpCanvas = document.getElementById('bubbleCanvas');
+        bpCtx = bpCanvas ? bpCanvas.getContext('2d') : null;
+        if (bpTimerInterval) clearInterval(bpTimerInterval);
+
+        bpScore = 0;
+        bpStreak = 0;
+        bpTimeLeft = 45;
+        document.getElementById('bp-score').innerText = bpScore;
+        document.getElementById('bp-streak').innerText = bpStreak;
+        document.getElementById('bp-timer').innerText = `${bpTimeLeft}s`;
+
+        cycleBubblePattern();
+        spawnBubbleWave();
+        drawBubblesScene();
+
+        bpTimerInterval = setInterval(() => {
+            bpTimeLeft--;
+            const tEl = document.getElementById('bp-timer');
+            if (tEl) tEl.innerText = `${bpTimeLeft}s`;
+            drawBubblesScene();
+            if (bpTimeLeft <= 0) {
+                clearInterval(bpTimerInterval);
+                bpTimerInterval = null;
+                if (window.RFLGameHooks && bpScore > 0) {
+                    window.RFLGameHooks.onTycoonTurnOrMatch(Math.min(100, Math.floor(bpScore / 2)), bpScore);
+                }
+                logBubblePop(`⏱️ Time's up! Final Bubble Score: ${bpScore} pts. Tap START / NEW ROUND to play again!`);
+                speakGameEvent(`Time is up! You scored ${bpScore} points.`);
+            }
+        }, 1000);
+    }
+
+    function handleBubbleCanvasClick(event) {
+        if (!bpCanvas || bpTimeLeft <= 0) return;
+        const rect = bpCanvas.getBoundingClientRect();
+        const cx = ((event.clientX - rect.left) / rect.width) * bpCanvas.width;
+        const cy = ((event.clientY - rect.top) / rect.height) * bpCanvas.height;
+
+        for (let i = bubblesList.length - 1; i >= 0; i--) {
+            const b = bubblesList[i];
+            if (Math.hypot(cx - b.x, cy - b.y) <= b.r + 6) {
+                const expected = bpTargetPattern[bpPatternStep];
+                bubblesList.splice(i, 1);
+
+                if (expected && b.color.name === expected.name) {
+                    bpStreak++;
+                    const gained = 25 * Math.min(4, bpStreak);
+                    bpScore += gained;
+                    bpPatternStep++;
+                    if (bpPatternStep >= bpTargetPattern.length) {
+                        bpScore += 60;
+                        bpTimeLeft = Math.min(60, bpTimeLeft + 4);
+                        logBubblePop(`💥 Pattern Complete! +60 bonus pts & +4s! Score: ${bpScore}`);
+                        cycleBubblePattern();
+                        spawnBubbleWave();
+                    } else {
+                        if (bubblesList.length < 6) spawnBubbleWave();
+                        logBubblePop(`🫧 Popped ${b.color.name} (+${gained} pts)! Next: ${bpTargetPattern[bpPatternStep].name}`);
+                    }
+                } else {
+                    bpStreak = 0;
+                    logBubblePop(`⚠️ Popped ${b.color.name} out of pattern order—stay on ${expected ? expected.name : "target"}!`);
+                }
+
+                document.getElementById('bp-score').innerText = bpScore;
+                document.getElementById('bp-streak').innerText = bpStreak;
+                document.getElementById('bp-timer').innerText = `${bpTimeLeft}s`;
+                renderBubblePatternChips();
+                drawBubblesScene();
+                return;
+            }
+        }
+    }
+
+    function drawBubblesScene() {
+        if (!bpCtx) return;
+        bpCtx.clearRect(0, 0, bpCanvas.width, bpCanvas.height);
+
+        bpCtx.strokeStyle = 'rgba(244, 114, 182, 0.12)';
+        bpCtx.lineWidth = 1;
+        for (let x = 0; x < bpCanvas.width; x += 30) {
+            bpCtx.beginPath(); bpCtx.moveTo(x, 0); bpCtx.lineTo(x, bpCanvas.height); bpCtx.stroke();
+        }
+        for (let y = 0; y < bpCanvas.height; y += 30) {
+            bpCtx.beginPath(); bpCtx.moveTo(0, y); bpCtx.lineTo(bpCanvas.width, y); bpCtx.stroke();
+        }
+
+        drawFamilyCrestSprite(bpCtx, bpCanvas.width / 2, bpCanvas.height / 2, 86, 86, '#ffd700');
+
+        bubblesList.forEach(b => {
+            bpCtx.save();
+            bpCtx.fillStyle = b.color.hex;
+            bpCtx.strokeStyle = '#ffffff';
+            bpCtx.lineWidth = 2;
+            bpCtx.shadowColor = b.color.hex;
+            bpCtx.shadowBlur = 14;
+            bpCtx.beginPath();
+            bpCtx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+            bpCtx.fill();
+            bpCtx.stroke();
+            bpCtx.shadowBlur = 0;
+
+            bpCtx.fillStyle = b.color.text;
+            bpCtx.font = 'bold 10px Courier New';
+            bpCtx.textAlign = 'center';
+            bpCtx.textBaseline = 'middle';
+            bpCtx.fillText(b.color.name, b.x, b.y);
+            bpCtx.restore();
+        });
     }
 </script>
 </body>
