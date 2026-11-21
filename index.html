@@ -1587,6 +1587,37 @@
   </style>
 
   <script>
+    // --- MOTHER LUETTA AI CONFIG (READY FOR FUTURE ENDPOINT + MASTER LINEAGE CONTEXT) ---
+    const LUETTA_AI_CONFIG = {
+      endpoint: "", // Paste your live serverless/proxy endpoint URL here when ready
+      persona: {
+        name: "Mother Luetta",
+        frontRoomStyle: "Warm, clear guide for Rhodes Family Legacy books, storybooks, lineage, and games.",
+        backRoomStyle: "Candid, grounded confidante offering straight talk, honest reflection questions, and deeper family history."
+      },
+      lineageKnowledge: {
+        maternalLines: ["Mitchell", "Wright", "Mack", "McDowell", "Patience Johnson", "Colbert", "McIntosh", "Marie Thérèse Coincoin"],
+        paternalLines: ["Thomas", "Minnie Johnson", "Hatten/Hatton", "Sims/Sams", "Gilmore", "Spencer", "Fleming"],
+        keyFigures: [
+          "Rebecca Mack (daughter of timber man John Mack & Rachel McDowell/Mack, Yazoo City, MS)",
+          "Aaron Bruce Wright Sr. (son of Aaron Wright Sr. & Patience Johnson b. 1867; grandson of Abe Wright)",
+          "Fannie Mae Wright, Tommy Phillip Mitchell & Patsy Mitchell (Yazoo City / Belzoni, MS)",
+          "Lucius Hatton (timber man; son of blacksmith & landowner Fred Hatton & Laura Flemings; grandson of Sandy Hatton)",
+          "Benjamin Hatten & Elroy Rhodes (son of Benjamin Hatten)",
+          "Izella/Izel Sams (daughter of George Washington Sams & Zula Sams, Yalobusha County, MS)",
+          "George 'Papa General' Thomas & Minnie Johnson",
+          "Elroy Rhodes & Fannie May Mitchell Rhodes (bridging MS, AR, Detroit & Saginaw, MI)"
+        ],
+        ecosystem: [
+          "Packed in the Marrow trilogy (From Father to Son, Cousins of Courage, The Colbert Legacy), Volume Four — Matriarchs, and The Codex",
+          "The Sisters of the Golden Clock / Little Luetta and Her Sisters in the Golden Clock & The Adventures of Fannie May and Her Brothers",
+          "The Ancestral Vanguard universe, Living Codex card clash, Family Legacy Tycoon, Chrono Lock Tetris, and Nexus Hub"
+        ]
+      }
+    };
+
+    const luettaConversationHistory = [];
+
     // --- TWO 3-BUTTON HUB TABS ---
     function switchHubTab(tabName) {
       const isWorlds = tabName === 'worlds';
@@ -2045,6 +2076,11 @@
     }
 
     function deliverLuettaReply(reply, targetMode) {
+      luettaConversationHistory.push({ role: "assistant", content: reply });
+      if (luettaConversationHistory.length > 16) {
+        luettaConversationHistory.splice(0, luettaConversationHistory.length - 16);
+      }
+
       if (targetMode === "backroom") {
         appendBackRoomLuettaLine("AR Mother Luetta", reply, false);
       } else if (targetMode === "fullar") {
@@ -2055,66 +2091,34 @@
       speakText(reply);
     }
 
-    function processLuettaAIResponse(query, targetMode = "modal") {
+    function buildLocalLuettaFallback(query, targetMode) {
       const qLower = query.toLowerCase();
-      let reply = "";
 
       if (qLower.includes("back room") || qLower.includes("marrow 313") || qLower.includes("golden tree")) {
-        reply = "We are in the Marrow 313 Back Room with the Golden Tree anchored beside me. Tell me what story, lineage branch, or game you want to work on next.";
-        deliverLuettaReply(reply, targetMode);
-        return;
+        return "We are in the Marrow 313 Back Room with the Golden Tree anchored beside me. Tell me what story, lineage branch, or game you want to work on next.";
       }
 
       if (qLower.includes("date") || qLower.includes("day") || qLower.includes("today")) {
         const now = new Date();
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        reply = `Today is ${now.toLocaleDateString(undefined, options)}. All historical ledgers are synchronized.`;
-        deliverLuettaReply(reply, targetMode);
-        return;
-      } else if (qLower.includes("time") || qLower.includes("clock")) {
-        const now = new Date();
-        reply = `Current time is ${now.toLocaleTimeString()}. Sector clocks are synchronized.`;
-        deliverLuettaReply(reply, targetMode);
-        return;
-      } else if (qLower.includes("weather") || qLower.includes("temperature") || qLower.includes("forecast")) {
-        reply = "Saginaw Sector Weather: Currently cloudy and 44°F with northwest winds at 8 mph.";
-        deliverLuettaReply(reply, targetMode);
-        return;
-      } else if (qLower.includes("news") || qLower.includes("dispatch") || qLower.includes("update")) {
-        reply = "Latest Intel Dispatch: Global security and Vanguard star-cluster sectors report stable operations.";
-        deliverLuettaReply(reply, targetMode);
-        return;
+        return `Today is ${now.toLocaleDateString(undefined, options)}. All historical ledgers are synchronized.`;
+      }
+      if (qLower.includes("time") || qLower.includes("clock")) {
+        return `Current time is ${new Date().toLocaleTimeString()}. Sector clocks are synchronized.`;
+      }
+      if (qLower.includes("weather") || qLower.includes("temperature") || qLower.includes("forecast")) {
+        return "Saginaw Sector Weather: Currently cloudy and 44°F with northwest winds at 8 mph.";
+      }
+      if (qLower.includes("news") || qLower.includes("dispatch") || qLower.includes("update")) {
+        return "Latest Intel Dispatch: Global security and Vanguard star-cluster sectors report stable operations.";
       }
 
       if (qLower.includes("marrow313") || qLower.includes("tommy philip rhodes") || qLower.includes("creator override") || isCreatorUnlocked) {
         if (!isCreatorUnlocked) {
           isCreatorUnlocked = true;
-          reply = `[Sovereign Creator Mode Active] Welcome back, Tommy. Core architecture and archive access are fully synchronized. What would you like to explore or brainstorm?`;
-        } else {
-          if (qLower.includes("gps") || qLower.includes("location") || qLower.includes("navigate") || qLower.includes("where am i")) {
-            if ("geolocation" in navigator) {
-              navigator.geolocation.getCurrentPosition((position) => {
-                const lat = position.coords.latitude.toFixed(4);
-                const lon = position.coords.longitude.toFixed(4);
-                reply = `Tommy, your current coordinates are Latitude ${lat}, Longitude ${lon}.`;
-                deliverLuettaReply(reply, targetMode);
-              }, (error) => {
-                reply = `Unable to retrieve geolocation coordinates: ${error.message}`;
-                deliverLuettaReply(reply, targetMode);
-              });
-              return;
-            } else {
-              reply = `Geolocation is not supported by this browser interface.`;
-              deliverLuettaReply(reply, targetMode);
-              return;
-            }
-          } else {
-            reply = `I hear you on "${query}". The Marrow 313 archives, storybooks, and Vanguard worlds are right here—how would you like to build on it?`;
-          }
+          return `[Sovereign Creator Mode Active] Welcome back, Tommy. Core architecture and archive access are fully synchronized. What would you like to explore or brainstorm?`;
         }
-
-        deliverLuettaReply(reply, targetMode);
-        return;
+        return `I hear you on "${query}". The Marrow 313 archives, storybooks, and Vanguard worlds are right here—how would you like to build on it?`;
       }
 
       if (qLower.includes("laura nadine") || qLower.includes("laura fox") || qLower.includes("i am his sister") || qLower.includes("im his sister")) {
@@ -2122,9 +2126,7 @@
         isMaternalSide = true;
         const titleEl = document.getElementById('luettaCodexTitle');
         if (titleEl) titleEl.innerText = "🧠 Fannie May Rhodes • Living Codex";
-        reply = "Welcome, Laura. The ancestral gates and deeper lineage records are fully open to you.";
-        deliverLuettaReply(reply, targetMode);
-        return;
+        return "Welcome, Laura. The ancestral gates and deeper lineage records are fully open to you.";
       }
 
       if (qLower.includes("grandchild") || qLower.includes("grand-child") || qLower.includes("fannie may") || qLower.includes("mother's side") || qLower.includes("maternal")) {
@@ -2132,9 +2134,7 @@
         isMaternalSide = true;
         const titleEl = document.getElementById('luettaCodexTitle');
         if (titleEl) titleEl.innerText = "🧠 Fannie May Rhodes • Living Codex";
-        reply = "Welcome, dear grandchild of the maternal lineage. Fannie May Rhodes embraces you, opening the deep historical records of our mother's family.";
-        deliverLuettaReply(reply, targetMode);
-        return;
+        return "Welcome, dear grandchild of the maternal lineage. Fannie May Rhodes embraces you, opening the deep historical records of our mother's family.";
       }
 
       if (qLower.includes("paternal") || qLower.includes("father's side")) {
@@ -2142,36 +2142,87 @@
         isMaternalSide = false;
         const titleEl = document.getElementById('luettaCodexTitle');
         if (titleEl) titleEl.innerText = "🧠 Mother Luetta • Living Codex";
-        reply = "Welcome, grandchild of the paternal lineage. Mother Luetta guides you through the heritage of the Rhodes branch.";
-        deliverLuettaReply(reply, targetMode);
-        return;
+        return "Welcome, grandchild of the paternal lineage. Mother Luetta guides you through the heritage of the Rhodes branch.";
       }
 
       if (qLower.includes("translate") || qLower.includes("what are they saying") || qLower.includes("in spanish") || qLower.includes("in arabic") || qLower.includes("tell them this")) {
-        reply = `[Translation Engine Active] I am ready to translate incoming foreign speech (such as Spanish or Arabic) into English for you, and translate your English replies back into their target language instantly on demand.`;
-        deliverLuettaReply(reply, targetMode);
-        return;
+        return `[Translation Engine Active] I am ready to translate incoming foreign speech (such as Spanish or Arabic) into English for you, and translate your English replies back into their target language instantly on demand.`;
       }
 
       const lineageHit = buildFamilyLineageAnswer(qLower);
-      if (lineageHit) {
-        reply = lineageHit;
-      } else if (qLower.includes("game") || qLower.includes("play") || qLower.includes("fun") || qLower.includes("arcade") || qLower.includes("tycoon") || qLower.includes("what games")) {
-        reply = "The Rhodes Family Legacy offers a universe of play and learning, tailored to every generation: For the Little Ones: We have dedicated educational storybook games and books built just for kids, featuring The Adventures of Little Fannie May & Her Brothers and Little Luetta & the Sisters of the Golden Clock. For Family Game Night: We have classics for everyone, including our version of Tycoon (our Monopoly spin), Chrono Lock Tetris, word searches, and our custom Uno. For High-Octane Action: Step into the Ancestral Vanguard Universe. Pilot the Wacon Trench submarine, command the Vanguard fleet, burn rubber in the Marcus Prime 313 Grid Racer, or jump into the 2D side-brawler. For Readers & Collectors: Explore our multi-volume series like Packed in the Marrow and comic adventures, available in both English and Spanish. We also feature the tabletop card game, the Card Codex, and dual versions of the side-brawler. The universe is vast—what world are you stepping into today?";
-      } else if (qLower.includes("child") || qLower.includes("kid") || qLower.includes("story") || qLower.includes("education") || qLower.includes("learn") || qLower.includes("fannie may")) {
-        reply = "For children and young learners, we offer interactive storybook adventure games: 'Little Luetta and the Sisters of the Golden Clock' (featuring golden clock key quests and time-slip learning) and 'The Adventures of Little Fannie May & Her Brothers' (featuring river rescue adventures). Education meets imagination here!";
-      } else if (qLower.includes("coincoin") || qLower.includes("marrow") || qLower.includes("universe")) {
-        reply = "This transmedia hub bridges generations of memory. Beyond our published historical chronicles (like the Packed in the Marrow trilogy and the Marie Thérèse Coincoin heritage quests), this is a place for children, teens, and adults to explore history, sci-fi, and education. Everyone has a place here. Would you like to explore the book volumes or the interactive portals?";
-      } else if (targetMode === "fullar" && fullArPersonaMode === "straight") {
-        reply = `Straight talk on "${query}": are you reacting to what just happened, or to a pattern you have been carrying for a while? What is the one honest step you actually want to take next?`;
-      } else if (isGrandchildUnlocked) {
-        const matriarchName = isMaternalSide ? "Fannie May Rhodes" : "Mother Luetta";
-        reply = `[Deep Lineage Access • ${matriarchName}] The ancestral archives spanning Mississippi, Arkansas, Detroit, and Saginaw are open. What branch or ancestor would you like to explore regarding "${query}"?`;
-      } else {
-        reply = `I'm right here with you regarding "${query}". Ask about our family history, our games, our books, or our universe, and I will guide you.`;
+      if (lineageHit) return lineageHit;
+
+      if (qLower.includes("game") || qLower.includes("play") || qLower.includes("fun") || qLower.includes("arcade") || qLower.includes("tycoon") || qLower.includes("what games")) {
+        return "The Rhodes Family Legacy offers a universe of play and learning across every generation: Little Fannie May & Her Brothers, Little Luetta & the Sisters of the Golden Clock, Family Legacy Tycoon, Chrono Lock Tetris, word searches, and the Ancestral Vanguard universe (Wacon Trench sub, Vanguard fleet, 313 Grid Racer, and side-brawler), alongside Packed in the Marrow and The Codex.";
+      }
+      if (qLower.includes("child") || qLower.includes("kid") || qLower.includes("story") || qLower.includes("education") || qLower.includes("learn") || qLower.includes("fannie may")) {
+        return "For children and young learners, we offer interactive storybook adventure games: 'Little Luetta and the Sisters of the Golden Clock' and 'The Adventures of Little Fannie May & Her Brothers'.";
+      }
+      if (qLower.includes("coincoin") || qLower.includes("marrow") || qLower.includes("universe")) {
+        return "This transmedia hub bridges generations of memory across Packed in the Marrow, Matriarchs, The Codex, our children's heritage stories, and the Ancestral Vanguard universe.";
       }
 
-      deliverLuettaReply(reply, targetMode);
+      if ((targetMode === "fullar" && fullArPersonaMode === "straight") || targetMode === "backroom") {
+        return `Straight talk on "${query}": are you reacting to what just happened, or to a pattern you've been carrying for a while? Once you connect a live AI endpoint in LUETTA_AI_CONFIG.endpoint, I will also answer any open-ended general question on the fly.`;
+      }
+      if (isGrandchildUnlocked) {
+        const matriarchName = isMaternalSide ? "Fannie May Rhodes" : "Mother Luetta";
+        return `[Deep Lineage Access • ${matriarchName}] Our archives span Mississippi, Arkansas, Detroit, and Saginaw. What branch or question about "${query}" do you want to explore?`;
+      }
+      return `I'm with you on "${query}". Ask me about our family roots, our stories, or our games—and once you plug in a live AI endpoint URL in LUETTA_AI_CONFIG.endpoint, I'll answer any open-ended question too.`;
+    }
+
+    async function processLuettaAIResponse(query, targetMode = "modal") {
+      const qLower = query.toLowerCase();
+      luettaConversationHistory.push({ role: "user", content: query });
+      if (luettaConversationHistory.length > 16) {
+        luettaConversationHistory.splice(0, luettaConversationHistory.length - 16);
+      }
+
+      if (qLower.includes("gps") || qLower.includes("location") || qLower.includes("navigate") || qLower.includes("where am i")) {
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition((position) => {
+            const lat = position.coords.latitude.toFixed(4);
+            const lon = position.coords.longitude.toFixed(4);
+            deliverLuettaReply(`Current coordinates: Latitude ${lat}, Longitude ${lon}.`, targetMode);
+          }, (error) => {
+            deliverLuettaReply(`Unable to retrieve geolocation coordinates: ${error.message}`, targetMode);
+          });
+          return;
+        }
+      }
+
+      if (LUETTA_AI_CONFIG.endpoint && LUETTA_AI_CONFIG.endpoint.trim() !== "") {
+        try {
+          const response = await fetch(LUETTA_AI_CONFIG.endpoint.trim(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: query,
+              targetMode: targetMode,
+              personaMode: fullArPersonaMode,
+              history: luettaConversationHistory,
+              context: {
+                persona: LUETTA_AI_CONFIG.persona,
+                lineageKnowledge: LUETTA_AI_CONFIG.lineageKnowledge
+              }
+            })
+          });
+          if (response.ok) {
+            const data = await response.json();
+            const aiReply = data.reply || data.response || data.message;
+            if (aiReply) {
+              deliverLuettaReply(String(aiReply), targetMode);
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn("Live AI endpoint fallback triggered:", err);
+        }
+      }
+
+      const fallbackReply = buildLocalLuettaFallback(query, targetMode);
+      deliverLuettaReply(fallbackReply, targetMode);
     }
 
     // WEB SPEECH API LIVE VOICE DICTATION
