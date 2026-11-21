@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Ancestral Vanguard • Intel & Stargazer Hub</title>
 
   <style>
@@ -174,7 +174,7 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       padding: 10px 12px;
       background: rgba(3, 7, 18, 0.85);
       border-bottom: 1px solid rgba(102, 252, 241, 0.25);
@@ -186,7 +186,7 @@
       font-family: 'Courier New', Courier, monospace;
       font-size: 9px;
       font-weight: bold;
-      padding: 6px 10px;
+      padding: 6px 9px;
       border-radius: 5px;
       cursor: pointer;
       text-transform: uppercase;
@@ -195,6 +195,12 @@
       background: #f59e0b;
       border-color: #f59e0b;
       color: #030712;
+    }
+    .sky-ctrl-btn.gyro-live {
+      background: #10b981;
+      border-color: #10b981;
+      color: #030712;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
     }
     .sky-time-wrap {
       margin-left: auto;
@@ -206,15 +212,36 @@
       text-transform: uppercase;
     }
     .sky-time-wrap input {
-      width: 85px;
+      width: 80px;
       accent-color: #f59e0b;
       cursor: pointer;
     }
 
+    /* Live Sensor & Ley-Line Status Strip */
+    .sensor-strip {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      background: rgba(3, 7, 18, 0.95);
+      border-bottom: 1px solid rgba(102, 252, 241, 0.2);
+      font-size: 9px;
+      color: #94a3b8;
+    }
+    .sensor-strip strong {
+      color: #66fcf1;
+    }
+    .sensor-strip .moon-lock-badge {
+      color: #f59e0b;
+      font-weight: bold;
+    }
+
     .stargazer-container {
       width: 100%;
-      height: 58vh;
-      min-height: 340px;
+      height: 60vh;
+      min-height: 360px;
       position: relative;
       overflow: hidden;
       background: radial-gradient(circle at 50% 35%, #111d36 0%, #030712 80%);
@@ -315,7 +342,7 @@
       border-radius: 8px;
       text-align: center;
       width: 92%;
-      max-width: 460px;
+      max-width: 480px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -384,7 +411,7 @@
 
   <header>
     <h1>Ancestral Vanguard • Intel & Stargazer Hub</h1>
-    <p class="subtitle">Night-Sky Planetarium & Telemetry Grid</p>
+    <p class="subtitle">Real-Time Gyroscope Planetarium & Moon Ley-Line Grid</p>
   </header>
 
   <!-- Navigation Tabs -->
@@ -433,16 +460,26 @@
   <div id="stargazer" class="section-content">
     <div class="planetarium-box">
       <div class="planetarium-toolbar">
-        <button id="toggleLinesBtn" class="sky-ctrl-btn active" onclick="toggleSkyLines()">Ley Lines</button>
+        <button id="gyroToggleBtn" class="sky-ctrl-btn" onclick="toggleGyroTracking()">🧭 Live Gyro: OFF</button>
+        <button id="gpsBtn" class="sky-ctrl-btn" onclick="requestUserLocation()">📍 Sync GPS</button>
+        <button id="moonLeyBtn" class="sky-ctrl-btn active" onclick="toggleMoonBeacon()">🌙 Moon Ley Vector</button>
+        <button id="toggleLinesBtn" class="sky-ctrl-btn active" onclick="toggleSkyLines()">Star Web</button>
         <button id="toggleLabelsBtn" class="sky-ctrl-btn active" onclick="toggleSkyLabels()">Labels</button>
-        <button class="sky-ctrl-btn" onclick="zoomSky(0.18)">Zoom +</button>
-        <button class="sky-ctrl-btn" onclick="zoomSky(-0.18)">Zoom -</button>
+        <button class="sky-ctrl-btn" onclick="zoomSky(0.18)">+</button>
+        <button class="sky-ctrl-btn" onclick="zoomSky(-0.18)">-</button>
         <button class="sky-ctrl-btn" onclick="resetSkyView()">Reset</button>
         <div class="sky-time-wrap">
-          <span>Hour Shift:</span>
+          <span>Shift:</span>
           <input id="skyHourSlider" type="range" min="-6" max="12" step="1" value="0" oninput="updateHourShift(this.value)">
           <span id="skyHourLabel">Now</span>
         </div>
+      </div>
+
+      <!-- Real-Time Telemetry & Moon Ley-Line Readout -->
+      <div class="sensor-strip">
+        <div>LOC: <strong id="locReadout">38.58°N, 121.49°W (Est.)</strong></div>
+        <div>AIM: <strong id="aimReadout">AZ 180° • ALT +35°</strong></div>
+        <div class="moon-lock-badge" id="moonStatusReadout">🌙 LUNA: CALCULATING...</div>
       </div>
 
       <div class="stargazer-container" id="stargazerActiveContainer">
@@ -455,8 +492,8 @@
           <div class="hud-grid" id="hudContentGrid">
             <div>Distance: <span id="hudDistance">---</span></div>
             <div>Diameter: <span id="hudDiameter">---</span></div>
-            <div>Surface Gravity: <span id="hudGravity">---</span></div>
-            <div>Orbital Period: <span id="hudOrbit">---</span></div>
+            <div>Live Sky Pos: <span id="hudGravity">---</span></div>
+            <div>Orbital / Phase: <span id="hudOrbit">---</span></div>
           </div>
           <div class="hud-lore" id="hudLoreText">Lore & Ley Line Alignment: ---</div>
           <div class="hud-actions">
@@ -468,8 +505,8 @@
         <canvas id="skyCanvas"></canvas>
 
         <div class="stargazer-overlay-ui">
-          <div class="stargazer-text">Drag to scan sky • Tap any planet or star for telemetry</div>
-          <button class="speak-telemetry-btn" onclick="if(activeBodyKey) { markCurrentSpotted(); } else { alert('Tap a planet or star first.'); }">⭐ Spot</button>
+          <div class="stargazer-text" id="overlayGuideText">Tap "Live Gyro" & point phone up • Follow amber ley line to Luna</div>
+          <button class="speak-telemetry-btn" onclick="focusAndInspect('moon', true)">🌙 Find Moon</button>
         </div>
       </div>
 
@@ -500,26 +537,46 @@
 
       if (tabId === 'stargazer') {
         requestAnimationFrame(() => {
+          recomputeRealTimeSky();
           resizeSkyCanvas();
           drawSky();
         });
       }
     }
 
+    // Observer coordinates (defaults to Sacramento, CA; updates instantly via Sync GPS)
+    let observerLat = 38.5816;
+    let observerLon = -121.4944;
+    let gpsSynced = false;
+
     const planetaryDatabase = {
+      moon: {
+        key: 'moon',
+        shortLabel: 'Luna (Moon)',
+        name: "Luna • Terrestrial Tide & Ley Anchor",
+        distance: "384,400 km",
+        diameter: "3,474 km (0.27x Earth)",
+        gravity: "AZ ---° • ALT ---°",
+        orbit: "27.3 Days",
+        az: 180,
+        alt: 35,
+        color: '#f8fafc',
+        radius: 11,
+        lore: "Primary Ley-Line Beacon: Earth's direct orbital companion. Follow the live amber vector from your reticle to lock onto Luna's exact sky coordinates."
+      },
       polaris: {
         key: 'polaris',
         shortLabel: 'Polaris',
         name: "Polaris • Vanguard Waypoint Alpha",
         distance: "433 Light Years",
         diameter: "37.5 Million km (Supergiant)",
-        gravity: "Stellar Core Equilibrium",
-        orbit: "Binary System Center",
-        az: 358,
-        alt: 42,
+        gravity: "AZ 0° • ALT 39°",
+        orbit: "North Celestial Pole",
+        az: 0,
+        alt: 38.6,
         color: '#f59e0b',
         radius: 7,
-        lore: "The steadfast navigational anchor used across generations to chart true north, ancestral migration paths, and celestial ley line orientation."
+        lore: "The steadfast navigational anchor used across generations to chart true north, ancestral migration paths, and celestial ley-line orientation."
       },
       mars: {
         key: 'mars',
@@ -527,7 +584,7 @@
         name: "Mars • Red Planet & Marrow Node",
         distance: "1.52 AU (227.9M km)",
         diameter: "6,779 km (0.53x Earth)",
-        gravity: "3.72 m/s² (0.38G)",
+        gravity: "AZ ---° • ALT ---°",
         orbit: "687 Earth Days",
         az: 120,
         alt: 44,
@@ -541,13 +598,13 @@
         name: "Jupiter • Gas Giant Nexus",
         distance: "5.20 AU (778.5M km)",
         diameter: "139,820 km (11.2x Earth)",
-        gravity: "24.79 m/s² (2.53G)",
+        gravity: "AZ ---° • ALT ---°",
         orbit: "11.8 Earth Years",
         az: 78,
         alt: 54,
         color: '#38bdf8',
         radius: 8.5,
-        lore: "The magnetic anchor of the solar system. Its massive gravitational resonance serves as a primary hub for deep-space ley line triangulation."
+        lore: "The magnetic anchor of the solar system. Its massive gravitational resonance serves as a primary hub for deep-space ley-line triangulation."
       },
       saturn: {
         key: 'saturn',
@@ -555,67 +612,274 @@
         name: "Saturn • Ringed Sentinel Node",
         distance: "9.58 AU (1.43B km)",
         diameter: "116,460 km (9.1x Earth)",
-        gravity: "10.44 m/s² (1.06G)",
+        gravity: "AZ ---° • ALT ---°",
         orbit: "29.4 Earth Years",
         az: 195,
         alt: 34,
         color: '#eab308',
         radius: 7.5,
-        lore: "Custom Vanguard Node: Its crystalline ice rings act as a natural harmonic prism, stabilizing multi-sector frequency transmissions across the command network."
+        lore: "Its crystalline ice rings act as a natural harmonic prism, stabilizing multi-sector frequency transmissions across the command network."
       },
       venus: {
         key: 'venus',
         shortLabel: 'Venus',
-        name: "Venus • Morning Star Beacon",
+        name: "Venus • Morning/Evening Star Beacon",
         distance: "0.72 AU (108.2M km)",
         diameter: "12,104 km (0.95x Earth)",
-        gravity: "8.87 m/s² (0.90G)",
+        gravity: "AZ ---° • ALT ---°",
         orbit: "225 Earth Days",
         az: 240,
         alt: 26,
         color: '#f43f5e',
         radius: 6.5,
-        lore: "Custom Vanguard Node: A radiant atmospheric reflector utilized across generations to chart twilight passage and pivotal legacy milestones."
+        lore: "A radiant atmospheric reflector utilized across generations to chart twilight passage and pivotal legacy milestones."
       },
-      moon: {
-        key: 'moon',
-        shortLabel: 'Luna (Moon)',
-        name: "Luna • Terrestrial Tide Anchor",
-        distance: "384,400 km",
-        diameter: "3,474 km (0.27x Earth)",
-        gravity: "1.62 m/s² (0.165G)",
-        orbit: "27.3 Earth Days",
-        az: 42,
-        alt: 46,
-        color: '#e2e8f0',
-        radius: 10,
-        lore: "Custom Vanguard Node: Earth's direct orbital companion. Its gravitational rhythm anchors global tides and primary terrestrial telemetry feeds."
+      sirius: {
+        key: 'sirius',
+        shortLabel: 'Sirius',
+        name: "Sirius • Dog Star Ancestral Beacon",
+        distance: "8.6 Light Years",
+        diameter: "2.4 Million km (Binary Star)",
+        gravity: "AZ ---° • ALT ---°",
+        orbit: "50.1 Year Binary Orbit",
+        az: 145,
+        alt: 28,
+        color: '#66fcf1',
+        radius: 7,
+        lore: "The brightest star in Earth's night sky—revered in ancient celestial navigation and tied directly to seasonal flood-star calendars."
       }
     };
 
     const SKY_NODES = Object.values(planetaryDatabase);
     const LEY_LINKS = [
-      ['polaris', 'mars'],
-      ['mars', 'saturn'],
+      ['moon', 'jupiter'],
+      ['moon', 'saturn'],
       ['polaris', 'jupiter'],
-      ['jupiter', 'venus'],
-      ['venus', 'moon']
+      ['jupiter', 'mars'],
+      ['mars', 'sirius'],
+      ['saturn', 'venus']
     ];
 
-    const BG_STARS = Array.from({ length: 190 }, (_, i) => ({
-      az: (i * 79) % 360,
-      alt: 6 + ((i * 43) % 82),
-      size: i % 4 === 0 ? 1.8 : 1.1,
-      alpha: 0.3 + ((i % 6) * 0.12)
+    // Real astronomical RA/Dec (hours, degrees) for key stars & constellations
+    const REAL_STARS = [
+      { name: 'Polaris', ra: 2.53, dec: 89.26, mag: 2.0 },
+      { name: 'Sirius', ra: 6.75, dec: -16.72, mag: -1.4 },
+      { name: 'Betelgeuse', ra: 5.92, dec: 7.41, mag: 0.5 },
+      { name: 'Rigel', ra: 5.24, dec: -8.20, mag: 0.1 },
+      { name: 'Bellatrix', ra: 5.42, dec: 6.35, mag: 1.6 },
+      { name: 'Alnilam', ra: 5.60, dec: -1.20, mag: 1.7 },
+      { name: 'Aldebaran', ra: 4.60, dec: 16.51, mag: 0.9 },
+      { name: 'Capella', ra: 5.28, dec: 46.00, mag: 0.1 },
+      { name: 'Procyon', ra: 7.65, dec: 5.22, mag: 0.4 },
+      { name: 'Pollux', ra: 7.76, dec: 28.03, mag: 1.1 },
+      { name: 'Castor', ra: 7.58, dec: 31.89, mag: 1.6 },
+      { name: 'Regulus', ra: 10.14, dec: 11.97, mag: 1.4 },
+      { name: 'Spica', ra: 13.42, dec: -11.16, mag: 1.0 },
+      { name: 'Arcturus', ra: 14.26, dec: 19.18, mag: 0.0 },
+      { name: 'Vega', ra: 18.62, dec: 38.78, mag: 0.0 },
+      { name: 'Altair', ra: 19.85, dec: 8.87, mag: 0.8 },
+      { name: 'Deneb', ra: 20.69, dec: 45.28, mag: 1.3 },
+      { name: 'Fomalhaut', ra: 22.96, dec: -29.62, mag: 1.2 },
+      { name: 'Antares', ra: 16.49, dec: -26.43, mag: 1.1 },
+      { name: 'Dubhe', ra: 11.06, dec: 61.75, mag: 1.8 },
+      { name: 'Merak', ra: 11.03, dec: 56.38, mag: 2.3 },
+      { name: 'Alioth', ra: 12.90, dec: 55.96, mag: 1.8 },
+      { name: 'Alkaid', ra: 13.79, dec: 49.31, mag: 1.9 }
+    ];
+
+    // Background procedural starfield anchored to RA/Dec so the sky rotates naturally with Earth
+    const BG_STARS = Array.from({ length: 220 }, (_, i) => ({
+      ra: ((i * 7.31) % 24),
+      dec: -45 + ((i * 37) % 134),
+      size: i % 5 === 0 ? 1.7 : 1.0,
+      alpha: 0.28 + ((i % 6) * 0.11)
     }));
 
+    // =========================================================
+    // REAL-TIME ASTRONOMICAL ENGINE (JD, GMST, RA/Dec -> Az/Alt)
+    // =========================================================
+    const DEG = Math.PI / 180;
+    const RAD = 180 / Math.PI;
+
+    function norm360(deg) {
+      return ((deg % 360) + 360) % 360;
+    }
+
+    function toJulianDate(date) {
+      return date.getTime() / 86400000 + 2440587.5;
+    }
+
+    function getGMST(jd) {
+      const d = jd - 2451545.0;
+      return norm360(280.46061837 + 360.98564736629 * d);
+    }
+
+    function raDecToAzAlt(raHours, decDeg, date, latDeg, lonDeg) {
+      const jd = toJulianDate(date);
+      const gmst = getGMST(jd);
+      const lst = norm360(gmst + lonDeg);
+      const raDeg = raHours * 15;
+      const ha = norm360(lst - raDeg) * DEG;
+      const dec = decDeg * DEG;
+      const lat = latDeg * DEG;
+
+      const sinAlt = Math.sin(dec) * Math.sin(lat) + Math.cos(dec) * Math.cos(lat) * Math.cos(ha);
+      const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+
+      const cosAz = (Math.sin(dec) - Math.sin(alt) * Math.sin(lat)) / (Math.cos(alt) * Math.cos(lat) + 1e-9);
+      let az = Math.acos(Math.max(-1, Math.min(1, cosAz))) * RAD;
+      if (Math.sin(ha) > 0) az = 360 - az;
+
+      return { az: norm360(az), alt: alt * RAD };
+    }
+
+    // Low-precision real-time ephemeris for Moon & Planets (accurate within ~1-2 deg for naked-eye tracking)
+    function getSunEclipticLon(d) {
+      const g = norm360(357.529 + 0.98560028 * d) * DEG;
+      const q = norm360(280.459 + 0.98564736 * d);
+      return norm360(q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g));
+    }
+
+    function eclipticToRaDec(lonDeg, latDeg, d) {
+      const eps = (23.439 - 0.00000036 * d) * DEG;
+      const lon = lonDeg * DEG;
+      const lat = latDeg * DEG;
+
+      const sinDec = Math.sin(lat) * Math.cos(eps) + Math.cos(lat) * Math.sin(eps) * Math.sin(lon);
+      const dec = Math.asin(Math.max(-1, Math.min(1, sinDec))) * RAD;
+
+      const y = Math.sin(lon) * Math.cos(eps) - Math.tan(lat) * Math.sin(eps);
+      const x = Math.cos(lon);
+      const ra = norm360(Math.atan2(y, x) * RAD) / 15;
+      return { ra, dec };
+    }
+
+    function computeMoonRaDec(d) {
+      const L = norm360(218.316 + 13.176396 * d);
+      const M = norm360(134.963 + 13.064993 * d) * DEG;
+      const F = norm360(93.272 + 13.229350 * d) * DEG;
+
+      const lon = norm360(L + 6.289 * Math.sin(M) + 1.274 * Math.sin(2 * (L * DEG - getSunEclipticLon(d) * DEG) - M) + 0.658 * Math.sin(2 * (L * DEG - getSunEclipticLon(d) * DEG)));
+      const lat = 5.128 * Math.sin(F);
+
+      const sunLon = getSunEclipticLon(d);
+      const elongation = norm360(lon - sunLon);
+      const illum = Math.round(((1 - Math.cos(elongation * DEG)) / 2) * 100);
+
+      const eq = eclipticToRaDec(lon, lat, d);
+      return { ...eq, illum, elongation };
+    }
+
+    // Heliocentric orbital elements (J2000) for Venus, Mars, Jupiter, Saturn
+    const PLANET_ELEMENTS = {
+      venus:   { N: 76.680,  i: 3.3947, w: 54.884,  a: 0.72333, e: 0.00677, M0: 50.115,  n: 1.60213034 },
+      mars:    { N: 49.558,  i: 1.8497, w: 286.502, a: 1.52368, e: 0.09340, M0: 19.373,  n: 0.52403295 },
+      jupiter: { N: 100.464, i: 1.3033, w: 273.867, a: 5.20260, e: 0.04849, M0: 20.020,  n: 0.08309121 },
+      saturn:  { N: 113.665, i: 2.4889, w: 339.392, a: 9.55491, e: 0.05551, M0: 317.020, n: 0.03345965 }
+    };
+
+    function getEarthHelio(d) {
+      const M = norm360(357.529 + 0.98560028 * d) * DEG;
+      const e = 0.01671;
+      const E = M + e * Math.sin(M) * (1 + e * Math.cos(M));
+      const xv = Math.cos(E) - e;
+      const yv = Math.sqrt(1 - e * e) * Math.sin(E);
+      const v = Math.atan2(yv, xv);
+      const r = Math.sqrt(xv * xv + yv * yv);
+      const lon = v + 102.937 * DEG;
+      return { x: r * Math.cos(lon), y: r * Math.sin(lon), z: 0 };
+    }
+
+    function computePlanetRaDec(key, d) {
+      const el = PLANET_ELEMENTS[key];
+      const M = norm360(el.M0 + el.n * d) * DEG;
+      let E = M + el.e * Math.sin(M) * (1 + el.e * Math.cos(M));
+      E = E - (E - el.e * Math.sin(E) - M) / (1 - el.e * Math.cos(E));
+
+      const xv = el.a * (Math.cos(E) - el.e);
+      const yv = el.a * (Math.sqrt(1 - el.e * el.e) * Math.sin(E));
+      const v = Math.atan2(yv, xv);
+      const r = Math.sqrt(xv * xv + yv * yv);
+
+      const N = el.N * DEG;
+      const w = el.w * DEG;
+      const i = el.i * DEG;
+
+      const xh = r * (Math.cos(N) * Math.cos(v + w) - Math.sin(N) * Math.sin(v + w) * Math.cos(i));
+      const yh = r * (Math.sin(N) * Math.cos(v + w) + Math.cos(N) * Math.sin(v + w) * Math.cos(i));
+      const zh = r * (Math.sin(v + w) * Math.sin(i));
+
+      const earth = getEarthHelio(d);
+      const xg = xh - earth.x;
+      const yg = yh - earth.y;
+      const zg = zh - earth.z;
+
+      const eps = 23.439 * DEG;
+      const xeq = xg;
+      const yeq = yg * Math.cos(eps) - zg * Math.sin(eps);
+      const zeq = yg * Math.sin(eps) + zg * Math.cos(eps);
+
+      const ra = norm360(Math.atan2(yeq, xeq) * RAD) / 15;
+      const dec = Math.atan2(zeq, Math.sqrt(xeq * xeq + yeq * yeq)) * RAD;
+      const distAU = Math.sqrt(xg * xg + yg * yg + zg * zg);
+      return { ra, dec, distAU };
+    }
+
+    function getActiveSkyDate() {
+      return new Date(Date.now() + hourShift * 3600 * 1000);
+    }
+
+    function recomputeRealTimeSky() {
+      const targetDate = getActiveSkyDate();
+      const d = toJulianDate(targetDate) - 2451545.0;
+
+      // Moon
+      const moonEq = computeMoonRaDec(d);
+      const moonHor = raDecToAzAlt(moonEq.ra, moonEq.dec, targetDate, observerLat, observerLon);
+      planetaryDatabase.moon.az = moonHor.az;
+      planetaryDatabase.moon.alt = moonHor.alt;
+      planetaryDatabase.moon.gravity = `AZ ${Math.round(moonHor.az)}° • ALT ${moonHor.alt >= 0 ? '+' : ''}${Math.round(moonHor.alt)}°`;
+      planetaryDatabase.moon.orbit = `${moonEq.illum}% Illuminated`;
+
+      // Polaris & Sirius
+      const polHor = raDecToAzAlt(2.53, 89.26, targetDate, observerLat, observerLon);
+      planetaryDatabase.polaris.az = polHor.az;
+      planetaryDatabase.polaris.alt = polHor.alt;
+      planetaryDatabase.polaris.gravity = `AZ ${Math.round(polHor.az)}° • ALT +${Math.round(polHor.alt)}°`;
+
+      const sirHor = raDecToAzAlt(6.75, -16.72, targetDate, observerLat, observerLon);
+      planetaryDatabase.sirius.az = sirHor.az;
+      planetaryDatabase.sirius.alt = sirHor.alt;
+      planetaryDatabase.sirius.gravity = `AZ ${Math.round(sirHor.az)}° • ALT ${sirHor.alt >= 0 ? '+' : ''}${Math.round(sirHor.alt)}°`;
+
+      // Planets
+      for (const pKey of ['venus', 'mars', 'jupiter', 'saturn']) {
+        const pEq = computePlanetRaDec(pKey, d);
+        const pHor = raDecToAzAlt(pEq.ra, pEq.dec, targetDate, observerLat, observerLon);
+        planetaryDatabase[pKey].az = pHor.az;
+        planetaryDatabase[pKey].alt = pHor.alt;
+        planetaryDatabase[pKey].distance = `${pEq.distAU.toFixed(2)} AU Live`;
+        planetaryDatabase[pKey].gravity = `AZ ${Math.round(pHor.az)}° • ALT ${pHor.alt >= 0 ? '+' : ''}${Math.round(pHor.alt)}°`;
+      }
+
+      updateTelemetryReadoutBar();
+    }
+
+    // =========================================================
+    // GYROSCOPE & COMPASS ORIENTATION ENGINE
+    // =========================================================
     let activeBodyKey = null;
-    let skyYaw = 110;
-    let skyPitch = 38;
+    let skyYaw = 180;
+    let skyPitch = 32;
     let skyZoom = 1.0;
     let hourShift = 0;
     let showSkyLines = true;
     let showSkyLabels = true;
+    let showMoonBeacon = true;
+    let gyroEnabled = false;
+    let smoothYaw = null;
+    let smoothPitch = null;
+
     let isDraggingSky = false;
     let dragMoved = false;
     let dragStartX = 0;
@@ -634,10 +898,145 @@
       return ((a - b + 540) % 360) - 180;
     }
 
+    function lerpAngle(current, target, alpha) {
+      return norm360(current + angleDiff(target, current) * alpha);
+    }
+
+    function handleDeviceOrientation(e) {
+      if (!gyroEnabled) return;
+
+      // Compute true compass heading (0 = North, 90 = East, 180 = South, 270 = West)
+      let heading = null;
+      if (typeof e.webkitCompassHeading === 'number') {
+        heading = e.webkitCompassHeading;
+      } else if (e.alpha !== null) {
+        heading = norm360(360 - e.alpha);
+      }
+
+      // Compute sky pitch when holding phone upright and tilting toward the sky
+      // beta ~ 90° means holding phone vertically at horizon (pitch = 0°)
+      // beta ~ 135° or 45° depending on tilt -> mapped cleanly to [-20°, +88°]
+      let pitch = skyPitch;
+      if (e.beta !== null) {
+        if (e.beta >= 0 && e.beta <= 180) {
+          pitch = Math.max(-25, Math.min(88, 90 - Math.abs(180 - e.beta) * 0.95));
+          // Upright phone standard: beta=90 -> horizon (0°), tilting back toward 180 -> zenith (+90°)
+          pitch = Math.max(-25, Math.min(88, e.beta - 90));
+        }
+      }
+
+      if (heading !== null) {
+        if (smoothYaw === null) {
+          smoothYaw = heading;
+          smoothPitch = pitch;
+        } else {
+          smoothYaw = lerpAngle(smoothYaw, heading, 0.22);
+          smoothPitch = smoothPitch + (pitch - smoothPitch) * 0.22;
+        }
+        skyYaw = smoothYaw;
+        skyPitch = smoothPitch;
+        updateTelemetryReadoutBar();
+        drawSky();
+      }
+    }
+
+    async function toggleGyroTracking() {
+      const btn = document.getElementById('gyroToggleBtn');
+      if (gyroEnabled) {
+        gyroEnabled = false;
+        smoothYaw = null;
+        smoothPitch = null;
+        window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
+        window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
+        btn.classList.remove('gyro-live');
+        btn.innerText = '🧭 Live Gyro: OFF';
+        document.getElementById('overlayGuideText').innerText = 'Drag to pan sky • Follow amber ley line to Luna';
+        return;
+      }
+
+      // iOS 13+ requires explicit permission prompt inside a click handler
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const perm = await DeviceOrientationEvent.requestPermission();
+          if (perm !== 'granted') {
+            alert('Compass/Gyroscope permission was denied. You can still pan manually.');
+            return;
+          }
+        } catch (err) {
+          alert('Unable to activate gyroscope permission on this browser.');
+          return;
+        }
+      }
+
+      gyroEnabled = true;
+      smoothYaw = null;
+      smoothPitch = null;
+      window.addEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
+      window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+      btn.classList.add('gyro-live');
+      btn.innerText = '🧭 Live Gyro: ON';
+      document.getElementById('overlayGuideText').innerText = 'LIVE GYRO ACTIVE • Follow amber ley line to lock Luna';
+    }
+
+    function requestUserLocation() {
+      const btn = document.getElementById('gpsBtn');
+      if (!('geolocation' in navigator)) {
+        alert('Geolocation not supported on this device.');
+        return;
+      }
+      btn.innerText = '📍 Locating...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          observerLat = pos.coords.latitude;
+          observerLon = pos.coords.longitude;
+          gpsSynced = true;
+          btn.innerText = '📍 GPS Locked';
+          btn.classList.add('active');
+          recomputeRealTimeSky();
+          drawSky();
+        },
+        () => {
+          btn.innerText = '📍 Sync GPS';
+          alert('Location access blocked—using default coordinates.');
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+
+    function updateTelemetryReadoutBar() {
+      const latDir = observerLat >= 0 ? 'N' : 'S';
+      const lonDir = observerLon >= 0 ? 'E' : 'W';
+      document.getElementById('locReadout').innerText =
+        `${Math.abs(observerLat).toFixed(2)}°${latDir}, ${Math.abs(observerLon).toFixed(2)}°${lonDir}${gpsSynced ? ' (GPS)' : ' (Est.)'}`;
+
+      document.getElementById('aimReadout').innerText =
+        `AZ ${Math.round(skyYaw)}° • ALT ${skyPitch >= 0 ? '+' : ''}${Math.round(skyPitch)}°`;
+
+      const moon = planetaryDatabase.moon;
+      const dAz = angleDiff(moon.az, skyYaw);
+      const dAlt = moon.alt - skyPitch;
+      const angularDist = Math.hypot(dAz, dAlt);
+      const statusEl = document.getElementById('moonStatusReadout');
+
+      if (angularDist <= 7) {
+        statusEl.innerText = `🌙 LUNA LOCKED! (${moon.alt >= 0 ? 'ABOVE HORIZON' : 'BELOW HORIZON'})`;
+        statusEl.style.color = '#10b981';
+      } else {
+        const dirH = dAz > 3 ? `RIGHT ${Math.round(Math.abs(dAz))}°` : (dAz < -3 ? `LEFT ${Math.round(Math.abs(dAz))}°` : '');
+        const dirV = dAlt > 3 ? `UP ${Math.round(Math.abs(dAlt))}°` : (dAlt < -3 ? `DOWN ${Math.round(Math.abs(dAlt))}°` : '');
+        const horizonTag = moon.alt < 0 ? ' [BELOW HORIZON]' : '';
+        statusEl.innerText = `🌙 LUNA: ${[dirH, dirV].filter(Boolean).join(' • ')}${horizonTag}`;
+        statusEl.style.color = '#f59e0b';
+      }
+    }
+
+    // =========================================================
+    // CANVAS PROJECTION & MOON LEY-LINE RENDERING
+    // =========================================================
     function projectSky(az, alt) {
-      const shiftedAz = (az + hourShift * 15) % 360;
-      const dx = angleDiff(shiftedAz, skyYaw) * 4.2 * skyZoom;
-      const dy = -(alt - skyPitch) * 4.2 * skyZoom;
+      const scale = 4.6 * skyZoom;
+      const dx = angleDiff(az, skyYaw) * scale;
+      const dy = -(alt - skyPitch) * scale;
       return {
         x: skyCanvas.clientWidth / 2 + dx,
         y: skyCanvas.clientHeight / 2 + dy
@@ -652,26 +1051,162 @@
       skyCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
+    function drawHorizonAndCompass(w, h) {
+      const horizonY = projectSky(skyYaw, 0).y;
+
+      // Ground / below-horizon tint
+      if (horizonY < h) {
+        const topY = Math.max(0, horizonY);
+        skyCtx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+        skyCtx.fillRect(0, topY, w, h - topY);
+
+        skyCtx.strokeStyle = 'rgba(102, 252, 241, 0.45)';
+        skyCtx.setLineDash([6, 6]);
+        skyCtx.lineWidth = 1.2;
+        skyCtx.beginPath();
+        skyCtx.moveTo(0, horizonY);
+        skyCtx.lineTo(w, horizonY);
+        skyCtx.stroke();
+        skyCtx.setLineDash([]);
+      }
+
+      // Cardinal compass ticks along horizon
+      const cardinals = [
+        { label: 'N', az: 0 },
+        { label: 'NE', az: 45 },
+        { label: 'E', az: 90 },
+        { label: 'SE', az: 135 },
+        { label: 'S', az: 180 },
+        { label: 'SW', az: 225 },
+        { label: 'W', az: 270 },
+        { label: 'NW', az: 315 }
+      ];
+
+      skyCtx.font = 'bold 10px "Courier New", monospace';
+      for (const c of cardinals) {
+        const pt = projectSky(c.az, 0);
+        if (pt.x < -20 || pt.x > w + 20) continue;
+        const labelY = Math.max(18, Math.min(h - 46, pt.y - 6));
+        skyCtx.fillStyle = c.label === 'N' ? '#f59e0b' : 'rgba(102, 252, 241, 0.75)';
+        skyCtx.fillText(c.label, pt.x - 6, labelY);
+      }
+    }
+
+    function drawMoonLeyBeacon(w, h) {
+      if (!showMoonBeacon) return;
+      const moon = planetaryDatabase.moon;
+      const cx = w / 2;
+      const cy = h / 2;
+      const mPt = projectSky(moon.az, moon.alt);
+
+      const dx = mPt.x - cx;
+      const dy = mPt.y - cy;
+      const dist = Math.hypot(dx, dy);
+      const isLocked = dist < 26;
+
+      // Glowing ley-line path from reticle center to real-time Moon coordinates
+      const grad = skyCtx.createLinearGradient(cx, cy, mPt.x, mPt.y);
+      grad.addColorStop(0, isLocked ? 'rgba(16, 185, 129, 0.9)' : 'rgba(102, 252, 241, 0.5)');
+      grad.addColorStop(1, isLocked ? 'rgba(16, 185, 129, 0.95)' : 'rgba(245, 158, 11, 0.95)');
+
+      skyCtx.strokeStyle = grad;
+      skyCtx.lineWidth = isLocked ? 2.5 : 2.0;
+      skyCtx.setLineDash(isLocked ? [] : [8, 5]);
+      skyCtx.beginPath();
+      skyCtx.moveTo(cx, cy);
+      skyCtx.lineTo(mPt.x, mPt.y);
+      skyCtx.stroke();
+      skyCtx.setLineDash([]);
+
+      // Edge directional pointer arrow if Moon is currently outside screen bounds
+      if (mPt.x < 16 || mPt.x > w - 16 || mPt.y < 16 || mPt.y > h - 16) {
+        const angle = Math.atan2(dy, dx);
+        const pad = 28;
+        const maxX = w / 2 - pad;
+        const maxY = h / 2 - pad;
+        const scale = Math.min(Math.abs(maxX / (Math.cos(angle) || 1e-6)), Math.abs(maxY / (Math.sin(angle) || 1e-6)));
+        const ix = cx + Math.cos(angle) * scale;
+        const iy = cy + Math.sin(angle) * scale;
+
+        skyCtx.save();
+        skyCtx.translate(ix, iy);
+        skyCtx.rotate(angle);
+        skyCtx.fillStyle = '#f59e0b';
+        skyCtx.beginPath();
+        skyCtx.moveTo(10, 0);
+        skyCtx.lineTo(-7, -6);
+        skyCtx.lineTo(-4, 0);
+        skyCtx.lineTo(-7, 6);
+        skyCtx.closePath();
+        skyCtx.fill();
+        skyCtx.restore();
+
+        skyCtx.fillStyle = '#f59e0b';
+        skyCtx.font = 'bold 9px "Courier New", monospace';
+        skyCtx.fillText('LUNA', ix - 12, iy - 10);
+      }
+
+      // Center aiming reticle
+      skyCtx.strokeStyle = isLocked ? '#10b981' : 'rgba(102, 252, 241, 0.75)';
+      skyCtx.lineWidth = 1.5;
+      skyCtx.beginPath();
+      skyCtx.arc(cx, cy, isLocked ? 22 : 16, 0, Math.PI * 2);
+      skyCtx.stroke();
+
+      skyCtx.beginPath();
+      skyCtx.moveTo(cx - 24, cy);
+      skyCtx.lineTo(cx - 8, cy);
+      skyCtx.moveTo(cx + 8, cy);
+      skyCtx.lineTo(cx + 24, cy);
+      skyCtx.moveTo(cx, cy - 24);
+      skyCtx.lineTo(cx, cy - 8);
+      skyCtx.moveTo(cx, cy + 8);
+      skyCtx.lineTo(cx, cy + 24);
+      skyCtx.stroke();
+    }
+
     function drawSky() {
       if (!skyCanvas.clientWidth || !skyCanvas.clientHeight) return;
       const w = skyCanvas.clientWidth;
       const h = skyCanvas.clientHeight;
+      const targetDate = getActiveSkyDate();
       skyCtx.clearRect(0, 0, w, h);
 
-      // Background starfield
+      drawHorizonAndCompass(w, h);
+
+      // Background starfield anchored to real celestial coordinates
       for (const st of BG_STARS) {
-        const pt = projectSky(st.az, st.alt);
+        const hor = raDecToAzAlt(st.ra, st.dec, targetDate, observerLat, observerLon);
+        const pt = projectSky(hor.az, hor.alt);
         if (pt.x < -10 || pt.x > w + 10 || pt.y < -10 || pt.y > h + 10) continue;
-        skyCtx.fillStyle = `rgba(226, 232, 240, ${st.alpha})`;
+        skyCtx.fillStyle = `rgba(226, 232, 240, ${hor.alt < 0 ? st.alpha * 0.35 : st.alpha})`;
         skyCtx.beginPath();
         skyCtx.arc(pt.x, pt.y, st.size, 0, Math.PI * 2);
         skyCtx.fill();
       }
 
-      // Ley line vectors
+      // Named bright stars (Orion, Big Dipper, Winter Hexagon, etc.)
+      for (const star of REAL_STARS) {
+        const hor = raDecToAzAlt(star.ra, star.dec, targetDate, observerLat, observerLon);
+        const pt = projectSky(hor.az, hor.alt);
+        if (pt.x < -20 || pt.x > w + 20 || pt.y < -20 || pt.y > h + 20) continue;
+        const r = Math.max(1.5, 3.2 - star.mag * 0.5);
+        skyCtx.fillStyle = hor.alt < 0 ? 'rgba(148, 163, 184, 0.45)' : '#bae6fd';
+        skyCtx.beginPath();
+        skyCtx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+        skyCtx.fill();
+
+        if (showSkyLabels && star.mag <= 1.4) {
+          skyCtx.fillStyle = 'rgba(186, 230, 253, 0.72)';
+          skyCtx.font = '9px "Courier New", monospace';
+          skyCtx.fillText(star.name, pt.x + r + 4, pt.y + 3);
+        }
+      }
+
+      // Planetary & Ancestral Ley-Line Web
       if (showSkyLines) {
-        skyCtx.strokeStyle = 'rgba(102, 252, 241, 0.35)';
-        skyCtx.lineWidth = 1.3;
+        skyCtx.strokeStyle = 'rgba(102, 252, 241, 0.32)';
+        skyCtx.lineWidth = 1.2;
         for (const [aKey, bKey] of LEY_LINKS) {
           const a = planetaryDatabase[aKey];
           const b = planetaryDatabase[bKey];
@@ -685,24 +1220,35 @@
         }
       }
 
+      // Real-time Moon Ley-Line Guidance Vector & Reticle
+      drawMoonLeyBeacon(w, h);
+
       skyHitAreas = [];
 
       for (const node of SKY_NODES) {
         const pt = projectSky(node.az, node.alt);
         const r = node.radius * Math.max(0.85, Math.min(1.5, skyZoom));
 
-        const halo = skyCtx.createRadialGradient(pt.x, pt.y, 1, pt.x, pt.y, r * 2.8);
+        const halo = skyCtx.createRadialGradient(pt.x, pt.y, 1, pt.x, pt.y, r * 3.0);
         halo.addColorStop(0, node.color);
         halo.addColorStop(1, 'rgba(0,0,0,0)');
         skyCtx.fillStyle = halo;
         skyCtx.beginPath();
-        skyCtx.arc(pt.x, pt.y, r * 2.8, 0, Math.PI * 2);
+        skyCtx.arc(pt.x, pt.y, r * 3.0, 0, Math.PI * 2);
         skyCtx.fill();
 
         skyCtx.fillStyle = node.color;
         skyCtx.beginPath();
         skyCtx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
         skyCtx.fill();
+
+        // Crescent shadow effect on Luna
+        if (node.key === 'moon') {
+          skyCtx.fillStyle = '#0f172a';
+          skyCtx.beginPath();
+          skyCtx.arc(pt.x - r * 0.32, pt.y - r * 0.1, r * 0.85, 0, Math.PI * 2);
+          skyCtx.fill();
+        }
 
         if (activeBodyKey === node.key) {
           skyCtx.strokeStyle = '#66fcf1';
@@ -713,20 +1259,26 @@
         }
 
         if (showSkyLabels) {
-          skyCtx.fillStyle = '#e2e8f0';
+          skyCtx.fillStyle = node.key === 'moon' ? '#f59e0b' : '#e2e8f0';
           skyCtx.font = 'bold 10px "Courier New", monospace';
           skyCtx.fillText(node.shortLabel, pt.x + r + 6, pt.y + 4);
         }
 
-        skyHitAreas.push({ key: node.key, x: pt.x, y: pt.y, hitR: Math.max(20, r + 10) });
+        skyHitAreas.push({ key: node.key, x: pt.x, y: pt.y, hitR: Math.max(22, r + 10) });
       }
     }
 
     function focusAndInspect(bodyKey, speak = true) {
       const data = planetaryDatabase[bodyKey];
       if (!data) return;
-      skyYaw = (data.az + hourShift * 15) % 360;
-      skyPitch = Math.max(15, Math.min(72, data.alt));
+
+      // Turn off live gyro briefly if user taps a quick-jump button so it centers cleanly
+      if (gyroEnabled) {
+        toggleGyroTracking();
+      }
+      skyYaw = data.az;
+      skyPitch = Math.max(-15, Math.min(82, data.alt));
+      updateTelemetryReadoutBar();
       showTelemetry(bodyKey, speak);
       drawSky();
     }
@@ -757,7 +1309,7 @@
     function speakCurrentTelemetry() {
       if (!activeBodyKey) return;
       const data = planetaryDatabase[activeBodyKey];
-      const speechText = `${data.name}. Distance: ${data.distance}. Diameter: ${data.diameter}. Surface gravity: ${data.gravity}. Orbital period: ${data.orbit}. ${data.lore}`;
+      const speechText = `${data.name}. Distance: ${data.distance}. Current sky coordinates: ${data.gravity}. ${data.lore}`;
       speakNews("Telemetry Report", speechText);
     }
 
@@ -782,6 +1334,12 @@
       bar.innerHTML = `<strong style="color:#66fcf1;font-size:9px;text-transform:uppercase;">Spotted Log:</strong>${chips}`;
     }
 
+    function toggleMoonBeacon() {
+      showMoonBeacon = !showMoonBeacon;
+      document.getElementById('moonLeyBtn').classList.toggle('active', showMoonBeacon);
+      drawSky();
+    }
+
     function toggleSkyLines() {
       showSkyLines = !showSkyLines;
       document.getElementById('toggleLinesBtn').classList.toggle('active', showSkyLines);
@@ -800,12 +1358,15 @@
     }
 
     function resetSkyView() {
-      skyYaw = 110;
-      skyPitch = 38;
-      skyZoom = 1.0;
+      if (gyroEnabled) toggleGyroTracking();
       hourShift = 0;
       document.getElementById('skyHourSlider').value = 0;
       document.getElementById('skyHourLabel').innerText = 'Now';
+      recomputeRealTimeSky();
+      skyYaw = planetaryDatabase.moon.az;
+      skyPitch = Math.max(10, Math.min(75, planetaryDatabase.moon.alt));
+      skyZoom = 1.0;
+      updateTelemetryReadoutBar();
       drawSky();
     }
 
@@ -813,6 +1374,7 @@
       hourShift = Number(val);
       document.getElementById('skyHourLabel').innerText =
         hourShift === 0 ? 'Now' : `${hourShift > 0 ? '+' : ''}${hourShift}h`;
+      recomputeRealTimeSky();
       drawSky();
     }
 
@@ -846,9 +1408,11 @@
       lastPointerY = e.clientY;
       if (Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) > 6) {
         dragMoved = true;
+        if (gyroEnabled) toggleGyroTracking();
       }
-      skyYaw = (skyYaw - dx / (4.2 * skyZoom) + 360) % 360;
-      skyPitch = Math.max(-10, Math.min(85, skyPitch + dy / (4.2 * skyZoom)));
+      skyYaw = norm360(skyYaw - dx / (4.6 * skyZoom));
+      skyPitch = Math.max(-25, Math.min(88, skyPitch + dy / (4.6 * skyZoom)));
+      updateTelemetryReadoutBar();
       drawSky();
     });
 
@@ -867,6 +1431,12 @@
       resizeSkyCanvas();
       drawSky();
     });
+
+    // Auto-refresh sky coordinates every 30 seconds
+    setInterval(() => {
+      recomputeRealTimeSky();
+      drawSky();
+    }, 30000);
 
     function speakNews(title, snippet) {
       if ('speechSynthesis' in window) {
@@ -950,6 +1520,10 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       renderSpottedLog();
+      recomputeRealTimeSky();
+      skyYaw = planetaryDatabase.moon.az;
+      skyPitch = Math.max(10, Math.min(75, planetaryDatabase.moon.alt));
+      updateTelemetryReadoutBar();
       resizeSkyCanvas();
       drawSky();
       loadLiveNews();
