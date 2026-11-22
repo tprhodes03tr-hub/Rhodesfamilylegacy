@@ -434,9 +434,13 @@
             </select>
             <button onclick="toggleLanguage()" id="lang-btn" style="background: #111827; color: #2ecc71; border: 1px solid #2ecc71; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; cursor: pointer; font-family: 'Courier New', Courier, monospace;">🌐 ESPAÑOL</button>
             <span class="rfl-hub-pill" id="rflHubPill">
-                <span>Rank: <strong id="rflHubRank">Initiate</strong></span>
+                <span>Rank: <strong id="rflHubRank">Sovereign Prime Commander</strong></span>
                 <span>•</span>
-                <span>Legacy Pts: <strong id="rflHubPoints">0</strong></span>
+                <span>Legacy: <strong id="rflHubPoints">342,604</strong></span>
+                <span>•</span>
+                <span>Marrow PTS: <strong id="rflHubMarrowPts">61,548</strong></span>
+                <span>•</span>
+                <span>Larimar Ore: <strong id="rflHubOre">10,650T</strong></span>
             </span>
         </div>
     </header>
@@ -817,10 +821,11 @@
     </div>
 
 <script>
-    // --- CROSS-GAME LEGACY SAVE BRIDGE (rfl_legacy_save_v1 + RFLGameHooks) ---
+    // --- CROSS-GAME LEGACY SAVE BRIDGE (rfl_legacy_save_v1 + RFLGameHooks + rhodes_legacy_wallet) ---
     (function initCrossGameHubBridge() {
         "use strict";
         var STORAGE_KEY = "rfl_legacy_save_v1";
+        var WALLET_KEY = "rhodes_legacy_wallet";
 
         function defaultState() {
             return {
@@ -838,7 +843,9 @@
                     nexusBoard: 0,
                     bubblePop: 0
                 },
-                points: 0,
+                points: 342604,
+                hubPoints: 61548,
+                larimarOre: 10650,
                 lastVisit: new Date().toISOString()
             };
         }
@@ -846,14 +853,30 @@
         function loadSave() {
             try {
                 var raw = window.localStorage.getItem(STORAGE_KEY);
-                if (!raw) return defaultState();
-                var parsed = JSON.parse(raw);
+                var parsed = raw ? JSON.parse(raw) : {};
+                var walletRaw = window.localStorage.getItem(WALLET_KEY);
+                var wallet = walletRaw ? JSON.parse(walletRaw) : null;
+
+                var mergedLegacy = Math.max(
+                    342604,
+                    typeof parsed.points === "number" ? parsed.points : 0,
+                    wallet && typeof wallet.legacyScore === "number" ? wallet.legacyScore : 0
+                );
+                var mergedHub = wallet && typeof wallet.hubPoints === "number"
+                    ? wallet.hubPoints
+                    : (typeof parsed.hubPoints === "number" ? parsed.hubPoints : 61548);
+                var mergedOre = wallet && typeof wallet.larimarOre === "number"
+                    ? wallet.larimarOre
+                    : (typeof parsed.larimarOre === "number" ? parsed.larimarOre : 10650);
+
                 return {
                     version: 1,
                     visitedPaths: Array.isArray(parsed.visitedPaths) ? parsed.visitedPaths : [],
                     unlockedClues: Array.isArray(parsed.unlockedClues) ? parsed.unlockedClues : [],
                     gameScores: Object.assign(defaultState().gameScores, parsed.gameScores || {}),
-                    points: typeof parsed.points === "number" ? parsed.points : 0,
+                    points: mergedLegacy,
+                    hubPoints: mergedHub,
+                    larimarOre: mergedOre,
                     lastVisit: new Date().toISOString()
                 };
             } catch (e) {
@@ -865,11 +888,24 @@
             try {
                 state.lastVisit = new Date().toISOString();
                 window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                var walletRaw = window.localStorage.getItem(WALLET_KEY);
+                var wallet = walletRaw ? JSON.parse(walletRaw) : {
+                    legacyScore: state.points,
+                    hubPoints: state.hubPoints,
+                    larimarOre: state.larimarOre,
+                    unlockedTiers: []
+                };
+                wallet.legacyScore = state.points;
+                wallet.hubPoints = state.hubPoints;
+                wallet.larimarOre = state.larimarOre;
+                wallet.updatedAt = Date.now();
+                window.localStorage.setItem(WALLET_KEY, JSON.stringify(wallet));
             } catch (e) {}
         }
 
         function computeRank(state) {
             var signals = state.visitedPaths.length + state.unlockedClues.length;
+            if (state.points >= 250000) return "Sovereign Prime Commander";
             if (state.points >= 1000 || signals >= 6) return "Vanguard Prime";
             if (state.points >= 400 || signals >= 3) return "Codex Keeper";
             if (state.points >= 100 || signals >= 1) return "Wayfinder";
@@ -880,18 +916,32 @@
             try {
                 var rankEl = document.getElementById("rflHubRank");
                 var ptsEl = document.getElementById("rflHubPoints");
+                var marrowEl = document.getElementById("rflHubMarrowPts");
+                var oreEl = document.getElementById("rflHubOre");
                 if (rankEl) rankEl.textContent = computeRank(state);
-                if (ptsEl) ptsEl.textContent = String(state.points);
+                if (ptsEl) ptsEl.textContent = state.points.toLocaleString();
+                if (marrowEl) marrowEl.textContent = state.hubPoints.toLocaleString();
+                if (oreEl) oreEl.textContent = state.larimarOre.toLocaleString() + "T";
             } catch (e) {}
         }
 
         var legacyApi = {
             getState: loadSave,
-            awardGamePoints: function (gameKey, pointsEarned, highScore) {
+            awardGamePoints: function (gameKey, pointsEarned, highScore, oreEarned) {
                 try {
                     var state = loadSave();
                     var pts = typeof pointsEarned === "number" && pointsEarned > 0 ? Math.floor(pointsEarned) : 0;
-                    state.points += pts;
+                    var ore = typeof oreEarned === "number" && oreEarned > 0 ? Math.floor(oreEarned) : 0;
+                    if (window.LegacyWallet && typeof window.LegacyWallet.addPoints === "function") {
+                        var w = window.LegacyWallet.addPoints(pts, ore);
+                        state.points = w.legacyScore;
+                        state.hubPoints = w.hubPoints;
+                        state.larimarOre = w.larimarOre;
+                    } else {
+                        state.points += pts;
+                        state.hubPoints += pts;
+                        state.larimarOre += ore;
+                    }
                     if (gameKey && typeof highScore === "number") {
                         var prev = state.gameScores[gameKey] || 0;
                         if (highScore > prev) state.gameScores[gameKey] = highScore;
@@ -905,10 +955,19 @@
             },
             getPerks: function () {
                 var state = loadSave();
+                var hasTier = function (id) {
+                    return window.LegacyWallet && typeof window.LegacyWallet.hasTier === "function"
+                        ? window.LegacyWallet.hasTier(id)
+                        : false;
+                };
                 return {
                     tycoonBonusME: state.points >= 300 ? 500 : (state.points >= 100 ? 200 : 0),
                     tetrisGoldTheme: state.points >= 250 || state.visitedPaths.indexOf("vanguard") !== -1,
-                    nexusShieldBoost: state.unlockedClues.length >= 2
+                    nexusShieldBoost: state.unlockedClues.length >= 2 || hasTier("orbital_wing"),
+                    vanguardStrike: hasTier("vanguard_strike"),
+                    primeSynergy: hasTier("prime_synergy"),
+                    sovereignProtocol: hasTier("sovereign_cmd"),
+                    vanguardOverdrive: hasTier("vanguard_overdrive")
                 };
             }
         };
@@ -932,8 +991,12 @@
             }
         };
 
+        window.addEventListener("rflWalletUpdated", function () {
+            refreshHubPill(loadSave());
+        });
+
         window.addEventListener("storage", function (ev) {
-            if (ev && ev.key === STORAGE_KEY) {
+            if (ev && (ev.key === STORAGE_KEY || ev.key === WALLET_KEY)) {
                 refreshHubPill(loadSave());
             }
         });
@@ -3447,5 +3510,7 @@
         });
     }
 </script>
+
+<script src="legacy-wallet.js" defer></script>
 </body>
 </html>
