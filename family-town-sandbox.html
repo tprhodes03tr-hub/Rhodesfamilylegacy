@@ -173,7 +173,7 @@
         <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-amber-500/40 text-[11px] sm:text-xs shadow-inner flex-wrap">
             <a href="index.html" class="bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/40 px-2 py-0.5 rounded-lg text-[10px] font-bold no-underline">← Hub</a>
             <div class="bg-amber-950/70 border border-amber-400/50 text-amber-200 px-2 py-0.5 rounded-lg text-[10px] font-bold">
-                <span id="rflNexusRank">Initiate</span> • <span id="rflNexusPts">0</span> Pts
+                <span id="rflNexusRank">Sovereign Prime Commander</span> • <span id="rflNexusPts">342,604</span> Legacy • <span id="rflNexusMarrowPts">61,548</span> PTS • <span id="rflNexusOre">10,650T</span>
             </div>
             <div>🪙 <span id="hud-coins" class="font-bold text-amber-400">5070</span></div>
             <div>🌾 <span id="hud-crops" class="font-bold text-yellow-400">2065</span></div>
@@ -438,10 +438,11 @@
 
     <!-- Unified 5-Portal Audio & Legacy Engine Script -->
     <script>
-        // --- CROSS-GAME LEGACY SAVE BRIDGE (rfl_legacy_save_v1) ---
+        // --- CROSS-GAME LEGACY SAVE BRIDGE (rfl_legacy_save_v1 + rhodes_legacy_wallet) ---
         (function initNexusLegacyBridge() {
             "use strict";
             var STORAGE_KEY = "rfl_legacy_save_v1";
+            var WALLET_KEY = "rhodes_legacy_wallet";
 
             function defaultState() {
                 return {
@@ -454,7 +455,9 @@
                         vanguardTycoon: 0,
                         vanguardGames: 0
                     },
-                    points: 0,
+                    points: 342604,
+                    hubPoints: 61548,
+                    larimarOre: 10650,
                     lastVisit: new Date().toISOString()
                 };
             }
@@ -462,14 +465,30 @@
             function loadSave() {
                 try {
                     var raw = window.localStorage.getItem(STORAGE_KEY);
-                    if (!raw) return defaultState();
-                    var parsed = JSON.parse(raw);
+                    var parsed = raw ? JSON.parse(raw) : {};
+                    var walletRaw = window.localStorage.getItem(WALLET_KEY);
+                    var wallet = walletRaw ? JSON.parse(walletRaw) : null;
+
+                    var mergedLegacy = Math.max(
+                        342604,
+                        typeof parsed.points === "number" ? parsed.points : 0,
+                        wallet && typeof wallet.legacyScore === "number" ? wallet.legacyScore : 0
+                    );
+                    var mergedHub = wallet && typeof wallet.hubPoints === "number"
+                        ? wallet.hubPoints
+                        : (typeof parsed.hubPoints === "number" ? parsed.hubPoints : 61548);
+                    var mergedOre = wallet && typeof wallet.larimarOre === "number"
+                        ? wallet.larimarOre
+                        : (typeof parsed.larimarOre === "number" ? parsed.larimarOre : 10650);
+
                     return {
                         version: 1,
                         visitedPaths: Array.isArray(parsed.visitedPaths) ? parsed.visitedPaths : [],
                         unlockedClues: Array.isArray(parsed.unlockedClues) ? parsed.unlockedClues : [],
                         gameScores: Object.assign(defaultState().gameScores, parsed.gameScores || {}),
-                        points: typeof parsed.points === "number" ? parsed.points : 0,
+                        points: mergedLegacy,
+                        hubPoints: mergedHub,
+                        larimarOre: mergedOre,
                         lastVisit: new Date().toISOString()
                     };
                 } catch (e) {
@@ -481,11 +500,24 @@
                 try {
                     state.lastVisit = new Date().toISOString();
                     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                    var walletRaw = window.localStorage.getItem(WALLET_KEY);
+                    var wallet = walletRaw ? JSON.parse(walletRaw) : {
+                        legacyScore: state.points,
+                        hubPoints: state.hubPoints,
+                        larimarOre: state.larimarOre,
+                        unlockedTiers: []
+                    };
+                    wallet.legacyScore = state.points;
+                    wallet.hubPoints = state.hubPoints;
+                    wallet.larimarOre = state.larimarOre;
+                    wallet.updatedAt = Date.now();
+                    window.localStorage.setItem(WALLET_KEY, JSON.stringify(wallet));
                 } catch (e) {}
             }
 
             function computeRank(state) {
                 var signals = state.visitedPaths.length + state.unlockedClues.length;
+                if (state.points >= 250000) return "Sovereign Prime Commander";
                 if (state.points >= 1000 || signals >= 6) return "Vanguard Prime";
                 if (state.points >= 400 || signals >= 3) return "Codex Keeper";
                 if (state.points >= 100 || signals >= 1) return "Wayfinder";
@@ -496,18 +528,32 @@
                 try {
                     var rankEl = document.getElementById("rflNexusRank");
                     var ptsEl = document.getElementById("rflNexusPts");
+                    var hubEl = document.getElementById("rflNexusMarrowPts");
+                    var oreEl = document.getElementById("rflNexusOre");
                     if (rankEl) rankEl.textContent = computeRank(state);
-                    if (ptsEl) ptsEl.textContent = String(state.points);
+                    if (ptsEl) ptsEl.textContent = state.points.toLocaleString();
+                    if (hubEl) hubEl.textContent = state.hubPoints.toLocaleString();
+                    if (oreEl) oreEl.textContent = state.larimarOre.toLocaleString() + "T";
                 } catch (e) {}
             }
 
             window.RFLNexusBridge = {
                 getState: loadSave,
-                addPoints: function (ptsEarned, clueId) {
+                addPoints: function (ptsEarned, clueId, oreEarned) {
                     try {
                         var state = loadSave();
                         var add = typeof ptsEarned === "number" && ptsEarned > 0 ? Math.floor(ptsEarned) : 0;
-                        state.points += add;
+                        var ore = typeof oreEarned === "number" && oreEarned > 0 ? Math.floor(oreEarned) : 0;
+                        if (window.LegacyWallet && typeof window.LegacyWallet.addPoints === "function") {
+                            var w = window.LegacyWallet.addPoints(add, ore);
+                            state.points = w.legacyScore;
+                            state.hubPoints = w.hubPoints;
+                            state.larimarOre = w.larimarOre;
+                        } else {
+                            state.points += add;
+                            state.hubPoints += add;
+                            state.larimarOre += ore;
+                        }
                         if (clueId && state.unlockedClues.indexOf(clueId) === -1) {
                             state.unlockedClues.push(clueId);
                         }
@@ -523,8 +569,12 @@
                 }
             };
 
+            window.addEventListener("rflWalletUpdated", function () {
+                refreshNexusPill(loadSave());
+            });
+
             window.addEventListener("storage", function (ev) {
-                if (ev && ev.key === STORAGE_KEY) {
+                if (ev && (ev.key === STORAGE_KEY || ev.key === WALLET_KEY)) {
                     refreshNexusPill(loadSave());
                 }
             });
@@ -2544,7 +2594,6 @@
             }
         }
 
-        // Draws the Tree of Life anchored directly onto groundY so roots sit planted in the earth
         function drawGroundedDNAEmblem(x, groundY, width, height) {
             ctx.save();
             ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
@@ -3417,5 +3466,7 @@
             requestAnimationFrame(gameLoop);
         }
     </script>
+
+    <script src="legacy-wallet.js" defer></script>
 </body>
 </html>
