@@ -56,7 +56,7 @@
           <button class="play-icon-btn">▶ PLAY FEATURE</button>
         </div>
         <video id="cinema-player" controls playsinline preload="metadata">
-          <source src="children-running-out-of-book.mp4" type="video/mp4">
+          <source src="little-fannie-may-glowing-button-forest.mp4" type="video/mp4">
         </video>
         <div id="card-bumper">
           <div class="bumper-card-box" id="bumper-card-box">
@@ -74,7 +74,7 @@
         </div>
       </div>
       <div class="hud-meta">
-        <span class="hud-title" id="now-playing">PART I • Scene 1 - The Children Step Out of the Book (1/6)</span>
+        <span class="hud-title" id="now-playing">PART I • Scene 1 - Little Fannie May & The Glowing Button (1/5)</span>
         <div class="hud-controls">
           <button class="ctrl-btn" onclick="playPrevious()">⏮ Prev</button>
           <button class="ctrl-btn" onclick="playNext()">Next ⏭</button>
@@ -105,12 +105,11 @@
         badge: 'PART I • HERITAGE STORYBOOKS',
         cta: 'Part I: Follow the children from storybook discovery into the family legacy.',
         playlist: [
-          { title: "Scene 1 - The Children Step Out of the Book", src: "children-running-out-of-book.mp4" },
-          { title: "Scene 2 - The Adventures of Little Fannie May & Her Brothers", src: "fannie-may-and-her-brothers.mp4" },
-          { title: "Scene 3 - Little Luetta & The Secret of the Iron Key", src: "little-luetta-secret-of-the-iron-key.mp4" },
-          { title: "Scene 4 - Fanny May's Forest Walk & Glowing Token", src: "fanny-may-forest-walk-glowing-token.mp4" },
-          { title: "Scene 5 - Origins & The Tree of Lineage", src: "Origins & The Tree of Lineage.mp4" },
-          { title: "Scene 6 - Packed in the Marrow & The Ancestral Vanguards", src: "fannie-may-packed-in-the-marrow-ancestral-vanguards.mp4" }
+          { title: "Scene 1 - Little Fannie May & The Glowing Button", src: "little-fannie-may-glowing-button-forest.mp4" },
+          { title: "Scene 2 - The Children Step Out of the Book", src: "gemini_generated_video_81922037.mp4" },
+          { title: "Scene 3 - Fanny May's Forest Walk & Glowing Token", src: "fanny-may-forest-walk-glowing-token.mp4" },
+          { title: "Scene 4 - Packed in the Marrow & The Hero Call", src: "packed-in-the-marrow-reading-and-hero-pose.mp4" },
+          { title: "Scene 5 - Origins & The Tree of Lineage", src: "Origins & The Tree of Lineage.mp4" }
         ]
       },
       vanguard: {
@@ -130,6 +129,7 @@
 
     let currentChannel = 'heritage';
     let currentIndex = 0;
+    let consecutiveErrors = 0;
     let videoCounter = 0;
     let isBumperActive = false;
     let hasStreamStarted = false;
@@ -160,6 +160,7 @@
 
     function setChannel(chan) {
       currentChannel = chan;
+      consecutiveErrors = 0;
       cardBumper.classList.remove('active');
       cardBox.classList.remove('flipped');
       isBumperActive = false;
@@ -192,11 +193,22 @@
 
     videoPlayer.onerror = () => {
       const list = CHANNELS[currentChannel].playlist;
-      const item = list[currentIndex] || list[0];
-      updateNowPlayingLabel(`UNSUPPORTED/MISSING: ${item.src} — Tap Next ⏭`);
+      consecutiveErrors++;
+      if (consecutiveErrors >= list.length) {
+        consecutiveErrors = 0;
+        updateNowPlayingLabel("NO PLAYABLE CLIPS IN CHANNEL — Tap Next ⏭");
+        return;
+      }
+      const nextIdx = (currentIndex + 1) % list.length;
+      loadVideo(nextIdx);
+    };
+
+    videoPlayer.onloadeddata = () => {
+      consecutiveErrors = 0;
     };
 
     videoPlayer.onplay = () => {
+      consecutiveErrors = 0;
       hasStreamStarted = true;
       playOverlay.classList.add('hidden');
       updateNowPlayingLabel();
@@ -241,6 +253,7 @@
 
     function playNext() {
       if (isBumperActive) return;
+      consecutiveErrors = 0;
       videoCounter++;
       const list = CHANNELS[currentChannel].playlist;
       if (videoCounter % 2 === 0) {
@@ -253,6 +266,7 @@
 
     function playPrevious() {
       if (isBumperActive) return;
+      consecutiveErrors = 0;
       const list = CHANNELS[currentChannel].playlist;
       currentIndex = (currentIndex - 1 + list.length) % list.length;
       loadVideo(currentIndex);
