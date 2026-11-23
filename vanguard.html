@@ -314,8 +314,8 @@
     }
 
     .holo-sprite-wrap img {
-      max-width: 106px;
-      max-height: 106px;
+      width: 106px;
+      height: 106px;
       object-fit: contain;
     }
 
@@ -679,7 +679,7 @@
 
     <div id="holoStage" class="holo-stage">
       <div class="holo-sprite-wrap">
-        <img id="holoSprite" src="./marcus.png" alt="Operative Hologram" onerror="this.src='./packed-marrow-tree.png'">
+        <img id="holoSprite" src="./marcus.png" alt="Operative Hologram">
       </div>
       <div id="holoName" style="color: var(--cyan); font-weight: 900; font-size: 1rem;">MARCUS PRIME</div>
       <div id="holoRole" style="color: var(--dim); font-size: 0.76rem;">Detroit '313 Grid • Urban Dynamo</div>
@@ -720,7 +720,7 @@
     </div>
 
     <div class="scene-speaker-bar">
-      <img id="sandboxSpeakerImg" src="./marcus.png" alt="Scene Operative" onerror="this.src='./packed-marrow-tree.png'">
+      <img id="sandboxSpeakerImg" src="./marcus.png" alt="Scene Operative">
       <div>
         <div id="sandboxSpeakerName" class="scene-speaker-title">MARCUS PRIME • FIELD LEAD</div>
         <div id="sandboxSpeakerLine" class="scene-speaker-sub">
@@ -804,7 +804,7 @@
     </div>
 
     <div class="scene-speaker-bar">
-      <img id="cipherSpeakerImg" src="./mother-luta.png" alt="Living Codex" onerror="this.src='./packed-marrow-tree.png'">
+      <img id="cipherSpeakerImg" src="./mother-luta.png" alt="Living Codex">
       <div>
         <div id="cipherSpeakerTitle" class="scene-speaker-title">MOTHER LUETTA • LIVING CODEX</div>
         <div id="cipherSpeakerSub" class="scene-speaker-sub">
@@ -873,6 +873,88 @@
   </section>
 
   <script>
+    // --- RESILIENT SPRITE FALLBACK ENGINE FOR MOTHER LUETTA, WAKAN & NÉNAMBI PRIME ---
+    const SPRITE_ALIASES = {
+      "./mother-luta.png": ["./mother-luetta.png", "./mother_luetta.png", "./luetta.png"],
+      "./guacan-sheet.png": ["./wakan.png", "./guacan.png", "./wakan-sheet.png"],
+      "./nenambi.png": ["./nenambi-prime.png", "./nenambi_prime.png"]
+    };
+
+    const SPRITE_BADGE_META = {
+      "./mother-luta.png": { initials: "ML", label: "LUETTA", bg1: "#7e22ce", bg2: "#f59e0b", ring: "#fde047" },
+      "./guacan-sheet.png": { initials: "WK", label: "WAKAN", bg1: "#0369a1", bg2: "#06b6d4", ring: "#66fcf1" },
+      "./nenambi.png": { initials: "NP", label: "NÉNAMBI", bg1: "#4c1d95", bg2: "#a855f7", ring: "#e9d5ff" },
+      "./marcus.png": { initials: "MP", label: "MARCUS", bg1: "#0f766e", bg2: "#38bdf8", ring: "#66fcf1" },
+      "./xochitl.png": { initials: "XO", label: "XOCHITL", bg1: "#9a3412", bg2: "#f59e0b", ring: "#fde68a" },
+      "./sundiata-prime.png": { initials: "SP", label: "SIMEONIC", bg1: "#92400e", bg2: "#eab308", ring: "#fef08a" },
+      "./amina-zazzau.png": { initials: "AZ", label: "AMINA", bg1: "#1d4ed8", bg2: "#38bdf8", ring: "#bae6fd" },
+      "./kofi.png": { initials: "KO", label: "KOFI", bg1: "#78350f", bg2: "#d97706", ring: "#fde68a" }
+    };
+
+    function createFallbackAvatarDataUrl(srcPath, altText) {
+      const cleanPath = (srcPath || "").split("?")[0];
+      const meta = SPRITE_BADGE_META[cleanPath] || {
+        initials: ((altText || "AV").trim().slice(0, 2) || "AV").toUpperCase(),
+        label: ((altText || "VANGUARD").trim().split(/\s+/)[0] || "VANGUARD").toUpperCase().slice(0, 8),
+        bg1: "#1e293b",
+        bg2: "#0ea5e9",
+        ring: "#66fcf1"
+      };
+
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+        <defs>
+          <radialGradient id="g" cx="50%" cy="35%" r="65%">
+            <stop offset="0%" stop-color="${meta.bg2}"/>
+            <stop offset="100%" stop-color="${meta.bg1}"/>
+          </radialGradient>
+        </defs>
+        <rect width="128" height="128" rx="64" fill="url(#g)"/>
+        <circle cx="64" cy="64" r="57" fill="none" stroke="${meta.ring}" stroke-width="3.5" stroke-dasharray="7 4"/>
+        <text x="64" y="62" text-anchor="middle" fill="#ffffff" font-family="Courier New, monospace" font-size="34" font-weight="900">${meta.initials}</text>
+        <text x="64" y="88" text-anchor="middle" fill="${meta.ring}" font-family="Courier New, monospace" font-size="12" font-weight="800">${meta.label}</text>
+      </svg>`;
+
+      return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+    }
+
+    function wireResilientImage(imgEl, desiredSrc) {
+      if (!imgEl) return;
+      const baseSrc = (desiredSrc || "").split("?")[0];
+      const aliases = SPRITE_ALIASES[baseSrc] || [];
+      let aliasIndex = 0;
+
+      imgEl.dataset.originalSrc = baseSrc;
+      imgEl.dataset.fallbackApplied = "0";
+
+      imgEl.onerror = function () {
+        if (aliasIndex < aliases.length) {
+          const nextCandidate = aliases[aliasIndex++];
+          imgEl.src = nextCandidate;
+          return;
+        }
+        if (imgEl.dataset.fallbackApplied !== "1") {
+          imgEl.dataset.fallbackApplied = "1";
+          imgEl.src = createFallbackAvatarDataUrl(baseSrc, imgEl.alt);
+        }
+      };
+
+      imgEl.src = baseSrc;
+    }
+
+    function setImgSrcSafe(id, desiredSrc) {
+      const el = document.getElementById(id);
+      if (el) wireResilientImage(el, desiredSrc);
+    }
+
+    function initAllImageFallbacks() {
+      document.querySelectorAll("img").forEach((img) => {
+        const currentSrc = img.getAttribute("src");
+        if (currentSrc && !currentSrc.startsWith("data:")) {
+          wireResilientImage(img, currentSrc);
+        }
+      });
+    }
+
     (function initPortalLegacyBridge() {
       "use strict";
       var STORAGE_KEY = "rfl_legacy_save_v1";
@@ -1056,7 +1138,7 @@
           surge: "⚡ SAVANNA LIGHTNING LANCE: Piercing arc strike from high ground!"
         },
         {
-          name: "Nénambi", side: "Hero", role: "Vanguard Frontline • Resonant Striker", sprite: "./nenambi.png",
+          name: "Nénambi Prime", side: "Hero", role: "Vanguard Frontline • Resonant Striker", sprite: "./nenambi.png",
           pwr: 92, def: 87, res: 93,
           stack: { primary: "Resonant Strike Combo", defense: "Aegis Pulse Guard", ultimate: "Codex Strike Surge" },
           bio: "Precision vanguard striker channeling kinetic resonance into close-range bursts.",
@@ -1209,7 +1291,10 @@
       const stage = document.getElementById("holoStage");
       stage.classList.toggle("villain-theme", activeOperative.side === "Syndicate");
 
-      document.getElementById("holoSprite").src = activeOperative.sprite;
+      const spriteEl = document.getElementById("holoSprite");
+      spriteEl.alt = activeOperative.name;
+      wireResilientImage(spriteEl, activeOperative.sprite);
+
       document.getElementById("holoName").innerText = activeOperative.name.toUpperCase();
       document.getElementById("holoRole").innerText = activeOperative.role;
       document.getElementById("holoStats").innerHTML =
@@ -1252,7 +1337,7 @@
 
     function setSandboxSpeaker(name, sprite, line, shouldSpeak = true) {
       document.getElementById("sandboxSpeakerName").innerText = name;
-      document.getElementById("sandboxSpeakerImg").src = sprite;
+      setImgSrcSafe("sandboxSpeakerImg", sprite);
       document.getElementById("sandboxSpeakerLine").innerText = line;
       if (shouldSpeak) {
         speakText(`${name}. ${line}`);
@@ -1431,7 +1516,7 @@
       if (correct) {
         addCipherXp(75, "cipher_stage_1");
         syncCipherHud(2);
-        document.getElementById("cipherSpeakerImg").src = "./guacan-sheet.png";
+        setImgSrcSafe("cipherSpeakerImg", "./guacan-sheet.png");
         document.getElementById("cipherSpeakerTitle").innerText = "WAKAN / GUACAN • UNLOCKED";
         document.getElementById("cipherSpeakerSub").innerText = "The Guamo conch answers the call. Next, reconstruct the core resonance word.";
         fb.innerText = "✓ Correct! Guacan / Wakan answers the call.";
@@ -1496,7 +1581,7 @@
       if (guess === TARGET_WORD) {
         addCipherXp(100, "cipher_stage_2");
         syncCipherHud(3);
-        document.getElementById("cipherSpeakerImg").src = "./sundiata-prime.png";
+        setImgSrcSafe("cipherSpeakerImg", "./sundiata-prime.png");
         document.getElementById("cipherSpeakerTitle").innerText = "SIMEONIC PRIME • MARROW VERIFIED";
         document.getElementById("cipherSpeakerSub").innerText = "Resonance confirmed. Now align Mother Luetta's four ley-line nodes.";
         fb.innerText = "✓ MARROW resonance verified!";
@@ -1535,7 +1620,7 @@
           syncCipherHud(null);
           cipherHints++;
           document.getElementById("cipherHintsLbl").innerText = cipherHints;
-          document.getElementById("cipherSpeakerImg").src = "./mother-luta.png";
+          setImgSrcSafe("cipherSpeakerImg", "./mother-luta.png");
           document.getElementById("cipherSpeakerTitle").innerText = "MOTHER LUETTA • VAULT UNLOCKED";
           document.getElementById("cipherSpeakerSub").innerText = "All three locks are open! 150 Shared Legacy Points banked.";
           fb.innerText = "✓ Ley-line lock complete!";
@@ -1576,7 +1661,7 @@
       builtLetters = [];
       leyStepIndex = 0;
       syncCipherHud(1);
-      document.getElementById("cipherSpeakerImg").src = "./mother-luta.png";
+      setImgSrcSafe("cipherSpeakerImg", "./mother-luta.png");
       document.getElementById("cipherSpeakerTitle").innerText = "MOTHER LUETTA • LIVING CODEX";
       document.getElementById("cipherSpeakerSub").innerText = "Solve all three ancestral locks to earn Shared Legacy Points and an extra hint charge.";
       ["puzzle-1", "puzzle-2", "puzzle-3", "puzzle-done"].forEach((id, i) => {
@@ -1587,6 +1672,7 @@
       document.getElementById("leyFeedback").innerText = "";
     }
 
+    initAllImageFallbacks();
     renderRosterPicker();
     renderActiveOperative();
     updateStats();
