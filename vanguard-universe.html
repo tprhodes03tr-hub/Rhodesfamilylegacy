@@ -2734,10 +2734,10 @@
         playSound('roar');
         screenShake = 15;
         lionRoars.push({
-          x: leadX + 35, y: 205 - leadY, vx: 9.0,
-          width: 78, height: 56, scale: 0.9, alpha: 1, life: 40
+          x: leadX + 25, y: 195 - leadY, vx: 9.0,
+          width: 170, height: 120, scale: 0.75, alpha: 0.9, life: 80
         });
-        logBrawler("🦁 Simeonic Prime unleashes a Golden Lion Roar!");
+        logBrawler("🦁 Simeonic Prime unleashes a Solar Lion Roar!");
         return;
       }
 
@@ -2828,8 +2828,8 @@
       generateLightning(baseX + 55, baseY + 35, 490, 210, 12);
       waveSurges.push({ x: baseX + 75, y: baseY + 35, vx: 9.5, width: 72, height: 56, life: 70 });
       lionRoars.push({
-        x: baseX + 105, y: baseY + 34, vx: 10.0,
-        width: 92, height: 66, scale: 1.0, alpha: 1, life: 45
+        x: baseX + 95, y: baseY + 30, vx: 10.0,
+        width: 190, height: 130, scale: 1.05, alpha: 0.95, life: 85
       });
       createBurstParticles(baseX + 80, baseY + 35, "#66fcf1", 26);
       createBurstParticles(baseX + 80, baseY + 35, "#f59e0b", 26);
@@ -2955,40 +2955,6 @@
       ctx.beginPath();
       ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.restore();
-    }
-
-    function drawGoldenLionRoar(ctx, lr) {
-      const w = lr.width * lr.scale;
-      const h = lr.height * lr.scale;
-      const topY = lr.y - h / 2;
-
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, Math.min(1, lr.alpha) * Math.min(1, lr.life / 14));
-
-      // Sonic roar rings ahead of the golden lion
-      ctx.strokeStyle = "#facc15";
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(lr.x + w * 0.85, lr.y, h * 0.36, -0.7, 0.7);
-      ctx.stroke();
-
-      if (ASSETS.solarLion && ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
-        // Multiply blends white background out on dark arena floors while keeping rich gold tones
-        ctx.globalCompositeOperation = "multiply";
-        ctx.drawImage(ASSETS.solarLion, lr.x, topY, w, h);
-
-        // Subtle golden glow pass
-        ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha *= 0.22;
-        ctx.drawImage(ASSETS.solarLion, lr.x, topY, w, h);
-      } else {
-        ctx.fillStyle = "#f59e0b";
-        ctx.beginPath();
-        ctx.arc(lr.x + w * 0.45, lr.y, Math.min(w, h) * 0.38, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
       ctx.restore();
     }
 
@@ -3289,15 +3255,23 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         drawDetroitHelicopter(ctx);
       } else if (activeZone === "sahel" || activeZone === "sahel_rift") {
-        if (ASSETS.ouroborosSkyline.complete && ASSETS.ouroborosSkyline.naturalWidth > 0) {
-          ctx.drawImage(ASSETS.ouroborosSkyline, 0, 0, canvas.width, 255);
-        } else {
-          const sahelGrad = ctx.createLinearGradient(0, 0, 0, 255);
-          sahelGrad.addColorStop(0, "#19072b");
-          sahelGrad.addColorStop(1, "#581c2e");
-          ctx.fillStyle = sahelGrad;
-          ctx.fillRect(0, 0, canvas.width, 255);
-        }
+        // Clean Sahel / Rift backdrop without the large tree image blurring the stage
+        const sahelGrad = ctx.createLinearGradient(0, 0, 0, 255);
+        sahelGrad.addColorStop(0, activeZone === "sahel_rift" ? "#120624" : "#19072b");
+        sahelGrad.addColorStop(0.65, activeZone === "sahel_rift" ? "#3b0d38" : "#4c152b");
+        sahelGrad.addColorStop(1, "#0d0b14");
+        ctx.fillStyle = sahelGrad;
+        ctx.fillRect(0, 0, canvas.width, 255);
+
+        // Subtle distant horizon dunes & spires
+        ctx.fillStyle = "rgba(15, 23, 42, 0.55)";
+        ctx.beginPath();
+        ctx.moveTo(0, 255);
+        ctx.quadraticCurveTo(140, 195, 290, 225);
+        ctx.quadraticCurveTo(430, 250, canvas.width, 205);
+        ctx.lineTo(canvas.width, 255);
+        ctx.closePath();
+        ctx.fill();
       } else {
         ctx.fillStyle = "#2b1106";
         ctx.fillRect(0, 0, canvas.width, 255);
@@ -3879,17 +3853,27 @@
           lr.x += lr.vx;
           lr.life--;
         }
-        drawGoldenLionRoar(ctx, lr);
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, lr.alpha);
+        if (ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
+          ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - (lr.height * lr.scale) / 2, lr.width * lr.scale, lr.height * lr.scale);
+        } else {
+          ctx.fillStyle = "rgba(245, 158, 11, 0.7)";
+          ctx.beginPath();
+          ctx.arc(lr.x, lr.y, 48, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
 
-        if (boss.active && Math.abs(lr.x - (boss.x + 35)) < 55) {
+        if (boss.active && Math.abs(lr.x - (boss.x + 35)) < 65) {
           applyDamageToTarget(boss, 3, "#f59e0b");
         }
         enemies.forEach(mob => {
-          if (mob.active && Math.abs(lr.x - mob.x) < 55) {
+          if (mob.active && Math.abs(lr.x - mob.x) < 65) {
             applyDamageToTarget(mob, 3, "#f59e0b");
           }
         });
-        if (lr.x > canvas.width + 95 || lr.life <= 0) lionRoars.splice(r, 1);
+        if (lr.x > canvas.width + 120 || lr.life <= 0) lionRoars.splice(r, 1);
       }
 
       enemies.forEach(e => {
