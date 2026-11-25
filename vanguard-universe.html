@@ -460,6 +460,46 @@
       line-height: 1.35;
     }
 
+    .challenge-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .challenge-card {
+      background: #090e18;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .challenge-card.weekend-live {
+      border-color: #f59e0b;
+      background: linear-gradient(180deg, rgba(180, 83, 9, 0.25), rgba(9, 14, 24, 0.95));
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+    }
+
+    .challenge-card.lone-active {
+      border-color: #10b981;
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.18), rgba(9, 14, 24, 0.95));
+    }
+
+    .challenge-title {
+      font-size: 0.72rem;
+      font-weight: 900;
+      color: #fde68a;
+      text-transform: uppercase;
+    }
+
+    .challenge-desc {
+      font-size: 0.66rem;
+      color: #94a3b8;
+      line-height: 1.25;
+    }
+
     .mode-choice-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -742,7 +782,7 @@
 
     @media (max-width: 520px) {
       .vs-roster-grid { grid-template-columns: repeat(3, 1fr); }
-      .mode-choice-grid { grid-template-columns: 1fr; }
+      .mode-choice-grid, .challenge-strip { grid-template-columns: 1fr; }
     }
 
     .vs-pick-card {
@@ -1515,17 +1555,28 @@
           <button type="button" class="pause-btn" onclick="openModeSelectScreen()">📋 Mode Menu</button>
         </div>
         <div class="start-stage-sub">
-          3-Beat Trinity Surge: <strong>1/3 Surge</strong> → <strong>2/3 Nénambi Wave Wing (1.65x)</strong> → <strong>3/3 Golden Lion War (80% Drain)</strong> • Daily Goal: <strong>25,000</strong> for +500 Legacy Pts!
+          3-Beat Trinity Surge: <strong>1/3 Surge</strong> → <strong>2/3 Nénambi Wave Wing (1.65x)</strong> → <strong>3/3 Golden Lion War (80% Drain)</strong> • Daily Goal: <strong>25,000</strong> (+500 Legacy Pts)
+        </div>
+
+        <div class="challenge-strip">
+          <div id="weekendChallengeCard" class="challenge-card">
+            <div id="weekendChallengeTitle" class="challenge-title">🗓️ Weekend Siege Challenge</div>
+            <div id="weekendChallengeDesc" class="challenge-desc">Fri–Sun Special: Clear any Boss or Gauntlet on the weekend for +400 Legacy Pts &amp; +4,000 Daily Score!</div>
+          </div>
+          <div id="loneVanguardCard" class="challenge-card lone-active">
+            <div class="challenge-title">🛡️ Lone Vanguard Gauntlet</div>
+            <div class="challenge-desc">Clear the 12-rival Gauntlet without switching fighters for +200 Legacy Pts (+450 with Zero Retries)!</div>
+          </div>
         </div>
 
         <div class="mode-choice-grid">
           <button id="choiceStoryCard" type="button" class="mode-choice-card selected-mode" onclick="selectStartMode('storybook')">
-            <span class="mode-choice-head">📖 Story Mode</span>
-            <span class="mode-choice-desc">Progressive campaign across Detroit, the Sahel, Kumasi Forge, and the Sahel Rift with AI assist &amp; tag-team swaps.</span>
+            <span class="mode-choice-head">📖 Story Mode (4 Waves / Stage)</span>
+            <span class="mode-choice-desc">Heavy Syndicate droid platoons, shielded enforcers, and Phase-2 Apex Bosses across Detroit, Sahel, Kumasi &amp; the Rift.</span>
           </button>
           <button id="choiceVersusCard" type="button" class="mode-choice-card" onclick="selectStartMode('versus')">
-            <span class="mode-choice-head">⚔️ Hero vs. Villain</span>
-            <span class="mode-choice-desc">Pick your Hero or Syndicate Boss, inspect each fighter's signature power, and battle Single Match or Gauntlet Ladder.</span>
+            <span class="mode-choice-head">⚔️ Hero vs. Villain Gauntlet</span>
+            <span class="mode-choice-desc">Escalating 12-rival ladder with Phase-2 boss overdrives, distinct powers, and Lone Vanguard / Ironman rewards.</span>
           </button>
         </div>
 
@@ -1589,7 +1640,7 @@
           <div class="bar-group">
             <div class="bar-label">
               <span id="enemyTypeLabel">Syndicate Swarm</span>
-              <span id="enemyHpText">16 Units Remaining</span>
+              <span id="enemyHpText">22 Units Remaining</span>
             </div>
             <div class="bar-track">
               <div id="enemyHpBar" class="bar-fill-enemy"></div>
@@ -1786,6 +1837,7 @@
     const SHARED_WALLET_KEY = 'rfl_legacy_save_v1';
     const DAILY_SCORE_KEY = 'vanguard_daily_score_v1';
     const DAILY_TOP5_PREFIX = 'vanguard_daily_top5_';
+    const WEEKEND_CHALLENGE_KEY = 'vanguard_weekend_claimed_v1';
     const DAILY_TARGET = 25000;
 
     function getTodayDateStr() {
@@ -1794,6 +1846,48 @@
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const dd = String(d.getDate()).padStart(2, '0');
       return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function isWeekendDay() {
+      const day = new Date().getDay();
+      return day === 5 || day === 6 || day === 0; // Friday, Saturday, Sunday
+    }
+
+    function getWeekendId() {
+      const d = new Date();
+      const day = d.getDay();
+      const diffToFri = day === 0 ? -2 : (day === 6 ? -1 : (day === 5 ? 0 : (5 - day)));
+      const fri = new Date(d);
+      fri.setDate(d.getDate() + diffToFri);
+      return fri.toISOString().slice(0, 10);
+    }
+
+    function updateWeekendChallengeUI() {
+      const card = document.getElementById("weekendChallengeCard");
+      const title = document.getElementById("weekendChallengeTitle");
+      const desc = document.getElementById("weekendChallengeDesc");
+      if (!card || !title || !desc) return;
+      const active = isWeekendDay();
+      card.classList.toggle("weekend-live", active);
+      if (active) {
+        title.innerText = "🔥 WEEKEND SIEGE ACTIVE (FRI–SUN)";
+        desc.innerText = "Live Now! Defeat any Apex Boss or complete the Gauntlet this weekend for +400 Legacy Pts & +4,000 Daily Score!";
+      } else {
+        title.innerText = "🗓️ Weekend Siege Challenge (Fri–Sun)";
+        desc.innerText = "Activates automatically Friday–Sunday: Defeat any Apex Boss or Gauntlet for +400 Legacy Pts & +4,000 Daily Score!";
+      }
+    }
+
+    function tryClaimWeekendChallenge() {
+      if (!isWeekendDay()) return false;
+      const wkId = getWeekendId();
+      try {
+        if (localStorage.getItem(WEEKEND_CHALLENGE_KEY) === wkId) return false;
+        localStorage.setItem(WEEKEND_CHALLENGE_KEY, wkId);
+      } catch (e) {}
+      awardSharedLegacyPoints(400, "weekend_siege_" + wkId);
+      addDailyArcadePoints(4000);
+      return true;
     }
 
     let dailyState = {
@@ -1831,6 +1925,7 @@
 
       syncDailyScoreLabels();
       renderDailyTop5Boards();
+      updateWeekendChallengeUI();
     }
 
     function saveDailyTop5() {
@@ -1851,10 +1946,15 @@
       const pts = Math.max(0, Math.floor(scoreVal || 0));
       if (pts <= 0) return;
 
+      const tags = [];
+      if (brawlerMode === "versus" && gauntletMode && singleFighterGauntletRun) tags.push("Lone");
+      if (brawlerMode === "versus" && gauntletMode && gauntletNoRetryRun) tags.push("0-Retry");
+      const badgeStr = tags.length > 0 ? ` [${tags.join("/")}]` : "";
+
       dailyTop5.push({
         name: cleanName,
         score: pts,
-        fighter: fighterLabel || "Marcus Prime",
+        fighter: (fighterLabel || "Marcus Prime") + badgeStr,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
       dailyTop5.sort((a, b) => b.score - a.score);
@@ -1915,7 +2015,7 @@
     function addDailyArcadePoints(pts) {
       const add = Math.max(0, Math.floor(pts || 0));
       dailyState.score += add;
-      if (add > pendingTop5Score) pendingTop5Score = dailyState.score;
+      if (dailyState.score > pendingTop5Score) pendingTop5Score = dailyState.score;
       if (dailyState.score > dailyState.best) dailyState.best = dailyState.score;
       if (!dailyState.targetClaimed && dailyState.score >= DAILY_TARGET) {
         dailyState.targetClaimed = true;
@@ -2011,10 +2111,10 @@
     let gauntletMode = true;
     let gauntletIndex = 0;
     let gauntletNoRetryRun = true;
+    let singleFighterGauntletRun = true;
     let countdownState = { active: false, value: 3, timerId: null };
 
-    // 3-BEAT TRINITY SURGE STATE (Nexus Global Hub parity)
-    // Beat 1: 34%–66% | Beat 2: 67%–99% (Nénambi Wave Wing 1.65x stack) | Beat 3: 100% (Symbiotic Prime Golden Lion War — 80% drain)
+    // 3-BEAT TRINITY SURGE STATE
     let trinityCharge = 0;
     let nenambiWaveWingActive = false;
     let nenambiAmplifyStack = 1.0;
@@ -2365,29 +2465,29 @@
     loadCanvasSprite(ASSETS.luetta, "mother-luta.png");
 
     const HERO_OPTIONS = [
-      { id: "marcus", label: "Marcus Prime", sprite: "marcus.png", spriteKey: "marcus", power: "Electric Bolt & Juracán Vortex", zone: "detroit", hp: 40, dmg: 9 },
-      { id: "xochitl", label: "Xochitl", sprite: "xochitl.png", spriteKey: "xochitl", power: "Solar Feather & Aimed Wing Barrage", zone: "sahel", hp: 38, dmg: 9 },
-      { id: "wakan", label: "Wakan / Guacan", sprite: "guacan-sheet.png", spriteKey: "wakan", power: "Conch Tsunami & Hydro Net", zone: "sahel_rift", hp: 42, dmg: 9 },
-      { id: "sundiata", label: "Simeonic Prime", sprite: "sundiata-prime.png", spriteKey: "sundiata", power: "Dundun Quake & Solar Lion", zone: "sahel", hp: 46, dmg: 11 },
-      { id: "amina", label: "Amina Zazzau", sprite: "amina-zazzau.png", spriteKey: "amina", power: "Starlight Volley & Return Spear", zone: "sahel", hp: 38, dmg: 10 },
-      { id: "kofi", label: "Kofi Osei", sprite: "kofi.png", spriteKey: "kofi", power: "Crucible Hammer & Molten Alloy", zone: "forge", hp: 44, dmg: 10 },
-      { id: "nenambi", label: "Nénambi Prime", sprite: "nenambi.png", spriteKey: "nenambi", power: "Oja Acoustic Blade & 2160Hz Wave", zone: "detroit", hp: 40, dmg: 10 },
-      { id: "kensei", label: "Shadow Kensei", sprite: "shadow-kensei.png", spriteKey: "kensei", power: "Spirit-Steel Slash & IAI Crescent", zone: "detroit", hp: 42, dmg: 11 }
+      { id: "marcus", label: "Marcus Prime", sprite: "marcus.png", spriteKey: "marcus", power: "Electric Bolt & Juracán Vortex", zone: "detroit", hp: 78, dmg: 12 },
+      { id: "xochitl", label: "Xochitl", sprite: "xochitl.png", spriteKey: "xochitl", power: "Solar Feather & Aimed Wing Barrage", zone: "sahel", hp: 74, dmg: 12 },
+      { id: "wakan", label: "Wakan / Guacan", sprite: "guacan-sheet.png", spriteKey: "wakan", power: "Conch Tsunami & Hydro Net", zone: "sahel_rift", hp: 82, dmg: 12 },
+      { id: "sundiata", label: "Simeonic Prime", sprite: "sundiata-prime.png", spriteKey: "sundiata", power: "Dundun Quake & Solar Lion", zone: "sahel", hp: 92, dmg: 14 },
+      { id: "amina", label: "Amina Zazzau", sprite: "amina-zazzau.png", spriteKey: "amina", power: "Starlight Volley & Return Spear", zone: "sahel", hp: 76, dmg: 13 },
+      { id: "kofi", label: "Kofi Osei", sprite: "kofi.png", spriteKey: "kofi", power: "Crucible Hammer & Molten Alloy", zone: "forge", hp: 88, dmg: 13 },
+      { id: "nenambi", label: "Nénambi Prime", sprite: "nenambi.png", spriteKey: "nenambi", power: "Oja Acoustic Blade & 2160Hz Wave", zone: "detroit", hp: 80, dmg: 13 },
+      { id: "kensei", label: "Shadow Kensei", sprite: "shadow-kensei.png", spriteKey: "kensei", power: "Spirit-Steel Slash & IAI Crescent", zone: "detroit", hp: 84, dmg: 14 }
     ];
 
     const VILLAIN_OPTIONS = [
-      { id: "tectonox", label: "AS-TAC / Tectonox", sprite: "1795543309474(1)(1).png", spriteKey: "tectonox", power: "Faultline Drill & Acidic Slag", zone: "sahel_rift", hp: 48, dmg: 11 },
-      { id: "malakor", label: "Malakor", sprite: "villain_malakor.png", spriteKey: "malakor", power: "Glaive Thrust & Crimson Tendrils", zone: "sahel", hp: 42, dmg: 10 },
-      { id: "chrono", label: "Chrono-Lock", sprite: "chrono-lock.png", spriteKey: "boss", power: "Temporal Phase & Dual Bolts", zone: "detroit", hp: 38, dmg: 9 },
-      { id: "prism", label: "Prism-Ghost", sprite: "prism-ghost-v2.png", spriteKey: "prism", power: "Phase Fade-In & Light Blades", zone: "detroit", hp: 38, dmg: 9 },
-      { id: "dread", label: "Dread Harmonic", sprite: "dread-harmonic.png", spriteKey: "dread", power: "Sub-Bass Shockwave & Sonic Pulse", zone: "forge", hp: 46, dmg: 11 },
-      { id: "vipera", label: "Vipera", sprite: "vipera.png", spriteKey: "vipera", power: "Emerald Coil Surge & Bio-Arc", zone: "sahel", hp: 40, dmg: 10 },
-      { id: "magma", label: "Magma-Weaver", sprite: "magma-weaver.png", spriteKey: "magma", power: "Rolling Molten Lava Wave", zone: "forge", hp: 44, dmg: 11 },
-      { id: "nullbyte", label: "Null-Byte", sprite: "null-byte.png", spriteKey: "nullbyte", power: "Spinning Computer Discs", zone: "detroit", hp: 36, dmg: 9 },
-      { id: "apex", label: "Apex Volt", sprite: "apex-volt.png", spriteKey: "apex", power: "Overcharge Arc & Twin Bolts", zone: "sahel_rift", hp: 46, dmg: 11 },
-      { id: "ironclad", label: "Ironclad", sprite: "ironclad.png", spriteKey: "ironclad", power: "Seismic Quake & Heavy Volley", zone: "forge", hp: 44, dmg: 10 },
-      { id: "dreadnought", label: "Ouroboros Machine", sprite: "1795543309474(1)(1).png", spriteKey: "dreadnought", power: "Drill Charge & Siege Cannon", zone: "sahel", hp: 48, dmg: 11 },
-      { id: "krieg", label: "Baron Krieg", sprite: "chrono-lock.png", spriteKey: "krieg", power: "Iron Shockwave & Barrage", zone: "forge", hp: 50, dmg: 12 }
+      { id: "tectonox", label: "AS-TAC / Tectonox", sprite: "1795543309474(1)(1).png", spriteKey: "tectonox", power: "Faultline Drill & Acidic Slag", zone: "sahel_rift", hp: 96, dmg: 14 },
+      { id: "malakor", label: "Malakor", sprite: "villain_malakor.png", spriteKey: "malakor", power: "Glaive Thrust & Crimson Tendrils", zone: "sahel", hp: 86, dmg: 13 },
+      { id: "chrono", label: "Chrono-Lock", sprite: "chrono-lock.png", spriteKey: "boss", power: "Front/Back Warp & Proximity Time-Slow", zone: "detroit", hp: 82, dmg: 12 },
+      { id: "prism", label: "Prism-Ghost", sprite: "prism-ghost-v2.png", spriteKey: "prism", power: "Phase Fade-In & Light Blades", zone: "detroit", hp: 80, dmg: 12 },
+      { id: "dread", label: "Dread Harmonic", sprite: "dread-harmonic.png", spriteKey: "dread", power: "Sub-Bass Shockwave & Sonic Pulse", zone: "forge", hp: 94, dmg: 14 },
+      { id: "vipera", label: "Vipera", sprite: "vipera.png", spriteKey: "vipera", power: "Emerald Coil Surge & Bio-Arc", zone: "sahel", hp: 82, dmg: 13 },
+      { id: "magma", label: "Magma-Weaver", sprite: "magma-weaver.png", spriteKey: "magma", power: "Rolling Molten Lava Wave", zone: "forge", hp: 90, dmg: 14 },
+      { id: "nullbyte", label: "Null-Byte", sprite: "null-byte.png", spriteKey: "nullbyte", power: "Spinning Computer Discs", zone: "detroit", hp: 78, dmg: 12 },
+      { id: "apex", label: "Apex Volt", sprite: "apex-volt.png", spriteKey: "apex", power: "Overcharge Arc & Twin Bolts", zone: "sahel_rift", hp: 92, dmg: 14 },
+      { id: "ironclad", label: "Ironclad", sprite: "ironclad.png", spriteKey: "ironclad", power: "Seismic Quake & Heavy Volley", zone: "forge", hp: 90, dmg: 13 },
+      { id: "dreadnought", label: "Ouroboros Machine", sprite: "1795543309474(1)(1).png", spriteKey: "dreadnought", power: "Drill Charge & Siege Cannon", zone: "sahel", hp: 98, dmg: 14 },
+      { id: "krieg", label: "Baron Krieg", sprite: "chrono-lock.png", spriteKey: "krieg", power: "Iron Shockwave & Barrage", zone: "forge", hp: 102, dmg: 15 }
     ];
 
     let selectedVsHero = playerProgress.selectedVsHero || "marcus";
@@ -2410,6 +2510,8 @@
     let floatingTexts = [];
     let collectibleOrbs = [];
     let bossTelegraph = { active: false, timer: 0, label: "" };
+    let chronoSlowActive = false;
+    let chronoWarpCount = 0;
 
     let playerHp = 100, isShieldActive = false, absorbedCharge = 0;
     let bgScrollOffset = 0, groundScrollOffset = 0;
@@ -2449,11 +2551,11 @@
       yOffset: -55
     };
 
-    let currentWave = 1, mobsRemaining = 16, mobsTotal = 16;
+    let currentWave = 1, mobsRemaining = 22, mobsTotal = 22;
     let pendingSpawns = 0, spawnIntervalTimer = null, waveReinforceTimer = null;
     let enemies = [];
     let boss = {
-      x: 385, y: 0, vy: 0, hp: 38, maxHp: 38, dmg: 9,
+      x: 385, y: 0, vy: 0, hp: 160, maxHp: 160, dmg: 12,
       active: false, type: "chrono", label: "Chrono-Lock",
       spriteKey: "boss", hitFlash: 0, phase: 1, alpha: 1, isVersusBoss: false, shieldActive: false
     };
@@ -2465,7 +2567,8 @@
     const STAGE_WEATHER = {
       1: { skyTint: "rgba(251, 191, 36, 0.08)" },
       2: { skyTint: "rgba(30, 41, 59, 0.55)" },
-      3: { skyTint: "rgba(15, 7, 30, 0.78)" }
+      3: { skyTint: "rgba(15, 7, 30, 0.78)" },
+      4: { skyTint: "rgba(56, 189, 248, 0.14)" }
     };
 
     function computeAimedVelocity(originX, originY, speed) {
@@ -2498,6 +2601,8 @@
       gameActive = true;
       hitStopFrames = 0;
       screenShake = 0;
+      chronoSlowActive = false;
+      chronoWarpCount = 0;
 
       lionWarActive = false;
       lionWarTimer = 0;
@@ -2521,6 +2626,7 @@
       boss.shieldActive = false;
       boss.hitFlash = 0;
       boss.alpha = 1;
+      boss.phase = 1;
 
       kofiHammerSwing.active = false;
       sundiataDrumBeat.active = false;
@@ -2566,6 +2672,7 @@
       boss.active = false;
       enemies = [];
       renderDailyTop5Boards();
+      updateWeekendChallengeUI();
       document.getElementById("defeat-modal").style.display = "none";
       document.getElementById("trial-modal").style.display = "none";
       document.getElementById("chapterBanner").style.display = "none";
@@ -2596,6 +2703,7 @@
       resetCombatEntitiesAndStates();
       combatStarted = true;
       pendingTop5Score = 0;
+      singleFighterGauntletRun = true;
       document.getElementById("startScreenPanel").classList.add("hidden");
 
       if (brawlerMode === "storybook") {
@@ -2604,10 +2712,10 @@
         rosterIdx = 0;
         updateControlsUI();
         let launchWave = 1;
-        if (playerProgress.highestStageUnlocked === 2) launchWave = 5;
-        if (playerProgress.highestStageUnlocked === 3) launchWave = 8;
-        if (playerProgress.highestStageUnlocked === 4) launchWave = 11;
-        if (playerProgress.highestStageUnlocked === 5) launchWave = 12;
+        if (playerProgress.highestStageUnlocked === 2) launchWave = 6;
+        if (playerProgress.highestStageUnlocked === 3) launchWave = 10;
+        if (playerProgress.highestStageUnlocked === 4) launchWave = 14;
+        if (playerProgress.highestStageUnlocked === 5) launchWave = 15;
         startWave(launchWave, true);
       } else {
         startVersusMatchWithCountdown();
@@ -2629,11 +2737,11 @@
     }
 
     function getComboBonusDamage() {
-      return comboCount >= 4 ? 1 : 0;
+      return comboCount >= 5 ? 1 : 0;
     }
 
     function getAmplifiedDamage(baseDmg) {
-      const mult = lionWarActive ? 1.85 : nenambiAmplifyStack;
+      const mult = lionWarActive ? 1.75 : nenambiAmplifyStack;
       return Math.max(1, Math.round((baseDmg + getComboBonusDamage()) * mult));
     }
 
@@ -2777,9 +2885,10 @@
       combatStarted = true;
       gauntletIndex = 0;
       gauntletNoRetryRun = true;
+      singleFighterGauntletRun = true;
       playerHp = 100;
       absorbedCharge = 0;
-      addTrinityCharge(68);
+      addTrinityCharge(40);
       launchVersusRound(true);
     }
 
@@ -2807,15 +2916,18 @@
       const badgePrefix = gauntletMode ? `GAUNTLET ${gauntletIndex + 1}/${rivals.length}` : "VERSUS";
       document.getElementById("waveDisplay").innerText = `${badgePrefix}: ${playerObj.label.toUpperCase()} vs ${currentRival.label.toUpperCase()}`;
 
-      const bossTotalHp = Math.round((currentRival.hp || 42) * 2.2);
-      startBossFight(currentRival.id, currentRival.spriteKey, bossTotalHp, currentRival.dmg || 10, true, currentRival.label);
+      // Progressive Gauntlet HP & Damage Scaling: Rivals get +12% HP and +1 DMG per rung!
+      const scaleMult = gauntletMode ? (1 + gauntletIndex * 0.12) : 1.15;
+      const bossTotalHp = Math.round((currentRival.hp || 84) * 2.1 * scaleMult);
+      const bossScaledDmg = (currentRival.dmg || 12) + Math.floor(gauntletIndex / 3);
+      startBossFight(currentRival.id, currentRival.spriteKey, bossTotalHp, bossScaledDmg, true, currentRival.label);
 
       if (withCountdown) {
         triggerResonanceCountdown(() => {
-          logBrawler(`${badgePrefix} LIVE! ${playerObj.label} vs. ${currentRival.label}!`);
+          logBrawler(`${badgePrefix} LIVE! ${playerObj.label} vs. ${currentRival.label} (${bossTotalHp} HP)!`);
         });
       } else {
-        logBrawler(`Next Challenger: ${currentRival.label} enters the arena!`);
+        logBrawler(`Next Challenger: ${currentRival.label} (${bossTotalHp} HP) enters the arena!`);
       }
     }
 
@@ -2892,9 +3004,10 @@
       if (justPressed(9)) { togglePause(); return; }
       if (!canActInBrawler()) return;
 
+      const slowFactor = chronoSlowActive ? 0.48 : 1.0;
       const axisX = gp.axes[0] || 0;
-      if (axisX < -0.35 || pressed(14)) playerMove(-4.5);
-      if (axisX > 0.35 || pressed(15)) playerMove(4.5);
+      if (axisX < -0.35 || pressed(14)) playerMove(-4.5 * slowFactor);
+      if (axisX > 0.35 || pressed(15)) playerMove(4.5 * slowFactor);
       if (justPressed(0) || pressed(12)) playerJump();
       if (justPressed(2)) executeStrike();
       if (justPressed(1)) executePlasmaOrb();
@@ -2914,6 +3027,7 @@
       renderClashSquadPicker();
       renderClashArena();
       renderDailyTop5Boards();
+      updateWeekendChallengeUI();
       updateControlsUI();
 
       bindHoldButton("btnLeft", "left");
@@ -2932,97 +3046,124 @@
       enemyAiIntervalId = setInterval(() => {
         if (!combatStarted || !gameActive || isPaused || countdownState.active || snareFreezeTimer > 0 || lionWarActive) return;
         enemies.forEach(e => {
-          if (e.active && e.x > Math.min(leadX, aiPartner.x) + 45 && Math.random() > 0.35) {
-            enemyBullets.push({ x: e.x, y: e.y + 12, vx: -5.0, dmg: 6 });
+          if (e.active && e.x > Math.min(leadX, aiPartner.x) + 45 && Math.random() > 0.28) {
+            const aim = computeAimedVelocity(e.x, e.y + 10, 5.8);
+            enemyBullets.push({ x: e.x, y: e.y + 10, vx: aim.vx, vy: aim.vy, dmg: e.type === "enforcer" ? 9 : 7, color: e.type === "enforcer" ? "#ef4444" : "#f97316" });
           }
         });
-        if (boss.active && Math.abs(boss.x - leadX) > 40 && Math.random() > 0.25) {
-          const aim = computeAimedVelocity(boss.x + 20, 195 + boss.y, 6.4);
-          enemyBullets.push({ x: boss.x + 20, y: 195 + boss.y, vx: aim.vx, vy: aim.vy, dmg: boss.dmg || 10 });
+        if (boss.active && Math.abs(boss.x - leadX) > 35 && Math.random() > 0.2) {
+          const speed = boss.phase === 2 ? 7.6 : 6.6;
+          const aim = computeAimedVelocity(boss.x + 25, 195 + boss.y, speed);
+          enemyBullets.push({ x: boss.x + 25, y: 195 + boss.y, vx: aim.vx, vy: aim.vy, dmg: boss.dmg || 12 });
         }
-      }, 1150);
+      }, 950);
     }
 
+    // EXPANDED 19-WAVE STORY CAMPAIGN (4 Waves per Stage + Tougher Bosses)
     function startWave(num, playStageCountdown = false) {
       resetCombatEntitiesAndStates();
       combatStarted = true;
       currentWave = num;
-      addTrinityCharge(35);
+      addTrinityCharge(25);
 
       if (num === 1) {
         activeZone = "detroit";
-        document.getElementById("waveDisplay").innerText = "Stage 1 (Detroit) • Wave 1/3";
-        mobsRemaining = 16; mobsTotal = 16;
+        document.getElementById("waveDisplay").innerText = "Stage 1 (Detroit) • Wave 1/4";
+        mobsRemaining = 22; mobsTotal = 22;
         boss.active = false;
-        setupOrderlyWave("swarm", 16);
+        setupOrderlyWave("swarm", 22);
       } else if (num === 2) {
         activeZone = "detroit";
-        document.getElementById("waveDisplay").innerText = "Stage 1 (Detroit) • Wave 2/3";
-        mobsRemaining = 20; mobsTotal = 20;
+        document.getElementById("waveDisplay").innerText = "Stage 1 (Detroit) • Wave 2/4";
+        mobsRemaining = 26; mobsTotal = 26;
         boss.active = false;
-        setupOrderlyWave("heavy", 20);
+        setupOrderlyWave("heavy", 26);
       } else if (num === 3) {
         activeZone = "detroit";
-        document.getElementById("waveDisplay").innerText = "Stage 1 (Detroit) • Wave 3/3";
-        mobsRemaining = 22; mobsTotal = 22;
+        document.getElementById("waveDisplay").innerText = "Stage 1 (Detroit) • Wave 3/4";
+        mobsRemaining = 30; mobsTotal = 30;
         boss.active = false;
-        setupOrderlyWave("heavy", 22);
+        setupOrderlyWave("heavy", 30);
       } else if (num === 4) {
         activeZone = "detroit";
-        document.getElementById("waveDisplay").innerText = "Stage 1 Boss: Chrono-Lock";
-        startBossFight("chrono", "boss", 68, 10, false, "Chrono-Lock");
-      } else if (num === 5) {
-        activeZone = "sahel";
-        document.getElementById("waveDisplay").innerText = "Stage 2 (Sahel) • Wave 1/2";
-        mobsRemaining = 18; mobsTotal = 18;
+        document.getElementById("waveDisplay").innerText = "Stage 1 (Detroit) • Wave 4/4 (Elite)";
+        mobsRemaining = 32; mobsTotal = 32;
         boss.active = false;
-        setupOrderlyWave("ouroboros", 18);
+        setupOrderlyWave("elite_mix", 32);
+      } else if (num === 5) {
+        activeZone = "detroit";
+        document.getElementById("waveDisplay").innerText = "Stage 1 Boss: Chrono-Lock";
+        startBossFight("chrono", "boss", 155, 12, false, "Chrono-Lock");
       } else if (num === 6) {
         activeZone = "sahel";
-        document.getElementById("waveDisplay").innerText = "Stage 2 (Sahel) • Wave 2/2";
-        mobsRemaining = 22; mobsTotal = 22;
-        boss.active = false;
-        setupOrderlyWave("ouroboros", 22);
-      } else if (num === 7) {
-        activeZone = "sahel";
-        document.getElementById("waveDisplay").innerText = "Stage 2 Boss: Ouroboros Machine";
-        startBossFight("dreadnought", "dreadnought", 88, 11, false, "Ouroboros Machine");
-      } else if (num === 8) {
-        activeZone = "forge";
-        document.getElementById("waveDisplay").innerText = "Stage 3 (Kumasi Forge) • Wave 1/2";
-        mobsRemaining = 20; mobsTotal = 20;
-        boss.active = false;
-        setupOrderlyWave("forge", 20);
-      } else if (num === 9) {
-        activeZone = "forge";
-        document.getElementById("waveDisplay").innerText = "Stage 3 (Kumasi Forge) • Wave 2/2";
-        mobsRemaining = 22; mobsTotal = 22;
-        boss.active = false;
-        setupOrderlyWave("forge", 22);
-      } else if (num === 10) {
-        activeZone = "forge";
-        document.getElementById("waveDisplay").innerText = "Stage 3 Boss: Ironclad";
-        startBossFight("ironclad", "ironclad", 84, 11, false, "Ironclad");
-      } else if (num === 11) {
-        activeZone = "forge";
-        document.getElementById("waveDisplay").innerText = "Stage 4 Boss: Baron Krieg";
-        startBossFight("krieg", "krieg", 92, 12, false, "Baron Krieg");
-      } else if (num === 12) {
-        activeZone = "sahel_rift";
-        document.getElementById("waveDisplay").innerText = "Stage 5 (Sahel Rift) • Wave 1/2";
-        mobsRemaining = 20; mobsTotal = 20;
-        boss.active = false;
-        setupOrderlyWave("vault", 20);
-      } else if (num === 13) {
-        activeZone = "sahel_rift";
-        document.getElementById("waveDisplay").innerText = "Stage 5 (Sahel Rift) • Wave 2/2";
+        document.getElementById("waveDisplay").innerText = "Stage 2 (Sahel) • Wave 1/4";
         mobsRemaining = 24; mobsTotal = 24;
         boss.active = false;
-        setupOrderlyWave("vault", 24);
+        setupOrderlyWave("ouroboros", 24);
+      } else if (num === 7) {
+        activeZone = "sahel";
+        document.getElementById("waveDisplay").innerText = "Stage 2 (Sahel) • Wave 2/4";
+        mobsRemaining = 28; mobsTotal = 28;
+        boss.active = false;
+        setupOrderlyWave("ouroboros", 28);
+      } else if (num === 8) {
+        activeZone = "sahel";
+        document.getElementById("waveDisplay").innerText = "Stage 2 (Sahel) • Wave 3/4";
+        mobsRemaining = 30; mobsTotal = 30;
+        boss.active = false;
+        setupOrderlyWave("elite_mix", 30);
+      } else if (num === 9) {
+        activeZone = "sahel";
+        document.getElementById("waveDisplay").innerText = "Stage 2 Boss: Ouroboros Machine";
+        startBossFight("dreadnought", "dreadnought", 185, 13, false, "Ouroboros Machine");
+      } else if (num === 10) {
+        activeZone = "forge";
+        document.getElementById("waveDisplay").innerText = "Stage 3 (Kumasi Forge) • Wave 1/4";
+        mobsRemaining = 26; mobsTotal = 26;
+        boss.active = false;
+        setupOrderlyWave("forge", 26);
+      } else if (num === 11) {
+        activeZone = "forge";
+        document.getElementById("waveDisplay").innerText = "Stage 3 (Kumasi Forge) • Wave 2/4";
+        mobsRemaining = 30; mobsTotal = 30;
+        boss.active = false;
+        setupOrderlyWave("forge", 30);
+      } else if (num === 12) {
+        activeZone = "forge";
+        document.getElementById("waveDisplay").innerText = "Stage 3 (Kumasi Forge) • Wave 3/4";
+        mobsRemaining = 32; mobsTotal = 32;
+        boss.active = false;
+        setupOrderlyWave("elite_mix", 32);
+      } else if (num === 13) {
+        activeZone = "forge";
+        document.getElementById("waveDisplay").innerText = "Stage 3 Boss: Ironclad";
+        startBossFight("ironclad", "ironclad", 195, 14, false, "Ironclad");
       } else if (num === 14) {
+        activeZone = "forge";
+        document.getElementById("waveDisplay").innerText = "Stage 4 Boss: Baron Krieg";
+        startBossFight("krieg", "krieg", 215, 15, false, "Baron Krieg");
+      } else if (num === 15) {
+        activeZone = "sahel_rift";
+        document.getElementById("waveDisplay").innerText = "Stage 5 (Sahel Rift) • Wave 1/4";
+        mobsRemaining = 28; mobsTotal = 28;
+        boss.active = false;
+        setupOrderlyWave("vault", 28);
+      } else if (num === 16) {
+        activeZone = "sahel_rift";
+        document.getElementById("waveDisplay").innerText = "Stage 5 (Sahel Rift) • Wave 2/4";
+        mobsRemaining = 32; mobsTotal = 32;
+        boss.active = false;
+        setupOrderlyWave("vault", 32);
+      } else if (num === 17) {
+        activeZone = "sahel_rift";
+        document.getElementById("waveDisplay").innerText = "Stage 5 (Sahel Rift) • Wave 3/4 (Elite)";
+        mobsRemaining = 36; mobsTotal = 36;
+        boss.active = false;
+        setupOrderlyWave("elite_mix", 36);
+      } else if (num === 18) {
         activeZone = "sahel_rift";
         document.getElementById("waveDisplay").innerText = "Stage 5 Boss: AS-TAC / Tectonox";
-        startBossFight("tectonox", "tectonox", 98, 12, false, "AS-TAC / Tectonox");
+        startBossFight("tectonox", "tectonox", 240, 16, false, "AS-TAC / Tectonox");
       }
 
       updateHUD();
@@ -3037,7 +3178,7 @@
     function setupOrderlyWave(profile, totalCount) {
       enemies = [];
       pendingSpawns = totalCount;
-      spawnOrderlyPlatoons(profile, Math.min(4, pendingSpawns));
+      spawnOrderlyPlatoons(profile, Math.min(5, pendingSpawns));
 
       spawnIntervalTimer = setInterval(() => {
         if (!combatStarted || !gameActive || isPaused || countdownState.active || pendingSpawns <= 0) {
@@ -3045,39 +3186,57 @@
           return;
         }
         const activeCount = enemies.filter(e => e.active).length;
-        if (activeCount <= 2) {
-          spawnOrderlyPlatoons(profile, Math.min(3, pendingSpawns));
+        if (activeCount <= 3) {
+          spawnOrderlyPlatoons(profile, Math.min(4, pendingSpawns));
         }
-      }, 1700);
+      }, 1350);
     }
 
     function spawnOrderlyPlatoons(profile, count) {
       for (let i = 0; i < count; i++) {
         if (pendingSpawns <= 0) break;
         pendingSpawns--;
-        let type = "drone", spawnY = 195, speed = 1.45, hp = 3;
-        if (profile === "heavy") {
+        let type = "drone", spawnY = 185, speed = 1.75, hp = 7, shielded = false;
+
+        if (profile === "swarm") {
+          type = (pendingSpawns % 3 === 0) ? "enforcer" : "drone";
+          hp = type === "enforcer" ? 11 : 7;
+          spawnY = type === "enforcer" ? 208 : (130 + (pendingSpawns % 3) * 26);
+          speed = type === "enforcer" ? 1.55 : 1.85;
+        } else if (profile === "heavy") {
           type = (pendingSpawns % 2 === 0) ? "enforcer" : "drone";
-          hp = type === "enforcer" ? 5 : 3;
-          spawnY = type === "enforcer" ? 208 : 135;
-          speed = type === "enforcer" ? 1.35 : 1.5;
+          hp = type === "enforcer" ? 14 : 9;
+          shielded = type === "enforcer" && (pendingSpawns % 4 === 0);
+          spawnY = type === "enforcer" ? 208 : (128 + (pendingSpawns % 2) * 35);
+          speed = type === "enforcer" ? 1.6 : 1.9;
         } else if (profile === "ouroboros" || profile === "vault") {
           type = (pendingSpawns % 2 === 0) ? "crawler" : "drone";
-          hp = 5;
-          spawnY = type === "crawler" ? 232 : 135;
-          speed = 1.45;
+          hp = type === "crawler" ? 14 : 9;
+          spawnY = type === "crawler" ? 232 : 138;
+          speed = 1.8;
         } else if (profile === "forge") {
-          type = (pendingSpawns % 2 === 0) ? "enforcer" : "drone";
-          hp = 5;
-          spawnY = type === "enforcer" ? 208 : 145;
-          speed = 1.4;
+          type = (pendingSpawns % 2 === 0) ? "enforcer" : "crawler";
+          hp = 14;
+          shielded = (pendingSpawns % 3 === 0);
+          spawnY = type === "enforcer" ? 208 : 232;
+          speed = 1.7;
+        } else if (profile === "elite_mix") {
+          const mod = pendingSpawns % 3;
+          type = mod === 0 ? "enforcer" : (mod === 1 ? "crawler" : "drone");
+          hp = type === "drone" ? 10 : 16;
+          shielded = type === "enforcer";
+          spawnY = type === "enforcer" ? 208 : (type === "crawler" ? 232 : 132);
+          speed = 1.9;
         }
+
         enemies.push({
           type,
-          x: 505 + i * 58,
+          x: 505 + i * 52,
           y: spawnY,
           baseY: spawnY,
           hp,
+          maxHp: hp,
+          shielded,
           speed,
           active: true,
           walkCycle: 0,
@@ -3086,7 +3245,7 @@
       }
     }
 
-    function startBossFight(bossType, spriteKey = "boss", customHp = 84, customDmg = 11, isVersus = false, displayLabel = null) {
+    function startBossFight(bossType, spriteKey = "boss", customHp = 165, customDmg = 13, isVersus = false, displayLabel = null) {
       boss.active = true;
       boss.type = bossType;
       boss.label = displayLabel || bossType.toUpperCase();
@@ -3108,114 +3267,167 @@
       updateHUD();
 
       if (bossActionTimer) clearInterval(bossActionTimer);
-      const intervalMs = isVersus ? 1500 : 1850;
+      const intervalMs = isVersus ? 1320 : 1500;
       bossActionTimer = setInterval(() => {
         if (!combatStarted || !boss.active || !gameActive || isPaused || countdownState.active || snareFreezeTimer > 0 || lionWarActive) return;
 
-        if (boss.x > leadX + 95) {
-          boss.x = Math.max(leadX + 80, boss.x - (isVersus ? 32 : 22));
-        } else if (isVersus && Math.random() > 0.55) {
-          boss.x = Math.min(445, leadX + 145);
+        // Check Phase 2 Enrage at 50% HP
+        if (boss.phase === 1 && boss.hp <= boss.maxHp * 0.5) {
+          boss.phase = 2;
+          boss.shieldActive = true;
+          playSound('roar');
+          screenShake = 18;
+          spawnFloatingText(boss.x + 35, 145, "⚠️ PHASE 2 OVERDRIVE!", "#ef4444");
+          logBrawler(`🔥 ${boss.label.toUpperCase()} ENTERED PHASE 2 OVERDRIVE! Attack speed & multi-lane patterns active!`);
+          setTimeout(() => { boss.shieldActive = false; }, 1800);
         }
 
-        if (isVersus && boss.hp < boss.maxHp * 0.55 && !boss.shieldActive && Math.random() > 0.74) {
+        // Boss positioning (non-Chrono bosses advance or reposition; Chrono-Lock warps front & behind)
+        if (bossType !== "chrono" && bossType !== "prism") {
+          if (boss.x > leadX + 95) {
+            boss.x = Math.max(leadX + 75, boss.x - (boss.phase === 2 ? 36 : 24));
+          } else if (Math.random() > 0.5) {
+            boss.x = Math.min(445, leadX + 145);
+          }
+        }
+
+        if (boss.phase === 2 && !boss.shieldActive && Math.random() > 0.72) {
           boss.shieldActive = true;
           playSound('shield');
           spawnFloatingText(boss.x + 35, 162, "BOSS AEGIS!", "#f59e0b");
-          setTimeout(() => { boss.shieldActive = false; }, 1600);
+          setTimeout(() => { boss.shieldActive = false; }, 1400);
         }
 
         const dir = boss.x > leadX ? -1 : 1;
 
+        // CHRONO-LOCK: Warps alternating FRONT and BEHIND the player + fires temporal bolts!
+        if (bossType === "chrono") {
+          playSound('warp');
+          screenShake = 14;
+          chronoWarpCount++;
+          const warpBehind = (chronoWarpCount % 2 === 1);
+          if (warpBehind) {
+            boss.x = Math.max(38, leadX - 78);
+            spawnFloatingText(boss.x + 35, 152, "⏳ BEHIND-SHIFT!", "#66fcf1");
+            logBrawler("⚠️ Chrono-Lock time-shifted BEHIND you! Turn or shield!");
+          } else {
+            boss.x = Math.min(445, leadX + 115);
+            spawnFloatingText(boss.x + 35, 152, "⏳ FRONT-SHIFT!", "#38bdf8");
+          }
+          const shotDir = boss.x > leadX ? -1 : 1;
+          enemyBullets.push({ x: boss.x + 30, y: 186, vx: shotDir * (boss.phase === 2 ? 8.2 : 7.0), dmg: boss.dmg, color: "#38bdf8" });
+          enemyBullets.push({ x: boss.x + 30, y: 214, vx: shotDir * (boss.phase === 2 ? 7.4 : 6.2), dmg: boss.dmg, color: "#f59e0b" });
+          if (boss.phase === 2) {
+            groundShockwaves.push({ x: boss.x + 30, vx: shotDir * 7.2, radius: 22, color: "#38bdf8", dmg: boss.dmg });
+          }
+          return;
+        }
+
+        // PRISM-GHOST: Phase fade + behind-the-back ambush
         if (bossType === "prism") {
           playSound('warp');
-          boss.alpha = 0.25;
-          boss.x = boss.x > leadX + 40 ? Math.max(45, leadX - 35) : 395;
+          boss.alpha = 0.22;
+          boss.x = boss.x > leadX + 35 ? Math.max(40, leadX - 72) : Math.min(440, leadX + 135);
           setTimeout(() => { boss.alpha = 1; }, 650);
-          enemyBullets.push({ x: boss.x, y: 196, vx: boss.x > leadX ? -7.6 : 7.6, dmg: boss.dmg, color: "#a855f7" });
+          const pDir = boss.x > leadX ? -1 : 1;
+          enemyBullets.push({ x: boss.x + 30, y: 192, vx: pDir * 8.0, dmg: boss.dmg, color: "#a855f7" });
+          if (boss.phase === 2) {
+            enemyBullets.push({ x: boss.x + 30, y: 218, vx: pDir * 7.2, dmg: boss.dmg, color: "#e879f9" });
+          }
           return;
         }
 
         if (bossType === "tectonox") {
-          triggerBossTelegraph("⚠️ FAULTLINE DRILL INCOMING", () => {
+          triggerBossTelegraph("⚠️ FAULTLINE DRILL & SLAG", () => {
             playSound('cannon');
-            screenShake = 16;
-            groundShockwaves.push({ x: boss.x, vx: dir * 7.8, radius: 26, color: "#ef4444", dmg: boss.dmg });
-            enemyBullets.push({ x: boss.x, y: 192, vx: dir * 7.2, dmg: boss.dmg, color: "#84cc16" });
+            screenShake = 17;
+            groundShockwaves.push({ x: boss.x, vx: dir * 8.2, radius: 28, color: "#ef4444", dmg: boss.dmg });
+            enemyBullets.push({ x: boss.x, y: 188, vx: dir * 7.6, dmg: boss.dmg, color: "#84cc16" });
+            if (boss.phase === 2) {
+              lavaWaves.push({ x: boss.x, y: 242, vx: dir * 6.8, width: 58, height: 28, dmg: boss.dmg, life: 85 });
+            }
           });
         } else if (bossType === "malakor") {
           playSound('zap');
-          screenShake = 13;
-          enemyBullets.push({ x: boss.x, y: 186, vx: dir * 8.0, dmg: boss.dmg, color: "#ef4444" });
-          enemyBullets.push({ x: boss.x, y: 214, vx: dir * 7.0, dmg: boss.dmg, color: "#dc2626" });
-          groundShockwaves.push({ x: boss.x, vx: dir * 6.8, radius: 20, color: "#ef4444", dmg: boss.dmg });
+          screenShake = 14;
+          enemyBullets.push({ x: boss.x, y: 184, vx: dir * 8.2, dmg: boss.dmg, color: "#ef4444" });
+          enemyBullets.push({ x: boss.x, y: 214, vx: dir * 7.4, dmg: boss.dmg, color: "#dc2626" });
+          groundShockwaves.push({ x: boss.x, vx: dir * 7.0, radius: 22, color: "#ef4444", dmg: boss.dmg });
         } else if (bossType === "kensei") {
           playSound('zap');
-          screenShake = 12;
-          waveSurges.push({ x: boss.x, y: 205, vx: dir * 8.6, width: 64, height: 50, life: 65 });
-          enemyBullets.push({ x: boss.x, y: 198, vx: dir * 8.0, dmg: boss.dmg, color: "#e2e8f0" });
+          screenShake = 13;
+          waveSurges.push({ x: boss.x, y: 205, vx: dir * 8.8, width: 64, height: 50, life: 65 });
+          enemyBullets.push({ x: boss.x, y: 196, vx: dir * 8.2, dmg: boss.dmg, color: "#e2e8f0" });
         } else if (bossType === "dread") {
-          triggerBossTelegraph("⚠️ SUB-BASS SHOCKWAVE", () => {
+          triggerBossTelegraph("⚠️ SUB-BASS OVERLOAD", () => {
             playSound('drum');
-            screenShake = 16;
-            groundShockwaves.push({ x: boss.x, vx: dir * 7.6, radius: 28, color: "#a855f7", dmg: boss.dmg });
-            enemyBullets.push({ x: boss.x, y: 194, vx: dir * 7.2, dmg: boss.dmg, color: "#c084fc" });
+            screenShake = 17;
+            groundShockwaves.push({ x: boss.x, vx: dir * 8.0, radius: 30, color: "#a855f7", dmg: boss.dmg });
+            enemyBullets.push({ x: boss.x, y: 190, vx: dir * 7.6, dmg: boss.dmg, color: "#c084fc" });
           });
         } else if (bossType === "vipera") {
           playSound('zap');
-          screenShake = 11;
-          enemyBullets.push({ x: boss.x, y: 188, vx: dir * 7.8, dmg: boss.dmg, color: "#22c55e" });
-          enemyBullets.push({ x: boss.x, y: 216, vx: dir * 6.8, dmg: boss.dmg, color: "#4ade80" });
+          screenShake = 12;
+          enemyBullets.push({ x: boss.x, y: 186, vx: dir * 8.0, dmg: boss.dmg, color: "#22c55e" });
+          enemyBullets.push({ x: boss.x, y: 216, vx: dir * 7.2, dmg: boss.dmg, color: "#4ade80" });
         } else if (bossType === "magma") {
-          triggerBossTelegraph("⚠️ MOLTEN LAVA SURGE", () => {
+          triggerBossTelegraph("⚠️ MOLTEN LAVA ERUPTION", () => {
             playSound('cannon');
-            screenShake = 15;
-            lavaWaves.push({ x: boss.x, y: 242, vx: dir * 6.8, width: 62, height: 32, dmg: boss.dmg, life: 95 });
-            enemyBullets.push({ x: boss.x, y: 192, vx: dir * 7.0, dmg: boss.dmg, color: "#f97316" });
+            screenShake = 16;
+            lavaWaves.push({ x: boss.x, y: 242, vx: dir * 7.2, width: 64, height: 34, dmg: boss.dmg, life: 95 });
+            enemyBullets.push({ x: boss.x, y: 188, vx: dir * 7.4, dmg: boss.dmg, color: "#f97316" });
           });
         } else if (bossType === "nullbyte") {
           playSound('zap');
-          computerDiscs.push({ x: boss.x, y: 184, vx: dir * 7.8, rot: 0, dmg: boss.dmg, life: 90 });
-          computerDiscs.push({ x: boss.x, y: 216, vx: dir * 6.8, rot: 1.2, dmg: boss.dmg, life: 90 });
+          computerDiscs.push({ x: boss.x, y: 182, vx: dir * 8.2, rot: 0, dmg: boss.dmg, life: 90 });
+          computerDiscs.push({ x: boss.x, y: 216, vx: dir * 7.2, rot: 1.2, dmg: boss.dmg, life: 90 });
         } else if (bossType === "dreadnought") {
           triggerBossTelegraph("⚠️ SIEGE CANNON & QUAKE", () => {
             playSound('cannon');
-            screenShake = 15;
-            enemyBullets.push({ x: boss.x, y: 196, vx: dir * 7.6, dmg: boss.dmg });
-            groundShockwaves.push({ x: boss.x, vx: dir * 7.2, radius: 24, color: "#f59e0b", dmg: boss.dmg });
+            screenShake = 16;
+            enemyBullets.push({ x: boss.x, y: 192, vx: dir * 8.0, dmg: boss.dmg });
+            groundShockwaves.push({ x: boss.x, vx: dir * 7.6, radius: 26, color: "#f59e0b", dmg: boss.dmg });
           });
-        } else if (bossType === "chrono") {
-          playSound('warp');
-          screenShake = 12;
-          boss.x = Math.random() > 0.45 ? Math.max(85, leadX + 85) : Math.min(435, leadX + 155);
-          enemyBullets.push({ x: boss.x, y: 188, vx: -7.2, dmg: boss.dmg, color: "#38bdf8" });
-          enemyBullets.push({ x: boss.x, y: 214, vx: -6.4, dmg: boss.dmg, color: "#f59e0b" });
         } else if (bossType === "ironclad" || bossType === "krieg") {
-          triggerBossTelegraph("⚠️ SEISMIC QUAKE WAVE", () => {
+          triggerBossTelegraph("⚠️ SEISMIC QUAKE BARRAGE", () => {
             playSound('hit');
-            screenShake = 15;
-            groundShockwaves.push({ x: boss.x, vx: dir * 7.4, radius: 26, color: "#f97316", dmg: boss.dmg });
-            enemyBullets.push({ x: boss.x, y: 194, vx: dir * 7.0, dmg: boss.dmg, color: "#fb923c" });
+            screenShake = 16;
+            groundShockwaves.push({ x: boss.x, vx: dir * 7.8, radius: 28, color: "#f97316", dmg: boss.dmg });
+            enemyBullets.push({ x: boss.x, y: 190, vx: dir * 7.4, dmg: boss.dmg, color: "#fb923c" });
           });
         } else if (bossType === "apex") {
           playSound('zap');
-          screenShake = 12;
-          enemyBullets.push({ x: boss.x, y: 188, vx: dir * 8.0, dmg: boss.dmg, color: "#38bdf8" });
-          enemyBullets.push({ x: boss.x, y: 218, vx: dir * 7.0, dmg: boss.dmg, color: "#66fcf1" });
+          screenShake = 13;
+          enemyBullets.push({ x: boss.x, y: 186, vx: dir * 8.4, dmg: boss.dmg, color: "#38bdf8" });
+          enemyBullets.push({ x: boss.x, y: 218, vx: dir * 7.4, dmg: boss.dmg, color: "#66fcf1" });
         } else if (bossType === "wakan") {
           playSound('orb');
-          groundShockwaves.push({ x: boss.x, vx: dir * 7.0, radius: 26, color: "#06b6d4", dmg: boss.dmg });
+          groundShockwaves.push({ x: boss.x, vx: dir * 7.4, radius: 28, color: "#06b6d4", dmg: boss.dmg });
+          enemyBullets.push({ x: boss.x, y: 192, vx: dir * 7.2, dmg: boss.dmg, color: "#38bdf8" });
         } else if (bossType === "sundiata") {
           playSound('drum');
-          screenShake = 14;
-          groundShockwaves.push({ x: boss.x, vx: dir * 7.4, radius: 26, color: "#f59e0b", dmg: boss.dmg });
+          screenShake = 15;
+          groundShockwaves.push({ x: boss.x, vx: dir * 7.8, radius: 28, color: "#f59e0b", dmg: boss.dmg });
+          enemyBullets.push({ x: boss.x, y: 192, vx: dir * 7.2, dmg: boss.dmg, color: "#facc15" });
+        } else if (bossType === "kofi") {
+          playSound('cannon');
+          screenShake = 15;
+          lavaWaves.push({ x: boss.x, y: 242, vx: dir * 7.0, width: 64, height: 32, dmg: boss.dmg, life: 90, goldAlloy: true });
+        } else if (bossType === "nenambi") {
+          playSound('sonic');
+          groundShockwaves.push({ x: boss.x, vx: dir * 7.8, radius: 26, color: "#66fcf1", dmg: boss.dmg });
+          enemyBullets.push({ x: boss.x, y: 188, vx: dir * 8.0, dmg: boss.dmg, color: "#f59e0b" });
+        } else if (bossType === "xochitl") {
+          playSound('zap');
+          const aim = computeAimedVelocity(boss.x + 25, 185 + boss.y, 8.2);
+          enemyBullets.push({ x: boss.x + 25, y: 185 + boss.y, vx: aim.vx, vy: aim.vy, dmg: boss.dmg, color: "#f97316" });
         } else if (bossType === "amina") {
           playSound('zap');
           generateLightning(boss.x + 25, 18, leadX + 30, 215, 4);
-          enemyBullets.push({ x: boss.x, y: 196, vx: dir * 7.8, dmg: boss.dmg, color: "#66fcf1" });
+          enemyBullets.push({ x: boss.x, y: 196, vx: dir * 8.0, dmg: boss.dmg, color: "#66fcf1" });
         } else {
           playSound('zap');
-          enemyBullets.push({ x: boss.x, y: 195, vx: dir * 7.2, dmg: boss.dmg, color: "#38bdf8" });
+          enemyBullets.push({ x: boss.x, y: 195, vx: dir * 7.6, dmg: boss.dmg, color: "#38bdf8" });
         }
       }, intervalMs);
     }
@@ -3243,13 +3455,15 @@
       const defeatedX = boss.x + 35;
       boss.active = false;
       bossTelegraph.active = false;
+      chronoSlowActive = false;
       snareFreezeTimer = 0;
       lionWarActive = false;
       if (bossActionTimer) { clearInterval(bossActionTimer); bossActionTimer = null; }
       playSound('hit');
       screenShake = 22;
 
-      addDailyArcadePoints(2500);
+      addDailyArcadePoints(3000);
+      const gotWeekend = tryClaimWeekendChallenge();
 
       if (defeatedType === "chrono") {
         spawnChronoLockClockCascade(defeatedX, 195);
@@ -3258,20 +3472,22 @@
 
       if (brawlerMode === "versus") {
         const rivals = getVersusRivalList();
-        awardSharedLegacyPoints(45, "versus_win_" + defeatedType);
+        awardSharedLegacyPoints(55, "versus_win_" + defeatedType);
 
         if (gauntletMode && gauntletIndex + 1 < rivals.length) {
           gauntletIndex++;
           const nextRival = rivals[gauntletIndex];
-          playerHp = Math.min(100, playerHp + 30);
-          addTrinityCharge(35);
+          // Tighter Second Wind heal (+18 HP) to keep the 12-rival Gauntlet challenging!
+          playerHp = Math.min(100, playerHp + 18);
+          addTrinityCharge(25);
           updateHUD();
 
-          logBrawler(`🏆 ${defeatedLabel} defeated! +45 Pts & +30 HP Second Wind! Next: ${nextRival.label}!`);
+          const wkTag = gotWeekend ? " +400 Weekend Siege Bonus!" : "";
+          logBrawler(`🏆 ${defeatedLabel} defeated! +55 Pts & +18 HP Second Wind!${wkTag} Next: ${nextRival.label}!`);
           setTimeout(() => {
             showBanner(
               `RIVAL ${gauntletIndex}/${rivals.length} DEFEATED!`,
-              `${defeatedLabel} is down! Next challenger: ${nextRival.label} (${nextRival.power}).`,
+              `${defeatedLabel} is down!${wkTag} Next challenger: ${nextRival.label} (${nextRival.power}).`,
               `FIGHT ${nextRival.label.toUpperCase()} →`,
               nextRival.sprite,
               () => {
@@ -3285,18 +3501,24 @@
 
         if (gauntletMode) {
           const ironmanBonus = gauntletNoRetryRun ? 250 : 0;
-          awardSharedLegacyPoints(100 + ironmanBonus, "gauntlet_full_clear");
-          addDailyArcadePoints(gauntletNoRetryRun ? 7500 : 5000);
-          const clearMsg = gauntletNoRetryRun
-            ? "👑 ZERO-RETRY IRONMAN GAUNTLET CLEARED! +350 Legacy Pts & +7,500 Daily Score!"
-            : "👑 FULL GAUNTLET CLEARED! +100 Bonus Shared Legacy Pts!";
-          logBrawler(clearMsg);
+          const loneVanguardBonus = singleFighterGauntletRun ? 200 : 0;
+          awardSharedLegacyPoints(120 + ironmanBonus + loneVanguardBonus, "gauntlet_full_clear");
+          addDailyArcadePoints(5000 + (ironmanBonus + loneVanguardBonus) * 15);
+
+          const earnedLabels = [];
+          if (loneVanguardBonus > 0) earnedLabels.push("🛡️ Lone Vanguard (+200)");
+          if (ironmanBonus > 0) earnedLabels.push("👑 Zero-Retry Ironman (+250)");
+          if (gotWeekend) earnedLabels.push("🔥 Weekend Siege (+400)");
+
+          const summaryDesc = earnedLabels.length > 0
+            ? `Unbelievable run! Bonuses unlocked: ${earnedLabels.join(" • ")}!`
+            : "You defeated all 12 rivals! +120 Shared Legacy Points banked.";
+
+          logBrawler(`👑 FULL 12-RIVAL GAUNTLET CLEARED! ${summaryDesc}`);
           setTimeout(() => {
             showBanner(
-              gauntletNoRetryRun ? "ZERO-RETRY GAUNTLET CLEAR ★" : "FULL GAUNTLET CLEARED!",
-              gauntletNoRetryRun
-                ? "Unbroken run! You defeated the entire roster without a single retry (+250 Ironman Bonus)!"
-                : "You defeated the entire roster! +100 Bonus Shared Legacy Points banked.",
+              loneVanguardBonus > 0 ? "LONE VANGUARD GAUNTLET CLEAR ★" : "FULL GAUNTLET CLEARED!",
+              summaryDesc,
               "PLAY GAUNTLET AGAIN (3-2-1)",
               "packed-marrow-tree.png",
               () => {
@@ -3308,11 +3530,12 @@
           return;
         }
 
-        logBrawler(`🏆 VERSUS VICTORY vs. ${defeatedLabel}! +45 Shared Legacy Pts!`);
+        const wkText = gotWeekend ? " (+400 Weekend Siege Bonus!)" : "";
+        logBrawler(`🏆 VERSUS VICTORY vs. ${defeatedLabel}! +55 Shared Legacy Pts!${wkText}`);
         setTimeout(() => {
           showBanner(
             "VERSUS VICTORY",
-            `You defeated ${defeatedLabel}! Toggle Gauntlet Ladder ON to fight the entire roster back-to-back.`,
+            `You defeated ${defeatedLabel}!${wkText} Toggle Gauntlet Ladder ON to test the 12-rival endurance ladder.`,
             "REMATCH (3-2-1)",
             "packed-marrow-tree.png",
             () => {
@@ -3324,19 +3547,20 @@
         return;
       }
 
-      if (currentWave === 4) {
+      // Story Mode Boss Progressions (18-Wave Campaign)
+      if (currentWave === 5) {
         saveGameProgress(1, "sundiata");
         setTimeout(() => showBanner("STAGE 1 CLEARED • ENTERING SAHEL", "Chrono-Lock's clocks scatter! Advancing to Stage 2: Sahel vs. Ouroboros Machine!", "ENTER STAGE 2: SAHEL (3-2-1)", "sundiata-prime.png"), 1300);
-      } else if (currentWave === 7) {
+      } else if (currentWave === 9) {
         saveGameProgress(2, "kofi");
         setTimeout(() => showBanner("STAGE 2 CLEARED • ENTERING KUMASI FORGE", "Ouroboros Machine destroyed! Advancing to Stage 3: Kumasi Forge vs. Ironclad!", "ENTER STAGE 3: FORGE (3-2-1)", "kofi.png"), 1200);
-      } else if (currentWave === 10) {
+      } else if (currentWave === 13) {
         saveGameProgress(3);
-        startWave(11, false);
-      } else if (currentWave === 11) {
+        startWave(14, false);
+      } else if (currentWave === 14) {
         saveGameProgress(4);
         setTimeout(() => showBanner("STAGE 4 CLEARED • ENTERING SAHEL RIFT", "Baron Krieg defeated! Advancing to Stage 5: Sahel Rift vs. AS-TAC / Tectonox!", "ENTER STAGE 5: RIFT (3-2-1)", "1795543309474(1)(1).png"), 1200);
-      } else if (currentWave === 14) {
+      } else if (currentWave === 18) {
         saveGameProgress(5);
         setTimeout(() => {
           gameActive = false;
@@ -3357,7 +3581,7 @@
         playerProgress.unlockedOperatives.push(newHero);
       }
       persistPrefs();
-      awardSharedLegacyPoints(50, "brawler_stage_" + stageCleared);
+      awardSharedLegacyPoints(65, "brawler_stage_" + stageCleared);
     }
 
     function showBanner(title, desc, btnText, imgSrc = "packed-marrow-tree.png", customHandler = null) {
@@ -3372,27 +3596,28 @@
 
     function dismissChapterBanner() {
       document.getElementById("chapterBanner").style.display = "none";
-      if (currentWave === 4) {
+      if (currentWave === 5) {
         activeLead = "sundiata";
         rosterIdx = unlockedRoster.indexOf("sundiata");
         updateControlsUI();
-        startWave(5, true);
-      } else if (currentWave === 7) {
+        startWave(6, true);
+      } else if (currentWave === 9) {
         activeLead = "kofi";
         rosterIdx = unlockedRoster.indexOf("kofi");
         updateControlsUI();
-        startWave(8, true);
-      } else if (currentWave === 11) {
+        startWave(10, true);
+      } else if (currentWave === 14) {
         activeLead = "sundiata";
         rosterIdx = unlockedRoster.indexOf("sundiata");
         updateControlsUI();
-        startWave(12, true);
+        startWave(15, true);
       }
     }
 
     function handlePlayerDefeat() {
       gameActive = false;
       bossTelegraph.active = false;
+      chronoSlowActive = false;
       lionWarActive = false;
       gauntletNoRetryRun = false;
       if (bossActionTimer) { clearInterval(bossActionTimer); bossActionTimer = null; }
@@ -3448,7 +3673,7 @@
     function playerMove(dx) {
       if (!canActInBrawler()) return;
       initAudio();
-      leadX = Math.max(65, Math.min(340, leadX + dx));
+      leadX = Math.max(40, Math.min(390, leadX + dx));
       bgScrollOffset -= (dx * 0.15);
       groundScrollOffset -= (dx * 0.6);
       leadLean = dx > 0 ? 0.08 : -0.08;
@@ -3458,7 +3683,7 @@
     function playerJump() {
       if (!canActInBrawler() || !isGrounded) return;
       initAudio();
-      leadVy = -13;
+      leadVy = chronoSlowActive ? -8.5 : -13;
       isGrounded = false;
       if (activeLead === "xochitl") {
         createBurstParticles(leadX + 25, 230, "#f97316", 14);
@@ -3468,6 +3693,8 @@
     function executeTagSwap() {
       if (!canActInBrawler()) return;
       initAudio();
+      singleFighterGauntletRun = false;
+
       if (brawlerMode === "versus" && versusPlayerSide === "villain") {
         const vIdx = VILLAIN_OPTIONS.findIndex(v => v.id === activeLead);
         const nextVillain = VILLAIN_OPTIONS[(vIdx + 1) % VILLAIN_OPTIONS.length];
@@ -3625,21 +3852,27 @@
 
       if (target === boss) {
         if (boss.shieldActive && !lionWarActive) {
-          totalDmg = Math.max(1, Math.floor(totalDmg * 0.5));
+          totalDmg = Math.max(1, Math.floor(totalDmg * 0.45));
         }
         boss.hp -= totalDmg;
         boss.hitFlash = 6;
-        const suffix = lionWarActive ? " (LION WAR!)" : (nenambiWaveWingActive ? " (1.65x!)" : (comboCount >= 4 ? ` (${comboCount}x!)` : ""));
+        const suffix = lionWarActive ? " (LION WAR!)" : (nenambiWaveWingActive ? " (1.65x!)" : (comboCount >= 5 ? ` (${comboCount}x!)` : ""));
         const label = boss.shieldActive && !lionWarActive ? `-${totalDmg} (ARMOR)` : `-${totalDmg}${suffix}`;
         createBurstParticles(boss.x + 30, 205 + boss.y, flashColor, 14);
         spawnFloatingText(boss.x + 30, 175 + boss.y, label, flashColor);
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
       } else if (target.active) {
-        const suffix = lionWarActive ? " (LION!)" : (nenambiWaveWingActive ? " (1.65x!)" : (comboCount >= 4 ? ` (${comboCount}x!)` : ""));
+        if (target.shielded && dmg <= 3) {
+          target.shielded = false;
+          playSound('shield');
+          spawnFloatingText(target.x + 12, target.y - 12, "SHIELD BROKEN!", "#38bdf8");
+          return;
+        }
+        const suffix = lionWarActive ? " (LION!)" : (nenambiWaveWingActive ? " (1.65x!)" : (comboCount >= 5 ? ` (${comboCount}x!)` : ""));
         const label = `-${totalDmg}${suffix}`;
         target.hp -= totalDmg;
-        target.x += 22;
+        target.x += 18;
         createBurstParticles(target.x + 15, target.y, flashColor, 12);
         spawnFloatingText(target.x + 12, target.y - 12, label, flashColor);
         if (target.hp <= 0) onEnemyDestroyed(target);
@@ -3652,24 +3885,25 @@
       const target = getClosestTarget(leadX);
       const targetX = target ? target.x : (boss.active ? boss.x : 410);
       const targetY = boss.active ? (205 + boss.y) : (target ? target.y : 205);
+      const attackDir = targetX >= leadX ? 1 : -1;
 
       const shieldBonus = (activeLead === "marcus" && absorbedCharge > 0) ? Math.max(2, Math.floor(absorbedCharge / 6)) : 0;
       if (shieldBonus > 0) absorbedCharge = 0;
 
       if (nenambiWaveWingActive) {
-        waveSurges.push({ x: leadX + 46, y: 202 - leadY, vx: 11.2, width: 66, height: 50, life: 45, color: "#66fcf1" });
+        waveSurges.push({ x: leadX + 35, y: 202 - leadY, vx: attackDir * 11.2, width: 66, height: 50, life: 45, color: "#66fcf1" });
       }
 
       if (activeLead === "kensei") {
         playSound('zap');
         screenShake = 12;
-        waveSurges.push({ x: leadX + 42, y: 205 - leadY, vx: 10.6, width: 68, height: 52, life: 60, color: "#e2e8f0" });
+        waveSurges.push({ x: leadX + 35, y: 205 - leadY, vx: attackDir * 10.6, width: 68, height: 52, life: 60, color: "#e2e8f0" });
         applyDamageToTarget(target, 3, "#e2e8f0");
         logBrawler("⚔️ Shadow Kensei unleashes a Spirit-Steel Katana Wind Slash!");
       } else if (activeLead === "nenambi") {
         playSound('sonic');
         screenShake = 12;
-        waveSurges.push({ x: leadX + 42, y: 205 - leadY, vx: 10.4, width: 70, height: 54, life: 62, color: "#f59e0b" });
+        waveSurges.push({ x: leadX + 35, y: 205 - leadY, vx: attackDir * 10.4, width: 70, height: 54, life: 62, color: "#f59e0b" });
         applyDamageToTarget(target, 3, "#f59e0b");
         logBrawler("🔊 Nénambi Prime channels 1,080 Hz Acoustic Shear through his bronze gauntlets!");
       } else if (activeLead === "xochitl") {
@@ -3695,12 +3929,12 @@
       } else if (activeLead === "tectonox") {
         playSound('cannon');
         screenShake = 16;
-        groundShockwaves.push({ x: leadX + 45, vx: 8.0, radius: 28, color: "#ef4444", dmg: 3, friendly: true });
+        groundShockwaves.push({ x: leadX + 35, vx: attackDir * 8.0, radius: 28, color: "#ef4444", dmg: 3, friendly: true });
         logBrawler("🔩 AS-TAC / Tectonox triggers Faultline Liquefaction with his twin mining drills!");
       } else if (activeLead === "malakor") {
         playSound('zap');
         screenShake = 12;
-        waveSurges.push({ x: leadX + 45, y: 204 - leadY, vx: 10.0, width: 64, height: 48, life: 55, color: "#ef4444" });
+        waveSurges.push({ x: leadX + 35, y: 204 - leadY, vx: attackDir * 10.0, width: 64, height: 48, life: 55, color: "#ef4444" });
         applyDamageToTarget(target, 3, "#ef4444");
         logBrawler("🔱 Malakor lunges forward with a crimson glaive shock-arc!");
       } else if (activeLead === "kofi") {
@@ -3708,20 +3942,20 @@
         screenShake = 15;
         kofiHammerSwing.active = true;
         kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
-        createBurstParticles(leadX + 55, 225, "#fbbf24", 20);
-        groundShockwaves.push({ x: leadX + 48, vx: 7.8, radius: 22, color: "#fbbf24", dmg: 3, friendly: true });
+        createBurstParticles(leadX + 45, 225, "#fbbf24", 20);
+        groundShockwaves.push({ x: leadX + 38, vx: attackDir * 7.8, radius: 22, color: "#fbbf24", dmg: 3, friendly: true });
         logBrawler("🔨 Kofi Osei slams his Kinetic Crucible Hammer, sending golden sparks flying!");
       } else if (activeLead === "wakan") {
         playSound('orb');
         screenShake = 13;
-        tsunamiWaves.push({ x: leadX + 35, y: 244, vx: 8.6, width: 76, height: 56, life: 78 });
+        tsunamiWaves.push({ x: leadX + 35, y: 244, vx: attackDir * 8.6, width: 76, height: 56, life: 78 });
         logBrawler("🌊 Wakan blows the Guamo conch horn—unleashing a crashing Caribbean Tsunami!");
       } else if (activeLead === "sundiata") {
         playSound('drum');
         screenShake = 15;
         sundiataDrumBeat.active = true;
         sundiataDrumBeat.timer = sundiataDrumBeat.maxTimer;
-        groundShockwaves.push({ x: leadX + 42, vx: 8.2, radius: 26, color: "#f59e0b", dmg: 3, friendly: true });
+        groundShockwaves.push({ x: leadX + 35, vx: attackDir * 8.2, radius: 26, color: "#f59e0b", dmg: 3, friendly: true });
         logBrawler("🥁 Simeonic Prime beats the sacred bronze dundun drum—sending a seismic ground wave!");
       } else if (activeLead === "amina") {
         playSound('celestial');
@@ -3733,22 +3967,22 @@
       } else if (activeLead === "dread") {
         playSound('drum');
         screenShake = 15;
-        groundShockwaves.push({ x: leadX + 42, vx: 8.4, radius: 26, color: "#a855f7", dmg: 3, friendly: true });
+        groundShockwaves.push({ x: leadX + 35, vx: attackDir * 8.4, radius: 26, color: "#a855f7", dmg: 3, friendly: true });
         logBrawler("🔊 Dread Harmonic blasts a heavy sub-bass shockwave!");
       } else if (activeLead === "vipera") {
         playSound('zap');
         screenShake = 11;
-        waveSurges.push({ x: leadX + 44, y: 205 - leadY, vx: 9.6, width: 62, height: 48, life: 55, color: "#22c55e" });
+        waveSurges.push({ x: leadX + 35, y: 205 - leadY, vx: attackDir * 9.6, width: 62, height: 48, life: 55, color: "#22c55e" });
         applyDamageToTarget(target, 3, "#22c55e");
         logBrawler("🐍 Vipera strikes with an emerald bio-kinetic fang arc!");
       } else if (activeLead === "magma") {
         playSound('cannon');
         screenShake = 13;
-        lavaWaves.push({ x: leadX + 38, y: 244, vx: 7.5, width: 64, height: 32, dmg: 3, life: 85, friendly: true });
+        lavaWaves.push({ x: leadX + 35, y: 244, vx: attackDir * 7.5, width: 64, height: 32, dmg: 3, life: 85, friendly: true });
         logBrawler("🌋 Magma-Weaver sends a surging wave of molten lava across the arena!");
       } else if (activeLead === "nullbyte") {
         playSound('zap');
-        computerDiscs.push({ x: leadX + 42, y: 198 - leadY, vx: 9.0, rot: 0, dmg: 3, life: 80, friendly: true });
+        computerDiscs.push({ x: leadX + 35, y: 198 - leadY, vx: attackDir * 9.0, rot: 0, dmg: 3, life: 80, friendly: true });
         logBrawler("💿 Null-Byte hurls a high-speed spinning computer disc!");
       } else if (activeLead === "prism") {
         playSound('warp');
@@ -3759,25 +3993,28 @@
       } else {
         playSound('zap');
         screenShake = shieldBonus > 0 ? 14 : 9;
-        generateLightning(leadX + 45, 205 - leadY, targetX + 15, targetY, 4 + shieldBonus * 3);
+        generateLightning(leadX + 35, 205 - leadY, targetX + 15, targetY, 4 + shieldBonus * 3);
         applyDamageToTarget(target, 2 + shieldBonus, "#38bdf8");
         logBrawler(shieldBonus > 0
           ? `⚡ Marcus Prime discharges a Shield-Charged Electric Bolt (+${shieldBonus} DMG)!`
           : "⚡ Marcus Prime fires his Detroit '313 Electric Bolt!");
       }
 
-      addTrinityCharge(18);
+      addTrinityCharge(15);
       updateHUD();
     }
 
     function executePlasmaOrb() {
       if (!canActInBrawler()) return;
       initAudio();
-      addTrinityCharge(22);
+      addTrinityCharge(18);
+      const target = getClosestTarget(leadX);
+      const targetX = target ? target.x : (boss.active ? boss.x : 410);
+      const attackDir = targetX >= leadX ? 1 : -1;
 
       if (activeLead === "kensei") {
         playSound('zap');
-        spears.push({ x: leadX + 42, y: 196 - leadY, vx: 11.4, vy: 0, returning: false, hitOnce: false, life: 105, color: "#e2e8f0" });
+        spears.push({ x: leadX + 35, y: 196 - leadY, vx: attackDir * 11.4, vy: 0, returning: false, hitOnce: false, life: 105, color: "#e2e8f0" });
         logBrawler("🌙 Shadow Kensei launches a boomerang IAI Spirit-Steel Crescent!");
         return;
       }
@@ -3785,7 +4022,7 @@
       if (activeLead === "nenambi") {
         playSound('sonic');
         screenShake = 13;
-        sonicRings.push({ x: leadX + 48, y: 204 - leadY, vx: 7.4, radius: 14, maxRadius: 42, life: 75 });
+        sonicRings.push({ x: leadX + 38, y: 204 - leadY, vx: attackDir * 7.4, radius: 14, maxRadius: 42, life: 75 });
         logBrawler("〰️ Nénambi Prime plants both gauntlets—projecting a 2,160 Hz Concentric Wavefront!");
         return;
       }
@@ -3793,35 +4030,35 @@
       if (activeLead === "kofi") {
         playSound('cannon');
         screenShake = 14;
-        lavaWaves.push({ x: leadX + 40, y: 244, vx: 7.8, width: 68, height: 34, dmg: 3, life: 88, friendly: true, goldAlloy: true });
+        lavaWaves.push({ x: leadX + 35, y: 244, vx: attackDir * 7.8, width: 68, height: 34, dmg: 4, life: 88, friendly: true, goldAlloy: true });
         logBrawler("🔥 Kofi Osei pours a surging wave of liquid Akan Gold Alloy!");
         return;
       }
 
       if (activeLead === "tectonox") {
         playSound('cannon');
-        lavaWaves.push({ x: leadX + 40, y: 244, vx: 7.6, width: 66, height: 32, dmg: 3, life: 85, friendly: true });
+        lavaWaves.push({ x: leadX + 35, y: 244, vx: attackDir * 7.6, width: 66, height: 32, dmg: 4, life: 85, friendly: true });
         logBrawler("☣️ AS-TAC / Tectonox vents superheated Acidic Slag Torrents across the floor!");
         return;
       }
 
       if (activeLead === "malakor") {
         playSound('net');
-        waterNets.push({ x: leadX + 42, y: 204 - leadY, vx: 8.8, radius: 22, life: 75, color: "#ef4444" });
+        waterNets.push({ x: leadX + 35, y: 204 - leadY, vx: attackDir * 8.8, radius: 22, life: 75, color: "#ef4444" });
         logBrawler("🩸 Malakor whips out crimson Oroboro tendrils to snare the target!");
         return;
       }
 
       if (activeLead === "wakan") {
         playSound('net');
-        waterNets.push({ x: leadX + 42, y: 204 - leadY, vx: 8.6, radius: 22, life: 75, color: "#66fcf1" });
+        waterNets.push({ x: leadX + 35, y: 204 - leadY, vx: attackDir * 8.6, radius: 22, life: 75, color: "#66fcf1" });
         logBrawler("🕸️ Wakan casts a Hydro Water Net to snare and freeze the enemy!");
         return;
       }
 
       if (activeLead === "amina") {
         playSound('zap');
-        spears.push({ x: leadX + 42, y: 196 - leadY, vx: 10.8, vy: 0, returning: false, hitOnce: false, life: 110, color: "#66fcf1" });
+        spears.push({ x: leadX + 35, y: 196 - leadY, vx: attackDir * 10.8, vy: 0, returning: false, hitOnce: false, life: 110, color: "#66fcf1" });
         logBrawler("🗡️ Amina Zazzau hurls her returning Lightning Spear!");
         return;
       }
@@ -3830,7 +4067,7 @@
         playSound('roar');
         screenShake = 15;
         lionRoars.push({
-          x: leadX + 25, y: 195 - leadY, vx: 9.0,
+          x: leadX + 25, y: 195 - leadY, vx: attackDir * 9.0,
           width: 170, height: 120, scale: 0.78, alpha: 0.92, life: 80
         });
         logBrawler("🦁 Simeonic Prime unleashes a towering 20-foot Solar Lion Roar!");
@@ -3857,8 +4094,8 @@
 
       if (activeLead === "nullbyte") {
         playSound('zap');
-        computerDiscs.push({ x: leadX + 42, y: 186 - leadY, vx: 9.2, rot: 0, dmg: 2, life: 80, friendly: true });
-        computerDiscs.push({ x: leadX + 42, y: 214 - leadY, vx: 8.2, rot: 1.5, dmg: 2, life: 80, friendly: true });
+        computerDiscs.push({ x: leadX + 35, y: 186 - leadY, vx: attackDir * 9.2, rot: 0, dmg: 3, life: 80, friendly: true });
+        computerDiscs.push({ x: leadX + 35, y: 214 - leadY, vx: attackDir * 8.2, rot: 1.5, dmg: 3, life: 80, friendly: true });
         logBrawler("💾 Null-Byte launches a twin computer disc volley!");
         return;
       }
@@ -3866,7 +4103,7 @@
       if (activeLead === "marcus") {
         playSound('orb');
         plasmaOrbs.push({
-          x: leadX + 40, y: 200 - leadY, vx: 7.6, vy: 0,
+          x: leadX + 35, y: 200 - leadY, vx: attackDir * 7.6, vy: 0,
           radius: 15, life: 88, color: "#38bdf8", vortex: true
         });
         logBrawler("🌀 Marcus Prime launches a spinning Juracán Bio-Electric Vortex!");
@@ -3876,7 +4113,7 @@
       playSound('orb');
       const orbColor = activeLead === "vipera" ? "#22c55e" : (activeLead === "dread" ? "#c084fc" : (activeLead === "magma" ? "#ef4444" : "#38bdf8"));
       plasmaOrbs.push({
-        x: leadX + 40, y: 200 - leadY, vx: 7.2, vy: 0,
+        x: leadX + 35, y: 200 - leadY, vx: attackDir * 7.2, vy: 0,
         radius: 13, life: 85, color: orbColor
       });
     }
@@ -3884,7 +4121,7 @@
     function executeBurst() {
       if (!canActInBrawler()) return;
       initAudio();
-      addTrinityCharge(20);
+      addTrinityCharge(16);
 
       isShieldActive = true;
       playSound('shield');
@@ -3916,13 +4153,12 @@
       setTimeout(() => { isShieldActive = false; }, 3500);
     }
 
-    // 3-BEAT TRINITY SURGE: Beat 3/3 Symbiotic Prime Golden Lion War (80% drain pacing + intensify press)
+    // 3-BEAT TRINITY SURGE
     function executeTrinitySurge() {
       if (!canActInBrawler()) return;
       initAudio();
 
       if (lionWarActive) {
-        // Pressing while Lion War is active intensifies the beam & accelerates the 80% drain surge!
         playSound('roar');
         playSound('zap');
         screenShake = 22;
@@ -3942,7 +4178,7 @@
         addDailyArcadePoints(650);
 
         if (boss.active) {
-          applyDamageToTarget(boss, 7, "#66fcf1");
+          applyDamageToTarget(boss, 5, "#66fcf1");
         } else {
           enemies.forEach(e => { if (e.active) applyDamageToTarget(e, 5, "#66fcf1"); });
         }
@@ -3965,7 +4201,6 @@
         return;
       }
 
-      // Trigger Beat 3/3 Symbiotic Prime Golden Lion War (starts at 100%, drains down toward 20% over ~5s)
       lionWarActive = true;
       lionWarTimer = 150;
       lionWarDrainTicker = 0;
@@ -3979,7 +4214,7 @@
       trinityState.flashAlpha = 0.7;
       trinityState.showTrio = true;
 
-      playerHp = Math.min(100, playerHp + 20);
+      playerHp = Math.min(100, playerHp + 18);
       awardSharedLegacyPoints(35, "trinity_lion_war");
       addDailyArcadePoints(1800);
       playSound('roar');
@@ -4001,7 +4236,8 @@
       sonicRings.push({ x: baseX + 60, y: baseY + 34, vx: 8.2, radius: 18, maxRadius: 70, life: 70 });
 
       if (boss.active) {
-        const drain = Math.max(18, Math.round(boss.maxHp * 0.36));
+        // Balanced at 24% of boss max HP so bosses remain formidable multi-phase threats
+        const drain = Math.max(20, Math.round(boss.maxHp * 0.24));
         boss.hp -= drain;
         boss.hitFlash = 14;
         spawnFloatingText(boss.x + 30, 165, `-${drain} LION WAR!`, "#66fcf1");
@@ -4027,7 +4263,7 @@
       screenShake = 16;
       playerHp = 100;
       absorbedCharge = Math.min(30, absorbedCharge + 15);
-      addTrinityCharge(35);
+      addTrinityCharge(30);
       updateHUD();
       logBrawler("✨ Mother Luetta descends in a golden beam—Health restored & enemies swept!");
 
@@ -4045,9 +4281,9 @@
       }
 
       if (boss.active) {
-        boss.hp -= 10;
+        boss.hp -= 14;
         boss.hitFlash = 10;
-        spawnFloatingText(boss.x + 30, 175, "-10 CODEX BEAM", "#fde047");
+        spawnFloatingText(boss.x + 30, 175, "-14 CODEX BEAM", "#fde047");
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
       } else {
@@ -4073,23 +4309,23 @@
       if (!enemy.active) return;
       enemy.active = false;
       mobsRemaining = Math.max(0, mobsRemaining - 1);
-      addTrinityCharge(10);
-      addDailyArcadePoints(250);
+      addTrinityCharge(8);
+      addDailyArcadePoints(300);
       playSound('hit');
       createBurstParticles(enemy.x, enemy.y, "#ef4444", 12);
-      if (Math.random() > 0.55) spawnCollectibleDrop(enemy.x, enemy.y);
+      if (Math.random() > 0.58) spawnCollectibleDrop(enemy.x, enemy.y);
       updateHUD();
 
       if (mobsRemaining <= 0 && !boss.active) {
-        if (currentWave === 1) setTimeout(() => startWave(2, false), 1000);
-        else if (currentWave === 2) setTimeout(() => startWave(3, false), 1000);
-        else if (currentWave === 3) setTimeout(() => startWave(4, false), 1100);
-        else if (currentWave === 5) setTimeout(() => startWave(6, false), 1000);
-        else if (currentWave === 6) setTimeout(() => startWave(7, false), 1100);
-        else if (currentWave === 8) setTimeout(() => startWave(9, false), 1000);
-        else if (currentWave === 9) setTimeout(() => startWave(10, false), 1100);
-        else if (currentWave === 12) setTimeout(() => startWave(13, false), 1000);
-        else if (currentWave === 13) setTimeout(() => startWave(14, false), 1100);
+        const nextWaveMap = {
+          1: 2, 2: 3, 3: 4, 4: 5,
+          6: 7, 7: 8, 8: 9,
+          10: 11, 11: 12, 12: 13,
+          15: 16, 16: 17, 17: 18
+        };
+        if (nextWaveMap[currentWave]) {
+          setTimeout(() => startWave(nextWaveMap[currentWave], false), 1000);
+        }
       }
     }
 
@@ -4448,10 +4684,18 @@
       ctx.stroke();
 
       ctx.fillStyle = "#1e293b";
-      ctx.strokeStyle = "#94a3b8";
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = e.shielded ? "#38bdf8" : "#94a3b8";
+      ctx.lineWidth = e.shielded ? 2.2 : 1.2;
       ctx.fillRect(4, 10, 18, 20);
       ctx.strokeRect(4, 10, 18, 20);
+
+      if (e.shielded) {
+        ctx.strokeStyle = "#66fcf1";
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(4, 22, 18, Math.PI * 0.65, Math.PI * 1.35);
+        ctx.stroke();
+      }
 
       ctx.fillStyle = "#ef4444";
       ctx.beginPath();
@@ -4705,10 +4949,21 @@
 
       ctx.save();
       if (combatStarted && !isPaused && !countdownState.active) {
-        if (inputHeld.left) playerMove(-4.5);
-        if (inputHeld.right) playerMove(4.5);
+        // Chrono-Lock Proximity Time-Slow Aura Check (< 105px distance slows player movement & jump)
+        if (boss.active && boss.type === "chrono" && Math.abs((boss.x + 30) - (leadX + 30)) < 105) {
+          if (!chronoSlowActive) {
+            chronoSlowActive = true;
+            playSound('warp');
+            logBrawler("⏳ CHRONO-FIELD! Getting close to Chrono-Lock slows time around you!");
+          }
+        } else {
+          chronoSlowActive = false;
+        }
 
-        // 80% Drain pacing during Symbiotic Prime Golden Lion War (drains from 100% down to 20%)
+        const moveStep = chronoSlowActive ? 2.15 : 4.5;
+        if (inputHeld.left) playerMove(-moveStep);
+        if (inputHeld.right) playerMove(moveStep);
+
         if (lionWarActive) {
           lionWarTimer--;
           lionWarDrainTicker++;
@@ -4743,7 +4998,7 @@
         }
         if (!isGrounded) {
           leadY -= leadVy;
-          leadVy += 0.8;
+          leadVy += chronoSlowActive ? 0.55 : 0.8;
           if (leadY <= 0) { leadY = 0; leadVy = 0; isGrounded = true; }
         }
         leadLean *= 0.88;
@@ -4964,8 +5219,8 @@
         ctx.restore();
 
         if (boss.active && Math.abs(wn.x - (boss.x + 35)) < 48) {
-          snareFreezeTimer = 150;
-          applyDamageToTarget(boss, 1, "#66fcf1");
+          snareFreezeTimer = 140;
+          applyDamageToTarget(boss, 2, "#66fcf1");
           logBrawler(`🕸️ Snare locked ${boss.label} in place!`);
           waterNets.splice(n, 1);
           continue;
@@ -4973,8 +5228,8 @@
         let hitMob = false;
         enemies.forEach(mob => {
           if (!hitMob && mob.active && Math.abs(wn.x - mob.x) < 34) {
-            snareFreezeTimer = 150;
-            applyDamageToTarget(mob, 1, "#66fcf1");
+            snareFreezeTimer = 140;
+            applyDamageToTarget(mob, 2, "#66fcf1");
             logBrawler("🕸️ Snare froze the enemy squad in place!");
             hitMob = true;
           }
@@ -4983,7 +5238,7 @@
           waterNets.splice(n, 1);
           continue;
         }
-        if (wn.x > canvas.width || wn.life <= 0) waterNets.splice(n, 1);
+        if (wn.x > canvas.width || wn.x < -40 || wn.life <= 0) waterNets.splice(n, 1);
       }
 
       for (let s = spears.length - 1; s >= 0; s--) {
@@ -4991,7 +5246,7 @@
         if (combatStarted && !isPaused && !countdownState.active) {
           if (!sp.returning) {
             sp.x += sp.vx;
-            if (sp.x >= canvas.width - 45) sp.returning = true;
+            if (sp.x >= canvas.width - 45 || sp.x <= 45) sp.returning = true;
           } else {
             const dx = (leadX + 35) - sp.x;
             sp.x += Math.sign(dx) * 11.2;
@@ -5025,7 +5280,7 @@
         ctx.restore();
 
         if (!sp.hitOnce && boss.active && Math.abs(sp.x - (boss.x + 35)) < 45) {
-          applyDamageToTarget(boss, 3, sp.color || "#66fcf1");
+          applyDamageToTarget(boss, 4, sp.color || "#66fcf1");
           sp.hitOnce = true;
           sp.returning = true;
           continue;
@@ -5033,7 +5288,7 @@
         if (!sp.hitOnce) {
           let target = getClosestTarget(sp.x);
           if (target && target !== boss && Math.abs(sp.x - target.x) < 30) {
-            applyDamageToTarget(target, 3, sp.color || "#66fcf1");
+            applyDamageToTarget(target, 4, sp.color || "#66fcf1");
             sp.hitOnce = true;
             sp.returning = true;
             continue;
@@ -5093,13 +5348,13 @@
 
         if (lava.friendly) {
           if (boss.active && Math.abs(lava.x - (boss.x + 35)) < 50) {
-            applyDamageToTarget(boss, lava.dmg || 3, lava.goldAlloy ? "#facc15" : "#f97316");
+            applyDamageToTarget(boss, lava.dmg || 4, lava.goldAlloy ? "#facc15" : "#f97316");
             lavaWaves.splice(lw, 1);
             continue;
           }
           enemies.forEach(mob => {
             if (mob.active && Math.abs(lava.x - mob.x) < 42) {
-              applyDamageToTarget(mob, lava.dmg || 3, lava.goldAlloy ? "#facc15" : "#f97316");
+              applyDamageToTarget(mob, lava.dmg || 4, lava.goldAlloy ? "#facc15" : "#f97316");
             }
           });
         } else if (!lionWarActive && Math.abs(lava.x - (leadX + 30)) < 28 && isGrounded) {
@@ -5108,7 +5363,7 @@
             addTrinityCharge(8);
             updateHUD();
           } else {
-            playerHp = Math.max(0, playerHp - (lava.dmg || 10));
+            playerHp = Math.max(0, playerHp - (lava.dmg || 12));
             updateHUD();
             if (playerHp <= 0) handlePlayerDefeat();
           }
@@ -5153,7 +5408,7 @@
             addTrinityCharge(6);
             updateHUD();
           } else {
-            playerHp = Math.max(0, playerHp - (disc.dmg || 9));
+            playerHp = Math.max(0, playerHp - (disc.dmg || 11));
             updateHUD();
             if (playerHp <= 0) handlePlayerDefeat();
           }
@@ -5176,7 +5431,7 @@
         ctx.arc(ws.x, ws.y, 34, -0.9, 0.9);
         ctx.stroke();
         ctx.restore();
-        if (ws.x > canvas.width + 60 || ws.life <= 0) waveSurges.splice(w, 1);
+        if (ws.x > canvas.width + 60 || ws.x < -60 || ws.life <= 0) waveSurges.splice(w, 1);
       }
 
       for (let r = lionRoars.length - 1; r >= 0; r--) {
@@ -5205,7 +5460,7 @@
             applyDamageToTarget(mob, 3, "#f59e0b");
           }
         });
-        if (lr.x > canvas.width + 120 || lr.life <= 0) lionRoars.splice(r, 1);
+        if (lr.x > canvas.width + 120 || lr.x < -120 || lr.life <= 0) lionRoars.splice(r, 1);
       }
 
       enemies.forEach(e => {
@@ -5219,7 +5474,7 @@
               updateHUD();
               logBrawler(`⚡ Shield absorbed impact! Charge: ${absorbedCharge}`);
             } else {
-              playerHp = Math.max(0, playerHp - 6);
+              playerHp = Math.max(0, playerHp - 8);
               updateHUD();
               if (playerHp <= 0) handlePlayerDefeat();
             }
@@ -5233,6 +5488,27 @@
       });
 
       if (boss.active) {
+        // Chrono-Lock Proximity Slow Aura Visual Ring
+        if (boss.type === "chrono") {
+          ctx.save();
+          ctx.strokeStyle = chronoSlowActive ? "rgba(102, 252, 241, 0.7)" : "rgba(56, 189, 248, 0.25)";
+          ctx.fillStyle = chronoSlowActive ? "rgba(102, 252, 241, 0.12)" : "rgba(56, 189, 248, 0.04)";
+          ctx.lineWidth = chronoSlowActive ? 2.5 : 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.arc(boss.x + 38, 210 + boss.y, 105, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.setLineDash([]);
+          if (chronoSlowActive) {
+            ctx.font = "900 10.5px monospace";
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#66fcf1";
+            ctx.fillText("⏳ CHRONO-SLOW ACTIVE!", leadX + 32, drawLeadY - 12);
+          }
+          ctx.restore();
+        }
+
         ctx.save();
         ctx.globalAlpha = boss.alpha || 1;
         if (boss.hitFlash > 0) {
@@ -5243,10 +5519,10 @@
           drawOuroborosBigMachine(ctx, boss);
         } else {
           if (boss.type === "malakor") {
-            drawMalakorWeavingTendrils(ctx, boss.x, 165 + boss.y, bossTelegraph.active);
+            drawMalakorWeavingTendrils(ctx, boss.x, 165 + boss.y, bossTelegraph.active || boss.phase === 2);
           }
           const bossImg = ASSETS[boss.spriteKey] || ASSETS.boss;
-          drawAnimatedCharacter(ctx, bossImg, boss.x, 165 + boss.y, 76, 90, false);
+          drawAnimatedCharacter(ctx, bossImg, boss.x, 165 + boss.y, 76, 90, false, boss.phase === 2 ? "rgba(239, 68, 68, 0.35)" : "rgba(102, 252, 241, 0.2)");
         }
         ctx.restore();
 
@@ -5319,17 +5595,17 @@
         ctx.restore();
 
         if (boss.active && Math.abs(po.x - (boss.x + 35)) < 45) {
-          applyDamageToTarget(boss, 2, po.color || "#38bdf8");
+          applyDamageToTarget(boss, 4, po.color || "#38bdf8");
           plasmaOrbs.splice(i, 1);
           continue;
         }
         let target = getClosestTarget(po.x);
         if (target && target !== boss && Math.abs(po.x - target.x) < 28) {
-          applyDamageToTarget(target, 2, po.color || "#38bdf8");
+          applyDamageToTarget(target, 4, po.color || "#38bdf8");
           plasmaOrbs.splice(i, 1);
           continue;
         }
-        if (po.x > canvas.width || po.life <= 0) plasmaOrbs.splice(i, 1);
+        if (po.x > canvas.width || po.x < -30 || po.life <= 0) plasmaOrbs.splice(i, 1);
       }
 
       for (let i = groundShockwaves.length - 1; i >= 0; i--) {
@@ -5344,13 +5620,13 @@
 
         if (sw.friendly) {
           if (boss.active && Math.abs(sw.x - (boss.x + 35)) < 45) {
-            applyDamageToTarget(boss, sw.dmg || 3, sw.color || "#f59e0b");
+            applyDamageToTarget(boss, sw.dmg || 4, sw.color || "#f59e0b");
             groundShockwaves.splice(i, 1);
             continue;
           }
           let target = getClosestTarget(sw.x);
           if (target && target !== boss && Math.abs(sw.x - target.x) < 32) {
-            applyDamageToTarget(target, sw.dmg || 3, sw.color || "#f59e0b");
+            applyDamageToTarget(target, sw.dmg || 4, sw.color || "#f59e0b");
             groundShockwaves.splice(i, 1);
             continue;
           }
@@ -5361,14 +5637,14 @@
             updateHUD();
             logBrawler(`⚡ Shield absorbed Quake Wave! Charge: ${absorbedCharge}`);
           } else {
-            playerHp = Math.max(0, playerHp - (sw.dmg || 9));
+            playerHp = Math.max(0, playerHp - (sw.dmg || 11));
             updateHUD();
             if (playerHp <= 0) handlePlayerDefeat();
           }
           groundShockwaves.splice(i, 1);
           continue;
         }
-        if (sw.x < 0 || sw.x > canvas.width + 40) groundShockwaves.splice(i, 1);
+        if (sw.x < -40 || sw.x > canvas.width + 40) groundShockwaves.splice(i, 1);
       }
 
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
@@ -5382,7 +5658,7 @@
 
         if (!b.reflected && !lionWarActive && Math.abs(b.x - (leadX + 30)) < 24 && Math.abs(b.y - (drawLeadY + 35)) < 36) {
           if (isShieldActive && activeLead === "nenambi") {
-            b.vx = Math.abs(b.vx) * 1.4;
+            b.vx = -b.vx * 1.4;
             b.reflected = true;
             b.color = "#f59e0b";
             playSound('sonic');
@@ -5394,7 +5670,7 @@
             updateHUD();
             logBrawler(`⚡ Shield absorbed shot! Charge: ${absorbedCharge}`);
           } else {
-            playerHp = Math.max(0, playerHp - (b.dmg || 8));
+            playerHp = Math.max(0, playerHp - (b.dmg || 10));
             updateHUD();
             if (playerHp <= 0) handlePlayerDefeat();
           }
@@ -5402,11 +5678,11 @@
           continue;
         }
         if (b.reflected && boss.active && Math.abs(b.x - (boss.x + 35)) < 40) {
-          applyDamageToTarget(boss, 3, "#f59e0b");
+          applyDamageToTarget(boss, 4, "#f59e0b");
           enemyBullets.splice(i, 1);
           continue;
         }
-        if (b.x < 0 || b.x > canvas.width + 20) enemyBullets.splice(i, 1);
+        if (b.x < -20 || b.x > canvas.width + 20) enemyBullets.splice(i, 1);
       }
 
       for (let o = collectibleOrbs.length - 1; o >= 0; o--) {
@@ -5432,8 +5708,8 @@
             playerHp = Math.min(100, playerHp + 8);
             spawnFloatingText(leadX + 30, drawLeadY, "+8 HP MARROW", "#22c55e");
           } else {
-            addTrinityCharge(18);
-            spawnFloatingText(leadX + 30, drawLeadY, "+18% SURGE", "#facc15");
+            addTrinityCharge(16);
+            spawnFloatingText(leadX + 30, drawLeadY, "+16% SURGE", "#facc15");
           }
           updateHUD();
           collectibleOrbs.splice(o, 1);
@@ -5491,7 +5767,8 @@
       document.getElementById("heroHpText").innerText = `${playerHp}/100`;
       document.getElementById("heroHpBar").style.width = `${playerHp}%`;
       if (boss.active) {
-        document.getElementById("enemyTypeLabel").innerText = (boss.label || boss.type).toUpperCase();
+        const phaseTag = boss.phase === 2 ? " [P2]" : "";
+        document.getElementById("enemyTypeLabel").innerText = (boss.label || boss.type).toUpperCase() + phaseTag;
         document.getElementById("enemyHpText").innerText = `${Math.max(0, boss.hp)}/${boss.maxHp}`;
         document.getElementById("enemyHpBar").style.width = `${(Math.max(0, boss.hp) / boss.maxHp) * 100}%`;
       } else {
@@ -5515,7 +5792,7 @@
       }
       if (meterText) meterText.innerText = `${trinityCharge}%`;
       if (beatLabel) beatLabel.innerText = `BEAT ${beat}/3`;
-      if (stackLabel) stackLabel.innerText = lionWarActive ? "1.85x LION" : `${nenambiAmplifyStack.toFixed(2)}x`;
+      if (stackLabel) stackLabel.innerText = lionWarActive ? "1.75x LION" : `${nenambiAmplifyStack.toFixed(2)}x`;
 
       if (readyTag) {
         readyTag.classList.remove("beat2", "ready");
