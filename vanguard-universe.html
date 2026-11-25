@@ -1186,7 +1186,7 @@
           <div class="card-face card-face-front card-foil foil-syndicate">
             <img src="villain_malakor.png" class="card-img" alt="Malakor">
             <div class="card-name">Malakor</div>
-            <div class="card-title">Shadow-Goliath • Ashen Syndicate</div>
+            <div class="card-title">Crimson Weaver • Ashen Syndicate</div>
             <div class="stat-row"><span class="stat-badge">PWR: 91</span><span class="stat-badge">DEF: 87</span><span class="stat-badge">WILL: 89</span></div>
             <span class="worth-badge worth-plat">Syndicate Archival Nemesis</span>
           </div>
@@ -1206,7 +1206,7 @@
           <div class="card-face card-face-front card-foil foil-syndicate">
             <img src="chrono-lock.png" class="card-img" alt="Chrono-Lock">
             <div class="card-name">Chrono-Lock</div>
-            <div class="card-title">Temporal Vanguard Boss • Ashen Syndicate</div>
+            <div class="card-title">Temporal Disruptor • Ashen Syndicate</div>
             <div class="stat-row"><span class="stat-badge">PWR: 92</span><span class="stat-badge">DEF: 86</span><span class="stat-badge">WILL: 94</span></div>
             <span class="worth-badge worth-plat">Syndicate Archival Nemesis</span>
           </div>
@@ -1375,14 +1375,14 @@
         <button id="pauseBtn" class="pause-btn" onclick="togglePause()">⏸ Pause</button>
       </div>
 
-      <!-- START / MODE SELECTION SCREEN (Pauses combat until started) -->
+      <!-- START / MODE SELECTION SCREEN -->
       <div id="startScreenPanel" class="start-stage-card">
         <div class="start-stage-top">
           <div class="start-stage-title">Choose Mode &amp; Inspect Roster Before Combat</div>
           <button type="button" class="pause-btn" onclick="openModeSelectScreen()">📋 Mode Menu</button>
         </div>
         <div class="start-stage-sub">
-          Combat is on standby so you can browse your heroes, villains, and signature moves without taking hits in the background.
+          Combat is on standby so you can browse your heroes, Syndicate bosses, and signature moves before starting.
         </div>
 
         <div class="mode-choice-grid">
@@ -1392,7 +1392,7 @@
           </button>
           <button id="choiceVersusCard" type="button" class="mode-choice-card" onclick="selectStartMode('versus')">
             <span class="mode-choice-head">⚔️ Hero vs. Villain</span>
-            <span class="mode-choice-desc">Pick your Hero or Syndicate Villain, inspect each fighter's signature power, and battle Single Match or Gauntlet Ladder.</span>
+            <span class="mode-choice-desc">Pick your Hero or Syndicate Boss, inspect each fighter's signature power, and battle Single Match or Gauntlet Ladder.</span>
           </button>
         </div>
 
@@ -1704,7 +1704,7 @@
     let brawlerInitialized = false;
     let isPaused = false;
     let isMuted = false;
-    let combatStarted = false; // Holds combat until user picks mode/roster and presses Start
+    let combatStarted = false;
     let brawlerMode = "storybook";
     let versusPlayerSide = "hero";
     let gauntletMode = true;
@@ -1980,6 +1980,7 @@
     // --- BRAWLER ENGINE ---
     let canvas, ctx;
     let animationFrameId = null;
+    let enemyAiIntervalId = null;
 
     const ASSETS = {
       bg: new Image(),
@@ -2033,6 +2034,7 @@
     loadCanvasSprite(ASSETS.malakor, "villain_malakor.png");
     loadCanvasSprite(ASSETS.luetta, "mother-luta.png");
 
+    // Prime title belongs exclusively to Vanguard heroes
     const HERO_OPTIONS = [
       { id: "marcus", label: "Marcus Prime", sprite: "marcus.png", spriteKey: "marcus", power: "Volt Beam & Juracán Vortex", zone: "detroit", hp: 40, dmg: 9 },
       { id: "xochitl", label: "Xochitl", sprite: "xochitl.png", spriteKey: "xochitl", power: "Solar Feather & Wing Barrage", zone: "sahel", hp: 38, dmg: 9 },
@@ -2044,19 +2046,20 @@
       { id: "kensei", label: "Shadow Kensei", sprite: "shadow-kensei.png", spriteKey: "kensei", power: "Spirit-Steel Slash & IAI Crescent", zone: "detroit", hp: 42, dmg: 11 }
     ];
 
+    // Distinct Syndicate villains (no "Prime" title, no duplicate sprites at the bottom)
     const VILLAIN_OPTIONS = [
       { id: "tectonox", label: "AS-TAC / Tectonox", sprite: "1795543309474(1)(1).png", spriteKey: "tectonox", power: "Faultline Drill & Acidic Slag", zone: "sahel_rift", hp: 48, dmg: 11 },
       { id: "malakor", label: "Malakor", sprite: "villain_malakor.png", spriteKey: "malakor", power: "Glaive Thrust & Crimson Tendrils", zone: "sahel", hp: 42, dmg: 10 },
-      { id: "chrono", label: "Chrono-Lock", sprite: "chrono-lock.png", spriteKey: "boss", power: "Temporal Phase & Dual Shots", zone: "detroit", hp: 38, dmg: 9 },
+      { id: "chrono", label: "Chrono-Lock", sprite: "chrono-lock.png", spriteKey: "boss", power: "Temporal Phase & Dual Bolts", zone: "detroit", hp: 38, dmg: 9 },
       { id: "prism", label: "Prism-Ghost", sprite: "prism-ghost-v2.png", spriteKey: "prism", power: "Phase Fade-In & Light Blades", zone: "detroit", hp: 38, dmg: 9 },
       { id: "dread", label: "Dread Harmonic", sprite: "dread-harmonic.png", spriteKey: "dread", power: "Sub-Bass Shockwave & Sonic Pulse", zone: "forge", hp: 46, dmg: 11 },
       { id: "vipera", label: "Vipera", sprite: "vipera.png", spriteKey: "vipera", power: "Emerald Coil Surge & Bio-Arc", zone: "sahel", hp: 40, dmg: 10 },
       { id: "magma", label: "Magma-Weaver", sprite: "magma-weaver.png", spriteKey: "magma", power: "Rolling Molten Lava Wave", zone: "forge", hp: 44, dmg: 11 },
       { id: "nullbyte", label: "Null-Byte", sprite: "null-byte.png", spriteKey: "nullbyte", power: "Spinning Computer Discs", zone: "detroit", hp: 36, dmg: 9 },
       { id: "apex", label: "Apex Volt", sprite: "apex-volt.png", spriteKey: "apex", power: "Overcharge Arc & Twin Bolts", zone: "sahel_rift", hp: 46, dmg: 11 },
-      { id: "ironclad", label: "Ironclad Prime", sprite: "ironclad.png", spriteKey: "ironclad", power: "Seismic Quake & Heavy Volley", zone: "forge", hp: 44, dmg: 10 },
-      { id: "dreadnought", label: "Ouroboros Machine", sprite: "ironclad.png", spriteKey: "dreadnought", power: "Drill Charge & Siege Cannon", zone: "sahel", hp: 48, dmg: 11 },
-      { id: "krieg", label: "Baron Krieg", sprite: "ironclad.png", spriteKey: "krieg", power: "Iron Shockwave & Barrage", zone: "forge", hp: 50, dmg: 12 }
+      { id: "ironclad", label: "Ironclad", sprite: "ironclad.png", spriteKey: "ironclad", power: "Seismic Quake & Heavy Volley", zone: "forge", hp: 44, dmg: 10 },
+      { id: "dreadnought", label: "Ouroboros Machine", sprite: "1795543309474(1)(1).png", spriteKey: "dreadnought", power: "Drill Charge & Siege Cannon", zone: "sahel", hp: 48, dmg: 11 },
+      { id: "krieg", label: "Baron Krieg", sprite: "chrono-lock.png", spriteKey: "krieg", power: "Iron Shockwave & Barrage", zone: "forge", hp: 50, dmg: 12 }
     ];
 
     let selectedVsHero = playerProgress.selectedVsHero || "marcus";
@@ -2104,7 +2107,7 @@
     let trinityState = {
       active: false,
       timer: 0,
-      maxTimer: 82,
+      maxTimer: 115,
       announceText: "THREE PRIMES TRINITY SURGE!",
       comboTitle: "VOLT-WAVE-LION ROAR",
       flashAlpha: 0
@@ -2123,7 +2126,7 @@
     let boss = {
       x: 385, y: 0, vy: 0, hp: 38, maxHp: 38, dmg: 9,
       active: false, type: "chrono", label: "Chrono-Lock",
-      spriteKey: "boss", hitFlash: 0, phase: 1, alpha: 1
+      spriteKey: "boss", hitFlash: 0, phase: 1, alpha: 1, isVersusBoss: false, shieldActive: false
     };
     let screenShake = 0, gameActive = true;
     let bossActionTimer = null;
@@ -2136,14 +2139,83 @@
       3: { skyTint: "rgba(15, 7, 30, 0.78)" }
     };
 
-    function openModeSelectScreen() {
-      combatStarted = false;
+    // Centralized clean reset so Restart / Retry never leaves frozen inputs, active animations, or stuck AI loops
+    function resetCombatEntitiesAndStates() {
+      if (bossActionTimer) { clearInterval(bossActionTimer); bossActionTimer = null; }
+      if (spawnIntervalTimer) { clearInterval(spawnIntervalTimer); spawnIntervalTimer = null; }
+      if (waveReinforceTimer) { clearInterval(waveReinforceTimer); waveReinforceTimer = null; }
+      if (countdownState.timerId) { clearInterval(countdownState.timerId); countdownState.timerId = null; }
+
+      countdownState.active = false;
       isPaused = false;
-      if (bossActionTimer) clearInterval(bossActionTimer);
-      if (spawnIntervalTimer) clearInterval(spawnIntervalTimer);
-      document.getElementById("pauseOverlay").classList.remove("active");
+      gameActive = true;
+      hitStopFrames = 0;
+      screenShake = 0;
+
+      inputHeld.left = false;
+      inputHeld.right = false;
+      document.querySelectorAll(".btn.held").forEach(b => b.classList.remove("held"));
+
+      leadX = 90;
+      leadY = 0;
+      leadVy = 0;
+      isGrounded = true;
+      leadLean = 0;
+      walkCadence = 0;
+      aiPartner = { x: 35, y: 0, cooldown: 0 };
+
+      isShieldActive = false;
+      snareFreezeTimer = 0;
+      bossTelegraph = { active: false, timer: 0, label: "" };
+      boss.shieldActive = false;
+      boss.hitFlash = 0;
+      boss.alpha = 1;
+
+      kofiHammerSwing.active = false;
+      sundiataDrumBeat.active = false;
+      xochitlFlight = { active: false, state: 'INACTIVE', x: 0, y: 0, timer: 0, diveAngle: 0 };
+      prismFade = { active: false, timer: 0, alpha: 1 };
+      trinityState.active = false;
+      trinityState.timer = 0;
+      trinityState.flashAlpha = 0;
+      luettaState.active = false;
+      luettaState.timer = 0;
+
+      lightningBolts = [];
+      particles = [];
+      enemyBullets = [];
+      plasmaOrbs = [];
+      groundShockwaves = [];
+      lionRoars = [];
+      waveSurges = [];
+      sonicRings = [];
+      tsunamiWaves = [];
+      waterNets = [];
+      spears = [];
+      daggers = [];
+      lavaWaves = [];
+      computerDiscs = [];
+      clockPieces = [];
+      floatingTexts = [];
+      collectibleOrbs = [];
+
+      const pauseBtn = document.getElementById("pauseBtn");
+      if (pauseBtn) {
+        pauseBtn.classList.remove("paused");
+        pauseBtn.innerText = "⏸ Pause";
+      }
+      const pauseOverlay = document.getElementById("pauseOverlay");
+      if (pauseOverlay) pauseOverlay.classList.remove("active");
+    }
+
+    function openModeSelectScreen() {
+      resetCombatEntitiesAndStates();
+      combatStarted = false;
+      boss.active = false;
+      enemies = [];
       document.getElementById("defeat-modal").style.display = "none";
       document.getElementById("trial-modal").style.display = "none";
+      document.getElementById("chapterBanner").style.display = "none";
       document.getElementById("startScreenPanel").classList.remove("hidden");
       document.getElementById("waveDisplay").innerText = "Standby • Select Mode Above";
       logBrawler("Standby mode: Browse Story Mode or Hero vs. Villain above, then press Start.");
@@ -2168,11 +2240,8 @@
 
     function launchSelectedMode() {
       initAudio();
+      resetCombatEntitiesAndStates();
       combatStarted = true;
-      isPaused = false;
-      document.getElementById("pauseBtn").classList.remove("paused");
-      document.getElementById("pauseBtn").innerText = "⏸ Pause";
-      document.getElementById("pauseOverlay").classList.remove("active");
       document.getElementById("startScreenPanel").classList.add("hidden");
 
       if (brawlerMode === "storybook") {
@@ -2198,7 +2267,7 @@
     function registerComboHit() {
       comboCount++;
       comboResetTimer = 145;
-      hitStopFrames = 2;
+      hitStopFrames = 1;
       const hudEl = document.getElementById("comboHudText");
       const topEl = document.getElementById("portalComboLabel");
       if (hudEl) hudEl.innerText = `${comboCount}x`;
@@ -2206,7 +2275,7 @@
     }
 
     function getComboBonusDamage() {
-      return comboCount >= 3 ? 1 : 0;
+      return comboCount >= 4 ? 1 : 0;
     }
 
     function spawnCollectibleDrop(x, y) {
@@ -2222,14 +2291,14 @@
 
     function triggerBossTelegraph(label, callback) {
       bossTelegraph.active = true;
-      bossTelegraph.timer = 26;
+      bossTelegraph.timer = 24;
       bossTelegraph.label = label;
       setTimeout(() => {
         bossTelegraph.active = false;
         if (combatStarted && boss.active && gameActive && !isPaused && !countdownState.active && snareFreezeTimer <= 0) {
           callback();
         }
-      }, 420);
+      }, 360);
     }
 
     function setVersusPlayerSide(side) {
@@ -2345,15 +2414,18 @@
     }
 
     function startVersusMatchWithCountdown() {
+      resetCombatEntitiesAndStates();
+      combatStarted = true;
       gauntletIndex = 0;
       playerHp = 100;
       absorbedCharge = 0;
-      snareFreezeTimer = 0;
-      addTrinityCharge(40);
+      addTrinityCharge(35);
       launchVersusRound(true);
     }
 
     function launchVersusRound(withCountdown = true) {
+      resetCombatEntitiesAndStates();
+      combatStarted = true;
       const rivals = getVersusRivalList();
       const currentRival = rivals[gauntletIndex] || rivals[0];
 
@@ -2375,11 +2447,13 @@
       const badgePrefix = gauntletMode ? `GAUNTLET ${gauntletIndex + 1}/${rivals.length}` : "VERSUS";
       document.getElementById("waveDisplay").innerText = `${badgePrefix}: ${playerObj.label.toUpperCase()} vs ${currentRival.label.toUpperCase()}`;
 
-      startBossFight(currentRival.id, currentRival.spriteKey, currentRival.hp, currentRival.dmg || 10, true, currentRival.label);
+      // Bosses in Hero vs. Villain get full boss HP (2.4x) so they withstand sustained combos and showcase their abilities
+      const bossTotalHp = Math.round((currentRival.hp || 42) * 2.4);
+      startBossFight(currentRival.id, currentRival.spriteKey, bossTotalHp, currentRival.dmg || 11, true, currentRival.label);
 
       if (withCountdown) {
         triggerResonanceCountdown(() => {
-          logBrawler(`${badgePrefix} LIVE! ${playerObj.label} vs. ${currentRival.label}!`);
+          logBrawler(`${badgePrefix} LIVE! ${playerObj.label} vs. ${currentRival.label} (${bossTotalHp} HP Boss)!`);
         });
       } else {
         logBrawler(`Next Challenger: ${currentRival.label} enters the arena!`);
@@ -2409,6 +2483,7 @@
           playSound('shield');
         } else {
           clearInterval(countdownState.timerId);
+          countdownState.timerId = null;
           countdownState.active = false;
           playSound('drum');
           if (typeof onComplete === "function") onComplete();
@@ -2449,7 +2524,6 @@
       bindHoldButton("btnLeft", "left");
       bindHoldButton("btnRight", "right");
 
-      // Stay on standby until user chooses Story Mode or Hero vs. Villain and clicks Start
       combatStarted = false;
       boss.active = false;
       enemies = [];
@@ -2459,25 +2533,25 @@
         animationFrameId = requestAnimationFrame(renderBrawler);
       }
 
-      setInterval(() => {
+      if (enemyAiIntervalId) clearInterval(enemyAiIntervalId);
+      enemyAiIntervalId = setInterval(() => {
         if (!combatStarted || !gameActive || isPaused || countdownState.active || snareFreezeTimer > 0) return;
         enemies.forEach(e => {
           if (e.active && e.x > Math.min(leadX, aiPartner.x) + 45 && Math.random() > 0.35) {
             enemyBullets.push({ x: e.x, y: e.y + 12, vx: -5.0, dmg: 6 });
           }
         });
-        if (boss.active && boss.x > Math.min(leadX, aiPartner.x) + 40 && Math.random() > 0.28) {
-          enemyBullets.push({ x: boss.x, y: 195 + boss.y, vx: -6.2, dmg: boss.dmg || 9 });
+        if (boss.active && boss.x > Math.min(leadX, aiPartner.x) + 40 && Math.random() > 0.22) {
+          enemyBullets.push({ x: boss.x, y: 195 + boss.y, vx: -6.4, dmg: boss.dmg || 10 });
         }
-      }, 1200);
+      }, 1150);
     }
 
     function startWave(num, playStageCountdown = false) {
+      resetCombatEntitiesAndStates();
+      combatStarted = true;
       currentWave = num;
-      snareFreezeTimer = 0;
       addTrinityCharge(25);
-      if (spawnIntervalTimer) clearInterval(spawnIntervalTimer);
-      if (waveReinforceTimer) clearInterval(waveReinforceTimer);
 
       if (num === 1) {
         activeZone = "detroit";
@@ -2500,7 +2574,7 @@
       } else if (num === 4) {
         activeZone = "detroit";
         document.getElementById("waveDisplay").innerText = "Stage 1 Boss: Chrono-Lock";
-        startBossFight("chrono", "boss", 32, 8, false, "Chrono-Lock");
+        startBossFight("chrono", "boss", 68, 10, false, "Chrono-Lock");
       } else if (num === 5) {
         activeZone = "sahel";
         document.getElementById("waveDisplay").innerText = "Stage 2 (Sahel) • Wave 1/2";
@@ -2516,7 +2590,7 @@
       } else if (num === 7) {
         activeZone = "sahel";
         document.getElementById("waveDisplay").innerText = "Stage 2 Boss: Ouroboros Machine";
-        startBossFight("dreadnought", "dreadnought", 44, 10, false, "Ouroboros Machine");
+        startBossFight("dreadnought", "dreadnought", 88, 11, false, "Ouroboros Machine");
       } else if (num === 8) {
         activeZone = "forge";
         document.getElementById("waveDisplay").innerText = "Stage 3 (Kumasi Forge) • Wave 1/2";
@@ -2531,12 +2605,12 @@
         setupOrderlyWave("forge", 22);
       } else if (num === 10) {
         activeZone = "forge";
-        document.getElementById("waveDisplay").innerText = "Stage 3 Boss: Ironclad Prime";
-        startBossFight("ironclad", "ironclad", 42, 10, false, "Ironclad Prime");
+        document.getElementById("waveDisplay").innerText = "Stage 3 Boss: Ironclad";
+        startBossFight("ironclad", "ironclad", 84, 11, false, "Ironclad");
       } else if (num === 11) {
         activeZone = "forge";
         document.getElementById("waveDisplay").innerText = "Stage 4 Boss: Baron Krieg";
-        startBossFight("krieg", "ironclad", 48, 12, false, "Baron Krieg");
+        startBossFight("krieg", "krieg", 92, 12, false, "Baron Krieg");
       } else if (num === 12) {
         activeZone = "sahel_rift";
         document.getElementById("waveDisplay").innerText = "Stage 5 (Sahel Rift) • Wave 1/2";
@@ -2552,7 +2626,7 @@
       } else if (num === 14) {
         activeZone = "sahel_rift";
         document.getElementById("waveDisplay").innerText = "Stage 5 Boss: AS-TAC / Tectonox";
-        startBossFight("tectonox", "tectonox", 48, 11, false, "AS-TAC / Tectonox");
+        startBossFight("tectonox", "tectonox", 98, 12, false, "AS-TAC / Tectonox");
       }
 
       updateHUD();
@@ -2616,7 +2690,7 @@
       }
     }
 
-    function startBossFight(bossType, spriteKey = "boss", customHp = 38, customDmg = 10, isVersus = false, displayLabel = null) {
+    function startBossFight(bossType, spriteKey = "boss", customHp = 84, customDmg = 11, isVersus = false, displayLabel = null) {
       boss.active = true;
       boss.type = bossType;
       boss.label = displayLabel || bossType.toUpperCase();
@@ -2630,107 +2704,122 @@
       boss.hitFlash = 0;
       boss.phase = 1;
       boss.alpha = 1;
+      boss.isVersusBoss = isVersus;
+      boss.shieldActive = false;
       enemies = [];
       mobsRemaining = 0;
       pendingSpawns = 0;
       updateHUD();
 
       if (bossActionTimer) clearInterval(bossActionTimer);
-      const intervalMs = isVersus ? 1950 : 2500;
+      // Faster, dynamic boss AI so bosses actively use their signature moves and fight back
+      const intervalMs = isVersus ? 1450 : 1850;
       bossActionTimer = setInterval(() => {
         if (!combatStarted || !boss.active || !gameActive || isPaused || countdownState.active || snareFreezeTimer > 0) return;
+
+        // Tactical movement & occasional defensive guard
+        if (boss.x > leadX + 95) {
+          boss.x = Math.max(leadX + 80, boss.x - (isVersus ? 34 : 22));
+        } else if (isVersus && Math.random() > 0.55) {
+          boss.x = Math.min(445, leadX + 145);
+        }
+
+        if (isVersus && boss.hp < boss.maxHp * 0.55 && !boss.shieldActive && Math.random() > 0.72) {
+          boss.shieldActive = true;
+          playSound('shield');
+          spawnFloatingText(boss.x + 35, 162, "BOSS AEGIS!", "#f59e0b");
+          setTimeout(() => { boss.shieldActive = false; }, 1600);
+        }
 
         if (bossType === "prism") {
           playSound('warp');
           boss.alpha = 0.25;
           boss.x = boss.x > leadX + 40 ? Math.max(45, leadX - 35) : 395;
           setTimeout(() => { boss.alpha = 1; }, 650);
-          enemyBullets.push({ x: boss.x, y: 196, vx: boss.x > leadX ? -7.2 : 7.2, dmg: boss.dmg, color: "#a855f7" });
+          enemyBullets.push({ x: boss.x, y: 196, vx: boss.x > leadX ? -7.6 : 7.6, dmg: boss.dmg, color: "#a855f7" });
           return;
-        }
-
-        if (boss.x > leadX + 85) {
-          boss.x = Math.max(leadX + 75, boss.x - (isVersus ? 24 : 16));
-        } else if (isVersus) {
-          boss.x = Math.min(440, leadX + 135);
         }
 
         if (bossType === "tectonox") {
           triggerBossTelegraph("⚠️ FAULTLINE DRILL INCOMING", () => {
             playSound('cannon');
             screenShake = 16;
-            groundShockwaves.push({ x: boss.x - 10, vx: -7.4, radius: 26, color: "#ef4444", dmg: boss.dmg });
-            enemyBullets.push({ x: boss.x - 12, y: 196, vx: -6.8, dmg: boss.dmg, color: "#84cc16" });
+            groundShockwaves.push({ x: boss.x - 10, vx: -7.8, radius: 26, color: "#ef4444", dmg: boss.dmg });
+            enemyBullets.push({ x: boss.x - 12, y: 192, vx: -7.2, dmg: boss.dmg, color: "#84cc16" });
           });
         } else if (bossType === "malakor") {
           playSound('zap');
-          screenShake = 12;
-          enemyBullets.push({ x: boss.x - 14, y: 190, vx: -7.8, dmg: boss.dmg, color: "#ef4444" });
-          enemyBullets.push({ x: boss.x - 14, y: 216, vx: -6.6, dmg: boss.dmg, color: "#dc2626" });
+          screenShake = 13;
+          enemyBullets.push({ x: boss.x - 14, y: 186, vx: -8.0, dmg: boss.dmg, color: "#ef4444" });
+          enemyBullets.push({ x: boss.x - 14, y: 214, vx: -7.0, dmg: boss.dmg, color: "#dc2626" });
+          groundShockwaves.push({ x: boss.x - 12, vx: -6.8, radius: 20, color: "#ef4444", dmg: boss.dmg });
         } else if (bossType === "kensei") {
           playSound('zap');
           screenShake = 12;
           waveSurges.push({ x: boss.x - 14, y: 205, vx: -8.6, width: 64, height: 50, life: 65 });
-          enemyBullets.push({ x: boss.x - 12, y: 198, vx: -7.8, dmg: boss.dmg, color: "#e2e8f0" });
+          enemyBullets.push({ x: boss.x - 12, y: 198, vx: -8.0, dmg: boss.dmg, color: "#e2e8f0" });
         } else if (bossType === "dread") {
           triggerBossTelegraph("⚠️ SUB-BASS SHOCKWAVE", () => {
             playSound('drum');
-            screenShake = 15;
-            groundShockwaves.push({ x: boss.x - 10, vx: -7.2, radius: 26, color: "#a855f7", dmg: boss.dmg });
+            screenShake = 16;
+            groundShockwaves.push({ x: boss.x - 10, vx: -7.6, radius: 28, color: "#a855f7", dmg: boss.dmg });
+            enemyBullets.push({ x: boss.x - 12, y: 194, vx: -7.2, dmg: boss.dmg, color: "#c084fc" });
           });
         } else if (bossType === "vipera") {
           playSound('zap');
           screenShake = 11;
-          enemyBullets.push({ x: boss.x - 12, y: 192, vx: -7.4, dmg: boss.dmg, color: "#22c55e" });
-          enemyBullets.push({ x: boss.x - 12, y: 216, vx: -6.2, dmg: boss.dmg, color: "#4ade80" });
+          enemyBullets.push({ x: boss.x - 12, y: 188, vx: -7.8, dmg: boss.dmg, color: "#22c55e" });
+          enemyBullets.push({ x: boss.x - 12, y: 216, vx: -6.8, dmg: boss.dmg, color: "#4ade80" });
         } else if (bossType === "magma") {
           triggerBossTelegraph("⚠️ MOLTEN LAVA SURGE", () => {
             playSound('cannon');
-            screenShake = 14;
-            lavaWaves.push({ x: boss.x - 14, y: 242, vx: -6.2, width: 58, height: 30, dmg: boss.dmg, life: 95 });
+            screenShake = 15;
+            lavaWaves.push({ x: boss.x - 14, y: 242, vx: -6.8, width: 62, height: 32, dmg: boss.dmg, life: 95 });
+            enemyBullets.push({ x: boss.x - 12, y: 192, vx: -7.0, dmg: boss.dmg, color: "#f97316" });
           });
         } else if (bossType === "nullbyte") {
           playSound('zap');
-          computerDiscs.push({ x: boss.x - 12, y: 188, vx: -7.4, rot: 0, dmg: boss.dmg, life: 90 });
-          computerDiscs.push({ x: boss.x - 12, y: 218, vx: -6.2, rot: 1.2, dmg: boss.dmg, life: 90 });
+          computerDiscs.push({ x: boss.x - 12, y: 184, vx: -7.8, rot: 0, dmg: boss.dmg, life: 90 });
+          computerDiscs.push({ x: boss.x - 12, y: 216, vx: -6.8, rot: 1.2, dmg: boss.dmg, life: 90 });
         } else if (bossType === "dreadnought") {
           triggerBossTelegraph("⚠️ SIEGE CANNON & QUAKE", () => {
             playSound('cannon');
             screenShake = 15;
-            enemyBullets.push({ x: boss.x - 12, y: 196, vx: -7.2, dmg: boss.dmg });
-            groundShockwaves.push({ x: boss.x - 10, vx: -6.8, radius: 24, color: "#f59e0b", dmg: boss.dmg });
+            enemyBullets.push({ x: boss.x - 12, y: 196, vx: -7.6, dmg: boss.dmg });
+            groundShockwaves.push({ x: boss.x - 10, vx: -7.2, radius: 24, color: "#f59e0b", dmg: boss.dmg });
           });
         } else if (bossType === "chrono") {
           playSound('warp');
-          screenShake = 11;
-          boss.x = Math.random() > 0.4 ? Math.max(70, leadX + 70) : Math.min(430, leadX + 140);
-          enemyBullets.push({ x: boss.x - 10, y: 192, vx: -6.2, dmg: boss.dmg });
-          enemyBullets.push({ x: boss.x - 10, y: 215, vx: -5.4, dmg: boss.dmg });
+          screenShake = 12;
+          boss.x = Math.random() > 0.45 ? Math.max(85, leadX + 85) : Math.min(435, leadX + 155);
+          enemyBullets.push({ x: boss.x - 10, y: 188, vx: -7.2, dmg: boss.dmg, color: "#38bdf8" });
+          enemyBullets.push({ x: boss.x - 10, y: 214, vx: -6.4, dmg: boss.dmg, color: "#f59e0b" });
         } else if (bossType === "ironclad" || bossType === "krieg") {
           triggerBossTelegraph("⚠️ SEISMIC QUAKE WAVE", () => {
             playSound('hit');
             screenShake = 15;
-            groundShockwaves.push({ x: boss.x, vx: -7.0, radius: 24, color: "#f97316", dmg: boss.dmg });
+            groundShockwaves.push({ x: boss.x, vx: -7.4, radius: 26, color: "#f97316", dmg: boss.dmg });
+            enemyBullets.push({ x: boss.x - 12, y: 194, vx: -7.0, dmg: boss.dmg, color: "#fb923c" });
           });
         } else if (bossType === "apex") {
           playSound('zap');
           screenShake = 12;
-          enemyBullets.push({ x: boss.x - 12, y: 190, vx: -7.6, dmg: boss.dmg });
-          enemyBullets.push({ x: boss.x - 12, y: 218, vx: -6.6, dmg: boss.dmg });
+          enemyBullets.push({ x: boss.x - 12, y: 188, vx: -8.0, dmg: boss.dmg, color: "#38bdf8" });
+          enemyBullets.push({ x: boss.x - 12, y: 218, vx: -7.0, dmg: boss.dmg, color: "#66fcf1" });
         } else if (bossType === "wakan") {
           playSound('orb');
-          groundShockwaves.push({ x: boss.x - 12, vx: -6.6, radius: 26, color: "#06b6d4", dmg: boss.dmg });
+          groundShockwaves.push({ x: boss.x - 12, vx: -7.0, radius: 26, color: "#06b6d4", dmg: boss.dmg });
         } else if (bossType === "sundiata") {
           playSound('drum');
           screenShake = 14;
-          groundShockwaves.push({ x: boss.x - 12, vx: -7.0, radius: 26, color: "#f59e0b", dmg: boss.dmg });
+          groundShockwaves.push({ x: boss.x - 12, vx: -7.4, radius: 26, color: "#f59e0b", dmg: boss.dmg });
         } else if (bossType === "amina") {
           playSound('zap');
           generateLightning(boss.x + 25, 18, leadX + 30, 215, 4);
-          enemyBullets.push({ x: boss.x - 12, y: 196, vx: -7.5, dmg: boss.dmg, color: "#66fcf1" });
+          enemyBullets.push({ x: boss.x - 12, y: 196, vx: -7.8, dmg: boss.dmg, color: "#66fcf1" });
         } else {
           playSound('zap');
-          enemyBullets.push({ x: boss.x - 12, y: 195, vx: -6.8, dmg: boss.dmg, color: "#38bdf8" });
+          enemyBullets.push({ x: boss.x - 12, y: 195, vx: -7.2, dmg: boss.dmg, color: "#38bdf8" });
         }
       }, intervalMs);
     }
@@ -2759,7 +2848,7 @@
       boss.active = false;
       bossTelegraph.active = false;
       snareFreezeTimer = 0;
-      if (bossActionTimer) clearInterval(bossActionTimer);
+      if (bossActionTimer) { clearInterval(bossActionTimer); bossActionTimer = null; }
       playSound('hit');
       screenShake = 22;
 
@@ -2834,7 +2923,7 @@
         setTimeout(() => showBanner("STAGE 1 CLEARED • ENTERING SAHEL", "Chrono-Lock's clocks scatter! Advancing to Stage 2: Sahel vs. Ouroboros Machine!", "ENTER STAGE 2: SAHEL (3-2-1)", "sundiata-prime.png"), 1300);
       } else if (currentWave === 7) {
         saveGameProgress(2, "kofi");
-        setTimeout(() => showBanner("STAGE 2 CLEARED • ENTERING KUMASI FORGE", "Ouroboros Machine destroyed! Advancing to Stage 3: Kumasi Forge vs. Ironclad Prime!", "ENTER STAGE 3: FORGE (3-2-1)", "kofi.png"), 1200);
+        setTimeout(() => showBanner("STAGE 2 CLEARED • ENTERING KUMASI FORGE", "Ouroboros Machine destroyed! Advancing to Stage 3: Kumasi Forge vs. Ironclad!", "ENTER STAGE 3: FORGE (3-2-1)", "kofi.png"), 1200);
       } else if (currentWave === 10) {
         saveGameProgress(3);
         startWave(11, false);
@@ -2885,8 +2974,8 @@
     function handlePlayerDefeat() {
       gameActive = false;
       bossTelegraph.active = false;
-      if (bossActionTimer) clearInterval(bossActionTimer);
-      if (spawnIntervalTimer) clearInterval(spawnIntervalTimer);
+      if (bossActionTimer) { clearInterval(bossActionTimer); bossActionTimer = null; }
+      if (spawnIntervalTimer) { clearInterval(spawnIntervalTimer); spawnIntervalTimer = null; }
       playSound('hit');
       document.getElementById("defeatBody").innerText =
         brawlerMode === "versus" && gauntletMode
@@ -2897,10 +2986,9 @@
 
     function retryCurrentWave() {
       document.getElementById("defeat-modal").style.display = "none";
+      resetCombatEntitiesAndStates();
       playerHp = 100;
-      snareFreezeTimer = 0;
       updateHUD();
-      gameActive = true;
       if (brawlerMode === "versus") startVersusMatchWithCountdown();
       else startWave(currentWave, false);
     }
@@ -2908,13 +2996,12 @@
     function resetCampaignToStage1() {
       document.getElementById("trial-modal").style.display = "none";
       document.getElementById("defeat-modal").style.display = "none";
-      gameActive = true;
+      resetCombatEntitiesAndStates();
       combatStarted = true;
       playerHp = 100;
       trinityCharge = 0;
       absorbedCharge = 0;
       comboCount = 0;
-      snareFreezeTimer = 0;
       activeZone = "detroit";
       activeLead = "marcus";
       rosterIdx = 0;
@@ -3003,7 +3090,7 @@
         magma: "Magma-Weaver",
         nullbyte: "Null-Byte",
         apex: "Apex Volt",
-        ironclad: "Ironclad Prime",
+        ironclad: "Ironclad",
         dreadnought: "Ouroboros Machine",
         krieg: "Baron Krieg"
       };
@@ -3103,17 +3190,21 @@
     function applyDamageToTarget(target, dmg, flashColor = "#fbbf24") {
       if (!target) return;
       registerComboHit();
-      const totalDmg = dmg + getComboBonusDamage();
-      const label = comboCount >= 3 ? `-${totalDmg} (${comboCount}x!)` : `-${totalDmg}`;
+      let totalDmg = dmg + getComboBonusDamage();
 
       if (target === boss) {
+        if (boss.shieldActive) {
+          totalDmg = Math.max(1, Math.floor(totalDmg * 0.5));
+        }
         boss.hp -= totalDmg;
         boss.hitFlash = 6;
+        const label = boss.shieldActive ? `-${totalDmg} (ARMOR)` : (comboCount >= 4 ? `-${totalDmg} (${comboCount}x!)` : `-${totalDmg}`);
         createBurstParticles(boss.x + 30, 205 + boss.y, flashColor, 14);
         spawnFloatingText(boss.x + 30, 175 + boss.y, label, flashColor);
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
       } else if (target.active) {
+        const label = comboCount >= 4 ? `-${totalDmg} (${comboCount}x!)` : `-${totalDmg}`;
         target.hp -= totalDmg;
         target.x += 22;
         createBurstParticles(target.x + 15, target.y, flashColor, 12);
@@ -3374,6 +3465,7 @@
       setTimeout(() => { isShieldActive = false; }, 3500);
     }
 
+    // 3-BEAT APEX FINALE TRINITY SURGE: PORTAL WAVE + SOLAR LION + TRI-COLOR BEAM
     function executeThreePrimesTrinitySurge() {
       if (!canActInBrawler()) return;
       initAudio();
@@ -3386,38 +3478,48 @@
       trinityState.active = true;
       trinityState.timer = trinityState.maxTimer;
       trinityState.announceText = "★ THREE PRIMES TRINITY SURGE! ★";
-      trinityState.comboTitle = "VOLT-WAVE-LION ROAR";
+      trinityState.comboTitle = "PORTAL WAVE • GOLDEN LION WAR!";
       trinityState.flashAlpha = 0.72;
       playerHp = Math.min(100, playerHp + 20);
       awardSharedLegacyPoints(30, "trinity_surge");
       updateHUD();
 
-      playSound('zap');
+      playSound('warp');
       playSound('orb');
       playSound('roar');
       playSound('drum');
       screenShake = 28;
 
-      const baseX = Math.max(70, Math.min(220, leadX));
+      const baseX = Math.max(70, Math.min(200, leadX));
       const baseY = 175 - leadY;
 
-      generateLightning(baseX + 35, baseY + 25, 480, 175, 12);
-      generateLightning(baseX + 55, baseY + 35, 490, 210, 12);
-      waveSurges.push({ x: baseX + 75, y: baseY + 35, vx: 9.5, width: 72, height: 56, life: 70, color: "#a855f7" });
-      lionRoars.push({
-        x: baseX + 95, y: baseY + 30, vx: 10.0,
-        width: 190, height: 130, scale: 1.05, alpha: 0.95, life: 85
-      });
-      createBurstParticles(baseX + 80, baseY + 35, "#66fcf1", 26);
-      createBurstParticles(baseX + 80, baseY + 35, "#f59e0b", 26);
-      createBurstParticles(baseX + 80, baseY + 35, "#a855f7", 26);
-      logBrawler("⚡🌊🦁 THREE PRIMES TRINITY SURGE: VOLT-WAVE-LION ROAR!");
+      // Beat 1 & 2: Portal energy rings & Nénambi wave wing
+      sonicRings.push({ x: baseX + 80, y: baseY + 34, vx: 3.5, radius: 18, maxRadius: 72, life: 55 });
+      waveSurges.push({ x: baseX + 85, y: baseY + 35, vx: 9.2, width: 76, height: 60, life: 75, color: "#66fcf1" });
+
+      // Beat 3: Solar Lion surge + Lightning arcs
+      setTimeout(() => {
+        if (!combatStarted || !gameActive) return;
+        playSound('zap');
+        playSound('roar');
+        generateLightning(baseX + 35, baseY + 25, 480, 175, 12);
+        generateLightning(baseX + 55, baseY + 35, 490, 210, 12);
+        lionRoars.push({
+          x: baseX + 100, y: baseY + 30, vx: 10.2,
+          width: 205, height: 140, scale: 1.12, alpha: 0.96, life: 88
+        });
+      }, 280);
+
+      createBurstParticles(baseX + 80, baseY + 35, "#66fcf1", 28);
+      createBurstParticles(baseX + 80, baseY + 35, "#f59e0b", 28);
+      createBurstParticles(baseX + 80, baseY + 35, "#a855f7", 28);
+      logBrawler("⚡🌀🦁 THREE PRIMES TRINITY SURGE: PORTAL WAVE → GOLDEN LION WAR!");
 
       if (boss.active) {
-        const drain = Math.max(12, Math.round(boss.maxHp * 0.55));
+        const drain = Math.max(18, Math.round(boss.maxHp * 0.38));
         boss.hp -= drain;
         boss.hitFlash = 14;
-        spawnFloatingText(boss.x + 30, 165, `-${drain} TRINITY!`, "#66fcf1");
+        spawnFloatingText(boss.x + 30, 165, `-${drain} LION WAR!`, "#66fcf1");
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
       } else {
@@ -3456,9 +3558,9 @@
       }
 
       if (boss.active) {
-        boss.hp -= 6;
+        boss.hp -= 10;
         boss.hitFlash = 10;
-        spawnFloatingText(boss.x + 30, 175, "-6 CODEX BEAM", "#fde047");
+        spawnFloatingText(boss.x + 30, 175, "-10 CODEX BEAM", "#fde047");
         updateHUD();
         if (boss.hp <= 0) onBossDefeated();
       } else {
@@ -3535,6 +3637,54 @@
       ctx.beginPath();
       ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+    }
+
+    // SHIMMERING & WEAVING CRIMSON TENDRILS FOR MALAKOR
+    function drawMalakorWeavingTendrils(ctx, x, y, isAttacking = false) {
+      const t = Date.now() * (isAttacking ? 0.014 : 0.007);
+      ctx.save();
+      ctx.translate(x + 36, y + 44);
+      ctx.shadowColor = "#ef4444";
+      ctx.shadowBlur = isAttacking ? 18 : 11;
+
+      const strands = [
+        { side: -1, baseAngle: -0.5, len: 46, phase: 0.0 },
+        { side: -1, baseAngle: 0.1,  len: 52, phase: 1.7 },
+        { side: -1, baseAngle: 0.65, len: 42, phase: 3.1 },
+        { side: 1,  baseAngle: -0.5, len: 46, phase: 0.8 },
+        { side: 1,  baseAngle: 0.1,  len: 52, phase: 2.3 },
+        { side: 1,  baseAngle: 0.65, len: 42, phase: 4.0 }
+      ];
+
+      strands.forEach((s, idx) => {
+        const wave1 = Math.sin(t + s.phase) * 14;
+        const wave2 = Math.cos(t * 1.3 + s.phase) * 16;
+        const endX = s.side * (s.len + Math.sin(t + idx) * 6);
+        const endY = Math.sin(s.baseAngle) * 32 + wave2 * 0.45;
+        const cp1X = s.side * (s.len * 0.38);
+        const cp1Y = endY * 0.35 + wave1;
+        const cp2X = s.side * (s.len * 0.72);
+        const cp2Y = endY * 0.75 - wave2;
+
+        const shimmer = 0.55 + 0.4 * Math.sin(t * 1.6 + s.phase);
+        ctx.strokeStyle = idx % 2 === 0
+          ? `rgba(239, 68, 68, ${shimmer})`
+          : `rgba(251, 113, 133, ${shimmer})`;
+        ctx.lineWidth = isAttacking ? 3.2 : 2.3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(s.side * 8, -4 + idx * 2);
+        ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY);
+        ctx.stroke();
+
+        // Glowing tip spark on each weaving tendril
+        ctx.fillStyle = "#fda4af";
+        ctx.beginPath();
+        ctx.arc(endX, endY, isAttacking ? 2.6 : 1.9, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
       ctx.restore();
     }
 
@@ -3937,12 +4087,15 @@
       if (luettaState.timer <= 0) luettaState.active = false;
     }
 
+    // 3-BEAT APEX FINALE FORMATION: PORTAL WAVE + SOLAR LION + TRI-COLOR BEAM
     function drawThreePrimesFormation(ctx, baseX, baseY) {
       if (!trinityState.active) return;
       if (combatStarted && !isPaused && !countdownState.active) {
         trinityState.timer--;
-        trinityState.flashAlpha *= 0.86;
+        trinityState.flashAlpha *= 0.88;
       }
+
+      const elapsed = trinityState.maxTimer - trinityState.timer;
 
       if (trinityState.flashAlpha > 0.02) {
         ctx.save();
@@ -3950,6 +4103,30 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.restore();
       }
+
+      // Beat 1 & 2: Dimensional Portal Wave Ring around the three joined Primes
+      const portalCx = baseX + 70;
+      const portalCy = baseY + 38;
+      const portalPulse = 48 + Math.sin(Date.now() * 0.02) * 8 + Math.min(34, elapsed * 0.6);
+
+      ctx.save();
+      const portalGrad = ctx.createRadialGradient(portalCx, portalCy, 8, portalCx, portalCy, portalPulse);
+      portalGrad.addColorStop(0, "rgba(254, 240, 138, 0.55)");
+      portalGrad.addColorStop(0.55, "rgba(102, 252, 241, 0.25)");
+      portalGrad.addColorStop(1, "rgba(168, 85, 247, 0)");
+      ctx.fillStyle = portalGrad;
+      ctx.beginPath();
+      ctx.arc(portalCx, portalCy, portalPulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#fde047";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([8, 5]);
+      ctx.beginPath();
+      ctx.arc(portalCx, portalCy, portalPulse * 0.82, (Date.now() * 0.005) % (Math.PI * 2), ((Date.now() * 0.005) % (Math.PI * 2)) + Math.PI * 1.75);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
 
       const trio = [
         { img: ASSETS.sundiata, x: baseX - 10, y: baseY },
@@ -3964,20 +4141,35 @@
         }
       });
 
-      const beamY = baseY + 34;
-      const beamStartX = baseX + 135;
-      const beamEndX = canvas.width - 20;
+      // Beat 3: Golden Solar Lion + Sweeping Blue Wave Ribbons + Tri-Color Beam
+      if (elapsed >= 16) {
+        const beamY = baseY + 34;
+        const beamStartX = baseX + 135;
+        const beamEndX = canvas.width - 18;
+
+        ctx.save();
+        ctx.shadowColor = "#66fcf1";
+        ctx.shadowBlur = 22;
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillRect(beamStartX, beamY - 11, beamEndX - beamStartX, 7);
+        ctx.fillStyle = "#a855f7";
+        ctx.fillRect(beamStartX, beamY - 4, beamEndX - beamStartX, 7);
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(beamStartX, beamY + 3, beamEndX - beamStartX, 9);
+
+        // Sweeping cyan wave ribbons
+        ctx.strokeStyle = "#66fcf1";
+        ctx.lineWidth = 2.4;
+        for (let w = -1; w <= 1; w += 2) {
+          ctx.beginPath();
+          ctx.moveTo(baseX + 45, beamY + w * 14);
+          ctx.quadraticCurveTo(baseX + 135, beamY + w * 32, baseX + 225, beamY + w * 8);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
 
       ctx.save();
-      ctx.shadowColor = "#66fcf1";
-      ctx.shadowBlur = 20;
-      ctx.fillStyle = "#38bdf8";
-      ctx.fillRect(beamStartX, beamY - 10, beamEndX - beamStartX, 7);
-      ctx.fillStyle = "#a855f7";
-      ctx.fillRect(beamStartX, beamY - 3, beamEndX - beamStartX, 7);
-      ctx.fillStyle = "#facc15";
-      ctx.fillRect(beamStartX, beamY + 4, beamEndX - beamStartX, 8);
-
       ctx.font = "900 13px monospace";
       ctx.textAlign = "center";
       ctx.fillStyle = "#fef08a";
@@ -4023,8 +4215,8 @@
     function getLeadSpriteAsset(leadId) {
       const map = {
         chrono: ASSETS.boss,
-        dreadnought: ASSETS.ironclad,
-        krieg: ASSETS.ironclad,
+        dreadnought: ASSETS.tectonox,
+        krieg: ASSETS.boss,
         nullbyte: ASSETS.nullbyte,
         kensei: ASSETS.kensei,
         tectonox: ASSETS.tectonox,
@@ -4098,7 +4290,7 @@
       const isVillainPlayer = brawlerMode === "versus" && versusPlayerSide === "villain";
 
       if (trinityState.active) {
-        drawThreePrimesFormation(ctx, Math.max(70, Math.min(220, leadX)), drawLeadY);
+        drawThreePrimesFormation(ctx, Math.max(70, Math.min(200, leadX)), drawLeadY);
       } else {
         if (!isVillainPlayer) {
           drawDropShadow(ctx, aiPartner.x + 28, 256, 20, 6, 0.5);
@@ -4177,6 +4369,7 @@
           const leadImg = getLeadSpriteAsset(activeLead);
           if (leadImg && leadImg.complete && leadImg.naturalWidth > 0) {
             if (activeLead === "xochitl") drawFieryWings(ctx, leadX, drawLeadY, 0, wingWave);
+            if (activeLead === "malakor") drawMalakorWeavingTendrils(ctx, leadX, drawLeadY, false);
             ctx.drawImage(leadImg, leadX, drawLeadY, 65, 80);
           } else {
             ctx.fillStyle = "#f59e0b";
@@ -4516,9 +4709,9 @@
         if (ASSETS.solarLion.complete && ASSETS.solarLion.naturalWidth > 0) {
           ctx.drawImage(ASSETS.solarLion, lr.x, lr.y - (lr.height * lr.scale) / 2, lr.width * lr.scale, lr.height * lr.scale);
         } else {
-          ctx.fillStyle = "rgba(245, 158, 11, 0.7)";
+          ctx.fillStyle = "rgba(245, 158, 11, 0.75)";
           ctx.beginPath();
-          ctx.arc(lr.x, lr.y, 48, 0, Math.PI * 2);
+          ctx.arc(lr.x, lr.y, 52, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
@@ -4561,9 +4754,17 @@
       if (boss.active) {
         ctx.save();
         ctx.globalAlpha = boss.alpha || 1;
+        if (boss.hitFlash > 0) {
+          ctx.filter = "brightness(2.0)";
+          boss.hitFlash--;
+        }
         if (boss.spriteKey === "dreadnought") {
           drawOuroborosBigMachine(ctx, boss);
         } else {
+          // Render Malakor's shimmering & weaving crimson tendrils
+          if (boss.type === "malakor") {
+            drawMalakorWeavingTendrils(ctx, boss.x, 165 + boss.y, bossTelegraph.active);
+          }
           const bossImg = ASSETS[boss.spriteKey] || ASSETS.boss;
           if (bossImg && bossImg.complete && bossImg.naturalWidth > 0) {
             ctx.drawImage(bossImg, boss.x, 165 + boss.y, 76, 90);
@@ -4573,6 +4774,19 @@
           }
         }
         ctx.restore();
+
+        if (boss.shieldActive) {
+          ctx.save();
+          ctx.strokeStyle = "#f59e0b";
+          ctx.fillStyle = "rgba(245, 158, 11, 0.16)";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(boss.x + 38, 210 + boss.y, 50, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+
         drawWaterSnareCage(ctx, boss.x + 8, 172 + boss.y);
 
         if (bossTelegraph.active) {
