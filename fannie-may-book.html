@@ -143,6 +143,15 @@
       padding: 8px 12px;
       border-radius: 0 8px 8px 0;
     }
+    .reward-banner {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #fef08a;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(251, 191, 36, 0.55);
+      border-radius: 10px;
+      padding: 8px 12px;
+    }
     .nav-row {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -207,6 +216,9 @@
         <h1 class="scene-title" id="sceneTitle"></h1>
         <p class="story-prose" id="sceneProse"></p>
         <div class="heritage-note" id="heritageNote"></div>
+        <div class="reward-banner" id="marrowRewardStatus">
+          Marrow &amp; Pact Rewards: Turn pages to earn milestone points (+120 PTS / +50 Larimar Ore) and reach Page 5 for Book Completion (+300 PTS / +175 Larimar Ore).
+        </div>
       </div>
 
       <div class="nav-row">
@@ -275,22 +287,64 @@
     const canvas = document.getElementById("sceneCanvas");
     const ctx = canvas.getContext("2d");
 
-    function awardBookProgress() {
+    function updateRewardBanner(msg) {
+      const el = document.getElementById("marrowRewardStatus");
+      if (el && msg) el.textContent = msg;
+    }
+
+    function awardBookProgress(pageIdx) {
+      const isFinalPage = pageIdx >= PAGES.length - 1;
+      const milestoneTag = "page_" + (pageIdx + 1);
+
+      if (window.RFLChildBookRewards) {
+        const res = isFinalPage
+          ? window.RFLChildBookRewards.reportCompletion("little-fannie-may")
+          : window.RFLChildBookRewards.reportMilestone(milestoneTag, "little-fannie-may");
+        if (res && res.ok) {
+          updateRewardBanner(
+            isFinalPage
+              ? `🏆 Book Completed! Earned +${res.marrowPtsAwarded} Marrow/Legacy PTS & +${res.larimarOreAwarded} Larimar Ore for Pact in the Marrow.`
+              : `⭐ Milestone Reached (Page ${pageIdx + 1})! Earned +${res.marrowPtsAwarded} Marrow/Legacy PTS & +${res.larimarOreAwarded} Larimar Ore.`
+          );
+          return;
+        }
+      }
+
       try {
+        const bonusPts = isFinalPage ? 300 : 120;
+        const bonusOre = isFinalPage ? 175 : 50;
         const raw = localStorage.getItem("rfl_legacy_save_v1");
         const state = raw ? JSON.parse(raw) : {};
-        state.points = (typeof state.points === "number" ? state.points : 342604) + 15;
-        state.hubPoints = (typeof state.hubPoints === "number" ? state.hubPoints : 61548) + 15;
+        state.points = (typeof state.points === "number" ? state.points : 342604) + bonusPts;
+        state.hubPoints = (typeof state.hubPoints === "number" ? state.hubPoints : 61548) + bonusPts;
+        state.larimarOre = (typeof state.larimarOre === "number" ? state.larimarOre : 10650) + bonusOre;
         localStorage.setItem("rfl_legacy_save_v1", JSON.stringify(state));
 
         const wRaw = localStorage.getItem("rhodes_legacy_wallet");
         if (wRaw) {
           const w = JSON.parse(wRaw);
-          w.legacyScore = (typeof w.legacyScore === "number" ? w.legacyScore : 342604) + 15;
-          w.hubPoints = (typeof w.hubPoints === "number" ? w.hubPoints : 61548) + 15;
+          w.legacyScore = (typeof w.legacyScore === "number" ? w.legacyScore : 342604) + bonusPts;
+          w.hubPoints = (typeof w.hubPoints === "number" ? w.hubPoints : 61548) + bonusPts;
+          w.larimarOre = (typeof w.larimarOre === "number" ? w.larimarOre : 10650) + bonusOre;
           w.updatedAt = Date.now();
           localStorage.setItem("rhodes_legacy_wallet", JSON.stringify(w));
         }
+
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            source: "rfl-portal",
+            type: "BOOK_MILESTONE",
+            bookId: "little-fannie-may",
+            completed: isFinalPage,
+            chapterTag: milestoneTag
+          }, "*");
+        }
+
+        updateRewardBanner(
+          isFinalPage
+            ? `🏆 Book Completed! Earned +${bonusPts} Marrow/Legacy PTS & +${bonusOre} Larimar Ore.`
+            : `⭐ Milestone Reached (Page ${pageIdx + 1})! Earned +${bonusPts} Marrow/Legacy PTS & +${bonusOre} Larimar Ore.`
+        );
       } catch (e) {}
     }
 
@@ -434,7 +488,7 @@
     function nextPage() {
       if (currentPage < PAGES.length - 1) {
         currentPage += 1;
-        awardBookProgress();
+        awardBookProgress(currentPage);
         renderPage();
       }
     }
@@ -479,6 +533,122 @@
     }, { passive: true });
 
     renderPage();
+  </script>
+
+  <script>
+  (function initChildBookMarrowRewards() {
+    "use strict";
+
+    var STORAGE_KEY = "rfl_legacy_save_v1";
+    var WALLET_KEY = "rhodes_legacy_wallet";
+    var BOOK_REWARD_LOG_KEY = "rfl_child_book_rewards_v1";
+
+    var BOOKS = {
+      "little-fannie-may": {
+        id: "little-fannie-may",
+        title: "The Adventures of Little Fannie May & Her Brothers",
+        milestonePts: 120,
+        milestoneOre: 50,
+        completionPts: 300,
+        completionOre: 175
+      },
+      "little-luetta": {
+        id: "little-luetta",
+        title: "Little Luetta and Her Sisters in the Golden Clock",
+        milestonePts: 120,
+        milestoneOre: 50,
+        completionPts: 300,
+        completionOre: 175
+      }
+    };
+
+    function applyReward(bookId, isCompletion, milestoneTag) {
+      var cleanId = BOOKS[bookId] ? bookId : "little-fannie-may";
+      var cfg = BOOKS[cleanId];
+      var pts = isCompletion ? cfg.completionPts : cfg.milestonePts;
+      var ore = isCompletion ? cfg.completionOre : cfg.milestoneOre;
+      var clueKey = "book_" + cleanId + "_" + (isCompletion ? "completed" : (milestoneTag || "milestone"));
+
+      try {
+        var saveRaw = window.localStorage.getItem(STORAGE_KEY);
+        var save = saveRaw ? JSON.parse(saveRaw) : {
+          version: 1,
+          visitedPaths: [],
+          unlockedClues: [],
+          gameScores: { commandDeck: 0, chronoTetris: 0, vanguardTycoon: 0, vanguardGames: 0 },
+          points: 342604,
+          hubPoints: 61548,
+          larimarOre: 10650
+        };
+        if (!Array.isArray(save.unlockedClues)) save.unlockedClues = [];
+        if (save.unlockedClues.indexOf(clueKey) === -1) {
+          save.unlockedClues.push(clueKey);
+        }
+        save.points = (typeof save.points === "number" ? save.points : 342604) + pts;
+        save.hubPoints = (typeof save.hubPoints === "number" ? save.hubPoints : 61548) + pts;
+        save.larimarOre = (typeof save.larimarOre === "number" ? save.larimarOre : 10650) + ore;
+        save.lastVisit = new Date().toISOString();
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(save));
+
+        var walletRaw = window.localStorage.getItem(WALLET_KEY);
+        var wallet = walletRaw ? JSON.parse(walletRaw) : {
+          legacyScore: save.points,
+          hubPoints: save.hubPoints,
+          larimarOre: save.larimarOre,
+          unlockedTiers: []
+        };
+        wallet.legacyScore = save.points;
+        wallet.hubPoints = save.hubPoints;
+        wallet.larimarOre = save.larimarOre;
+        wallet.updatedAt = Date.now();
+        window.localStorage.setItem(WALLET_KEY, JSON.stringify(wallet));
+      } catch (e) {}
+
+      try {
+        var logRaw = window.localStorage.getItem(BOOK_REWARD_LOG_KEY);
+        var log = logRaw ? JSON.parse(logRaw) : {};
+        log[clueKey] = {
+          bookId: cleanId,
+          bookTitle: cfg.title,
+          completed: !!isCompletion,
+          pts: pts,
+          ore: ore,
+          at: new Date().toISOString()
+        };
+        window.localStorage.setItem(BOOK_REWARD_LOG_KEY, JSON.stringify(log));
+      } catch (e) {}
+
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({
+            source: "rfl-portal",
+            type: "BOOK_MILESTONE",
+            bookId: cleanId,
+            completed: !!isCompletion,
+            chapterTag: milestoneTag || (isCompletion ? "complete" : "milestone")
+          }, "*");
+        } catch (e) {}
+      }
+
+      return {
+        ok: true,
+        bookId: cleanId,
+        bookTitle: cfg.title,
+        completed: !!isCompletion,
+        marrowPtsAwarded: pts,
+        larimarOreAwarded: ore
+      };
+    }
+
+    window.RFLChildBookRewards = {
+      reportMilestone: function (milestoneTag, bookId) {
+        return applyReward(bookId || "little-fannie-may", false, milestoneTag || "chapter_milestone");
+      },
+      reportCompletion: function (bookId) {
+        return applyReward(bookId || "little-fannie-may", true, "book_completed");
+      }
+    };
+  })();
   </script>
   <script src="legacy-wallet.js" defer></script>
 </body>
