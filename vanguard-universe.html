@@ -1958,10 +1958,10 @@
       card.classList.toggle("weekend-live", active);
       if (active) {
         title.innerText = "🔥 WEEKEND SIEGE ACTIVE (FRI–SUN)";
-        desc.innerText = "Live Now! Defeat any Apex Boss or complete the Gauntlet this weekend for +400 Legacy Pts & +4,000 Daily Score!";
+        desc.innerText = "Live Now! Clear any Apex Boss or Gauntlet this weekend for +400 Legacy Pts, +4,000 Daily Score & Omnibus Full Edition!";
       } else {
         title.innerText = "🗓️ Weekend Siege Challenge (Fri–Sun)";
-        desc.innerText = "Activates automatically Friday–Sunday: Defeat any Apex Boss or Gauntlet for +400 Legacy Pts & +4,000 Daily Score!";
+        desc.innerText = "Activates Friday–Sunday: Clear any Boss or Gauntlet for +400 Legacy Pts, +4,000 Daily Score & Edition Unlocks!";
       }
     }
 
@@ -1974,6 +1974,9 @@
       } catch (e) {}
       awardSharedLegacyPoints(400, "weekend_siege_" + wkId);
       addDailyArcadePoints(4000);
+      if (window.RFLVanguardGameRewards) {
+        window.RFLVanguardGameRewards.unlockFullEdition("vanguard-omnibus");
+      }
       return true;
     }
 
@@ -2107,7 +2110,10 @@
       if (!dailyState.targetClaimed && dailyState.score >= DAILY_TARGET) {
         dailyState.targetClaimed = true;
         awardSharedLegacyPoints(500, "daily_target_" + dailyState.date);
-        logBrawler("🏆 DAILY GOAL REACHED (25,000)! +500 Bonus Shared Legacy Points banked!");
+        if (window.RFLVanguardGameRewards) {
+          window.RFLVanguardGameRewards.unlockPreview("vanguard-issue-2");
+        }
+        logBrawler("🏆 DAILY GOAL REACHED (25,000)! +500 Shared Legacy Points & Issue #2 Preview unlocked!");
       }
       try { localStorage.setItem(DAILY_SCORE_KEY, JSON.stringify(dailyState)); } catch (e) {}
       syncDailyScoreLabels();
@@ -2425,8 +2431,11 @@
       if (clashEnemies.every(e => e.hp <= 0)) {
         awardSharedLegacyPoints(35, "clash_win");
         addDailyArcadePoints(1200);
+        if (window.RFLVanguardGameRewards) {
+          window.RFLVanguardGameRewards.unlockSnippet("vanguard-issue-1");
+        }
         setTimeout(() => {
-          document.getElementById('clash-status').innerText = "🏆 Victory! +35 Legacy Pts & +1,200 Daily Score. Resetting match...";
+          document.getElementById('clash-status').innerText = "🏆 Victory! +35 Legacy Pts, +1,200 Daily Score & Issue #1 Snippet unlocked!";
           setTimeout(resetCardArena, 1800);
         }, 700);
         return;
@@ -3703,6 +3712,14 @@
       addDailyArcadePoints(3000);
       const gotWeekend = tryClaimWeekendChallenge();
 
+      if (window.RFLVanguardGameRewards) {
+        if (defeatedType === "nanami_void" || defeatedType === "riftborer") {
+          window.RFLVanguardGameRewards.unlockFullEdition("vanguard-omnibus");
+        } else {
+          window.RFLVanguardGameRewards.unlockPreview("vanguard-issue-2");
+        }
+      }
+
       if (defeatedType === "chrono") {
         spawnChronoLockClockCascade(defeatedX, 195);
         logBrawler("💥 Chrono-Lock shattered into watches and clock pieces across the canvas!");
@@ -3741,6 +3758,9 @@
           const loneVanguardBonus = singleFighterGauntletRun ? 200 : 0;
           awardSharedLegacyPoints(120 + ironmanBonus + loneVanguardBonus, "gauntlet_full_clear");
           addDailyArcadePoints(5000 + (ironmanBonus + loneVanguardBonus) * 15);
+          if (window.RFLVanguardGameRewards) {
+            window.RFLVanguardGameRewards.unlockFullEdition("vanguard-omnibus");
+          }
 
           const earnedLabels = [];
           if (loneVanguardBonus > 0) earnedLabels.push("🛡️ Lone Vanguard (+200)");
@@ -3748,8 +3768,8 @@
           if (gotWeekend) earnedLabels.push("🔥 Weekend Siege (+400)");
 
           const summaryDesc = earnedLabels.length > 0
-            ? `Unbelievable run! Bonuses unlocked: ${earnedLabels.join(" • ")}!`
-            : "You defeated all rivals! +120 Shared Legacy Points banked.";
+            ? `Unbelievable run! Bonuses & Dual Omnibus Full Edition unlocked: ${earnedLabels.join(" • ")}!`
+            : "You defeated all rivals! +120 Shared Legacy Points & Dual Omnibus Full Edition unlocked.";
 
           logBrawler(`👑 FULL GAUNTLET CLEARED! ${summaryDesc}`);
           setTimeout(() => {
@@ -3798,10 +3818,13 @@
         setTimeout(() => showBanner("STAGE 4 CLEARED • ENTERING SAHEL RIFT", "Baron Krieg defeated! Advancing to Stage 5: Sahel Rift vs. AS-TAC / Tectonox!", "ENTER STAGE 5: RIFT (3-2-1)", "1795543309474(1)(1).png"), 1200);
       } else if (currentWave === 18) {
         saveGameProgress(5);
+        if (window.RFLVanguardGameRewards) {
+          window.RFLVanguardGameRewards.unlockFullEdition("vanguard-omnibus");
+        }
         setTimeout(() => {
           gameActive = false;
           document.getElementById("modalTitle").innerText = "MARROW RESONANCE RESTORED!";
-          document.getElementById("modalBody").innerText = "Symbiotic Prime Golden Lion War sealed the temporal siege from Detroit to the Sahel!";
+          document.getElementById("modalBody").innerText = "Symbiotic Prime Golden Lion War sealed the temporal siege & unlocked the Dual Omnibus Full Edition!";
           openTop5PromptIfQualified("victory");
           document.getElementById("trial-modal").style.display = "flex";
         }, 1200);
@@ -6208,6 +6231,71 @@
       applyIncomingSectorParam();
     });
     window.addEventListener("resize", resizeBrawlerCanvas);
+  </script>
+
+  <script>
+  (function initVanguardGameRewardHook() {
+    "use strict";
+
+    var STORAGE_KEY = "rfl_legacy_save_v1";
+    var WALLET_KEY = "rhodes_legacy_wallet";
+    var UNLOCK_KEY = "rfl_unlocked_editions_v1";
+
+    function applyVanguardUnlock(workId, tier, pts, ore) {
+      var targetWork = workId || "vanguard-issue-1";
+      var cleanTier = (tier === "full" || tier === "preview") ? tier : "snippet";
+      var addPts = typeof pts === "number" ? pts : (cleanTier === "full" ? 500 : cleanTier === "preview" ? 250 : 125);
+      var addOre = typeof ore === "number" ? ore : (cleanTier === "full" ? 150 : cleanTier === "preview" ? 60 : 25);
+
+      if (window.RFLBookVanguardBridge && typeof window.RFLBookVanguardBridge.grantVanguardPortalReward === "function") {
+        return window.RFLBookVanguardBridge.grantVanguardPortalReward(targetWork, cleanTier, addPts, addOre);
+      }
+
+      try {
+        var rank = { snippet: 1, preview: 2, full: 3 };
+        var unlocks = JSON.parse(window.localStorage.getItem(UNLOCK_KEY) || "{}");
+        if ((rank[cleanTier] || 0) >= (rank[unlocks[targetWork] || "locked"] || 0)) {
+          unlocks[targetWork] = cleanTier;
+          window.localStorage.setItem(UNLOCK_KEY, JSON.stringify(unlocks));
+        }
+
+        var save = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "{}");
+        save.points = (typeof save.points === "number" ? save.points : 0) + addPts;
+        save.hubPoints = (typeof save.hubPoints === "number" ? save.hubPoints : 61548) + addPts;
+        save.larimarOre = (typeof save.larimarOre === "number" ? save.larimarOre : 10650) + addOre;
+        save.lastVisit = new Date().toISOString();
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(save));
+
+        var wallet = JSON.parse(window.localStorage.getItem(WALLET_KEY) || "{}");
+        wallet.legacyScore = save.points;
+        wallet.hubPoints = save.hubPoints;
+        wallet.larimarOre = save.larimarOre;
+        wallet.updatedAt = Date.now();
+        window.localStorage.setItem(WALLET_KEY, JSON.stringify(wallet));
+      } catch (e) {}
+
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({
+            source: "rfl-portal",
+            type: "VANGUARD_REWARD",
+            workId: targetWork,
+            tier: cleanTier,
+            pts: addPts,
+            ore: addOre
+          }, "*");
+        } catch (e) {}
+      }
+
+      return { ok: true, workId: targetWork, tier: cleanTier, pts: addPts, ore: addOre };
+    }
+
+    window.RFLVanguardGameRewards = {
+      unlockSnippet: function (workId) { return applyVanguardUnlock(workId, "snippet", 125, 25); },
+      unlockPreview: function (workId) { return applyVanguardUnlock(workId, "preview", 250, 60); },
+      unlockFullEdition: function (workId) { return applyVanguardUnlock(workId, "full", 500, 150); }
+    };
+  })();
   </script>
 </body>
 </html>
