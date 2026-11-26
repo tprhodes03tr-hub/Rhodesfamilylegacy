@@ -145,6 +145,35 @@
       padding: 8px 12px;
       border-radius: 0 8px 8px 0;
     }
+    .reward-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .reward-action-btn {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 9px 8px;
+      font-size: 10.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .reward-action-btn:hover {
+      border-color: #fbbf24;
+      color: #fef08a;
+    }
+    .unlock-status {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #7dd3fc;
+      background: rgba(8, 47, 73, 0.35);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 10px;
+      padding: 8px 12px;
+    }
     .nav-row {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -209,6 +238,14 @@
         <h1 class="panel-title" id="panelTitle"></h1>
         <p class="panel-dialogue" id="panelDialogue"></p>
         <div class="lore-tag" id="loreTag"></div>
+        <div class="reward-strip">
+          <button type="button" class="reward-action-btn" onclick="claimIssueDaily()">☀️ Daily Challenge</button>
+          <button type="button" class="reward-action-btn" onclick="claimIssueWeekend()">⚡ Weekend Challenge</button>
+          <button type="button" class="reward-action-btn" onclick="claimIssueEdition('preview')">✨ Preview Tier</button>
+        </div>
+        <div class="unlock-status" id="vanguardUnlockStatus">
+          Issue #1 Rewards: Turn pages for milestone points or claim Daily / Weekend / Preview rewards to unlock Snippets, Previews, and Full Edition access.
+        </div>
       </div>
 
       <div class="nav-row">
@@ -268,22 +305,96 @@
     const canvas = document.getElementById("panelCanvas");
     const ctx = canvas.getContext("2d");
 
-    function awardComicProgress() {
+    function updateUnlockBanner(msg) {
+      const el = document.getElementById("vanguardUnlockStatus");
+      if (el && msg) el.textContent = msg;
+    }
+
+    function claimIssueDaily() {
+      if (window.RFLBookVanguardBridge && typeof window.RFLBookVanguardBridge.runDailyChallenge === "function") {
+        const res = window.RFLBookVanguardBridge.runDailyChallenge("vanguard-issue-1");
+        updateUnlockBanner(
+          res.firstClaimToday
+            ? `☀️ Daily Challenge Complete! +${res.ptsAwarded} PTS & +${res.oreAwarded} Larimar Ore • Issue #1 Preview unlocked.`
+            : "☀️ Daily Challenge already claimed today—Issue #1 Preview access active."
+        );
+        return;
+      }
+      if (window.RFLVanguardGameRewards) {
+        const r = window.RFLVanguardGameRewards.unlockPreview("vanguard-issue-1");
+        updateUnlockBanner(`☀️ Daily Challenge Reward! +${r.pts} PTS & +${r.ore} Larimar Ore • Issue #1 Preview unlocked.`);
+      }
+    }
+
+    function claimIssueWeekend() {
+      if (window.RFLBookVanguardBridge && typeof window.RFLBookVanguardBridge.runWeekendChallenge === "function") {
+        const res = window.RFLBookVanguardBridge.runWeekendChallenge("vanguard-issue-1", true);
+        updateUnlockBanner(
+          `⚡ Weekend Challenge Unlocked! +${res.ptsAwarded || 600} PTS & +${res.oreAwarded || 200} Larimar Ore • Issue #1 Full Edition tier unlocked.`
+        );
+        return;
+      }
+      if (window.RFLVanguardGameRewards) {
+        const r = window.RFLVanguardGameRewards.unlockFullEdition("vanguard-issue-1");
+        updateUnlockBanner(`⚡ Weekend Challenge Reward! +${r.pts} PTS & +${r.ore} Larimar Ore • Issue #1 Full Edition unlocked.`);
+      }
+    }
+
+    function claimIssueEdition(tier) {
+      if (!window.RFLVanguardGameRewards) return;
+      const res = tier === "full"
+        ? window.RFLVanguardGameRewards.unlockFullEdition("vanguard-issue-1")
+        : (tier === "preview"
+            ? window.RFLVanguardGameRewards.unlockPreview("vanguard-issue-1")
+            : window.RFLVanguardGameRewards.unlockSnippet("vanguard-issue-1"));
+      updateUnlockBanner(`✨ Issue #1 ${res.tier.toUpperCase()} Tier Unlocked! +${res.pts} PTS & +${res.ore} Larimar Ore.`);
+    }
+
+    function awardComicProgress(pageIdx) {
+      const isFinalPage = pageIdx >= COMIC_PAGES.length - 1;
+      const tier = isFinalPage ? "preview" : "snippet";
+      const bonusPts = isFinalPage ? 250 : 125;
+      const bonusOre = isFinalPage ? 60 : 25;
+
+      if (window.RFLVanguardGameRewards) {
+        if (isFinalPage) window.RFLVanguardGameRewards.unlockPreview("vanguard-issue-1");
+        else window.RFLVanguardGameRewards.unlockSnippet("vanguard-issue-1");
+      }
+
       try {
         const raw = localStorage.getItem("rfl_legacy_save_v1");
         const state = raw ? JSON.parse(raw) : {};
-        state.points = (typeof state.points === "number" ? state.points : 342604) + 20;
-        state.hubPoints = (typeof state.hubPoints === "number" ? state.hubPoints : 61548) + 20;
+        state.points = (typeof state.points === "number" ? state.points : 342604) + bonusPts;
+        state.hubPoints = (typeof state.hubPoints === "number" ? state.hubPoints : 61548) + bonusPts;
+        state.larimarOre = (typeof state.larimarOre === "number" ? state.larimarOre : 10650) + bonusOre;
         localStorage.setItem("rfl_legacy_save_v1", JSON.stringify(state));
 
         const wRaw = localStorage.getItem("rhodes_legacy_wallet");
         if (wRaw) {
           const w = JSON.parse(wRaw);
-          w.legacyScore = (typeof w.legacyScore === "number" ? w.legacyScore : 342604) + 20;
-          w.hubPoints = (typeof w.hubPoints === "number" ? w.hubPoints : 61548) + 20;
+          w.legacyScore = (typeof w.legacyScore === "number" ? w.legacyScore : 342604) + bonusPts;
+          w.hubPoints = (typeof w.hubPoints === "number" ? w.hubPoints : 61548) + bonusPts;
+          w.larimarOre = (typeof w.larimarOre === "number" ? w.larimarOre : 10650) + bonusOre;
           w.updatedAt = Date.now();
           localStorage.setItem("rhodes_legacy_wallet", JSON.stringify(w));
         }
+
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            source: "rfl-portal",
+            type: "VANGUARD_REWARD",
+            workId: "vanguard-issue-1",
+            tier: tier,
+            pts: bonusPts,
+            ore: bonusOre
+          }, "*");
+        }
+
+        updateUnlockBanner(
+          isFinalPage
+            ? `🏆 Issue #1 Preview Complete! +${bonusPts} PTS & +${bonusOre} Larimar Ore • Preview Edition unlocked.`
+            : `⚡ Issue #1 Page ${pageIdx + 1} Milestone! +${bonusPts} PTS & +${bonusOre} Larimar Ore • Snippet unlocked.`
+        );
       } catch (e) {}
     }
 
@@ -374,7 +485,7 @@
     function nextPage() {
       if (currentPage < COMIC_PAGES.length - 1) {
         currentPage += 1;
-        awardComicProgress();
+        awardComicProgress(currentPage);
         renderPage();
       }
     }
@@ -419,6 +530,71 @@
     }, { passive: true });
 
     renderPage();
+  </script>
+
+  <script>
+  (function initVanguardGameRewardHook() {
+    "use strict";
+
+    var STORAGE_KEY = "rfl_legacy_save_v1";
+    var WALLET_KEY = "rhodes_legacy_wallet";
+    var UNLOCK_KEY = "rfl_unlocked_editions_v1";
+
+    function applyVanguardUnlock(workId, tier, pts, ore) {
+      var targetWork = workId || "vanguard-issue-1";
+      var cleanTier = (tier === "full" || tier === "preview") ? tier : "snippet";
+      var addPts = typeof pts === "number" ? pts : (cleanTier === "full" ? 500 : cleanTier === "preview" ? 250 : 125);
+      var addOre = typeof ore === "number" ? ore : (cleanTier === "full" ? 150 : cleanTier === "preview" ? 60 : 25);
+
+      if (window.RFLBookVanguardBridge && typeof window.RFLBookVanguardBridge.grantVanguardPortalReward === "function") {
+        return window.RFLBookVanguardBridge.grantVanguardPortalReward(targetWork, cleanTier, addPts, addOre);
+      }
+
+      try {
+        var rank = { snippet: 1, preview: 2, full: 3 };
+        var unlocks = JSON.parse(window.localStorage.getItem(UNLOCK_KEY) || "{}");
+        if ((rank[cleanTier] || 0) >= (rank[unlocks[targetWork] || "locked"] || 0)) {
+          unlocks[targetWork] = cleanTier;
+          window.localStorage.setItem(UNLOCK_KEY, JSON.stringify(unlocks));
+        }
+
+        var save = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "{}");
+        save.points = (typeof save.points === "number" ? save.points : 342604) + addPts;
+        save.hubPoints = (typeof save.hubPoints === "number" ? save.hubPoints : 61548) + addPts;
+        save.larimarOre = (typeof save.larimarOre === "number" ? save.larimarOre : 10650) + addOre;
+        save.lastVisit = new Date().toISOString();
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(save));
+
+        var wallet = JSON.parse(window.localStorage.getItem(WALLET_KEY) || "{}");
+        wallet.legacyScore = save.points;
+        wallet.hubPoints = save.hubPoints;
+        wallet.larimarOre = save.larimarOre;
+        wallet.updatedAt = Date.now();
+        window.localStorage.setItem(WALLET_KEY, JSON.stringify(wallet));
+      } catch (e) {}
+
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({
+            source: "rfl-portal",
+            type: "VANGUARD_REWARD",
+            workId: targetWork,
+            tier: cleanTier,
+            pts: addPts,
+            ore: addOre
+          }, "*");
+        } catch (e) {}
+      }
+
+      return { ok: true, workId: targetWork, tier: cleanTier, pts: addPts, ore: addOre };
+    }
+
+    window.RFLVanguardGameRewards = {
+      unlockSnippet: function (workId) { return applyVanguardUnlock(workId, "snippet", 125, 25); },
+      unlockPreview: function (workId) { return applyVanguardUnlock(workId, "preview", 250, 60); },
+      unlockFullEdition: function (workId) { return applyVanguardUnlock(workId, "full", 500, 150); }
+    };
+  })();
   </script>
   <script src="legacy-wallet.js" defer></script>
 </body>
