@@ -182,6 +182,8 @@
             font-size: 0.85rem;
             font-weight: bold;
             color: #9b59b6;
+            flex-wrap: wrap;
+            gap: 6px;
         }
         .players-scoreboard {
             display: flex;
@@ -725,7 +727,7 @@
         </div>
     </div>
 
-    <!-- 7. HIGH-TECH NEXUS GRID BOARD GAME -->
+    <!-- 7. HIGH-TECH NEXUS GRID BOARD GAME (TAP-TO-TARGET MARROW PULSE) -->
     <div id="nexusboard-view" class="app-container hidden">
         <div class="reserves-banner" style="border-color: #38bdf8;">
             <span style="color: #38bdf8;">🛰️ MARROW NEXUS TACTICAL CONQUEST BOARD</span>
@@ -743,15 +745,19 @@
             </div>
         </div>
 
+        <div id="nb-target-banner" style="background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.45); padding: 6px 12px; border-radius: 8px; margin-bottom: 8px; text-align: center; font-size: 0.8rem; color: #fef08a; font-weight: bold;">
+            🎯 TARGET LOCKED: <span id="nb-target-name" style="color: #ffd700;">Detroit '313</span> (<span id="nb-target-meta" style="color: #66fcf1;">VANGUARD • Lv.2</span>) — Tap any sector node to switch target!
+        </div>
+
         <canvas id="nexusBoardCanvas" width="900" height="440" onclick="handleNexusBoardClick(event)"></canvas>
 
         <div id="log-box-nb" style="margin-top: 8px; background: var(--bg-dark); border: 1px solid #38bdf8; padding: 6px 10px; border-radius: 8px; height: 38px; overflow-y: auto; font-size: 0.78rem; color: #a0aec0;">
-            Roll Tactical Dice or tap any Sector node on the board to claim, fortify, or pulse Marrow Resonance!
+            Tap any Sector node on the board to lock your target, then fire MARROW PULSE (30 MR) or Roll Tactical Dice!
         </div>
 
         <div class="controls">
             <button class="ctrl-btn" onclick="rollNexusBoardTurn()">🎲 ROLL TACTICAL DICE</button>
-            <button class="ctrl-btn secondary" onclick="pulseSelectedSector()">⚡ MARROW PULSE (30 MR)</button>
+            <button class="ctrl-btn secondary" id="nb-pulse-btn" onclick="pulseSelectedSector()">⚡ PULSE: DETROIT '313 (30 MR)</button>
             <button class="ctrl-btn danger" onclick="initNexusBoardGame()">🔄 RESET BOARD</button>
         </div>
     </div>
@@ -3149,12 +3155,13 @@
     }
 
 
-    // --- 7. HIGH-TECH NEXUS GRID BOARD GAME ---
+    // --- 7. HIGH-TECH NEXUS GRID BOARD GAME (TAP-TO-TARGET MARROW PULSE) ---
     let nbCanvas, nbCtx;
     let nexusSectors = [];
     let selectedSectorIdx = 0;
     let nbResonance = 120;
     let nbRound = 1;
+    let nbPulseBeam = null;
 
     function logNexusBoard(msg) {
         const box = document.getElementById('log-box-nb');
@@ -3171,6 +3178,7 @@
         nbResonance = 120;
         nbRound = 1;
         selectedSectorIdx = 0;
+        nbPulseBeam = null;
 
         nexusSectors = [
             { name: "Detroit '313", x: 170, y: 120, owner: "VANGUARD", level: 2, yieldMR: 25 },
@@ -3198,6 +3206,25 @@
         if (sEl) sEl.innerText = sCount;
         if (rEl) rEl.innerText = nbResonance;
         if (rndEl) rndEl.innerText = nbRound;
+
+        const targetSec = nexusSectors[selectedSectorIdx];
+        if (targetSec) {
+            const nameEl = document.getElementById('nb-target-name');
+            const metaEl = document.getElementById('nb-target-meta');
+            const pulseBtn = document.getElementById('nb-pulse-btn');
+            if (nameEl) nameEl.innerText = targetSec.name;
+            if (metaEl) {
+                let actionHint = targetSec.owner === "VANGUARD"
+                    ? `Fortify to Lv.${Math.min(4, targetSec.level + 1)}`
+                    : (targetSec.owner === "SYNDICATE"
+                        ? (targetSec.level > 1 ? `Weaken to Lv.${targetSec.level - 1}` : "Strike & Flip to Vanguard")
+                        : "Capture for Vanguard");
+                metaEl.innerText = `${targetSec.owner} • Lv.${targetSec.level} • ${actionHint}`;
+            }
+            if (pulseBtn) {
+                pulseBtn.innerText = `⚡ PULSE: ${targetSec.name.toUpperCase()} (30 MR)`;
+            }
+        }
     }
 
     function drawNexusBoard() {
@@ -3213,6 +3240,23 @@
             nbCtx.beginPath(); nbCtx.moveTo(0, y); nbCtx.lineTo(nbCanvas.width, y); nbCtx.stroke();
         }
 
+        const centerX = nbCanvas.width / 2;
+        const centerY = nbCanvas.height / 2;
+
+        // Subtle radial spokes from the central Golden Tree to all 8 sectors
+        nexusSectors.forEach((sec, idx) => {
+            const isSel = idx === selectedSectorIdx;
+            nbCtx.save();
+            nbCtx.strokeStyle = isSel ? 'rgba(255, 215, 0, 0.75)' : 'rgba(102, 252, 241, 0.16)';
+            nbCtx.lineWidth = isSel ? 2.5 : 1;
+            if (isSel) nbCtx.setLineDash([6, 4]);
+            nbCtx.beginPath();
+            nbCtx.moveTo(centerX, centerY);
+            nbCtx.lineTo(sec.x, sec.y);
+            nbCtx.stroke();
+            nbCtx.restore();
+        });
+
         nbCtx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
         nbCtx.lineWidth = 2;
         for (let i = 0; i < nexusSectors.length; i++) {
@@ -3221,35 +3265,82 @@
             nbCtx.beginPath(); nbCtx.moveTo(a.x, a.y); nbCtx.lineTo(b.x, b.y); nbCtx.stroke();
         }
 
-        drawFamilyCrestSprite(nbCtx, nbCanvas.width / 2, nbCanvas.height / 2, 92, 92, '#ffd700');
+        // Animated Marrow Pulse beam & shockwave when firing on a targeted sector
+        if (nbPulseBeam) {
+            nbCtx.save();
+            nbCtx.strokeStyle = nbPulseBeam.color || '#ffd700';
+            nbCtx.shadowColor = nbPulseBeam.color || '#ffd700';
+            nbCtx.shadowBlur = 22;
+            nbCtx.lineWidth = 5;
+            nbCtx.beginPath();
+            nbCtx.moveTo(centerX, centerY);
+            nbCtx.lineTo(nbPulseBeam.x, nbPulseBeam.y);
+            nbCtx.stroke();
+
+            nbCtx.beginPath();
+            nbCtx.arc(nbPulseBeam.x, nbPulseBeam.y, 46, 0, Math.PI * 2);
+            nbCtx.stroke();
+            nbCtx.restore();
+        }
+
+        drawFamilyCrestSprite(nbCtx, centerX, centerY, 92, 92, '#ffd700');
 
         nexusSectors.forEach((sec, idx) => {
             const isSel = idx === selectedSectorIdx;
             const col = sec.owner === "VANGUARD" ? "#66fcf1" : (sec.owner === "SYNDICATE" ? "#ff0055" : "#ff7b00");
 
             nbCtx.save();
+            if (isSel) {
+                nbCtx.strokeStyle = "rgba(255, 215, 0, 0.55)";
+                nbCtx.lineWidth = 2;
+                nbCtx.beginPath();
+                nbCtx.roundRect(sec.x - 75, sec.y - 41, 150, 82, 13);
+                nbCtx.stroke();
+            }
+
             nbCtx.fillStyle = isSel ? "#1e293b" : "#0b0c10";
             nbCtx.strokeStyle = isSel ? "#ffd700" : col;
             nbCtx.lineWidth = isSel ? 3 : 1.8;
+            if (isSel) {
+                nbCtx.shadowColor = "#ffd700";
+                nbCtx.shadowBlur = 14;
+            }
             nbCtx.beginPath();
             nbCtx.roundRect(sec.x - 68, sec.y - 34, 136, 68, 10);
             nbCtx.fill();
             nbCtx.stroke();
+            nbCtx.shadowBlur = 0;
+
+            if (isSel) {
+                nbCtx.fillStyle = "#ffd700";
+                nbCtx.font = "bold 8px Courier New";
+                nbCtx.textAlign = "center";
+                nbCtx.fillText("🎯 TARGETED", sec.x, sec.y - 23);
+            }
 
             nbCtx.fillStyle = "#ffffff";
             nbCtx.font = "bold 11px Courier New";
             nbCtx.textAlign = "center";
-            nbCtx.fillText(sec.name, sec.x, sec.y - 12);
+            nbCtx.fillText(sec.name, sec.x, sec.y - 10);
 
             nbCtx.fillStyle = col;
             nbCtx.font = "bold 10px Courier New";
-            nbCtx.fillText(`${sec.owner} • Lv.${sec.level}`, sec.x, sec.y + 6);
+            nbCtx.fillText(`${sec.owner} • Lv.${sec.level}`, sec.x, sec.y + 7);
 
             nbCtx.fillStyle = "#fef08a";
             nbCtx.font = "9px Courier New";
-            nbCtx.fillText(`Yield: +${sec.yieldMR * sec.level} MR`, sec.x, sec.y + 22);
+            nbCtx.fillText(`Yield: +${sec.yieldMR * sec.level} MR`, sec.x, sec.y + 23);
             nbCtx.restore();
         });
+    }
+
+    function triggerNexusPulseVisual(sec, beamColor) {
+        nbPulseBeam = { x: sec.x, y: sec.y, color: beamColor || '#ffd700' };
+        drawNexusBoard();
+        setTimeout(() => {
+            nbPulseBeam = null;
+            drawNexusBoard();
+        }, 550);
     }
 
     function handleNexusBoardClick(event) {
@@ -3262,8 +3353,9 @@
             if (Math.abs(cx - sec.x) <= 72 && Math.abs(cy - sec.y) <= 38) {
                 selectedSectorIdx = idx;
                 playHubSfx('tile');
+                updateNexusBoardStats();
                 drawNexusBoard();
-                logNexusBoard(`Selected ${sec.name} (${sec.owner}, Level ${sec.level}).`);
+                logNexusBoard(`🎯 Target locked: ${sec.name} (${sec.owner} • Lv.${sec.level}). Press MARROW PULSE (30 MR) to fire!`);
             }
         });
     }
@@ -3303,18 +3395,49 @@
             logNexusBoard("Need at least 30 MR to fire a Marrow Pulse!");
             return;
         }
-        nbResonance -= 30;
+
         const sec = nexusSectors[selectedSectorIdx];
-        sec.owner = "VANGUARD";
-        sec.level = Math.min(4, sec.level + 1);
-        nbResonance += 45;
+        if (!sec) return;
+
+        nbResonance -= 30;
+        let beamColor = "#ffd700";
+
+        if (sec.owner === "SYNDICATE") {
+            beamColor = "#ff0055";
+            if (sec.level > 1) {
+                sec.level -= 1;
+                nbResonance += 20;
+                logNexusBoard(`⚡ Marrow Pulse struck Syndicate stronghold ${sec.name}, reducing it to Lv.${sec.level} (+20 MR recovered)!`);
+            } else {
+                sec.owner = "VANGUARD";
+                sec.level = 1;
+                nbResonance += 35;
+                logNexusBoard(`⚡ Marrow Pulse shattered Syndicate control and flipped ${sec.name} to Vanguard (+35 MR)!`);
+            }
+        } else if (sec.owner === "NEUTRAL") {
+            beamColor = "#66fcf1";
+            sec.owner = "VANGUARD";
+            sec.level = 1;
+            nbResonance += 30;
+            logNexusBoard(`⚡ Marrow Pulse claimed neutral sector ${sec.name} for Vanguard (+30 MR)!`);
+        } else {
+            beamColor = "#ffd700";
+            sec.level = Math.min(4, sec.level + 1);
+            nbResonance += 45;
+            logNexusBoard(`⚡ Marrow Pulse fortified ${sec.name} to Lv.${sec.level} and harvested +45 MR!`);
+        }
+
         playHubSfx('pulse');
         if (window.RFLGameHooks) {
             window.RFLGameHooks.onTycoonTurnOrMatch(35, nbResonance);
         }
-        logNexusBoard(`⚡ Marrow Pulse secured ${sec.name} (Lv.${sec.level}) and harvested +45 MR!`);
         updateNexusBoardStats();
-        drawNexusBoard();
+        triggerNexusPulseVisual(sec, beamColor);
+
+        const vCount = nexusSectors.filter(s => s.owner === "VANGUARD").length;
+        if (vCount === nexusSectors.length) {
+            logNexusBoard("🏆 FULL NEXUS CONQUEST! Vanguard Squad controls all 8 sectors!");
+        }
     }
 
 
