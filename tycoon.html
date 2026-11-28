@@ -78,7 +78,7 @@
             background: var(--panel-bg);
             border: 2px solid var(--accent-blue);
             border-radius: 12px;
-            padding: 15px;
+            padding: 15px 15px 76px 15px;
             width: 94%;
             max-width: 980px;
             box-shadow: 0 0 35px rgba(102, 252, 241, 0.25);
@@ -128,6 +128,13 @@
             height: auto;
             cursor: pointer;
             box-shadow: inset 0 0 25px rgba(102, 252, 241, 0.25);
+        }
+        #bubbleCanvas {
+            width: 340px;
+            max-width: 100%;
+            height: 460px;
+            border-color: #f472b6;
+            box-shadow: 0 0 26px rgba(244, 114, 182, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.55);
         }
         .controls {
             display: flex;
@@ -344,7 +351,6 @@
             background: #000;
         }
 
-        /* METAL FOIL UNO CARD STYLING */
         .metal-card-front {
             width: 74px;
             height: 108px;
@@ -729,7 +735,7 @@
         </div>
     </div>
 
-    <!-- 5. MARROW DECK (METAL FOIL UNO-STYLE CARD GAME WITH VANGUARD SPRITES) -->
+    <!-- 5. MARROW DECK (METAL FOIL UNO CARD GAME WITH VANGUARD SPRITES) -->
     <div id="marrowdeck-view" class="app-container hidden">
         <div class="daily-weekend-bar">
             <span>🏆 Most Cards Cleared Today: <strong id="daily-deck-record" style="color:#ffd700;">0</strong></span>
@@ -866,7 +872,7 @@
         </div>
     </div>
 
-    <!-- 8. DUAL-MODE BUBBLE POP (FALLING BALLOON STACKER VS PATTERN CLASSIC) -->
+    <!-- 8. TETRIS-BOX BUBBLE & BALLOON BUSTER (RISING OR FALLING + PATTERN CLASSIC + 3x/4x SURGE) -->
     <div id="bubblepop-view" class="app-container hidden">
         <div class="daily-weekend-bar">
             <span>🏆 High Score of the Day: <strong id="daily-bubble-record" style="color:#ffd700;">0</strong></span>
@@ -876,18 +882,19 @@
 
         <div class="lobby-bar">
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%; justify-content: space-between;">
-                <span style="font-weight: bold; color: #f472b6;">🫧 BUBBLE &amp; BALLOON BUSTER</span>
-                <div style="display: flex; gap: 6px;">
-                    <button class="ctrl-btn secondary" id="bp-mode-stacker" onclick="setBubbleMode('stacker')" style="font-size: 0.75rem; padding: 4px 10px;">🎈 Falling Balloon Stacker</button>
-                    <button class="ctrl-btn purple" id="bp-mode-pattern" onclick="setBubbleMode('pattern')" style="font-size: 0.75rem; padding: 4px 10px;">🎯 Pattern Classic</button>
+                <span style="font-weight: bold; color: #f472b6;">🫧 BUBBLE &amp; BALLOON BUSTER • TETRIS BOX</span>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button class="ctrl-btn secondary" id="bp-mode-stacker" onclick="setBubbleMode('stacker')" style="font-size: 0.72rem; padding: 4px 9px;">🎈 Rising Stacker</button>
+                    <button class="ctrl-btn purple" id="bp-mode-ceiling" onclick="setBubbleMode('ceiling')" style="font-size: 0.72rem; padding: 4px 9px;">🌧️ Ceiling Drop</button>
+                    <button class="ctrl-btn" id="bp-mode-pattern" onclick="setBubbleMode('pattern')" style="font-size: 0.72rem; padding: 4px 9px;">🎯 Pattern Classic</button>
                 </div>
             </div>
         </div>
 
         <div class="reserves-banner" style="border-color: #f472b6;">
-            <span id="bp-status-label" style="color: #f472b6;">🎈 TETRIS DANGER CEILING ACTIVE</span>
+            <span id="bp-status-label" style="color: #f472b6;">🎈 RISING TOWARD TOP DANGER LINE (SLOW PACE)</span>
             <span>
-                ⏱️ TIME: <strong id="bp-timer" style="color: #fef08a;">45s</strong> •
+                ⏱️ TIME: <strong id="bp-timer" style="color: #fef08a;">60s</strong> •
                 SCORE: <strong id="bp-score" style="color: #66fcf1;">0</strong> •
                 STREAK: <strong id="bp-streak" style="color: #2ecc71;">0</strong>
             </span>
@@ -897,10 +904,10 @@
             Target Pattern: <span id="bp-pattern-chips"></span>
         </div>
 
-        <canvas id="bubbleCanvas" width="900" height="420" onclick="handleBubbleCanvasClick(event)"></canvas>
+        <canvas id="bubbleCanvas" width="340" height="460" onclick="handleBubbleCanvasClick(event)"></canvas>
 
         <div id="log-box-bp" style="margin-top: 8px; background: var(--bg-dark); border: 1px solid #f472b6; padding: 6px 10px; border-radius: 8px; height: 38px; overflow-y: auto; font-size: 0.78rem; color: #a0aec0;">
-            Pop falling balloons in pattern order before they stack past the red Danger Line! 3 or 4 in a row triggers a screen surge!
+            Watch bubbles &amp; balloons rise/drop inside the tall Tetris box—pop them in pattern order before the Danger Line fills up!
         </div>
 
         <div class="controls">
@@ -947,6 +954,9 @@
     </div>
 
 <script>
+    const BASE_TYCOON_FUNDS = 625;
+    const BASE_VANGUARD_FUNDS = 800;
+
     // --- HIGH SCORE OF THE DAY & WEEKEND CHALLENGE TRACKER ---
     function getTodayDateKey() {
         const d = new Date();
@@ -1009,8 +1019,8 @@
         recordDailyHigh('bubblePop', (dailyRecords.bubblePop && dailyRecords.bubblePop.score) || 0);
         recordDailyHigh('marrowWords', (dailyRecords.marrowWords && dailyRecords.marrowWords.score) || 158);
         recordDailyHigh('nexusBoard', (dailyRecords.nexusBoard && dailyRecords.nexusBoard.score) || 120, ' MR');
-        recordDailyHigh('vanguardTycoon', (dailyRecords.vanguardTycoon && dailyRecords.vanguardTycoon.score) || 625, ' ME');
-        recordDailyHigh('vanguardFaction', (dailyRecords.vanguardFaction && dailyRecords.vanguardFaction.score) || 800, ' VC');
+        recordDailyHigh('vanguardTycoon', (dailyRecords.vanguardTycoon && dailyRecords.vanguardTycoon.score) || BASE_TYCOON_FUNDS, ' ME');
+        recordDailyHigh('vanguardFaction', (dailyRecords.vanguardFaction && dailyRecords.vanguardFaction.score) || BASE_VANGUARD_FUNDS, ' VC');
         recordDailyHigh('bingoLounge', (dailyRecords.bingoLounge && dailyRecords.bingoLounge.score) || 0);
         recordDailyHigh('marrowDeck', (dailyRecords.marrowDeck && dailyRecords.marrowDeck.score) || 0);
     }
@@ -1159,7 +1169,7 @@
                         : false;
                 };
                 return {
-                    tycoonBonusME: state.points >= 300 ? 500 : (state.points >= 100 ? 200 : 0),
+                    tycoonBonusME: 0,
                     tetrisGoldTheme: state.points >= 250 || state.visitedPaths.indexOf("vanguard") !== -1,
                     nexusShieldBoost: state.unlockedClues.length >= 2 || hasTier("orbital_wing"),
                     vanguardStrike: hasTier("vanguard_strike"),
@@ -1321,8 +1331,7 @@
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         
         if (tetrisInterval) { clearInterval(tetrisInterval); tetrisInterval = null; }
-        if (bpTimerInterval) { clearInterval(bpTimerInterval); bpTimerInterval = null; }
-        if (bpAnimFrame) { cancelAnimationFrame(bpAnimFrame); bpAnimFrame = null; }
+        stopBubbleLoop();
 
         if (appKey === 'tycoon') {
             document.getElementById('tycoon-view').classList.remove('hidden');
@@ -1412,16 +1421,11 @@
         if (savedRoom) document.getElementById('room-code-input').value = savedRoom;
         if (savedMode) document.getElementById('game-mode-select').value = savedMode;
 
-        try {
-            if (window.RFLGameHooks) {
-                var perks = window.RFLGameHooks.getActivePerks();
-                if (perks && perks.tycoonBonusME > 0) {
-                    tycoonGame.funds = 625 + perks.tycoonBonusME;
-                    vanguardGame.funds = 800 + perks.tycoonBonusME;
-                    updateVanguardUI();
-                }
-            }
-        } catch (e) {}
+        tycoonGame.funds = BASE_TYCOON_FUNDS;
+        tycoonGame.p2Funds = BASE_TYCOON_FUNDS;
+        vanguardGame.funds = BASE_VANGUARD_FUNDS;
+        vanguardGame.rivalFunds = BASE_VANGUARD_FUNDS;
+        updateVanguardUI();
 
         applyProfileSettings();
         syncScorerTag(getScorerTag());
@@ -1611,15 +1615,14 @@
     }
 
     function resetTycoonGame() {
-        var bonusME = (window.RFLGameHooks && window.RFLGameHooks.getActivePerks().tycoonBonusME) || 0;
-        tycoonGame.funds = 625 + bonusME;
-        tycoonGame.p2Funds = 625;
+        tycoonGame.funds = BASE_TYCOON_FUNDS;
+        tycoonGame.p2Funds = BASE_TYCOON_FUNDS;
         tycoonGame.position = 0;
         tycoonGame.p2Position = 0;
         tycoonGame.tiles = JSON.parse(JSON.stringify(cityBoards[currentCityKey].tiles));
         updateUIFunds();
         drawTycoonBoard();
-        logTycoon(bonusME > 0 ? `Board reset with +${bonusME} ME Legacy Perk bonus!` : `Board reset for all connected players!`);
+        logTycoon(`Board reset with even ${BASE_TYCOON_FUNDS} ME starting funds for both sides!`);
         broadcastState();
     }
 
@@ -1812,8 +1815,8 @@
     let currentCityKey = 'detroit';
 
     let tycoonGame = {
-        funds: 625,
-        p2Funds: 625,
+        funds: BASE_TYCOON_FUNDS,
+        p2Funds: BASE_TYCOON_FUNDS,
         position: 0,
         p2Position: 0,
         p1Name: "Tommy",
@@ -2411,7 +2414,7 @@
         nextCtxEl.fillStyle = nextPieceObj.color;
         let sz = 18;
         let offsetX = (nextCanvasEl.width - nextPieceObj.shape[0].length * sz) / 2;
-        let offsetY = (nextCanvasEl.height - nextPieceObj.shape.length * sz) / 2;
+        let offsetY = (nextCanvasEl.height - nextPieceObj.shape[0].length * sz) / 2;
 
         for (let r = 0; r < nextPieceObj.shape.length; r++) {
             for (let c = 0; c < nextPieceObj.shape[r].length; c++) {
@@ -2452,8 +2455,8 @@
 
     // --- VANGUARD VS SYNDICATE NEON TYCOON ---
     let vanguardGame = {
-        funds: 800,
-        rivalFunds: 800,
+        funds: BASE_VANGUARD_FUNDS,
+        rivalFunds: BASE_VANGUARD_FUNDS,
         position: 0,
         rivalPosition: 0,
         gameMode: "ai",
@@ -2511,15 +2514,14 @@
     }
 
     function resetVanguardGame() {
-        var bonusVC = (window.RFLGameHooks && window.RFLGameHooks.getActivePerks().tycoonBonusME) || 0;
-        vanguardGame.funds = 800 + bonusVC;
-        vanguardGame.rivalFunds = 800;
+        vanguardGame.funds = BASE_VANGUARD_FUNDS;
+        vanguardGame.rivalFunds = BASE_VANGUARD_FUNDS;
         vanguardGame.position = 0;
         vanguardGame.rivalPosition = 0;
         vanguardGame.tiles.forEach(t => { if (t.cost > 0) { t.owner = "None"; t.hasHotel = false; t.isMortgaged = false; } });
         updateVanguardUI();
         drawVanguardBoard();
-        logVanguard(bonusVC > 0 ? `Vanguard Faction Board reset with +${bonusVC} VC Legacy Perk bonus!` : "Vanguard Faction Board reset!");
+        logVanguard(`Vanguard Faction Board reset with even ${BASE_VANGUARD_FUNDS} VC starting credits!`);
         broadcastState();
     }
 
@@ -3764,19 +3766,20 @@
         }
     }
 
-    // --- 8. DUAL-MODE BUBBLE POP (FALLING BALLOON STACKER VS PATTERN CLASSIC + 3x/4x SURGE) ---
+    // --- 8. TETRIS-BOX BUBBLE & BALLOON BUSTER (340x460 VERTICAL COLUMN, RISING OR CEILING DROP) ---
     let bpCanvas, bpCtx;
-    let bpMode = 'stacker';
+    let bpMode = 'stacker'; // 'stacker' (rises from bottom) | 'ceiling' (drops from ceiling) | 'pattern'
     let bubblesList = [];
     let bpTargetPattern = [];
     let bpPatternStep = 0;
     let bpScore = 0;
     let bpStreak = 0;
-    let bpTimeLeft = 45;
+    let bpTimeLeft = 60;
     let bpTimerInterval = null;
     let bpAnimFrame = null;
     let bpSurgeBanner = null;
-    const DANGER_CEILING_Y = 64;
+    const BP_DANGER_Y = 58;
+    const BP_LANES = [62, 130, 198, 266];
 
     const BUBBLE_COLORS = [
         { name: "GOLD", hex: "#ffd700", text: "#000" },
@@ -3796,10 +3799,14 @@
     function setBubbleMode(mode) {
         bpMode = mode;
         document.getElementById('bp-mode-stacker').className = mode === 'stacker' ? "ctrl-btn secondary" : "tab-btn";
-        document.getElementById('bp-mode-pattern').className = mode === 'pattern' ? "ctrl-btn purple" : "tab-btn";
-        document.getElementById('bp-status-label').innerText = mode === 'stacker'
-            ? "🎈 TETRIS DANGER CEILING ACTIVE"
-            : "🎯 CLASSIC PATTERN MODE";
+        document.getElementById('bp-mode-ceiling').className = mode === 'ceiling' ? "ctrl-btn purple" : "tab-btn";
+        document.getElementById('bp-mode-pattern').className = mode === 'pattern' ? "ctrl-btn" : "tab-btn";
+        const lbl = document.getElementById('bp-status-label');
+        if (lbl) {
+            if (mode === 'stacker') lbl.innerText = "🎈 RISING TOWARD TOP DANGER LINE (SLOW PACE)";
+            else if (mode === 'ceiling') lbl.innerText = "🌧️ DROPPING FROM CEILING (SLOW PACE)";
+            else lbl.innerText = "🎯 PATTERN CLASSIC • TETRIS COLUMN";
+        }
         startBubblePopGame();
     }
 
@@ -3829,15 +3836,15 @@
         });
     }
 
-    function spawnFallingBalloon(forceColor) {
+    function spawnVerticalBalloon(forceColor) {
         const col = forceColor || BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)];
-        const lane = Math.floor(Math.random() * 8);
-        const bx = 95 + lane * 100 + (Math.random() * 18 - 9);
+        const laneX = BP_LANES[Math.floor(Math.random() * BP_LANES.length)];
+        const isRising = bpMode === 'stacker';
         bubblesList.push({
-            x: bx,
-            y: DANGER_CEILING_Y + 26,
-            vy: 0.42 + Math.random() * 0.25,
-            r: 28,
+            x: laneX + (Math.random() * 8 - 4),
+            y: isRising ? (422) : (BP_DANGER_Y + 26),
+            vy: isRising ? (-0.24 - Math.random() * 0.12) : (0.24 + Math.random() * 0.12),
+            r: 25,
             color: col,
             swayPhase: Math.random() * Math.PI * 2
         });
@@ -3845,33 +3852,38 @@
 
     function spawnBubbleWave() {
         bubblesList = [];
-        if (bpMode === 'stacker') {
+        if (bpMode === 'stacker' || bpMode === 'ceiling') {
+            const isRising = bpMode === 'stacker';
             for (let i = 0; i < 8; i++) {
                 const col = i < bpTargetPattern.length
                     ? bpTargetPattern[i]
                     : BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)];
+                const laneX = BP_LANES[i % BP_LANES.length];
+                const rowOffset = Math.floor(i / BP_LANES.length) * 56;
                 bubblesList.push({
-                    x: 95 + i * 100,
-                    y: 120 + (i % 2) * 58,
-                    vy: 0.45 + (i % 3) * 0.12,
-                    r: 28,
+                    x: laneX,
+                    y: isRising ? (395 - rowOffset) : (105 + rowOffset),
+                    vy: isRising ? -0.26 : 0.26,
+                    r: 25,
                     color: col,
-                    swayPhase: i * 0.8
+                    swayPhase: i * 0.7
                 });
             }
         } else {
             const guaranteed = bpTargetPattern.map(c => c);
-            for (let i = 0; i < 14; i++) {
+            for (let i = 0; i < 12; i++) {
                 const col = i < guaranteed.length
                     ? guaranteed[i]
                     : BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)];
+                const laneX = BP_LANES[i % BP_LANES.length];
+                const rowY = 105 + Math.floor(i / BP_LANES.length) * 95;
                 bubblesList.push({
-                    x: 90 + (i % 7) * 120 + (Math.random() * 24 - 12),
-                    y: i < 7 ? 135 + (Math.random() * 20 - 10) : 285 + (Math.random() * 20 - 10),
+                    x: laneX,
+                    y: rowY,
                     vy: 0,
-                    r: 32,
+                    r: 25,
                     color: col,
-                    swayPhase: Math.random() * Math.PI * 2
+                    swayPhase: i * 0.5
                 });
             }
         }
@@ -3888,10 +3900,14 @@
         bpSurgeBanner = `${comboCount}x MARROW SURGE!`;
         setTimeout(() => { bpSurgeBanner = null; }, 1100);
 
-        if (bpMode === 'stacker' && bubblesList.length > 0) {
-            const removeCount = comboCount >= 4 ? 5 : 3;
+        if (bubblesList.length > 0) {
+            const removeCount = comboCount >= 4 ? 4 : 2;
             bubblesList.splice(0, Math.min(removeCount, bubblesList.length));
-            bubblesList.forEach(b => { b.y = Math.min(375, b.y + 42); });
+            if (bpMode === 'stacker') {
+                bubblesList.forEach(b => { b.y = Math.min(420, b.y + 38); });
+            } else if (bpMode === 'ceiling') {
+                bubblesList.forEach(b => { b.y = Math.max(BP_DANGER_Y + 36, b.y - 38); });
+            }
         }
         playHubSfx('pattern_win');
         speakGameEvent(`${comboCount} in a row! Marrow Surge!`);
@@ -3909,7 +3925,7 @@
 
         bpScore = 0;
         bpStreak = 0;
-        bpTimeLeft = 45;
+        bpTimeLeft = 60;
         bpSurgeBanner = null;
         document.getElementById('bp-score').innerText = bpScore;
         document.getElementById('bp-streak').innerText = bpStreak;
@@ -3920,47 +3936,67 @@
         playHubSfx('tile');
 
         let spawnTick = 0;
-        function stepBalloonPhysics() {
-            if (bpMode === 'stacker' && bpTimeLeft > 0) {
+        function stepVerticalColumn() {
+            if ((bpMode === 'stacker' || bpMode === 'ceiling') && bpTimeLeft > 0) {
                 spawnTick++;
-                if (spawnTick % 95 === 0 && bubblesList.length < 18) {
+                if (spawnTick % 165 === 0 && bubblesList.length < 16) {
                     const nextCol = bpTargetPattern[bpPatternStep] || null;
-                    spawnFallingBalloon(Math.random() < 0.45 ? nextCol : null);
+                    spawnVerticalBalloon(Math.random() < 0.5 ? nextCol : null);
                 }
 
+                const isRising = bpMode === 'stacker';
                 for (let i = 0; i < bubblesList.length; i++) {
                     const b = bubblesList[i];
-                    b.swayPhase += 0.05;
+                    b.swayPhase += 0.04;
                     b.y += b.vy;
 
-                    const floorLimit = bpCanvas.height - b.r - 12;
-                    if (b.y >= floorLimit) b.y = floorLimit;
-
-                    for (let j = 0; j < bubblesList.length; j++) {
-                        if (i === j) continue;
-                        const other = bubblesList[j];
-                        if (Math.abs(b.x - other.x) < 42 && other.y > b.y && (other.y - b.y) < (b.r + other.r - 2)) {
-                            b.y = other.y - (b.r + other.r - 2);
+                    if (isRising) {
+                        const floorY = bpCanvas.height - b.r - 10;
+                        if (b.y > floorY) b.y = floorY;
+                        for (let j = 0; j < bubblesList.length; j++) {
+                            if (i === j) continue;
+                            const other = bubblesList[j];
+                            if (Math.abs(b.x - other.x) < 38 && other.y < b.y && (b.y - other.y) < (b.r + other.r - 2)) {
+                                b.y = other.y + (b.r + other.r - 2);
+                            }
                         }
-                    }
-
-                    if (b.y - b.r <= DANGER_CEILING_Y) {
-                        stopBubbleLoop();
-                        recordDailyHigh('bubblePop', bpScore);
-                        playHubSfx('wrong');
-                        logBubblePop(`🎈 STACK BLOCKED THE CEILING! Final Score: ${bpScore}. Tap START / NEW ROUND to try again!`);
-                        speakGameEvent(`Balloons hit the danger line! Final score ${bpScore}.`);
-                        drawBubblesScene();
-                        return;
+                        if (b.y - b.r <= BP_DANGER_Y) {
+                            stopBubbleLoop();
+                            recordDailyHigh('bubblePop', bpScore);
+                            playHubSfx('wrong');
+                            logBubblePop(`🎈 STACK REACHED THE TOP DANGER LINE! Score: ${bpScore}. Tap START / NEW ROUND!`);
+                            speakGameEvent(`Stack reached the top! Score ${bpScore}.`);
+                            drawBubblesScene();
+                            return;
+                        }
+                    } else {
+                        const bottomFloorY = bpCanvas.height - b.r - 10;
+                        if (b.y > bottomFloorY) b.y = bottomFloorY;
+                        for (let j = 0; j < bubblesList.length; j++) {
+                            if (i === j) continue;
+                            const other = bubblesList[j];
+                            if (Math.abs(b.x - other.x) < 38 && other.y > b.y && (other.y - b.y) < (b.r + other.r - 2)) {
+                                b.y = other.y - (b.r + other.r - 2);
+                            }
+                        }
+                        if (bubblesList.length >= 16 && b.y - b.r <= BP_DANGER_Y + 8) {
+                            stopBubbleLoop();
+                            recordDailyHigh('bubblePop', bpScore);
+                            playHubSfx('wrong');
+                            logBubblePop(`🌧️ COLUMN FILLED TO THE TOP! Score: ${bpScore}. Tap START / NEW ROUND!`);
+                            speakGameEvent(`Column filled up! Score ${bpScore}.`);
+                            drawBubblesScene();
+                            return;
+                        }
                     }
                 }
             }
             drawBubblesScene();
             if (bpTimeLeft > 0) {
-                bpAnimFrame = requestAnimationFrame(stepBalloonPhysics);
+                bpAnimFrame = requestAnimationFrame(stepVerticalColumn);
             }
         }
-        bpAnimFrame = requestAnimationFrame(stepBalloonPhysics);
+        bpAnimFrame = requestAnimationFrame(stepVerticalColumn);
 
         bpTimerInterval = setInterval(() => {
             bpTimeLeft--;
@@ -4008,27 +4044,27 @@
 
                     if (bpPatternStep >= bpTargetPattern.length) {
                         bpScore += 60;
-                        bpTimeLeft = Math.min(60, bpTimeLeft + 4);
+                        bpTimeLeft = Math.min(75, bpTimeLeft + 5);
                         playHubSfx('pattern_win');
                         if (window.RFLGameHooks) {
                             window.RFLGameHooks.onTycoonTurnOrMatch(25, bpScore);
                         }
-                        logBubblePop(`💥 Pattern Complete! +60 bonus pts, +25 Legacy Pts & +4s! Score: ${bpScore}`);
+                        logBubblePop(`💥 Pattern Complete! +60 bonus pts, +25 Legacy Pts & +5s! Score: ${bpScore}`);
                         cycleBubblePattern();
                         if (bpMode === 'pattern') spawnBubbleWave();
-                        else spawnFallingBalloon(bpTargetPattern[0]);
+                        else spawnVerticalBalloon(bpTargetPattern[0]);
                     } else {
-                        if (bpMode === 'pattern' && bubblesList.length < 6) spawnBubbleWave();
-                        else if (bpMode === 'stacker' && bubblesList.length < 5) spawnFallingBalloon(bpTargetPattern[bpPatternStep]);
+                        if (bpMode === 'pattern' && bubblesList.length < 5) spawnBubbleWave();
+                        else if (bubblesList.length < 4) spawnVerticalBalloon(bpTargetPattern[bpPatternStep]);
                         logBubblePop(`🎈 Popped ${b.color.name} (+${gained} pts)! Next: ${bpTargetPattern[bpPatternStep].name}`);
                     }
                 } else {
                     bpStreak = 0;
                     playHubSfx('wrong');
-                    if (bpMode === 'stacker') {
-                        spawnFallingBalloon(expected);
+                    if (bpMode === 'stacker' || bpMode === 'ceiling') {
+                        spawnVerticalBalloon(expected);
                     }
-                    logBubblePop(`⚠️ Popped ${b.color.name} out of pattern order—match ${expected ? expected.name : "target"}!`);
+                    logBubblePop(`⚠️ Popped ${b.color.name} out of order—match ${expected ? expected.name : "target"}!`);
                 }
 
                 recordDailyHigh('bubblePop', bpScore);
@@ -4046,43 +4082,42 @@
         if (!bpCtx) return;
         bpCtx.clearRect(0, 0, bpCanvas.width, bpCanvas.height);
 
-        bpCtx.strokeStyle = 'rgba(244, 114, 182, 0.12)';
+        // Subtle vertical Tetris-style lanes
+        bpCtx.strokeStyle = 'rgba(244, 114, 182, 0.14)';
         bpCtx.lineWidth = 1;
-        for (let x = 0; x < bpCanvas.width; x += 30) {
+        for (let x = 28; x <= bpCanvas.width - 28; x += 68) {
             bpCtx.beginPath(); bpCtx.moveTo(x, 0); bpCtx.lineTo(x, bpCanvas.height); bpCtx.stroke();
         }
-        for (let y = 0; y < bpCanvas.height; y += 30) {
+        for (let y = 0; y <= bpCanvas.height; y += 34) {
             bpCtx.beginPath(); bpCtx.moveTo(0, y); bpCtx.lineTo(bpCanvas.width, y); bpCtx.stroke();
         }
 
-        drawFamilyCrestSprite(bpCtx, bpCanvas.width / 2, bpCanvas.height / 2 + 25, 86, 86, '#ffd700');
+        drawFamilyCrestSprite(bpCtx, bpCanvas.width / 2, bpCanvas.height / 2 + 20, 82, 82, '#ffd700');
 
-        if (bpMode === 'stacker') {
-            bpCtx.save();
-            bpCtx.strokeStyle = 'rgba(255, 0, 85, 0.75)';
-            bpCtx.setLineDash([8, 6]);
-            bpCtx.lineWidth = 2;
-            bpCtx.beginPath();
-            bpCtx.moveTo(15, DANGER_CEILING_Y);
-            bpCtx.lineTo(bpCanvas.width - 15, DANGER_CEILING_Y);
-            bpCtx.stroke();
-            bpCtx.setLineDash([]);
-            bpCtx.fillStyle = '#ff0055';
-            bpCtx.font = 'bold 10px Courier New';
-            bpCtx.fillText('⚠️ DANGER LINE (DO NOT BLOCK)', 24, DANGER_CEILING_Y - 6);
-            bpCtx.restore();
-        }
+        bpCtx.save();
+        bpCtx.strokeStyle = 'rgba(255, 0, 85, 0.8)';
+        bpCtx.setLineDash([7, 5]);
+        bpCtx.lineWidth = 2;
+        bpCtx.beginPath();
+        bpCtx.moveTo(12, BP_DANGER_Y);
+        bpCtx.lineTo(bpCanvas.width - 12, BP_DANGER_Y);
+        bpCtx.stroke();
+        bpCtx.setLineDash([]);
+        bpCtx.fillStyle = '#ff0055';
+        bpCtx.font = 'bold 10px Courier New';
+        bpCtx.fillText('⚠️ TOP DANGER LINE', 18, BP_DANGER_Y - 7);
+        bpCtx.restore();
 
         bubblesList.forEach(b => {
-            const swayX = b.x + (bpMode === 'stacker' ? Math.sin(b.swayPhase) * 5 : 0);
+            const swayX = b.x + (bpMode !== 'pattern' ? Math.sin(b.swayPhase) * 4 : 0);
             bpCtx.save();
 
-            if (bpMode === 'stacker') {
-                bpCtx.strokeStyle = 'rgba(248, 250, 252, 0.45)';
-                bpCtx.lineWidth = 1.5;
+            if (bpMode !== 'pattern') {
+                bpCtx.strokeStyle = 'rgba(248, 250, 252, 0.42)';
+                bpCtx.lineWidth = 1.4;
                 bpCtx.beginPath();
                 bpCtx.moveTo(swayX, b.y + b.r);
-                bpCtx.quadraticCurveTo(swayX - 6, b.y + b.r + 12, swayX + 3, b.y + b.r + 22);
+                bpCtx.quadraticCurveTo(swayX - 5, b.y + b.r + 10, swayX + 2, b.y + b.r + 18);
                 bpCtx.stroke();
             }
 
@@ -4090,21 +4125,20 @@
             bpCtx.strokeStyle = '#ffffff';
             bpCtx.lineWidth = 2;
             bpCtx.shadowColor = b.color.hex;
-            bpCtx.shadowBlur = 14;
+            bpCtx.shadowBlur = 12;
             bpCtx.beginPath();
-            bpCtx.ellipse(swayX, b.y, b.r * 0.92, b.r * 1.06, 0, 0, Math.PI * 2);
+            bpCtx.ellipse(swayX, b.y, b.r * 0.92, b.r * 1.04, 0, 0, Math.PI * 2);
             bpCtx.fill();
             bpCtx.stroke();
             bpCtx.shadowBlur = 0;
 
-            // Gloss highlight reflection
             bpCtx.fillStyle = 'rgba(255, 255, 255, 0.35)';
             bpCtx.beginPath();
-            bpCtx.ellipse(swayX - b.r * 0.32, b.y - b.r * 0.38, 6, 3, -0.5, 0, Math.PI * 2);
+            bpCtx.ellipse(swayX - b.r * 0.32, b.y - b.r * 0.36, 5, 2.5, -0.5, 0, Math.PI * 2);
             bpCtx.fill();
 
             bpCtx.fillStyle = b.color.text;
-            bpCtx.font = 'bold 10px Courier New';
+            bpCtx.font = 'bold 9.5px Courier New';
             bpCtx.textAlign = 'center';
             bpCtx.textBaseline = 'middle';
             bpCtx.fillText(b.color.name, swayX, b.y);
@@ -4113,17 +4147,17 @@
 
         if (bpSurgeBanner) {
             bpCtx.save();
-            bpCtx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+            bpCtx.fillStyle = 'rgba(2, 6, 23, 0.88)';
             bpCtx.strokeStyle = '#ffd700';
             bpCtx.lineWidth = 2.5;
             bpCtx.beginPath();
-            bpCtx.roundRect(bpCanvas.width / 2 - 140, 22, 280, 34, 10);
+            bpCtx.roundRect(bpCanvas.width / 2 - 122, 16, 244, 30, 8);
             bpCtx.fill();
             bpCtx.stroke();
             bpCtx.fillStyle = '#ffd700';
-            bpCtx.font = 'bold 15px Courier New';
+            bpCtx.font = 'bold 13px Courier New';
             bpCtx.textAlign = 'center';
-            bpCtx.fillText(`⚡ ${bpSurgeBanner}`, bpCanvas.width / 2, 44);
+            bpCtx.fillText(`⚡ ${bpSurgeBanner}`, bpCanvas.width / 2, 35);
             bpCtx.restore();
         }
     }
