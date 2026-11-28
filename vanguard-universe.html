@@ -1172,8 +1172,9 @@
 
     @media (max-width: 600px) {
       .card-img { height: 85px; }
-      .battle-row { grid-template-columns: repeat(2, 1fr); }
-      .controls-grid { grid-template-columns: 1fr; }
+      .battle-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .controls-grid { grid-template-columns: 1fr; gap: 8px; }
+      .btn { min-height: 42px; }
     }
   </style>
 </head>
@@ -1927,6 +1928,26 @@
     const WEEKEND_CHALLENGE_KEY = 'vanguard_weekend_claimed_v1';
     const DAILY_TARGET = 25000;
 
+    let projUidCounter = 1;
+    function nextProjId() {
+      return projUidCounter++;
+    }
+
+    function markAndCheckHit(proj, targetKey, cooldownFrames = 14) {
+      if (!proj.hitCooldowns) proj.hitCooldowns = {};
+      const cur = proj.hitCooldowns[targetKey] || 0;
+      if (cur > 0) return false;
+      proj.hitCooldowns[targetKey] = cooldownFrames;
+      return true;
+    }
+
+    function tickProjectileCooldowns(proj) {
+      if (!proj.hitCooldowns) return;
+      Object.keys(proj.hitCooldowns).forEach((k) => {
+        if (proj.hitCooldowns[k] > 0) proj.hitCooldowns[k]--;
+      });
+    }
+
     function getTodayDateStr() {
       const d = new Date();
       const yyyy = d.getFullYear();
@@ -2277,6 +2298,15 @@
     // --- CARD CLASH ---
     let currentRound = 1;
     let selectedTargetIndex = null;
+    let isClashBusy = false;
+    let clashResetTimeoutId = null;
+    let clashAiTimeoutId = null;
+
+    function clearClashTimers() {
+      if (clashResetTimeoutId) { clearTimeout(clashResetTimeoutId); clashResetTimeoutId = null; }
+      if (clashAiTimeoutId) { clearTimeout(clashAiTimeoutId); clashAiTimeoutId = null; }
+      isClashBusy = false;
+    }
 
     const CLASH_HERO_POOL = [
       { id: "amina", name: "Amina Zazzau", role: "Star-Chart Spear", sprite: "amina-zazzau.png", foil: "foil-platinum", pwr: 88, def: 74, strikeName: "Starlight Volley", specialName: "Return Lightning Spear" },
@@ -2383,12 +2413,12 @@
     }
 
     function selectTarget(index) {
-      if (clashEnemies[index].hp <= 0) return;
+      if (isClashBusy || clashEnemies[index].hp <= 0) return;
       selectedTargetIndex = index;
       document.querySelectorAll('.battle-row .foil-syndicate').forEach(c => c.classList.remove('targeted'));
       const el = document.getElementById('enemy-' + index);
       if (el) el.classList.add('targeted');
-      document.getElementById('clash-status').innerText = `Target locked: ${clashEnemies[index].name}. Choose a hero signature move!`;
+      document.getElementById('clash-status').innerHTML = `Target locked: ${clashEnemies[index].name}. Choose a hero signature move! <span class="round-indicator" id="round-display">Round ${currentRound}</span>`;
     }
 
     function executeAiCounterAttack() {
@@ -2396,7 +2426,7 @@
       const retaliator = liveEnemies[Math.floor(Math.random() * liveEnemies.length)] || clashEnemies[0];
       const aliveHeroIndices = clashHeroes.map((h, i) => h.hp > 0 ? i : -1).filter(i => i !== -1);
       if (aliveHeroIndices.length === 0) {
-        setTimeout(resetCardArena, 1500);
+        clashResetTimeoutId = setTimeout(resetCardArena, 1500);
         return;
       }
       const heroTargetIndex = aliveHeroIndices[Math.floor(Math.random() * aliveHeroIndices.length)];
@@ -2406,18 +2436,21 @@
       const hpEl = document.getElementById('vanguard-hp-' + heroTargetIndex);
       if (hpEl) hpEl.style.width = (heroTarget.hp / heroTarget.maxHp * 100) + '%';
       currentRound++;
-      const rndEl = document.getElementById('round-display');
-      if (rndEl) rndEl.innerText = `Round ${currentRound}`;
+      isClashBusy = false;
+      document.getElementById('clash-status').innerHTML = `${retaliator.name} struck ${heroTarget.name} for ${enemyDmg} DMG! Select your next move. <span class="round-indicator" id="round-display">Round ${currentRound}</span>`;
     }
 
     function executeHeroAction(heroIndex, actionType) {
-      if (selectedTargetIndex === null) {
-        document.getElementById('clash-status').innerText = "⚠️ Select an enemy target card first!";
+      if (isClashBusy) return;
+      if (selectedTargetIndex === null || clashEnemies[selectedTargetIndex].hp <= 0) {
+        document.getElementById('clash-status').innerHTML = `⚠️ Select a live enemy target card first! <span class="round-indicator" id="round-display">Round ${currentRound}</span>`;
         return;
       }
       const hero = clashHeroes[heroIndex];
       const target = clashEnemies[selectedTargetIndex];
-      if (!hero || !target || target.hp <= 0) return;
+      if (!hero || !target || target.hp <= 0 || hero.hp <= 0) return;
+
+      isClashBusy = true;
       const moveLabel = actionType === 'special' ? hero.specialName : hero.strikeName;
       let baseDamage = Math.max(Math.round(hero.pwr - (target.def / 2)), 9);
       if (actionType === 'special') baseDamage = Math.round(baseDamage * 1.38);
@@ -2426,7 +2459,12 @@
       if (hpEl) hpEl.style.width = (target.hp / target.maxHp * 100) + '%';
       playSound(actionType === 'special' ? 'celestial' : 'hit');
       addDailyArcadePoints(baseDamage * 40);
-      document.getElementById('clash-status').innerText = `${hero.name} used ${moveLabel} on ${target.name} for ${baseDamage} DMG!`;
+      document.getElementById('clash-status').innerHTML = `${hero.name} used ${moveLabel} on ${target.name} for ${baseDamage} DMG! <span class="round-indicator" id="round-display">Round ${currentRound}</span>`;
+
+      if (target.hp <= 0) {
+        const nextLive = clashEnemies.findIndex(e => e.hp > 0);
+        selectedTargetIndex = nextLive !== -1 ? nextLive : null;
+      }
 
       if (clashEnemies.every(e => e.hp <= 0)) {
         awardSharedLegacyPoints(35, "clash_win");
@@ -2434,22 +2472,23 @@
         if (window.RFLVanguardGameRewards) {
           window.RFLVanguardGameRewards.unlockSnippet("vanguard-issue-1");
         }
-        setTimeout(() => {
-          document.getElementById('clash-status').innerText = "🏆 Victory! +35 Legacy Pts, +1,200 Daily Score & Issue #1 Snippet unlocked!";
-          setTimeout(resetCardArena, 1800);
+        clashResetTimeoutId = setTimeout(() => {
+          document.getElementById('clash-status').innerHTML = `🏆 Victory! +35 Legacy Pts, +1,200 Daily Score & Issue #1 Snippet unlocked! <span class="round-indicator" id="round-display">Round ${currentRound}</span>`;
+          clashResetTimeoutId = setTimeout(resetCardArena, 1800);
         }, 700);
         return;
       }
-      setTimeout(executeAiCounterAttack, 700);
+      clashAiTimeoutId = setTimeout(executeAiCounterAttack, 700);
     }
 
     function resetCardArena() {
+      clearClashTimers();
       clashEnemies.forEach(e => { e.hp = e.maxHp; });
       syncClashSquadFromSelection();
       currentRound = 1;
       selectedTargetIndex = null;
       renderClashArena();
-      document.getElementById('clash-status').innerText = "Squad synced! Select an enemy target card to begin.";
+      document.getElementById('clash-status').innerHTML = `Squad synced! Select an enemy target card to begin. <span class="round-indicator" id="round-display">Round 1</span>`;
     }
 
     // --- AUDIO ENGINE ---
@@ -2507,6 +2546,13 @@
     let canvas, ctx;
     let animationFrameId = null;
     let enemyAiIntervalId = null;
+
+    function clearAllCombatTimers() {
+      if (bossActionTimer) { clearInterval(bossActionTimer); bossActionTimer = null; }
+      if (spawnIntervalTimer) { clearInterval(spawnIntervalTimer); spawnIntervalTimer = null; }
+      if (waveReinforceTimer) { clearInterval(waveReinforceTimer); waveReinforceTimer = null; }
+      if (countdownState.timerId) { clearInterval(countdownState.timerId); countdownState.timerId = null; }
+    }
 
     const ASSETS = {
       bg: new Image(),
@@ -2704,10 +2750,7 @@
     }
 
     function resetCombatEntitiesAndStates() {
-      if (bossActionTimer) { clearInterval(bossActionTimer); bossActionTimer = null; }
-      if (spawnIntervalTimer) { clearInterval(spawnIntervalTimer); spawnIntervalTimer = null; }
-      if (waveReinforceTimer) { clearInterval(waveReinforceTimer); waveReinforceTimer = null; }
-      if (countdownState.timerId) { clearInterval(countdownState.timerId); countdownState.timerId = null; }
+      clearAllCombatTimers();
 
       countdownState.active = false;
       isPaused = false;
@@ -2881,7 +2924,7 @@
       bossTelegraph.label = label;
       setTimeout(() => {
         bossTelegraph.active = false;
-        if (combatStarted && boss.active && gameActive && !isPaused && !countdownState.active && snareFreezeTimer <= 0) {
+        if (combatStarted && boss.active && gameActive && !isPaused && !countdownState.active && snareFreezeTimer <= 0 && !lionWarActive) {
           callback();
         }
       }, 360);
@@ -3407,7 +3450,7 @@
 
       spawnIntervalTimer = setInterval(() => {
         if (!combatStarted || !gameActive || isPaused || countdownState.active || pendingSpawns <= 0) {
-          if (pendingSpawns <= 0) clearInterval(spawnIntervalTimer);
+          if (pendingSpawns <= 0 && spawnIntervalTimer) { clearInterval(spawnIntervalTimer); spawnIntervalTimer = null; }
           return;
         }
         const activeCount = enemies.filter(e => e.active).length;
@@ -3455,6 +3498,7 @@
         }
 
         enemies.push({
+          uid: nextProjId(),
           type,
           x: 505 + i * 52,
           y: spawnY,
@@ -3541,7 +3585,7 @@
           triggerBossTelegraph("⚠️ RIFT-BORER TWIN DRILL & CANNON", () => {
             playSound('cannon');
             screenShake = 18;
-            groundShockwaves.push({ x: boss.x, vx: dir * 8.2, radius: 28, color: "#f59e0b", dmg: boss.dmg });
+            groundShockwaves.push({ id: nextProjId(), x: boss.x, vx: dir * 8.2, radius: 28, color: "#f59e0b", dmg: boss.dmg });
             enemyBullets.push({ x: boss.x, y: 184, vx: dir * 7.8, dmg: boss.dmg, color: "#ef4444" });
             enemyBullets.push({ x: boss.x, y: 212, vx: dir * 7.2, dmg: boss.dmg, color: "#f97316" });
           });
@@ -3565,7 +3609,7 @@
           enemyBullets.push({ x: boss.x + 30, y: 186, vx: shotDir * (boss.phase === 2 ? 8.2 : 7.0), dmg: boss.dmg, color: "#38bdf8" });
           enemyBullets.push({ x: boss.x + 30, y: 214, vx: shotDir * (boss.phase === 2 ? 7.4 : 6.2), dmg: boss.dmg, color: "#f59e0b" });
           if (boss.phase === 2) {
-            groundShockwaves.push({ x: boss.x + 30, vx: shotDir * 7.2, radius: 22, color: "#38bdf8", dmg: boss.dmg });
+            groundShockwaves.push({ id: nextProjId(), x: boss.x + 30, vx: shotDir * 7.2, radius: 22, color: "#38bdf8", dmg: boss.dmg });
           }
           return;
         }
@@ -3587,10 +3631,10 @@
           triggerBossTelegraph("⚠️ FAULTLINE DRILL & SLAG", () => {
             playSound('cannon');
             screenShake = 17;
-            groundShockwaves.push({ x: boss.x, vx: dir * 8.2, radius: 28, color: "#ef4444", dmg: boss.dmg });
+            groundShockwaves.push({ id: nextProjId(), x: boss.x, vx: dir * 8.2, radius: 28, color: "#ef4444", dmg: boss.dmg });
             enemyBullets.push({ x: boss.x, y: 188, vx: dir * 7.6, dmg: boss.dmg, color: "#84cc16" });
             if (boss.phase === 2) {
-              lavaWaves.push({ x: boss.x, y: 242, vx: dir * 6.8, width: 58, height: 28, dmg: boss.dmg, life: 85 });
+              lavaWaves.push({ id: nextProjId(), x: boss.x, y: 242, vx: dir * 6.8, width: 58, height: 28, dmg: boss.dmg, life: 85 });
             }
           });
         } else if (bossType === "malakor") {
@@ -3598,17 +3642,17 @@
           screenShake = 14;
           enemyBullets.push({ x: boss.x, y: 184, vx: dir * 8.2, dmg: boss.dmg, color: "#ef4444" });
           enemyBullets.push({ x: boss.x, y: 214, vx: dir * 7.4, dmg: boss.dmg, color: "#dc2626" });
-          groundShockwaves.push({ x: boss.x, vx: dir * 7.0, radius: 22, color: "#ef4444", dmg: boss.dmg });
+          groundShockwaves.push({ id: nextProjId(), x: boss.x, vx: dir * 7.0, radius: 22, color: "#ef4444", dmg: boss.dmg });
         } else if (bossType === "kensei") {
           playSound('zap');
           screenShake = 13;
-          waveSurges.push({ x: boss.x, y: 205, vx: dir * 8.8, width: 64, height: 50, life: 65 });
+          waveSurges.push({ id: nextProjId(), x: boss.x, y: 205, vx: dir * 8.8, width: 64, height: 50, life: 65, friendly: false });
           enemyBullets.push({ x: boss.x, y: 196, vx: dir * 8.2, dmg: boss.dmg, color: "#e2e8f0" });
         } else if (bossType === "dread") {
           triggerBossTelegraph("⚠️ SUB-BASS OVERLOAD", () => {
             playSound('drum');
             screenShake = 17;
-            groundShockwaves.push({ x: boss.x, vx: dir * 8.0, radius: 30, color: "#a855f7", dmg: boss.dmg });
+            groundShockwaves.push({ id: nextProjId(), x: boss.x, vx: dir * 8.0, radius: 30, color: "#a855f7", dmg: boss.dmg });
             enemyBullets.push({ x: boss.x, y: 190, vx: dir * 7.6, dmg: boss.dmg, color: "#c084fc" });
           });
         } else if (bossType === "vipera") {
@@ -3620,25 +3664,25 @@
           triggerBossTelegraph("⚠️ MOLTEN LAVA ERUPTION", () => {
             playSound('cannon');
             screenShake = 16;
-            lavaWaves.push({ x: boss.x, y: 242, vx: dir * 7.2, width: 64, height: 34, dmg: boss.dmg, life: 95 });
+            lavaWaves.push({ id: nextProjId(), x: boss.x, y: 242, vx: dir * 7.2, width: 64, height: 34, dmg: boss.dmg, life: 95 });
             enemyBullets.push({ x: boss.x, y: 188, vx: dir * 7.4, dmg: boss.dmg, color: "#f97316" });
           });
         } else if (bossType === "nullbyte") {
           playSound('zap');
-          computerDiscs.push({ x: boss.x, y: 182, vx: dir * 8.2, rot: 0, dmg: boss.dmg, life: 90 });
-          computerDiscs.push({ x: boss.x, y: 216, vx: dir * 7.2, rot: 1.2, dmg: boss.dmg, life: 90 });
+          computerDiscs.push({ id: nextProjId(), x: boss.x, y: 182, vx: dir * 8.2, rot: 0, dmg: boss.dmg, life: 90 });
+          computerDiscs.push({ id: nextProjId(), x: boss.x, y: 216, vx: dir * 7.2, rot: 1.2, dmg: boss.dmg, life: 90 });
         } else if (bossType === "dreadnought") {
           triggerBossTelegraph("⚠️ SIEGE CANNON & QUAKE", () => {
             playSound('cannon');
             screenShake = 16;
             enemyBullets.push({ x: boss.x, y: 192, vx: dir * 8.0, dmg: boss.dmg });
-            groundShockwaves.push({ x: boss.x, vx: dir * 7.6, radius: 26, color: "#f59e0b", dmg: boss.dmg });
+            groundShockwaves.push({ id: nextProjId(), x: boss.x, vx: dir * 7.6, radius: 26, color: "#f59e0b", dmg: boss.dmg });
           });
         } else if (bossType === "ironclad" || bossType === "krieg") {
           triggerBossTelegraph("⚠️ SEISMIC QUAKE BARRAGE", () => {
             playSound('hit');
             screenShake = 16;
-            groundShockwaves.push({ x: boss.x, vx: dir * 7.8, radius: 28, color: "#f97316", dmg: boss.dmg });
+            groundShockwaves.push({ id: nextProjId(), x: boss.x, vx: dir * 7.8, radius: 28, color: "#f97316", dmg: boss.dmg });
             enemyBullets.push({ x: boss.x, y: 190, vx: dir * 7.4, dmg: boss.dmg, color: "#fb923c" });
           });
         } else if (bossType === "apex") {
@@ -3648,20 +3692,20 @@
           enemyBullets.push({ x: boss.x, y: 218, vx: dir * 7.4, dmg: boss.dmg, color: "#66fcf1" });
         } else if (bossType === "wakan") {
           playSound('orb');
-          groundShockwaves.push({ x: boss.x, vx: dir * 7.4, radius: 28, color: "#06b6d4", dmg: boss.dmg });
+          groundShockwaves.push({ id: nextProjId(), x: boss.x, vx: dir * 7.4, radius: 28, color: "#06b6d4", dmg: boss.dmg });
           enemyBullets.push({ x: boss.x, y: 192, vx: dir * 7.2, dmg: boss.dmg, color: "#38bdf8" });
         } else if (bossType === "sundiata") {
           playSound('drum');
           screenShake = 15;
-          groundShockwaves.push({ x: boss.x, vx: dir * 7.8, radius: 28, color: "#f59e0b", dmg: boss.dmg });
+          groundShockwaves.push({ id: nextProjId(), x: boss.x, vx: dir * 7.8, radius: 28, color: "#f59e0b", dmg: boss.dmg });
           enemyBullets.push({ x: boss.x, y: 192, vx: dir * 7.2, dmg: boss.dmg, color: "#facc15" });
         } else if (bossType === "kofi") {
           playSound('cannon');
           screenShake = 15;
-          lavaWaves.push({ x: boss.x, y: 242, vx: dir * 7.0, width: 64, height: 32, dmg: boss.dmg, life: 90, goldAlloy: true });
+          lavaWaves.push({ id: nextProjId(), x: boss.x, y: 242, vx: dir * 7.0, width: 64, height: 32, dmg: boss.dmg, life: 90, goldAlloy: true });
         } else if (bossType === "nenambi") {
           playSound('sonic');
-          groundShockwaves.push({ x: boss.x, vx: dir * 7.8, radius: 26, color: "#66fcf1", dmg: boss.dmg });
+          groundShockwaves.push({ id: nextProjId(), x: boss.x, vx: dir * 7.8, radius: 26, color: "#66fcf1", dmg: boss.dmg });
           enemyBullets.push({ x: boss.x, y: 188, vx: dir * 8.0, dmg: boss.dmg, color: "#f59e0b" });
         } else if (bossType === "xochitl") {
           playSound('zap');
@@ -3705,7 +3749,7 @@
       chronoSlowActive = false;
       snareFreezeTimer = 0;
       lionWarActive = false;
-      if (bossActionTimer) { clearInterval(bossActionTimer); bossActionTimer = null; }
+      clearAllCombatTimers();
       playSound('hit');
       screenShake = 22;
 
@@ -3880,8 +3924,7 @@
       chronoSlowActive = false;
       lionWarActive = false;
       gauntletNoRetryRun = false;
-      if (bossActionTimer) { clearInterval(bossActionTimer); bossActionTimer = null; }
-      if (spawnIntervalTimer) { clearInterval(spawnIntervalTimer); spawnIntervalTimer = null; }
+      clearAllCombatTimers();
       playSound('hit');
       document.getElementById("defeatBody").innerText =
         brawlerMode === "versus" && gauntletMode
@@ -4121,6 +4164,7 @@
       addDailyArcadePoints(totalDmg * 85);
 
       if (target === boss) {
+        if (!boss.active) return;
         if (boss.shieldActive && !lionWarActive) {
           totalDmg = Math.max(1, Math.floor(totalDmg * 0.45));
         }
@@ -4161,31 +4205,28 @@
       if (shieldBonus > 0) absorbedCharge = 0;
 
       if (nenambiWaveWingActive) {
-        waveSurges.push({ x: leadX + 35, y: 202 - leadY, vx: attackDir * 11.2, width: 66, height: 50, life: 45, color: "#66fcf1" });
+        waveSurges.push({ id: nextProjId(), x: leadX + 35, y: 202 - leadY, vx: attackDir * 11.2, width: 66, height: 50, life: 45, color: "#66fcf1", friendly: true, dmg: 2 });
       }
 
       if (activeLead === "kensei") {
         playSound('zap');
         screenShake = 12;
-        waveSurges.push({ x: leadX + 35, y: 205 - leadY, vx: attackDir * 10.6, width: 68, height: 52, life: 60, color: "#e2e8f0" });
-        applyDamageToTarget(target, 3, "#e2e8f0");
+        waveSurges.push({ id: nextProjId(), x: leadX + 35, y: 205 - leadY, vx: attackDir * 10.6, width: 68, height: 52, life: 60, color: "#e2e8f0", friendly: true, dmg: 3 });
         logBrawler("⚔️ Shadow Kensei unleashes a Spirit-Steel Katana Wind Slash!");
       } else if (activeLead === "nanami_void") {
         playSound('zap');
         screenShake = 14;
-        waveSurges.push({ x: leadX + 35, y: 205 - leadY, vx: attackDir * 10.8, width: 70, height: 52, life: 60, color: "#f97316" });
-        applyDamageToTarget(target, 4, "#f97316");
+        waveSurges.push({ id: nextProjId(), x: leadX + 35, y: 205 - leadY, vx: attackDir * 10.8, width: 70, height: 52, life: 60, color: "#f97316", friendly: true, dmg: 4 });
         logBrawler("🔥 Nanami Void lashes out with Corrupted Prime Flare!");
       } else if (activeLead === "riftborer") {
         playSound('cannon');
         screenShake = 16;
-        groundShockwaves.push({ x: leadX + 35, vx: attackDir * 8.2, radius: 28, color: "#f59e0b", dmg: 3, friendly: true });
+        groundShockwaves.push({ id: nextProjId(), x: leadX + 35, vx: attackDir * 8.2, radius: 28, color: "#f59e0b", dmg: 3, friendly: true });
         logBrawler("🔩 Rift-Borer drives twin Ouroboros drills into the deck!");
       } else if (activeLead === "nenambi") {
         playSound('sonic');
         screenShake = 12;
-        waveSurges.push({ x: leadX + 35, y: 205 - leadY, vx: attackDir * 10.4, width: 70, height: 54, life: 62, color: "#f59e0b" });
-        applyDamageToTarget(target, 3, "#f59e0b");
+        waveSurges.push({ id: nextProjId(), x: leadX + 35, y: 205 - leadY, vx: attackDir * 10.4, width: 70, height: 54, life: 62, color: "#f59e0b", friendly: true, dmg: 3 });
         logBrawler("🔊 Nénambi Prime channels 1,080 Hz Acoustic Shear through his bronze gauntlets!");
       } else if (activeLead === "xochitl") {
         playSound('zap');
@@ -4197,6 +4238,7 @@
         [-0.14, 0, 0.14].forEach((offset, idx) => {
           const ang = baseAng + offset;
           daggers.push({
+            id: nextProjId(),
             x: originX,
             y: originY,
             vx: Math.cos(ang) * 10.4,
@@ -4210,13 +4252,12 @@
       } else if (activeLead === "tectonox") {
         playSound('cannon');
         screenShake = 16;
-        groundShockwaves.push({ x: leadX + 35, vx: attackDir * 8.0, radius: 28, color: "#ef4444", dmg: 3, friendly: true });
+        groundShockwaves.push({ id: nextProjId(), x: leadX + 35, vx: attackDir * 8.0, radius: 28, color: "#ef4444", dmg: 3, friendly: true });
         logBrawler("🔩 AS-TAC / Tectonox triggers Faultline Liquefaction with his twin mining drills!");
       } else if (activeLead === "malakor") {
         playSound('zap');
         screenShake = 12;
-        waveSurges.push({ x: leadX + 35, y: 204 - leadY, vx: attackDir * 10.0, width: 64, height: 48, life: 55, color: "#ef4444" });
-        applyDamageToTarget(target, 3, "#ef4444");
+        waveSurges.push({ id: nextProjId(), x: leadX + 35, y: 204 - leadY, vx: attackDir * 10.0, width: 64, height: 48, life: 55, color: "#ef4444", friendly: true, dmg: 3 });
         logBrawler("🔱 Malakor lunges forward with a crimson glaive shock-arc!");
       } else if (activeLead === "kofi") {
         playSound('hit');
@@ -4224,46 +4265,45 @@
         kofiHammerSwing.active = true;
         kofiHammerSwing.timer = kofiHammerSwing.maxTimer;
         createBurstParticles(leadX + 45, 225, "#fbbf24", 20);
-        groundShockwaves.push({ x: leadX + 38, vx: attackDir * 7.8, radius: 22, color: "#fbbf24", dmg: 3, friendly: true });
+        groundShockwaves.push({ id: nextProjId(), x: leadX + 38, vx: attackDir * 7.8, radius: 22, color: "#fbbf24", dmg: 3, friendly: true });
         logBrawler("🔨 Kofi Osei slams his Kinetic Crucible Hammer, sending golden sparks flying!");
       } else if (activeLead === "wakan") {
         playSound('orb');
         screenShake = 13;
-        tsunamiWaves.push({ x: leadX + 35, y: 244, vx: attackDir * 8.6, width: 76, height: 56, life: 78 });
+        tsunamiWaves.push({ id: nextProjId(), x: leadX + 35, y: 244, vx: attackDir * 8.6, width: 76, height: 56, life: 78 });
         logBrawler("🌊 Wakan blows the Guamo conch horn—unleashing a crashing Caribbean Tsunami!");
       } else if (activeLead === "sundiata") {
         playSound('drum');
         screenShake = 15;
         sundiataDrumBeat.active = true;
         sundiataDrumBeat.timer = sundiataDrumBeat.maxTimer;
-        groundShockwaves.push({ x: leadX + 35, vx: attackDir * 8.2, radius: 26, color: "#f59e0b", dmg: 3, friendly: true });
+        groundShockwaves.push({ id: nextProjId(), x: leadX + 35, vx: attackDir * 8.2, radius: 26, color: "#f59e0b", dmg: 3, friendly: true });
         logBrawler("🥁 Simeonic Prime beats the sacred bronze dundun drum—sending a seismic ground wave!");
       } else if (activeLead === "amina") {
         playSound('celestial');
         screenShake = 12;
-        daggers.push({ x: targetX - 30, y: 22, vx: 3.4, vy: 11.2, length: 26, width: 4.5, color: "#fde047" });
-        daggers.push({ x: targetX - 10, y: 14, vx: 2.2, vy: 11.8, length: 28, width: 5, color: "#66fcf1" });
-        daggers.push({ x: targetX + 10, y: 24, vx: 1.0, vy: 11.2, length: 26, width: 4.5, color: "#fde047" });
+        daggers.push({ id: nextProjId(), x: targetX - 30, y: 22, vx: 3.4, vy: 11.2, length: 26, width: 4.5, color: "#fde047" });
+        daggers.push({ id: nextProjId(), x: targetX - 10, y: 14, vx: 2.2, vy: 11.8, length: 28, width: 5, color: "#66fcf1" });
+        daggers.push({ id: nextProjId(), x: targetX + 10, y: 24, vx: 1.0, vy: 11.2, length: 26, width: 4.5, color: "#fde047" });
         logBrawler("✨ Amina Zazzau rains condensed Star-Chart Arrows from the night sky!");
       } else if (activeLead === "dread") {
         playSound('drum');
         screenShake = 15;
-        groundShockwaves.push({ x: leadX + 35, vx: attackDir * 8.4, radius: 26, color: "#a855f7", dmg: 3, friendly: true });
+        groundShockwaves.push({ id: nextProjId(), x: leadX + 35, vx: attackDir * 8.4, radius: 26, color: "#a855f7", dmg: 3, friendly: true });
         logBrawler("🔊 Dread Harmonic blasts a heavy sub-bass shockwave!");
       } else if (activeLead === "vipera") {
         playSound('zap');
         screenShake = 11;
-        waveSurges.push({ x: leadX + 35, y: 205 - leadY, vx: attackDir * 9.6, width: 62, height: 48, life: 55, color: "#22c55e" });
-        applyDamageToTarget(target, 3, "#22c55e");
+        waveSurges.push({ id: nextProjId(), x: leadX + 35, y: 205 - leadY, vx: attackDir * 9.6, width: 62, height: 48, life: 55, color: "#22c55e", friendly: true, dmg: 3 });
         logBrawler("🐍 Vipera strikes with an emerald bio-kinetic fang arc!");
       } else if (activeLead === "magma") {
         playSound('cannon');
         screenShake = 13;
-        lavaWaves.push({ x: leadX + 35, y: 244, vx: attackDir * 7.5, width: 64, height: 32, dmg: 3, life: 85, friendly: true });
+        lavaWaves.push({ id: nextProjId(), x: leadX + 35, y: 244, vx: attackDir * 7.5, width: 64, height: 32, dmg: 3, life: 85, friendly: true });
         logBrawler("🌋 Magma-Weaver sends a surging wave of molten lava across the arena!");
       } else if (activeLead === "nullbyte") {
         playSound('zap');
-        computerDiscs.push({ x: leadX + 35, y: 198 - leadY, vx: attackDir * 9.0, rot: 0, dmg: 3, life: 80, friendly: true });
+        computerDiscs.push({ id: nextProjId(), x: leadX + 35, y: 198 - leadY, vx: attackDir * 9.0, rot: 0, dmg: 3, life: 80, friendly: true });
         logBrawler("💿 Null-Byte hurls a high-speed spinning computer disc!");
       } else if (activeLead === "prism") {
         playSound('warp');
@@ -4296,7 +4336,7 @@
       if (activeLead === "nanami_void") {
         playSound('orb');
         plasmaOrbs.push({
-          x: leadX + 35, y: 200 - leadY, vx: attackDir * 8.2, vy: 0,
+          id: nextProjId(), x: leadX + 35, y: 200 - leadY, vx: attackDir * 8.2, vy: 0,
           radius: 16, life: 90, color: "#f97316", vortex: true
         });
         logBrawler("🌀 Nanami Void launches a corrupted orange-teal Shadow Mirror orb!");
@@ -4305,14 +4345,14 @@
 
       if (activeLead === "riftborer") {
         playSound('cannon');
-        lavaWaves.push({ x: leadX + 35, y: 244, vx: attackDir * 7.8, width: 68, height: 32, dmg: 4, life: 85, friendly: true });
+        lavaWaves.push({ id: nextProjId(), x: leadX + 35, y: 244, vx: attackDir * 7.8, width: 68, height: 32, dmg: 4, life: 85, friendly: true });
         logBrawler("💥 Rift-Borer fires a heavy siege shock-torrent!");
         return;
       }
 
       if (activeLead === "kensei") {
         playSound('zap');
-        spears.push({ x: leadX + 35, y: 196 - leadY, vx: attackDir * 11.4, vy: 0, returning: false, hitOnce: false, life: 105, color: "#e2e8f0" });
+        spears.push({ id: nextProjId(), x: leadX + 35, y: 196 - leadY, vx: attackDir * 11.4, vy: 0, returning: false, hitOnce: false, life: 105, color: "#e2e8f0" });
         logBrawler("🌙 Shadow Kensei launches a boomerang IAI Spirit-Steel Crescent!");
         return;
       }
@@ -4320,7 +4360,7 @@
       if (activeLead === "nenambi") {
         playSound('sonic');
         screenShake = 13;
-        sonicRings.push({ x: leadX + 38, y: 204 - leadY, vx: attackDir * 7.4, radius: 14, maxRadius: 42, life: 75 });
+        sonicRings.push({ id: nextProjId(), x: leadX + 38, y: 204 - leadY, vx: attackDir * 7.4, radius: 14, maxRadius: 42, life: 75 });
         logBrawler("〰️ Nénambi Prime plants both gauntlets—projecting a 2,160 Hz Concentric Wavefront!");
         return;
       }
@@ -4328,35 +4368,35 @@
       if (activeLead === "kofi") {
         playSound('cannon');
         screenShake = 14;
-        lavaWaves.push({ x: leadX + 35, y: 244, vx: attackDir * 7.8, width: 68, height: 34, dmg: 4, life: 88, friendly: true, goldAlloy: true });
+        lavaWaves.push({ id: nextProjId(), x: leadX + 35, y: 244, vx: attackDir * 7.8, width: 68, height: 34, dmg: 4, life: 88, friendly: true, goldAlloy: true });
         logBrawler("🔥 Kofi Osei pours a surging wave of liquid Akan Gold Alloy!");
         return;
       }
 
       if (activeLead === "tectonox") {
         playSound('cannon');
-        lavaWaves.push({ x: leadX + 35, y: 244, vx: attackDir * 7.6, width: 66, height: 32, dmg: 4, life: 85, friendly: true });
+        lavaWaves.push({ id: nextProjId(), x: leadX + 35, y: 244, vx: attackDir * 7.6, width: 66, height: 32, dmg: 4, life: 85, friendly: true });
         logBrawler("☣️ AS-TAC / Tectonox vents superheated Acidic Slag Torrents across the floor!");
         return;
       }
 
       if (activeLead === "malakor") {
         playSound('net');
-        waterNets.push({ x: leadX + 35, y: 204 - leadY, vx: attackDir * 8.8, radius: 22, life: 75, color: "#ef4444" });
+        waterNets.push({ id: nextProjId(), x: leadX + 35, y: 204 - leadY, vx: attackDir * 8.8, radius: 22, life: 75, color: "#ef4444" });
         logBrawler("🩸 Malakor whips out crimson Oroboro tendrils to snare the target!");
         return;
       }
 
       if (activeLead === "wakan") {
         playSound('net');
-        waterNets.push({ x: leadX + 35, y: 204 - leadY, vx: attackDir * 8.6, radius: 22, life: 75, color: "#66fcf1" });
+        waterNets.push({ id: nextProjId(), x: leadX + 35, y: 204 - leadY, vx: attackDir * 8.6, radius: 22, life: 75, color: "#66fcf1" });
         logBrawler("🕸️ Wakan casts a Hydro Water Net to snare and freeze the enemy!");
         return;
       }
 
       if (activeLead === "amina") {
         playSound('zap');
-        spears.push({ x: leadX + 35, y: 196 - leadY, vx: attackDir * 10.8, vy: 0, returning: false, hitOnce: false, life: 110, color: "#66fcf1" });
+        spears.push({ id: nextProjId(), x: leadX + 35, y: 196 - leadY, vx: attackDir * 10.8, vy: 0, returning: false, hitOnce: false, life: 110, color: "#66fcf1" });
         logBrawler("🗡️ Amina Zazzau hurls her returning Lightning Spear!");
         return;
       }
@@ -4365,7 +4405,7 @@
         playSound('roar');
         screenShake = 15;
         lionRoars.push({
-          x: leadX + 25, y: 195 - leadY, vx: attackDir * 9.0,
+          id: nextProjId(), x: leadX + 25, y: 195 - leadY, vx: attackDir * 9.0,
           width: 170, height: 120, scale: 0.78, alpha: 0.92, life: 80
         });
         logBrawler("🦁 Simeonic Prime unleashes a towering 20-foot Solar Lion Roar!");
@@ -4385,15 +4425,15 @@
         } else {
           playSound('zap');
           const aim = computeAimedVelocity(xochitlFlight.x + 24, xochitlFlight.y + 34, 8.8);
-          daggers.push({ x: xochitlFlight.x + 24, y: xochitlFlight.y + 34, vx: aim.vx, vy: aim.vy, length: 20, width: 4, color: "#f97316" });
+          daggers.push({ id: nextProjId(), x: xochitlFlight.x + 24, y: xochitlFlight.y + 34, vx: aim.vx, vy: aim.vy, length: 20, width: 4, color: "#f97316" });
         }
         return;
       }
 
       if (activeLead === "nullbyte") {
         playSound('zap');
-        computerDiscs.push({ x: leadX + 35, y: 186 - leadY, vx: attackDir * 9.2, rot: 0, dmg: 3, life: 80, friendly: true });
-        computerDiscs.push({ x: leadX + 35, y: 214 - leadY, vx: attackDir * 8.2, rot: 1.5, dmg: 3, life: 80, friendly: true });
+        computerDiscs.push({ id: nextProjId(), x: leadX + 35, y: 186 - leadY, vx: attackDir * 9.2, rot: 0, dmg: 3, life: 80, friendly: true });
+        computerDiscs.push({ id: nextProjId(), x: leadX + 35, y: 214 - leadY, vx: attackDir * 8.2, rot: 1.5, dmg: 3, life: 80, friendly: true });
         logBrawler("💾 Null-Byte launches a twin computer disc volley!");
         return;
       }
@@ -4401,7 +4441,7 @@
       if (activeLead === "marcus") {
         playSound('orb');
         plasmaOrbs.push({
-          x: leadX + 35, y: 200 - leadY, vx: attackDir * 7.6, vy: 0,
+          id: nextProjId(), x: leadX + 35, y: 200 - leadY, vx: attackDir * 7.6, vy: 0,
           radius: 15, life: 88, color: "#38bdf8", vortex: true
         });
         logBrawler("🌀 Marcus Prime launches a spinning Juracán Bio-Electric Vortex!");
@@ -4411,7 +4451,7 @@
       playSound('orb');
       const orbColor = activeLead === "vipera" ? "#22c55e" : (activeLead === "dread" ? "#c084fc" : (activeLead === "magma" ? "#ef4444" : "#38bdf8"));
       plasmaOrbs.push({
-        x: leadX + 35, y: 200 - leadY, vx: attackDir * 7.2, vy: 0,
+        id: nextProjId(), x: leadX + 35, y: 200 - leadY, vx: attackDir * 7.2, vy: 0,
         radius: 13, life: 85, color: orbColor
       });
     }
@@ -4474,7 +4514,7 @@
         generateLightning(baseX + 55, baseY + 26, tx, ty - 14, 16);
         generateLightning(baseX + 55, baseY + 44, tx, ty + 14, 16);
         lionRoars.push({
-          x: baseX + 60, y: baseY + 28, vx: 10.5,
+          id: nextProjId(), x: baseX + 60, y: baseY + 28, vx: 10.5,
           width: 210, height: 140, scale: 1.12, alpha: 0.95, life: 70
         });
         addDailyArcadePoints(650);
@@ -4530,12 +4570,12 @@
       const ty = boss.active ? (205 + boss.y) : 205;
 
       lionRoars.push({
-        x: baseX + 65, y: baseY + 26, vx: 10.2,
+        id: nextProjId(), x: baseX + 65, y: baseY + 26, vx: 10.2,
         width: 215, height: 145, scale: 1.15, alpha: 0.96, life: 95
       });
       generateLightning(baseX + 55, baseY + 24, tx, ty - 16, 15);
       generateLightning(baseX + 55, baseY + 42, tx, ty + 16, 15);
-      sonicRings.push({ x: baseX + 60, y: baseY + 34, vx: 8.2, radius: 18, maxRadius: 70, life: 70 });
+      sonicRings.push({ id: nextProjId(), x: baseX + 60, y: baseY + 34, vx: 8.2, radius: 18, maxRadius: 70, life: 70 });
 
       if (boss.active) {
         const drain = Math.max(20, Math.round(boss.maxHp * 0.24));
@@ -5360,7 +5400,7 @@
           if (aiPartner.cooldown >= 150) {
             aiPartner.cooldown = 0;
             plasmaOrbs.push({
-              x: aiPartner.x + 42, y: 196, vx: 7.4, vy: 0,
+              id: nextProjId(), x: aiPartner.x + 42, y: 196, vx: 7.4, vy: 0,
               radius: 8, life: 70, color: "#fbbf24"
             });
           }
@@ -5406,6 +5446,7 @@
                 playSound('zap');
                 const aim = computeAimedVelocity(xochitlFlight.x + 22, xochitlFlight.y + 34, 8.6);
                 daggers.push({
+                  id: nextProjId(),
                   x: xochitlFlight.x + 22,
                   y: xochitlFlight.y + 34,
                   vx: aim.vx,
@@ -5423,7 +5464,7 @@
               xochitlFlight.diveAngle = 0.45;
               if (xochitlFlight.timer % 4 === 0 && xochitlFlight.timer < 28) {
                 const aim = computeAimedVelocity(xochitlFlight.x + 24, xochitlFlight.y + 36, 9.2);
-                daggers.push({ x: xochitlFlight.x + 24, y: xochitlFlight.y + 36, vx: aim.vx, vy: aim.vy, length: 22, width: 4.5, color: "#f97316" });
+                daggers.push({ id: nextProjId(), x: xochitlFlight.x + 24, y: xochitlFlight.y + 36, vx: aim.vx, vy: aim.vy, length: 22, width: 4.5, color: "#f97316" });
               }
               if (xochitlFlight.timer > 34) xochitlFlight.state = 'TOUCHDOWN';
             } else if (xochitlFlight.state === 'TOUCHDOWN') {
@@ -5478,6 +5519,7 @@
       for (let sr = sonicRings.length - 1; sr >= 0; sr--) {
         const ring = sonicRings[sr];
         if (combatStarted && !isPaused && !countdownState.active) {
+          tickProjectileCooldowns(ring);
           ring.x += ring.vx;
           ring.radius = Math.min(ring.maxRadius, ring.radius + 0.65);
           ring.life--;
@@ -5495,13 +5537,11 @@
         ctx.stroke();
         ctx.restore();
 
-        if (boss.active && Math.abs(ring.x - (boss.x + 35)) < ring.radius + 25) {
+        if (boss.active && Math.abs(ring.x - (boss.x + 35)) < ring.radius + 25 && markAndCheckHit(ring, "boss", 16)) {
           applyDamageToTarget(boss, 3, "#f59e0b");
-          sonicRings.splice(sr, 1);
-          continue;
         }
         enemies.forEach(mob => {
-          if (mob.active && Math.abs(ring.x - mob.x) < ring.radius + 20) {
+          if (mob.active && Math.abs(ring.x - mob.x) < ring.radius + 20 && markAndCheckHit(ring, "e_" + mob.uid, 16)) {
             applyDamageToTarget(mob, 3, "#f59e0b");
           }
         });
@@ -5511,6 +5551,7 @@
       for (let t = tsunamiWaves.length - 1; t >= 0; t--) {
         const tw = tsunamiWaves[t];
         if (combatStarted && !isPaused && !countdownState.active) {
+          tickProjectileCooldowns(tw);
           tw.x += tw.vx;
           tw.life--;
         }
@@ -5530,13 +5571,11 @@
         ctx.stroke();
         ctx.restore();
 
-        if (boss.active && Math.abs(tw.x - (boss.x + 35)) < 55) {
+        if (boss.active && Math.abs(tw.x - (boss.x + 35)) < 55 && markAndCheckHit(tw, "boss", 15)) {
           applyDamageToTarget(boss, 3, "#38bdf8");
-          tsunamiWaves.splice(t, 1);
-          continue;
         }
         enemies.forEach(mob => {
-          if (mob.active && Math.abs(tw.x - mob.x) < 48) {
+          if (mob.active && Math.abs(tw.x - mob.x) < 48 && markAndCheckHit(tw, "e_" + mob.uid, 15)) {
             applyDamageToTarget(mob, 3, "#38bdf8");
           }
         });
@@ -5665,6 +5704,7 @@
       for (let lw = lavaWaves.length - 1; lw >= 0; lw--) {
         const lava = lavaWaves[lw];
         if (combatStarted && !isPaused && !countdownState.active) {
+          tickProjectileCooldowns(lava);
           lava.x += lava.vx;
           lava.life--;
         }
@@ -5688,13 +5728,11 @@
         ctx.restore();
 
         if (lava.friendly) {
-          if (boss.active && Math.abs(lava.x - (boss.x + 35)) < 50) {
+          if (boss.active && Math.abs(lava.x - (boss.x + 35)) < 50 && markAndCheckHit(lava, "boss", 14)) {
             applyDamageToTarget(boss, lava.dmg || 4, lava.goldAlloy ? "#facc15" : "#f97316");
-            lavaWaves.splice(lw, 1);
-            continue;
           }
           enemies.forEach(mob => {
-            if (mob.active && Math.abs(lava.x - mob.x) < 42) {
+            if (mob.active && Math.abs(lava.x - mob.x) < 42 && markAndCheckHit(lava, "e_" + mob.uid, 14)) {
               applyDamageToTarget(mob, lava.dmg || 4, lava.goldAlloy ? "#facc15" : "#f97316");
             }
           });
@@ -5762,6 +5800,7 @@
       for (let w = waveSurges.length - 1; w >= 0; w--) {
         const ws = waveSurges[w];
         if (combatStarted && !isPaused && !countdownState.active) {
+          tickProjectileCooldowns(ws);
           ws.x += ws.vx;
           ws.life--;
         }
@@ -5772,12 +5811,24 @@
         ctx.arc(ws.x, ws.y, 34, -0.9, 0.9);
         ctx.stroke();
         ctx.restore();
+
+        if (ws.friendly) {
+          if (boss.active && Math.abs(ws.x - (boss.x + 35)) < 46 && markAndCheckHit(ws, "boss", 16)) {
+            applyDamageToTarget(boss, ws.dmg || 3, ws.color || "#a855f7");
+          }
+          enemies.forEach(mob => {
+            if (mob.active && Math.abs(ws.x - mob.x) < 38 && markAndCheckHit(ws, "e_" + mob.uid, 16)) {
+              applyDamageToTarget(mob, ws.dmg || 3, ws.color || "#a855f7");
+            }
+          });
+        }
         if (ws.x > canvas.width + 60 || ws.x < -60 || ws.life <= 0) waveSurges.splice(w, 1);
       }
 
       for (let r = lionRoars.length - 1; r >= 0; r--) {
         const lr = lionRoars[r];
         if (combatStarted && !isPaused && !countdownState.active) {
+          tickProjectileCooldowns(lr);
           lr.x += lr.vx;
           lr.life--;
         }
@@ -5793,11 +5844,11 @@
         }
         ctx.restore();
 
-        if (boss.active && Math.abs(lr.x - (boss.x + 35)) < 65) {
+        if (boss.active && Math.abs(lr.x - (boss.x + 35)) < 65 && markAndCheckHit(lr, "boss", 16)) {
           applyDamageToTarget(boss, 3, "#f59e0b");
         }
         enemies.forEach(mob => {
-          if (mob.active && Math.abs(lr.x - mob.x) < 65) {
+          if (mob.active && Math.abs(lr.x - mob.x) < 65 && markAndCheckHit(lr, "e_" + mob.uid, 16)) {
             applyDamageToTarget(mob, 3, "#f59e0b");
           }
         });
